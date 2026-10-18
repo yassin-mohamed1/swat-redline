@@ -18,47 +18,36 @@ export default async function handler(req, res) {
     SESSION_SECRET: sessionSecret,
   } = process.env;
 
-  if (
-    !clientId ||
-    !clientSecret ||
-    !redirectUri ||
-    !guildId ||
-    !roleId ||
-    !sessionSecret
-  ) {
+  if (!clientId || !clientSecret || !redirectUri ||
+      !guildId || !roleId || !sessionSecret) {
     return res.status(500).send("Authentication configuration is incomplete.");
   }
 
-  const cookieMap = Object.fromEntries(
+  const cookies = Object.fromEntries(
     (req.headers.cookie || "")
       .split(";")
       .map((item) => item.trim())
       .filter(Boolean)
       .map((item) => {
-        const index = item.indexOf("=");
-        return [
-          item.slice(0, index),
-          decodeURIComponent(item.slice(index + 1)),
-        ];
+        const i = item.indexOf("=");
+        return [item.slice(0, i), item.slice(i + 1)];
       })
   );
 
   const { code, error, state } = req.query;
 
   if (error) {
-    res.setHeader("Set-Cookie", [
-      "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
-    ]);
+    res.setHeader("Set-Cookie",
+      "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");
     return res.status(400).send("Discord login was cancelled.");
   }
 
-  // Start Discord OAuth login.
+  // Start login
   if (!code) {
     const oauthState = crypto.randomBytes(32).toString("hex");
 
-    res.setHeader("Set-Cookie", [
-      `discord_oauth_state=${oauthState}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
-    ]);
+    res.setHeader("Set-Cookie",
+      `discord_oauth_state=${oauthState}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -74,23 +63,26 @@ export default async function handler(req, res) {
     );
   }
 
-  // Protect the OAuth callback against forged requests.
-  const savedState = cookieMap.discord_oauth_state;
+  // Validate OAuth state before exchanging the code
+  const savedState = cookies.discord_oauth_state;
+  const stateBuffer = Buffer.from(typeof state === "string" ? state : "");
+  const savedBuffer = Buffer.from(savedState || "");
+
+  if (
+    !stateBuffer.length ||
+    !savedBuffer.length ||
+    stateBuffer.length !== savedBuffer.length ||
+    !crypto.timingSafeEqual(stateBuffer, savedBuffer)
+  ) {
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(400).send(
+      "Login verification failed. Please open the website and start a fresh login."
+    );
+  }
 
   res.setHeader("Set-Cookie", [
     "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
   ]);
-
-  const stateBuffer = typeof state === "string" ? Buffer.from(state) : Buffer.alloc(0);
-  const savedStateBuffer = savedState ? Buffer.from(savedState) : Buffer.alloc(0);
-  if (
-    !stateBuffer.length ||
-    !savedStateBuffer.length ||
-    stateBuffer.length !== savedStateBuffer.length ||
-    !crypto.timingSafeEqual(stateBuffer, savedStateBuffer)
-  ) {
-    return res.status(400).send("Invalid login state. Please try again.");
-  }
 
   try {
     const tokenResponse = await fetch(
@@ -115,23 +107,19 @@ export default async function handler(req, res) {
     }
 
     const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-
-    if (!accessToken) {
+    if (!tokenData.access_token) {
       return res.status(401).send("Discord did not return an access token.");
     }
 
-    const discordHeaders = {
-      Authorization: `Bearer ${accessToken}`,
+    const headers = {
+      Authorization: `Bearer ${tokenData.access_token}`,
     };
 
     const [userResponse, memberResponse] = await Promise.all([
-      fetch("https://discord.com/api/v10/users/@me", {
-        headers: discordHeaders,
-      }),
+      fetch("https://discord.com/api/v10/users/@me", { headers }),
       fetch(
         `https://discord.com/api/v10/users/@me/guilds/${guildId}/member`,
-        { headers: discordHeaders }
+        { headers }
       ),
     ]);
 
@@ -154,15 +142,12 @@ export default async function handler(req, res) {
       return res.status(403).send("You do not have the required Discord role.");
     }
 
-    // Create a signed session cookie. Never put Discord tokens in the cookie.
-    const session = Buffer.from(
-      JSON.stringify({
-        id: user.id,
-        username: user.username,
-        roleId,
-        issuedAt: Date.now(),
-      })
-    ).toString("base64url");
+    const session = Buffer.from(JSON.stringify({
+      id: user.id,
+      username: user.username,
+      roleId,
+      issuedAt: Date.now(),
+    })).toString("base64url");
 
     const signature = crypto
       .createHmac("sha256", sessionSecret)
