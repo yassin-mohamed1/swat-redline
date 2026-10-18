@@ -81,13 +81,13 @@ export default async function handler(req, res) {
     "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
   ]);
 
+  const stateBuffer = typeof state === "string" ? Buffer.from(state) : Buffer.alloc(0);
+  const savedStateBuffer = savedState ? Buffer.from(savedState) : Buffer.alloc(0);
   if (
-    typeof state !== "string" ||
-    !savedState ||
-    !crypto.timingSafeEqual(
-      Buffer.from(state),
-      Buffer.from(savedState)
-    )
+    !stateBuffer.length ||
+    !savedStateBuffer.length ||
+    stateBuffer.length !== savedStateBuffer.length ||
+    !crypto.timingSafeEqual(stateBuffer, savedStateBuffer)
   ) {
     return res.status(400).send("Invalid login state. Please try again.");
   }
