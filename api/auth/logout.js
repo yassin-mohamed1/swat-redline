@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 export default function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") {
