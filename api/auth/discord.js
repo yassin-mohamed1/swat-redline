@@ -60,7 +60,7 @@ export default async function handler(req, res) {
       const supabaseUrl = process.env.SUPABASE_URL;
       const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (supabaseUrl && supabaseSecretKey) {
-        const supabaseBaseUrl = supabaseUrl.replace(/\\/+$/, "");
+        const supabaseBaseUrl = supabaseUrl.replace(/\/+$/, "");
         const supabaseHeaders = {
           apikey: supabaseSecretKey,
           "Content-Type": "application/json",
