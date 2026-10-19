@@ -13,7 +13,6 @@ function session(req) {
   let u; try { u = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return null; }
   const owner = Boolean(process.env.DISCORD_OWNER_ID && u.id === process.env.DISCORD_OWNER_ID);
   if (!u.id || !u.issuedAt || Date.now() - u.issuedAt > 8 * 60 * 60 * 1000 || u.issuedAt > Date.now() + 60000 || (!owner && u.roleId !== process.env.DISCORD_ROLE_ID)) return null;
-  if (!u.id || !u.issuedAt || Date.now() - u.issuedAt > 8 * 60 * 60 * 1000 || u.issuedAt > Date.now() + 60000 || (!owner && u.roleId !== process.env.DISCORD_ROLE_ID)) return null;
   return { ...u, isOwner: owner };
 }
 export default async function handler(req, res) {
