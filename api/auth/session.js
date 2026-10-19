@@ -41,6 +41,31 @@ export default async function handler(req, res) {
       }
     } catch {}
   }
+  // Record this authenticated session once; the unique index prevents page refreshes
+  // from creating duplicate login events for the same signed session.
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const base = process.env.SUPABASE_URL.replace(/\/+$/, "");
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const event = await fetch(base + "/rest/v1/staff_login_events?on_conflict=discord_user_id,session_issued_at,event_type", {
+        method: "POST",
+        headers: {
+          apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json",
+          Prefer: "resolution=ignore-duplicates,return=minimal"
+        },
+        body: JSON.stringify({
+          discord_user_id: user.id,
+          display_name: user.displayName || user.username,
+          event_type: "login",
+          session_issued_at: user.issuedAt,
+          occurred_at: new Date(user.issuedAt).toISOString()
+        })
+      });
+      if (!event.ok) console.error("Staff login event failed:", event.status, (await event.text()).slice(0, 250));
+    } catch (eventError) {
+      console.error("Staff login event failed:", eventError instanceof Error ? eventError.message : "unknown");
+    }
+  }
   return res.status(200).json({ authenticated: true, user: {
     id: user.id, username: user.username, displayName: user.displayName || user.username, avatar: user.avatar || null, isOwner
   }});
