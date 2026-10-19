@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   const {
     DISCORD_CLIENT_ID: clientId, DISCORD_CLIENT_SECRET: clientSecret,
     DISCORD_REDIRECT_URI: redirectUri, DISCORD_GUILD_ID: guildId,
-    DISCORD_ROLE_ID: roleId, SESSION_SECRET: sessionSecret,
+    DISCORD_ROLE_ID: roleId, DISCORD_OWNER_ID: ownerId, SESSION_SECRET: sessionSecret,
   } = process.env;
   if (!clientId || !clientSecret || !redirectUri || !guildId || !roleId || !sessionSecret) return res.status(500).send("Authentication configuration is incomplete.");
   const cookies = Object.fromEntries((req.headers.cookie || "").split(";").map((item) => item.trim()).filter(Boolean).map((item) => {
@@ -48,7 +48,8 @@ export default async function handler(req, res) {
     if (!memberResponse.ok) return res.status(403).send("Could not verify your server membership.");
     const user = await userResponse.json();
     const member = await memberResponse.json();
-    if (!Array.isArray(member.roles) || !member.roles.includes(roleId)) return res.status(403).send("You do not have the required Discord role.");
+    const isOwner = Boolean(ownerId && user.id === ownerId);
+    if (!isOwner && (!Array.isArray(member.roles) || !member.roles.includes(roleId))) return res.status(403).send("You do not have the required Discord role.");
     const displayName = user.global_name || user.username || member.nick || "Discord user";
     const avatar = user.avatar
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=128`
@@ -106,7 +107,7 @@ export default async function handler(req, res) {
       console.error("Staff profile sync failed:", profileError instanceof Error ? profileError.message : "Unknown error");
     }
 
-    const session = Buffer.from(JSON.stringify({ id: user.id, username: user.username, displayName, avatar, roleId, issuedAt: Date.now() })).toString("base64url");
+    const session = Buffer.from(JSON.stringify({ id: user.id, username: user.username, displayName, avatar, roleId, isOwner, issuedAt: Date.now() })).toString("base64url");
     const signature = crypto.createHmac("sha256", sessionSecret).update(session).digest("base64url");
     res.setHeader("Set-Cookie", [`swat_session=${session}.${signature}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=28800`]);
     return res.redirect(302, "/");
