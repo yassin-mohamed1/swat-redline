@@ -40,12 +40,13 @@ export default async function handler(req, res) {
       headers: { apikey: key, Authorization: "Bearer " + key }
     });
     if (!response.ok) {
-      console.error("Staff activity read failed:", response.status, (await response.text()).slice(0, 400));
+      const detail = (await response.text()).slice(0, 500);
+      console.error("Staff activity read failed:", response.status, detail);
       return res.status(502).json({
         error: "Could not load login activity.",
         diagnostics: {
           status: response.status,
-          databaseError: (await Promise.resolve("See server logs for the PostgREST response.")),
+          databaseError: detail,
           hint: "Verify public.staff_login_events exists in the same Supabase project as SUPABASE_URL."
         }
       });
