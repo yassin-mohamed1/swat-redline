@@ -13,12 +13,12 @@ export default async function handler(req, res) {
   }));
   const { code, error, state } = req.query;
   if (error) {
-    res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");
+    res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0");
     return res.status(400).send("Discord login was cancelled.");
   }
   if (!code) {
     const oauthState = crypto.randomBytes(32).toString("hex");
-    res.setHeader("Set-Cookie", `discord_oauth_state=${oauthState}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+    res.setHeader("Set-Cookie", `discord_oauth_state=${oauthState}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=600`);
     const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: "code", scope: "identify guilds.members.read", state: oauthState });
     return res.redirect(302, `https://discord.com/oauth2/authorize?${params.toString()}`);
   }
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(400).send("Login verification failed. Please open the website and start a fresh login.");
   }
-  res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");
+  res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0");
   try {
     const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
 
     const session = Buffer.from(JSON.stringify({ id: user.id, username: user.username, displayName, avatar, roleId, issuedAt: Date.now() })).toString("base64url");
     const signature = crypto.createHmac("sha256", sessionSecret).update(session).digest("base64url");
-    res.setHeader("Set-Cookie", [`swat_session=${session}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800`]);
+    res.setHeader("Set-Cookie", [`swat_session=${session}.${signature}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=28800`]);
     return res.redirect(302, "/");
   } catch {
     return res.status(500).send("Discord authentication failed. Please try again.");
