@@ -93,7 +93,7 @@ export default async function handler(req, res) {
       if (!data || typeof data !== "object" || Array.isArray(data)) {
         return res.status(400).json({ error: "A valid data object is required." });
       }
-      const allowed = ["people", "audit", "tasks", "operations", "reports", "rules"];
+      const allowed = ["people", "audit", "tasks", "operations", "reports", "rules", "dailyCommands"];
       const safeData = {};
       for (const key of allowed) {
         if (Array.isArray(data[key])) safeData[key] = data[key];
