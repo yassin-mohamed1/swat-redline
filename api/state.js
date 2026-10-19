@@ -1,0 +1,98 @@
+import crypto from "node:crypto";
+
+function cookies(header = "") {
+  const out = {};
+  for (const part of header.split(";")) {
+    const i = part.indexOf("=");
+    if (i < 0) continue;
+    const key = part.slice(0, i).trim();
+    try { out[key] = decodeURIComponent(part.slice(i + 1).trim()); } catch {}
+  }
+  return out;
+}
+
+function readSession(req) {
+  const secret = process.env.SESSION_SECRET;
+  const raw = cookies(req.headers.cookie || "").swat_session;
+  if (!secret || !raw || !raw.includes(".")) return null;
+
+  const split = raw.lastIndexOf(".");
+  const payload = raw.slice(0, split);
+  const signature = raw.slice(split + 1);
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest();
+  const received = Buffer.from(signature, "base64url");
+  if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) return null;
+
+  let user;
+  try { user = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return null; }
+  if (!user.id || !user.username || !user.issuedAt ||
+      Date.now() - user.issuedAt > 8 * 60 * 60 * 1000 ||
+      user.issuedAt > Date.now() + 60_000 ||
+      user.roleId !== process.env.DISCORD_ROLE_ID) return null;
+  return user;
+}
+
+export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+  const user = readSession(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    return res.status(503).json({ error: "Shared storage is not configured yet." });
+  }
+
+  const endpoint = supabaseUrl.replace(/\/$/, "") + "/rest/v1/app_state?id=eq.main";
+  const headers = {
+    apikey: serviceKey,
+    Authorization: "Bearer " + serviceKey,
+    "Content-Type": "application/json",
+  };
+
+  try {
+    if (req.method === "GET") {
+      const response = await fetch(endpoint + "&select=data,updated_at,updated_by", {
+        headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
+      });
+      if (!response.ok) return res.status(502).json({ error: "Could not read shared data." });
+      const rows = await response.json();
+      if (!rows.length) return res.status(200).json({ data: null, updated_at: null });
+      return res.status(200).json(rows[0]);
+    }
+
+    if (req.method === "PUT") {
+      const data = req.body?.data;
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        return res.status(400).json({ error: "A valid data object is required." });
+      }
+      const allowed = ["people", "audit", "tasks", "operations", "reports", "rules"];
+      const safeData = {};
+      for (const key of allowed) {
+        if (Array.isArray(data[key])) safeData[key] = data[key];
+      }
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          ...headers,
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify({
+          id: "main",
+          data: safeData,
+          updated_at: new Date().toISOString(),
+          updated_by: user.username,
+        }),
+      });
+      if (!response.ok) return res.status(502).json({ error: "Could not save shared data." });
+      return res.status(200).json({ ok: true, updated_by: user.username });
+    }
+
+    res.setHeader("Allow", "GET, PUT");
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch {
+    return res.status(500).json({ error: "Shared storage request failed." });
+  }
+}
