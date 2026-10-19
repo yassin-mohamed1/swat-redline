@@ -43,7 +43,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const q = new URLSearchParams({
-        select: "discord_user_id,display_name,avatar_url,is_active,is_banned,last_seen,last_login,login_count,created_at,updated_at",
+        select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned,last_seen,last_login,login_count,created_at,updated_at",
         order: "last_seen.desc.nullslast"
       });
       const response = await supabase(url, key, "staff_profiles?" + q);
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
       // Backward-compatible fallback: allow the personnel directory to load
       // even before the activity-tracking migration has been applied.
       const fallbackQuery = new URLSearchParams({
-        select: "discord_user_id,display_name,avatar_url,is_active,created_at,updated_at",
+        select: "discord_user_id,display_name,username,avatar_url,is_active,created_at,updated_at",
         order: "updated_at.desc",
       });
       const fallback = await supabase(url, key, "staff_profiles?" + fallbackQuery);
