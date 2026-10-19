@@ -66,7 +66,10 @@ export default async function handler(req, res) {
           apikey: supabaseSecretKey,
           "Content-Type": "application/json",
         };
-        const profileQuery = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "id" });
+        const profileQuery = new URLSearchParams({
+          discord_user_id: `eq.${user.id}`,
+          select: "id,is_banned,is_active,login_count"
+        });
         const profileLookup = await fetch(
           `${supabaseBaseUrl}/rest/v1/staff_profiles?${profileQuery.toString()}`,
           { headers: supabaseHeaders }
@@ -75,11 +78,24 @@ export default async function handler(req, res) {
           console.error("Staff profile lookup failed:", profileLookup.status, (await profileLookup.text()).slice(0, 300));
         } else {
           const existingProfiles = await profileLookup.json();
+          const isProtectedOwner = Boolean(ownerId && user.id === ownerId);
+          const existingProfile = existingProfiles[0];
+          if (!isProtectedOwner && existingProfile && (existingProfile.is_banned || existingProfile.is_active === false)) {
+            return res.status(403).send(existingProfile.is_banned
+              ? "This Discord account is banned from the portal."
+              : "This Discord account has been deactivated by the owner.");
+          }
+          const now = new Date().toISOString();
           const profile = {
             discord_user_id: user.id,
             display_name: displayName,
             avatar_url: avatar,
-            updated_at: new Date().toISOString(),
+            updated_at: now,
+            last_seen: now,
+            last_login: now,
+            login_count: Number(existingProfile?.login_count || 0) + 1,
+            is_active: true,
+            is_banned: false,
           };
           const profileWrite = existingProfiles.length
             ? await fetch(
@@ -87,7 +103,7 @@ export default async function handler(req, res) {
                 {
                   method: "PATCH",
                   headers: { ...supabaseHeaders, Prefer: "return=minimal" },
-                  body: JSON.stringify({ display_name: displayName, avatar_url: avatar, updated_at: profile.updated_at }),
+                  body: JSON.stringify(profile),
                 }
               )
             : await fetch(
@@ -95,7 +111,7 @@ export default async function handler(req, res) {
                 {
                   method: "POST",
                   headers: { ...supabaseHeaders, Prefer: "return=minimal" },
-                  body: JSON.stringify({ ...profile, is_active: true }),
+                  body: JSON.stringify({ ...profile, created_at: now }),
                 }
               );
           if (!profileWrite.ok) {
