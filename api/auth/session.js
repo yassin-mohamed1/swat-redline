@@ -9,7 +9,7 @@ function parseCookies(header = "") {
   }
   return result;
 }
-export default function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ authenticated: false }); }
@@ -26,6 +26,20 @@ export default function handler(req, res) {
   if (!user.id || !user.username || !user.issuedAt || Date.now() - user.issuedAt > 8 * 60 * 60 * 1000 ||
       user.issuedAt > Date.now() + 60_000 || (!isOwner && user.roleId !== process.env.DISCORD_ROLE_ID)) {
     return res.status(401).json({ authenticated: false });
+  }
+  if (!isOwner && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const base = process.env.SUPABASE_URL.replace(/\\/+$/, "");
+      const query = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "is_active,is_banned" });
+      const check = await fetch(`${base}/rest/v1/staff_profiles?${query.toString()}`, {
+        headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: "Bearer " + process.env.SUPABASE_SERVICE_ROLE_KEY }
+      });
+      if (check.ok) {
+        const rows = await check.json();
+        if (rows[0] && (rows[0].is_banned || rows[0].is_active === false))
+          return res.status(401).json({ authenticated: false, error: "Account deactivated" });
+      }
+    } catch {}
   }
   return res.status(200).json({ authenticated: true, user: {
     id: user.id, username: user.username, displayName: user.displayName || user.username, avatar: user.avatar || null, isOwner
