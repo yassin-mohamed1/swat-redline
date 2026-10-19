@@ -111,24 +111,24 @@ async function renderPersonnel(){
   renderLoginActivity();
  try{
   const r=await fetch('/api/admin/members',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error(d.error||'تعذر تحميل الأفراد');
+  if(!r.ok){const err=new Error(d.error||'تعذر تحميل الأفراد');err.diagnostics=d.diagnostics;throw err;}
   const members=d.members||[];
   body.innerHTML=members.map(m=>{
    const owner=m.discord_user_id===d.ownerId,status=owner?'المالك المحمي':m.is_banned?'محظور':m.is_active?'نشط':'موقوف',tag=owner?'green':m.is_banned?'red':m.is_active?'green':'gray';
    const actions=owner?'<span class="muted">لا يمكن حظره أو فصله</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button>`;
    return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<b>${adminEscape(m.display_name||'Discord user')}</b></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
   }).join('')||'<tr><td colspan="6"><div class="empty">لا توجد حسابات مسجلة حتى الآن.</div></td></tr>';
- }catch(e){body.innerHTML=`<tr><td colspan="6">${adminEscape(e.message||'تعذر تحميل القائمة')}</td></tr>`;}
+ }catch(e){const detail=e.diagnostics?'<div style="margin-top:6px;font-size:11px;direction:ltr;text-align:left;white-space:normal;overflow-wrap:anywhere">'+adminEscape(JSON.stringify(e.diagnostics))+'</div>':'';body.innerHTML=`<tr><td colspan="6">${adminEscape(e.message||'تعذر تحميل القائمة')}${detail}</td></tr>`;}
 }
 async function renderLoginActivity(){
  const body=document.getElementById('loginActivityRows');if(!body||!currentIsOwner)return;
  body.innerHTML='<tr><td colspan="5">جاري تحميل السجل...</td></tr>';
  try{
   const r=await fetch('/api/admin/activity',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error(d.error||'تعذر تحميل سجل الدخول والخروج');
+  if(!r.ok){const err=new Error(d.error||'تعذر تحميل سجل الدخول والخروج');err.diagnostics=d.diagnostics;throw err;}
   const events=d.events||[];
   body.innerHTML=events.map(e=>`<tr><td>${adminEscape(fmtAdminDate(e.occurred_at))}</td><td>${adminEscape(e.display_name||'Discord user')}</td><td><code>${adminEscape(e.discord_user_id)}</code></td><td><span class="tag ${e.event_type==='login'?'green':'gray'}">${e.event_type==='login'?'تسجيل الدخول':'تسجيل الخروج'}</span></td><td><code>${adminEscape(e.session_issued_at||'—')}</code></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">لا توجد أحداث دخول أو خروج مسجلة حتى الآن.</div></td></tr>';
- }catch(e){body.innerHTML=`<tr><td colspan="5">${adminEscape(e.message||'تعذر تحميل سجل الدخول والخروج')}</td></tr>`;}
+ }catch(e){const detail=e.diagnostics?'<div style="margin-top:6px;font-size:11px;direction:ltr;text-align:left;white-space:normal;overflow-wrap:anywhere">'+adminEscape(JSON.stringify(e.diagnostics))+'</div>':'';body.innerHTML=`<tr><td colspan="5">${adminEscape(e.message||'تعذر تحميل سجل الدخول والخروج')}${detail}</td></tr>`;}
 }
 async function memberAction(id,action){
  const labels={ban:'حظر هذا الحساب',unban:'رفع الحظر عن هذا الحساب',deactivate:'فصل هذا الحساب من الموقع',activate:'إعادة تفعيل هذا الحساب'};
