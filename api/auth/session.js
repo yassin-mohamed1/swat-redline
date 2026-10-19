@@ -22,11 +22,12 @@ export default function handler(req, res) {
   if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) return res.status(401).json({ authenticated: false });
   let user;
   try { user = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return res.status(401).json({ authenticated: false }); }
+  const isOwner = Boolean(process.env.DISCORD_OWNER_ID && user.id === process.env.DISCORD_OWNER_ID);
   if (!user.id || !user.username || !user.issuedAt || Date.now() - user.issuedAt > 8 * 60 * 60 * 1000 ||
-      user.issuedAt > Date.now() + 60_000 || user.roleId !== process.env.DISCORD_ROLE_ID) {
+      user.issuedAt > Date.now() + 60_000 || (!isOwner && user.roleId !== process.env.DISCORD_ROLE_ID)) {
     return res.status(401).json({ authenticated: false });
   }
   return res.status(200).json({ authenticated: true, user: {
-    id: user.id, username: user.username, displayName: user.displayName || user.username, avatar: user.avatar || null
+    id: user.id, username: user.username, displayName: user.displayName || user.username, avatar: user.avatar || null, isOwner
   }});
 }
