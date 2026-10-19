@@ -18,6 +18,7 @@ create table if not exists public.staff_profiles (
 alter table public.staff_profiles
   add column if not exists discord_user_id text,
   add column if not exists display_name text,
+  add column if not exists username text,
   add column if not exists avatar_url text,
   add column if not exists is_active boolean not null default true,
   add column if not exists is_banned boolean not null default false,
@@ -59,6 +60,8 @@ alter table public.staff_login_events enable row level security;
 
 create unique index if not exists staff_login_events_session_event_uidx
   on public.staff_login_events (discord_user_id, session_issued_at, event_type);
+
+alter table public.staff_profiles add column if not exists username text;
 
 -- Explicit server-side permissions for the Vercel service-role API.
 grant usage on schema public to service_role;
