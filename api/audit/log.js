@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   const user = getSession(req);
   if (!user) return res.status(401).json({ error: "Authentication required" });
 
-  const url = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return res.status(503).json({ error: "Database is not configured" });
 
