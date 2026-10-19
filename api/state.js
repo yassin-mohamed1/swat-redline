@@ -56,7 +56,7 @@ export default async function handler(req, res) {
   if (!user.isOwner) {
     try {
       const profileQuery = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "is_active,is_banned" });
-      const profileResponse = await fetch(supabaseUrl.replace(/\\/+$/, "") + "/rest/v1/staff_profiles?" + profileQuery.toString(), {
+      const profileResponse = await fetch(supabaseUrl.replace(/\/+$/, "") + "/rest/v1/staff_profiles?" + profileQuery.toString(), {
         headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey }
       });
       if (profileResponse.ok) {
