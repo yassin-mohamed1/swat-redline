@@ -30,7 +30,7 @@ function readSession(req) {
       Date.now() - user.issuedAt > 8 * 60 * 60 * 1000 ||
       user.issuedAt > Date.now() + 60_000 ||
       (!isOwner && user.roleId !== process.env.DISCORD_ROLE_ID)) return null;
-  return user;
+  return { ...user, isOwner };
 }
 
 async function logSupabaseFailure(operation, response) {
@@ -51,6 +51,20 @@ export default async function handler(req, res) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) {
     return res.status(503).json({ error: "Shared storage is not configured yet." });
+  }
+
+  if (!user.isOwner) {
+    try {
+      const profileQuery = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "is_active,is_banned" });
+      const profileResponse = await fetch(supabaseUrl.replace(/\\/+$/, "") + "/rest/v1/staff_profiles?" + profileQuery.toString(), {
+        headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey }
+      });
+      if (profileResponse.ok) {
+        const profiles = await profileResponse.json();
+        if (profiles[0] && (profiles[0].is_banned || profiles[0].is_active === false))
+          return res.status(403).json({ error: "Account deactivated" });
+      }
+    } catch {}
   }
 
   const endpoint = supabaseUrl.replace(/\/$/, "") + "/rest/v1/app_state";
