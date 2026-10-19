@@ -147,7 +147,7 @@ export default async function handler(req, res) {
         const eventResponse = await fetch(eventUrl.replace(new RegExp("/+$"), "") + "/rest/v1/staff_login_events", {
           method: "POST",
           headers: { apikey: eventKey, Authorization: "Bearer " + eventKey, "Content-Type": "application/json", Prefer: "return=minimal" },
-          body: JSON.stringify({ discord_user_id: user.id, display_name: displayName, username: user.username, event_type: "login", session_issued_at: Date.now(), occurred_at: new Date().toISOString() })
+          body: JSON.stringify({ discord_user_id: user.id, display_name: displayName, event_type: "login", session_issued_at: Date.now(), occurred_at: new Date().toISOString() })
         });
         if (!eventResponse.ok) console.error("Staff login event save failed:", eventResponse.status, (await eventResponse.text()).slice(0, 300));
       }
