@@ -49,10 +49,69 @@ export default async function handler(req, res) {
     const user = await userResponse.json();
     const member = await memberResponse.json();
     if (!Array.isArray(member.roles) || !member.roles.includes(roleId)) return res.status(403).send("You do not have the required Discord role.");
-    const displayName = user.global_name || member.nick || user.username || "Discord user";
+    // Prefer the member nickname shown inside the S.W.A.T. REDLINE Discord server.
+    const displayName = member.nick || user.global_name || user.username || "Discord user";
     const avatar = user.avatar
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=128`
       : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(user.id) >> 22n) % 6}.png`;
+
+    // Optional until the server-side Supabase secrets are configured in Vercel.
+    // Never expose SUPABASE_SERVICE_ROLE_KEY to the browser.
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl || supabaseServiceRoleKey) {
+      if (!supabaseUrl || !supabaseServiceRoleKey) {
+        return res.status(500).send("Supabase configuration is incomplete.");
+      }
+      const supabaseHeaders = {
+        apikey: supabaseServiceRoleKey,
+        Authorization: `Bearer ${supabaseServiceRoleKey}`,
+        "Content-Type": "application/json",
+      };
+      const profileQuery = new URLSearchParams({
+        discord_user_id: `eq.${user.id}`,
+        select: "id",
+      });
+      const profileLookup = await fetch(
+        `${supabaseUrl.replace(/\\/$/, "")}/rest/v1/staff_profiles?${profileQuery.toString()}`,
+        { headers: supabaseHeaders }
+      );
+      if (!profileLookup.ok) {
+        return res.status(502).send("Could not read the staff profile from Supabase.");
+      }
+      const existingProfiles = await profileLookup.json();
+      const profile = {
+        discord_user_id: user.id,
+        display_name: displayName,
+        avatar_url: avatar,
+        updated_at: new Date().toISOString(),
+      };
+      const profileWrite = existingProfiles.length
+        ? await fetch(
+            `${supabaseUrl.replace(/\\/$/, "")}/rest/v1/staff_profiles?discord_user_id=eq.${user.id}`,
+            {
+              method: "PATCH",
+              headers: { ...supabaseHeaders, Prefer: "return=minimal" },
+              body: JSON.stringify({
+                display_name: displayName,
+                avatar_url: avatar,
+                updated_at: profile.updated_at,
+              }),
+            }
+          )
+        : await fetch(
+            `${supabaseUrl.replace(/\\/$/, "")}/rest/v1/staff_profiles`,
+            {
+              method: "POST",
+              headers: { ...supabaseHeaders, Prefer: "return=minimal" },
+              body: JSON.stringify({ ...profile, is_active: true }),
+            }
+          );
+      if (!profileWrite.ok) {
+        return res.status(502).send("Could not save the staff profile to Supabase.");
+      }
+    }
+
     const session = Buffer.from(JSON.stringify({ id: user.id, username: user.username, displayName, avatar, roleId, issuedAt: Date.now() })).toString("base64url");
     const signature = crypto.createHmac("sha256", sessionSecret).update(session).digest("base64url");
     res.setHeader("Set-Cookie", [`swat_session=${session}.${signature}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800`]);
