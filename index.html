@@ -212,7 +212,7 @@ async function initAuth(){
     gate.style.display='none';
     await pullSharedState(true);
     sharedSyncReady=true;
-    if(currentIsOwner)await loadSiteSettings();
+    loadSiteSettings();
     renderAll();
     setInterval(()=>pullSharedState(false),15000);
   }catch(e){
