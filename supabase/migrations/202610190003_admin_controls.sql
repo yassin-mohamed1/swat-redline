@@ -59,3 +59,13 @@ alter table public.staff_login_events enable row level security;
 
 create unique index if not exists staff_login_events_session_event_uidx
   on public.staff_login_events (discord_user_id, session_issued_at, event_type);
+
+-- Explicit server-side permissions for the Vercel service-role API.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table public.staff_profiles to service_role;
+grant select, insert, update, delete on table public.site_settings to service_role;
+grant select, insert, update, delete on table public.staff_login_events to service_role;
+grant usage, select on all sequences in schema public to service_role;
+
+-- Refresh PostgREST's schema cache after creating or updating these tables.
+notify pgrst, 'reload schema';
