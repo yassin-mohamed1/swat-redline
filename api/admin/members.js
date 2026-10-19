@@ -35,7 +35,7 @@ async function mergeLoginEvents(url, key, members) {
     for (const event of events) {
       const id = String(event.discord_user_id || "");
       if (!id) continue;
-      if (!byId.has(id)) byId.set(id, { discord_user_id: id, display_name: event.display_name || "Discord user", username: event.username || event.display_name || "", avatar_url: null, is_active: true, is_banned: false, last_seen: event.occurred_at || null, last_login: event.event_type === "login" ? event.occurred_at : null, login_count: 0, _eventOnly: true });
+      if (!byId.has(id)) byId.set(id, { discord_user_id: id, display_name: event.display_name || "Discord user", username: event.username || "", avatar_url: null, is_active: true, is_banned: false, last_seen: event.occurred_at || null, last_login: event.event_type === "login" ? event.occurred_at : null, login_count: 0, _eventOnly: true });
       else {
         const m = byId.get(id);
         if (event.occurred_at && (!m.last_seen || new Date(event.occurred_at) > new Date(m.last_seen))) m.last_seen = event.occurred_at;
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
       const response = await supabase(url, key, "staff_profiles?" + q);
       if (response.ok) {
         const members = await response.json();
-        const normalized = members.map((m) => ({ ...m, username: m.username || m.display_name || "", is_active: m.is_active !== false, is_banned: Boolean(m.is_banned), last_seen: m.last_seen || null, last_login: m.last_login || null, login_count: Number(m.login_count || 0) }));
+        const normalized = members.map((m) => ({ ...m, username: m.username || "", username_missing: !m.username, is_active: m.is_active !== false, is_banned: Boolean(m.is_banned), last_seen: m.last_seen || null, last_login: m.last_login || null, login_count: Number(m.login_count || 0) }));
         return send(res, 200, { members: await mergeLoginEvents(url, key, normalized), ownerId: process.env.DISCORD_OWNER_ID, migrationRequired: false });
       }
 
@@ -102,7 +102,8 @@ export default async function handler(req, res) {
       return send(res, 200, {
         members: members.map((m) => ({
           ...m,
-          username: m.username || m.display_name || "",
+          username: m.username || "",
+          username_missing: !m.username,
           is_banned: false,
           last_seen: null,
           last_login: null,
