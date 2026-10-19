@@ -54,54 +54,56 @@ export default async function handler(req, res) {
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=128`
       : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(user.id) >> 22n) % 6}.png`;
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const supabaseBaseUrl = supabaseUrl ? supabaseUrl.replace(/\/+$/, "") : "";
-    if (supabaseUrl || supabaseSecretKey) {
-      if (!supabaseUrl || !supabaseSecretKey) {
-        return res.status(500).send("Supabase configuration is incomplete.");
+    // Profile sync is best-effort: a Supabase schema/key/RLS issue must not
+    // prevent a valid Discord staff member from signing in.
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supabaseUrl && supabaseSecretKey) {
+        const supabaseBaseUrl = supabaseUrl.replace(/\\/+$/, "");
+        const supabaseHeaders = {
+          apikey: supabaseSecretKey,
+          "Content-Type": "application/json",
+        };
+        const profileQuery = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "id" });
+        const profileLookup = await fetch(
+          `${supabaseBaseUrl}/rest/v1/staff_profiles?${profileQuery.toString()}`,
+          { headers: supabaseHeaders }
+        );
+        if (!profileLookup.ok) {
+          console.error("Staff profile lookup failed:", profileLookup.status, (await profileLookup.text()).slice(0, 300));
+        } else {
+          const existingProfiles = await profileLookup.json();
+          const profile = {
+            discord_user_id: user.id,
+            display_name: displayName,
+            avatar_url: avatar,
+            updated_at: new Date().toISOString(),
+          };
+          const profileWrite = existingProfiles.length
+            ? await fetch(
+                `${supabaseBaseUrl}/rest/v1/staff_profiles?discord_user_id=eq.${user.id}`,
+                {
+                  method: "PATCH",
+                  headers: { ...supabaseHeaders, Prefer: "return=minimal" },
+                  body: JSON.stringify({ display_name: displayName, avatar_url: avatar, updated_at: profile.updated_at }),
+                }
+              )
+            : await fetch(
+                `${supabaseBaseUrl}/rest/v1/staff_profiles`,
+                {
+                  method: "POST",
+                  headers: { ...supabaseHeaders, Prefer: "return=minimal" },
+                  body: JSON.stringify({ ...profile, is_active: true }),
+                }
+              );
+          if (!profileWrite.ok) {
+            console.error("Staff profile save failed:", profileWrite.status, (await profileWrite.text()).slice(0, 300));
+          }
+        }
       }
-      // Supabase sb_secret_* keys are not JWTs. Send them in apikey only;
-      // putting one in Authorization: Bearer causes an Invalid JWT response.
-      const supabaseHeaders = {
-        apikey: supabaseSecretKey,
-        "Content-Type": "application/json",
-      };
-      const profileQuery = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "id" });
-      const profileLookup = await fetch(
-        `${supabaseBaseUrl}/rest/v1/staff_profiles?${profileQuery.toString()}`,
-        { headers: supabaseHeaders }
-      );
-      if (!profileLookup.ok) {
-        return res.status(502).send("Could not read the staff profile from Supabase.");
-      }
-      const existingProfiles = await profileLookup.json();
-      const profile = {
-        discord_user_id: user.id,
-        display_name: displayName,
-        avatar_url: avatar,
-        updated_at: new Date().toISOString(),
-      };
-      const profileWrite = existingProfiles.length
-        ? await fetch(
-            `${supabaseBaseUrl}/rest/v1/staff_profiles?discord_user_id=eq.${user.id}`,
-            {
-              method: "PATCH",
-              headers: { ...supabaseHeaders, Prefer: "return=minimal" },
-              body: JSON.stringify({ display_name: displayName, avatar_url: avatar, updated_at: profile.updated_at }),
-            }
-          )
-        : await fetch(
-            `${supabaseBaseUrl}/rest/v1/staff_profiles`,
-            {
-              method: "POST",
-              headers: { ...supabaseHeaders, Prefer: "return=minimal" },
-              body: JSON.stringify({ ...profile, is_active: true }),
-            }
-          );
-      if (!profileWrite.ok) {
-        return res.status(502).send("Could not save the staff profile to Supabase.");
-      }
+    } catch (profileError) {
+      console.error("Staff profile sync failed:", profileError instanceof Error ? profileError.message : "Unknown error");
     }
 
     const session = Buffer.from(JSON.stringify({ id: user.id, username: user.username, displayName, avatar, roleId, issuedAt: Date.now() })).toString("base64url");
