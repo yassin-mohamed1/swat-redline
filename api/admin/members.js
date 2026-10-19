@@ -25,6 +25,26 @@ function session(req) {
   return { ...user, isOwner: owner };
 }
 function send(res, status, body) { return res.status(status).json(body); }
+async function mergeLoginEvents(url, key, members) {
+  const q = new URLSearchParams({ select: "discord_user_id,display_name,event_type,occurred_at", order: "occurred_at.desc", limit: "500" });
+  try {
+    const response = await supabase(url, key, "staff_login_events?" + q);
+    if (!response.ok) return members;
+    const events = await response.json();
+    const byId = new Map(members.map((m) => [String(m.discord_user_id), m]));
+    for (const event of events) {
+      const id = String(event.discord_user_id || "");
+      if (!id) continue;
+      if (!byId.has(id)) byId.set(id, { discord_user_id: id, display_name: event.display_name || "Discord user", username: "", avatar_url: null, is_active: true, is_banned: false, last_seen: event.occurred_at || null, last_login: event.event_type === "login" ? event.occurred_at : null, login_count: 0, _eventOnly: true });
+      else {
+        const m = byId.get(id);
+        if (event.occurred_at && (!m.last_seen || new Date(event.occurred_at) > new Date(m.last_seen))) m.last_seen = event.occurred_at;
+        if (event.event_type === "login" && event.occurred_at && (!m.last_login || new Date(event.occurred_at) > new Date(m.last_login))) m.last_login = event.occurred_at;
+      }
+    }
+    return [...byId.values()].sort((a,b)=>new Date(b.last_seen||b.last_login||0)-new Date(a.last_seen||a.last_login||0));
+  } catch { return members; }
+}
 async function supabase(url, key, path, init = {}) {
   return fetch(url + "/rest/v1/" + path, { ...init, headers: {
     apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json",
@@ -49,18 +69,8 @@ export default async function handler(req, res) {
       const response = await supabase(url, key, "staff_profiles?" + q);
       if (response.ok) {
         const members = await response.json();
-        return send(res, 200, {
-          members: members.map((m) => ({
-            ...m,
-            is_active: m.is_active !== false,
-            is_banned: Boolean(m.is_banned),
-            last_seen: m.last_seen || null,
-            last_login: m.last_login || null,
-            login_count: Number(m.login_count || 0),
-          })),
-          ownerId: process.env.DISCORD_OWNER_ID,
-          migrationRequired: false,
-        });
+        const normalized = members.map((m) => ({ ...m, is_active: m.is_active !== false, is_banned: Boolean(m.is_banned), last_seen: m.last_seen || null, last_login: m.last_login || null, login_count: Number(m.login_count || 0) }));
+        return send(res, 200, { members: await mergeLoginEvents(url, key, normalized), ownerId: process.env.DISCORD_OWNER_ID, migrationRequired: false });
       }
 
       const detail = (await response.text()).slice(0, 500);
