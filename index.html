@@ -139,7 +139,7 @@ async function pullSharedState(initial=false){
       operations=Array.isArray(cloud.operations)?cloud.operations:[];
       reports=Array.isArray(cloud.reports)?cloud.reports:[];
       if(Array.isArray(cloud.rules)&&cloud.rules.length)rules=cloud.rules;
-      if(Array.isArray(cloud.dailyCommands))dailyCommands=cloud.dailyCommands;
+      if(Array.isArray(cloud.dailyCommands)){dailyCommands=cloud.dailyCommands;localStorage.setItem("redline_daily_commands",JSON.stringify(dailyCommands));}
       localStorage.setItem('redline_people',JSON.stringify(people));
       localStorage.setItem('redline_audit',JSON.stringify(audit));
       localStorage.setItem('redline_tasks',JSON.stringify(tasks));
@@ -150,6 +150,8 @@ async function pullSharedState(initial=false){
     }
     sharedUpdatedAt=result.updated_at||null;
     sharedSyncReady=true;
+    // Migrate the owner's existing local daily orders once, if the shared record predates this field.
+    if(initial&&currentIsOwner&&!Array.isArray(cloud.dailyCommands)){await pushSharedState();}
   }catch(e){console.warn('Shared sync unavailable',e);}
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function log(type,detail,ref='—'){audit.unshift({time:new Date().toISOString(),user:currentUser,type,detail,ref});audit=audit.slice(0,500);save();renderAudit();renderActivity()}function fmtTime(t){return new Date(t).toLocaleString('ar-SA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}function statusTag(p){return p.status==='arrested'?'<span class="tag green">✓ تم القبض عليه</span>':p.status==='archived'?'<span class="tag gray">مؤرشف</span>':'<span class="tag red">مطلوب</span>'}function priorityTag(p){return p.priority==='عالي'?'red':p.priority==='متوسط'?'orange':'gray'}function personCard(p){let src=p.images&&p.images[0]||'';let id=esc(p.id);let arrestButton=p.status==='wanted'?'<button class="btn primary" style="flex:1;min-width:90px" onclick="event.stopPropagation();arrestPerson(\''+id+'\')">تم القبض</button>':'<button class="btn" style="flex:1;min-width:90px" disabled>تم القبض عليه</button>';return '<article class="person" onclick="viewPerson(\''+id+'\')"><img src="'+esc(src)+'" onerror="this.style.opacity=.15;this.alt=\'لا توجد صورة\'" alt="صورة '+esc(p.name)+'"><div class="pbody">'+statusTag(p)+'<h4>'+esc(p.name)+'</h4><div class="muted">#'+id+' • '+esc(p.priority)+' الخطورة</div><div class="personFoot"><span class="tag '+priorityTag(p)+'">'+esc(p.priority)+'</span><span class="muted">'+(p.images||[]).length+' صورة</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn danger" style="flex:1;min-width:70px" onclick="event.stopPropagation();deletePerson(\''+id+'\')">حذف الملف</button>'+arrestButton+'<button class="btn" style="flex:1;min-width:70px" onclick="event.stopPropagation();editPerson(\''+id+'\')">تعديل الملف</button></div></div></article>'}
