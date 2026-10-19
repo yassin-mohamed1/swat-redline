@@ -265,7 +265,24 @@ const PORTAL_TRANSLATIONS = {
 'جارٍ تسجيل الخروج...':'Logging out...','تعذّر تسجيل الخروج، حاول مرة أخرى':'Could not log out. Please try again','Demo: هذا الملف محفوظ في تخزين المتصفح فقط. الصور الكبيرة أو الكثيرة تحتاج تخزين ملفات حقيقيًا.':'Demo: this file is stored only in this browser. Large or numerous images require real file storage.'
 };
 Object.assign(PORTAL_TRANSLATIONS,{'سجل الدخول والخروج':'Login / Logout Activity','آخر 100 حدث دخول وخروج للحسابات المسجلة':'Latest 100 login and logout events for registered accounts','↻ تحديث السجل':'↻ Refresh activity log','معرّف الجلسة':'Session ID','جاري تحميل السجل...':'Loading activity...','تسجيل الدخول':'Login','تسجيل الخروج':'Logout','لا توجد أحداث دخول أو خروج مسجلة حتى الآن.':'No login or logout events have been recorded yet.','تعذر تحميل سجل الدخول والخروج':'Could not load login/logout activity'});
-const PORTAL_ATTRIBUTE_TRANSLATIONS = {'ابحث عن اسم أو رقم ملف... ( / )':'Search by name or file ID... ( / )'};
+Object.assign(PORTAL_TRANSLATIONS,{
+'إضافة ملف مطلوب':'Add wanted file','✓ تم القبض عليه':'✓ Mark as arrested','تأكيد حذف «':'Confirm delete «','؟ سيتم حذف ارتباطه من قائمة المطلوبين والمتهمين.':'? Its links from wanted and suspect lists will also be removed.',
+'تأكيد حذف العملية ':'Confirm delete operation ','؟ سيتم تسجيل عملية الحذف.':'? This deletion will be recorded.','تأكيد حذف التقرير ':'Confirm delete report ','تأكيد حذف «':'Confirm delete «',
+'تم تحديث الحالة وحفظ السجل':'Status updated and activity saved','تمت إعادة فتح الملف':'File reopened','تمت أرشفة الملف':'File archived','تم حفظ التعديلات':'Changes saved',
+'تم حفظ الملف في النسخة التجريبية':'File saved in the prototype','تم حذف الملف من بيانات هذه النسخة التجريبية':'File deleted from this prototype',
+'لا توجد صور مرفقة':'No images attached','الصور والأدلة':'Images and evidence','تأكيد حذف القانون/التعميم: ':'Confirm delete rule/directive: ',
+'تأكيد تسجيل القبض على ':'Confirm arrest of ','هل أنت متأكد من تنفيذ: ':'Are you sure you want to: ',
+'جارٍ تحميل السجل...':'Loading activity...','تسجيل الدخول':'Login','تسجيل الخروج':'Logout'
+});
+const PORTAL_ATTRIBUTE_TRANSLATIONS = {
+'ابحث عن اسم أو رقم ملف... ( / )':'Search by name or file ID... ( / )',
+'ابحث بالاسم أو رقم الملف...':'Search by name or file ID...',
+'ابحث في النشاط...':'Search activity...',
+'مثال: Ahmed Salim':'Example: Ahmed Salim',
+'W-1024':'W-1024',
+'اكتب تفاصيل الواقعة أو القوانين ذات الصلة...':'Enter incident details or relevant rules...',
+'أي معلومات إضافية تريد حفظها...':'Any additional information to save...'
+};
 const portalTextNodes = new WeakMap(), portalAttributes = new WeakMap();
 function portalTranslateText(value){
   let text=value, trimmed=text.trim();
