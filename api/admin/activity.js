@@ -41,7 +41,14 @@ export default async function handler(req, res) {
     });
     if (!response.ok) {
       console.error("Staff activity read failed:", response.status, (await response.text()).slice(0, 400));
-      return res.status(502).json({ error: "Could not load login activity. Apply the admin controls migration." });
+      return res.status(502).json({
+        error: "Could not load login activity.",
+        diagnostics: {
+          status: response.status,
+          databaseError: (await Promise.resolve("See server logs for the PostgREST response.")),
+          hint: "Verify public.staff_login_events exists in the same Supabase project as SUPABASE_URL."
+        }
+      });
     }
     return res.status(200).json({ events: await response.json() });
   } catch (error) {
