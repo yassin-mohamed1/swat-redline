@@ -77,8 +77,15 @@ export default async function handler(req, res) {
         const fallbackDetail = (await fallback.text()).slice(0, 500);
         console.error("Admin members fallback failed:", fallback.status, fallbackDetail);
         return send(res, 502, {
-          error: "The personnel table could not be read. Verify the Supabase staff_profiles table and apply supabase/migrations/202610190003_admin_controls.sql.",
+          error: "The personnel table could not be read.",
           code: "STAFF_PROFILES_UNAVAILABLE",
+          diagnostics: {
+            primaryStatus: response.status,
+            primaryError: detail,
+            fallbackStatus: fallback.status,
+            fallbackError: fallbackDetail,
+            hint: "Check the deployed SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY, then verify public.staff_profiles exists in the same Supabase project."
+          }
         });
       }
       const members = await fallback.json();
