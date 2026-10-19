@@ -47,11 +47,53 @@ export default async function handler(req, res) {
         order: "last_seen.desc.nullslast"
       });
       const response = await supabase(url, key, "staff_profiles?" + q);
-      if (!response.ok) {
-        console.error("Admin members read failed:", response.status, (await response.text()).slice(0, 500));
-        return send(res, 502, { error: "Could not load personnel records. Check the database migration." });
+      if (response.ok) {
+        const members = await response.json();
+        return send(res, 200, {
+          members: members.map((m) => ({
+            ...m,
+            is_active: m.is_active !== false,
+            is_banned: Boolean(m.is_banned),
+            last_seen: m.last_seen || null,
+            last_login: m.last_login || null,
+            login_count: Number(m.login_count || 0),
+          })),
+          ownerId: process.env.DISCORD_OWNER_ID,
+          migrationRequired: false,
+        });
       }
-      return send(res, 200, { members: await response.json(), ownerId: process.env.DISCORD_OWNER_ID });
+
+      const detail = (await response.text()).slice(0, 500);
+      console.error("Admin members read failed:", response.status, detail);
+
+      // Backward-compatible fallback: allow the personnel directory to load
+      // even before the activity-tracking migration has been applied.
+      const fallbackQuery = new URLSearchParams({
+        select: "discord_user_id,display_name,avatar_url,is_active,created_at,updated_at",
+        order: "updated_at.desc",
+      });
+      const fallback = await supabase(url, key, "staff_profiles?" + fallbackQuery);
+      if (!fallback.ok) {
+        const fallbackDetail = (await fallback.text()).slice(0, 500);
+        console.error("Admin members fallback failed:", fallback.status, fallbackDetail);
+        return send(res, 502, {
+          error: "The personnel table could not be read. Verify the Supabase staff_profiles table and apply supabase/migrations/202610190003_admin_controls.sql.",
+          code: "STAFF_PROFILES_UNAVAILABLE",
+        });
+      }
+      const members = await fallback.json();
+      return send(res, 200, {
+        members: members.map((m) => ({
+          ...m,
+          is_banned: false,
+          last_seen: null,
+          last_login: null,
+          login_count: 0,
+        })),
+        ownerId: process.env.DISCORD_OWNER_ID,
+        migrationRequired: true,
+        warning: "Directory loaded without activity tracking. Apply the admin controls migration to enable login counts, last activity, bans, and site settings.",
+      });
     }
     if (req.method !== "PATCH") {
       res.setHeader("Allow", "GET, PATCH");
