@@ -64,11 +64,12 @@ export default async function handler(req, res) {
         const supabaseBaseUrl = supabaseUrl.replace(/\/+$/, "");
         const supabaseHeaders = {
           apikey: supabaseSecretKey,
+          Authorization: `Bearer ${supabaseSecretKey}`,
           "Content-Type": "application/json",
         };
         const profileQuery = new URLSearchParams({
           discord_user_id: `eq.${user.id}`,
-          select: "id,is_banned,is_active,login_count"
+          select: "id,is_banned,is_active,login_count,username"
         });
         const profileLookup = await fetch(
           `${supabaseBaseUrl}/rest/v1/staff_profiles?${profileQuery.toString()}`,
@@ -89,6 +90,7 @@ export default async function handler(req, res) {
           const profile = {
             discord_user_id: user.id,
             display_name: displayName,
+            username: user.username,
             avatar_url: avatar,
             updated_at: now,
             last_seen: now,
