@@ -49,6 +49,7 @@ create table if not exists public.staff_login_events (
   session_issued_at bigint,
   occurred_at timestamptz not null default now()
 );
+alter table public.staff_login_events add column if not exists session_issued_at bigint;
 create index if not exists staff_login_events_occurred_at_idx
   on public.staff_login_events (occurred_at desc);
 create index if not exists staff_login_events_discord_user_id_idx
