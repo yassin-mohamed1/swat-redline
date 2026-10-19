@@ -58,5 +58,4 @@ alter table public.staff_login_events enable row level security;
 -- No browser policies: only server APIs using the service role can access activity events.
 
 create unique index if not exists staff_login_events_session_event_uidx
-  on public.staff_login_events (discord_user_id, session_issued_at, event_type)
-  where session_issued_at is not null;
+  on public.staff_login_events (discord_user_id, session_issued_at, event_type);
