@@ -125,6 +125,21 @@ export default async function handler(req, res) {
       console.error("Staff profile sync failed:", profileError instanceof Error ? profileError.message : "Unknown error");
     }
 
+    try {
+      const eventUrl = process.env.SUPABASE_URL;
+      const eventKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (eventUrl && eventKey) {
+        const eventResponse = await fetch(eventUrl.replace(new RegExp("/+$"), "") + "/rest/v1/staff_login_events", {
+          method: "POST",
+          headers: { apikey: eventKey, Authorization: "Bearer " + eventKey, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify({ discord_user_id: user.id, display_name: displayName, event_type: "login", session_issued_at: Date.now(), occurred_at: new Date().toISOString() })
+        });
+        if (!eventResponse.ok) console.error("Staff login event save failed:", eventResponse.status, (await eventResponse.text()).slice(0, 300));
+      }
+    } catch (eventError) {
+      console.error("Staff login event save failed:", eventError instanceof Error ? eventError.message : "Unknown error");
+    }
+
     const session = Buffer.from(JSON.stringify({ id: user.id, username: user.username, displayName, avatar, roleId, isOwner, issuedAt: Date.now() })).toString("base64url");
     const signature = crypto.createHmac("sha256", sessionSecret).update(session).digest("base64url");
     res.setHeader("Set-Cookie", [`swat_session=${session}.${signature}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=28800`]);
