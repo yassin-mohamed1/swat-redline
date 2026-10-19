@@ -134,7 +134,6 @@ function applySiteSettings(){
  for(const [selector,styles] of Object.entries(siteSettings.styleOverrides||{})){try{const el=document.querySelector(selector);if(!el)continue;if(/^#[0-9a-fA-F]{6}$/.test(styles.color||''))el.style.color=styles.color;if(/^#[0-9a-fA-F]{6}$/.test(styles.backgroundColor||''))el.style.backgroundColor=styles.backgroundColor}catch{}}
 }
 async function loadSiteSettings(){
- if(!currentIsOwner)return;
  try{const r=await fetch('/api/admin/settings',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'تعذر تحميل الإعدادات');siteSettings={...siteSettings,...d.settings};siteSettings.textOverrides=siteSettings.textOverrides||{};siteSettings.styleOverrides=siteSettings.styleOverrides||{};document.getElementById('settingAccent').value=siteSettings.accentColor||'#39d69b';document.getElementById('settingBackground').value=siteSettings.backgroundColor||'#090a0c';applySiteSettings();document.getElementById('settingsStatus').textContent='تم تحميل الإعدادات المحفوظة.'}catch(e){document.getElementById('settingsStatus').textContent=e.message||'تعذر تحميل الإعدادات'}
 }
 async function saveSettingPayload(payload){const r=await fetch('/api/admin/settings',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:payload})}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'تعذر حفظ الإعدادات')}
