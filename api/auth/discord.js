@@ -59,6 +59,7 @@ export default async function handler(req, res) {
     // Never expose SUPABASE_SERVICE_ROLE_KEY to the browser.
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseBaseUrl = supabaseUrl ? supabaseUrl.replace(/\/+$/, "") : "";
     if (supabaseUrl || supabaseServiceRoleKey) {
       if (!supabaseUrl || !supabaseServiceRoleKey) {
         return res.status(500).send("Supabase configuration is incomplete.");
@@ -73,7 +74,7 @@ export default async function handler(req, res) {
         select: "id",
       });
       const profileLookup = await fetch(
-        `${supabaseUrl.replace(/\\/$/, "")}/rest/v1/staff_profiles?${profileQuery.toString()}`,
+        `${supabaseBaseUrl}/rest/v1/staff_profiles?${profileQuery.toString()}`,
         { headers: supabaseHeaders }
       );
       if (!profileLookup.ok) {
@@ -88,7 +89,7 @@ export default async function handler(req, res) {
       };
       const profileWrite = existingProfiles.length
         ? await fetch(
-            `${supabaseUrl.replace(/\\/$/, "")}/rest/v1/staff_profiles?discord_user_id=eq.${user.id}`,
+            `${supabaseBaseUrl}/rest/v1/staff_profiles?discord_user_id=eq.${user.id}`,
             {
               method: "PATCH",
               headers: { ...supabaseHeaders, Prefer: "return=minimal" },
@@ -100,7 +101,7 @@ export default async function handler(req, res) {
             }
           )
         : await fetch(
-            `${supabaseUrl.replace(/\\/$/, "")}/rest/v1/staff_profiles`,
+            `${supabaseBaseUrl}/rest/v1/staff_profiles`,
             {
               method: "POST",
               headers: { ...supabaseHeaders, Prefer: "return=minimal" },
