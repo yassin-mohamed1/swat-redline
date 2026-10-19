@@ -146,7 +146,7 @@ export default async function handler(req, res) {
       const event = events[0], now = new Date().toISOString();
       const created = await supabase(url, key, "staff_profiles", {
         method: "POST", headers: { Prefer: "return=representation" },
-        body: JSON.stringify({ discord_user_id: targetId, display_name: event.display_name || "Discord user", username: event.username || "", avatar_url: null, is_active: values.is_active ?? true, is_banned: values.is_banned ?? false, login_count: 0, last_seen: event.occurred_at || now, last_login: event.occurred_at || now, created_at: now, updated_at: now })
+        body: JSON.stringify({ discord_user_id: targetId, display_name: event.display_name || "Discord user", username: "", avatar_url: null, is_active: values.is_active ?? true, is_banned: values.is_banned ?? false, login_count: 0, last_seen: event.occurred_at || now, last_login: event.occurred_at || now, created_at: now, updated_at: now })
       });
       if (!created.ok) {
         console.error("Admin member profile creation failed:", created.status, (await created.text()).slice(0, 400));
