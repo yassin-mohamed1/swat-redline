@@ -199,7 +199,7 @@ async function initAuth(){
     const data=await response.json();
     if(!data.authenticated||!data.user) throw new Error('unauthorized');
     currentIsOwner=Boolean(data.user.isOwner);
-    if(currentIsOwner){document.getElementById('settingsNav').style.display='flex';}
+    if(currentIsOwner){document.getElementById('settingsNav').style.display='flex';}else{const personnelNav=document.querySelector('#nav button[data-page="personnel"]');if(personnelNav)personnelNav.style.display='none';}
     document.getElementById('profileName').textContent=data.user.displayName||data.user.username||'Discord user';
     const avatar=document.getElementById('profileAvatar');
     if(data.user.avatar){
