@@ -25,10 +25,11 @@ function readSession(req) {
 
   let user;
   try { user = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return null; }
+  const isOwner = Boolean(process.env.DISCORD_OWNER_ID && user.id === process.env.DISCORD_OWNER_ID);
   if (!user.id || !user.username || !user.issuedAt ||
       Date.now() - user.issuedAt > 8 * 60 * 60 * 1000 ||
       user.issuedAt > Date.now() + 60_000 ||
-      user.roleId !== process.env.DISCORD_ROLE_ID) return null;
+      (!isOwner && user.roleId !== process.env.DISCORD_ROLE_ID)) return null;
   return user;
 }
 
