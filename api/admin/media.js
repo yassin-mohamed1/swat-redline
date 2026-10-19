@@ -38,27 +38,42 @@ export default async function handler(req, res) {
     const bytes = Buffer.from(body.base64, "base64");
     if (!bytes.length || bytes.length > 2 * 1024 * 1024) return res.status(413).json({ error: "حجم الصورة يجب ألا يتجاوز 2MB." });
     const headers = { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json" };
-    const bucketUrl = base + "/storage/v1/bucket/site-media";
-    let bucket = await fetch(bucketUrl, { headers });
-    if (bucket.status === 404) {
-      bucket = await fetch(base + "/storage/v1/bucket", { method: "POST", headers, body: JSON.stringify({ id: "site-media", name: "site-media", public: true, file_size_limit: 2097152, allowed_mime_types: Object.keys(mimeToExt) }) });
-      if (!bucket.ok && bucket.status !== 409) {
-        console.error("Site media bucket creation failed:", bucket.status, (await bucket.text()).slice(0, 400));
-        return res.status(502).json({ error: "تعذر تجهيز مساحة الصور في التخزين. تأكد من إعدادات Supabase Storage." });
-      }
-    } else if (!bucket.ok) {
-      console.error("Site media bucket lookup failed:", bucket.status, (await bucket.text()).slice(0, 300));
-      return res.status(502).json({ error: "تعذر التحقق من مساحة تخزين الصور." });
-    }
+    const bucketId = "site-media";
     const objectPath = "site/" + Date.now() + "-" + crypto.randomUUID() + "." + mimeToExt[mime];
-    const upload = await fetch(base + "/storage/v1/object/site-media/" + objectPath, {
-      method: "POST",
-      headers: { apikey: key, Authorization: "Bearer " + key, "Content-Type": mime, "x-upsert": "true", "Cache-Control": "31536000" },
-      body: bytes
-    });
+    const uploadUrl = base + "/storage/v1/object/" + bucketId + "/" + objectPath;
+    const uploadHeaders = { apikey: key, Authorization: "Bearer " + key, "Content-Type": mime, "x-upsert": "true", "Cache-Control": "31536000" };
+    const uploadObject = () => fetch(uploadUrl, { method: "POST", headers: uploadHeaders, body: bytes });
+
+    // Try the upload first. Some Supabase projects restrict bucket metadata reads even
+    // when object upload is allowed, so a bucket lookup must not block a valid upload.
+    let upload = await uploadObject();
     if (!upload.ok) {
-      console.error("Site media upload failed:", upload.status, (await upload.text()).slice(0, 500));
-      return res.status(502).json({ error: "فشل رفع الصورة إلى التخزين. حاول مرة أخرى." });
+      const uploadError = (await upload.text()).slice(0, 700);
+      const missingBucket = upload.status === 404 || /bucket.{0,30}(not found|does not exist)|no such bucket/i.test(uploadError);
+      if (missingBucket) {
+        const created = await fetch(base + "/storage/v1/bucket", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ id: bucketId, name: bucketId, public: true, file_size_limit: 2097152, allowed_mime_types: Object.keys(mimeToExt) })
+        });
+        if (!created.ok && created.status !== 409) {
+          const detail = (await created.text()).slice(0, 300);
+          console.error("Site media bucket creation failed:", created.status, detail);
+          return res.status(502).json({ error: "مساحة الصور غير موجودة وتعذر إنشاؤها (HTTP " + created.status + "). تأكد أن SUPABASE_SERVICE_ROLE_KEY هو مفتاح service_role الصحيح." });
+        }
+        upload = await uploadObject();
+      } else {
+        console.error("Site media upload failed:", upload.status, uploadError);
+        if (upload.status === 401 || upload.status === 403) {
+          return res.status(502).json({ error: "Supabase رفض صلاحية رفع الصور (HTTP " + upload.status + "). راجع SUPABASE_SERVICE_ROLE_KEY في إعدادات Vercel." });
+        }
+        return res.status(502).json({ error: "فشل رفع الصورة إلى التخزين (HTTP " + upload.status + "). " + uploadError.slice(0, 180) });
+      }
+    }
+    if (!upload.ok) {
+      const detail = (await upload.text()).slice(0, 500);
+      console.error("Site media upload after bucket setup failed:", upload.status, detail);
+      return res.status(502).json({ error: "تم تجهيز مساحة الصور لكن فشل الرفع (HTTP " + upload.status + "). " + detail.slice(0, 180) });
     }
     return res.status(200).json({ ok: true, url: base + "/storage/v1/object/public/site-media/" + objectPath });
   } catch (e) {
