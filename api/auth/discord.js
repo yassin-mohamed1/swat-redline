@@ -13,12 +13,12 @@ export default async function handler(req, res) {
   }));
   const { code, error, state } = req.query;
   if (error) {
-    res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0");
+    res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");
     return res.status(400).send("Discord login was cancelled.");
   }
   if (!code) {
     const oauthState = crypto.randomBytes(32).toString("hex");
-    res.setHeader("Set-Cookie", `discord_oauth_state=${oauthState}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=600`);
+    res.setHeader("Set-Cookie", `discord_oauth_state=${oauthState}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
     const params = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: "code", scope: "identify guilds.members.read", state: oauthState });
     return res.redirect(302, `https://discord.com/oauth2/authorize?${params.toString()}`);
   }
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     res.setHeader("Cache-Control", "no-store");
     return res.status(400).send("Login verification failed. Please open the website and start a fresh login.");
   }
-  res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0");
+  res.setHeader("Set-Cookie", "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0");
   try {
     const tokenResponse = await fetch("https://discord.com/api/v10/oauth2/token", {
       method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -49,30 +49,25 @@ export default async function handler(req, res) {
     const user = await userResponse.json();
     const member = await memberResponse.json();
     if (!Array.isArray(member.roles) || !member.roles.includes(roleId)) return res.status(403).send("You do not have the required Discord role.");
-    // Prefer the member nickname shown inside the S.W.A.T. REDLINE Discord server.
     const displayName = member.nick || user.global_name || user.username || "Discord user";
     const avatar = user.avatar
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=128`
       : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(user.id) >> 22n) % 6}.png`;
 
-    // Optional until the server-side Supabase secrets are configured in Vercel.
-    // Never expose SUPABASE_SERVICE_ROLE_KEY to the browser.
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseBaseUrl = supabaseUrl ? supabaseUrl.replace(/\/+$/, "") : "";
-    if (supabaseUrl || supabaseServiceRoleKey) {
-      if (!supabaseUrl || !supabaseServiceRoleKey) {
+    if (supabaseUrl || supabaseSecretKey) {
+      if (!supabaseUrl || !supabaseSecretKey) {
         return res.status(500).send("Supabase configuration is incomplete.");
       }
+      // Supabase sb_secret_* keys are not JWTs. Send them in apikey only;
+      // putting one in Authorization: Bearer causes an Invalid JWT response.
       const supabaseHeaders = {
-        apikey: supabaseServiceRoleKey,
-        Authorization: `Bearer ${supabaseServiceRoleKey}`,
+        apikey: supabaseSecretKey,
         "Content-Type": "application/json",
       };
-      const profileQuery = new URLSearchParams({
-        discord_user_id: `eq.${user.id}`,
-        select: "id",
-      });
+      const profileQuery = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "id" });
       const profileLookup = await fetch(
         `${supabaseBaseUrl}/rest/v1/staff_profiles?${profileQuery.toString()}`,
         { headers: supabaseHeaders }
@@ -93,11 +88,7 @@ export default async function handler(req, res) {
             {
               method: "PATCH",
               headers: { ...supabaseHeaders, Prefer: "return=minimal" },
-              body: JSON.stringify({
-                display_name: displayName,
-                avatar_url: avatar,
-                updated_at: profile.updated_at,
-              }),
+              body: JSON.stringify({ display_name: displayName, avatar_url: avatar, updated_at: profile.updated_at }),
             }
           )
         : await fetch(
