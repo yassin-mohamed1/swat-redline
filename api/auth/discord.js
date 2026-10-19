@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     const user = await userResponse.json();
     const member = await memberResponse.json();
     if (!Array.isArray(member.roles) || !member.roles.includes(roleId)) return res.status(403).send("You do not have the required Discord role.");
-    const displayName = member.nick || user.global_name || user.username || "Discord user";
+    const displayName = user.global_name || user.username || member.nick || "Discord user";
     const avatar = user.avatar
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=128`
       : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(user.id) >> 22n) % 6}.png`;
