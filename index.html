@@ -30,7 +30,66 @@
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let currentUser='Discord user';let pendingImages=[];
-function save(){localStorage.setItem('redline_people',JSON.stringify(people));localStorage.setItem('redline_audit',JSON.stringify(audit));localStorage.setItem('redline_tasks',JSON.stringify(tasks));localStorage.setItem('redline_operations',JSON.stringify(operations));localStorage.setItem('redline_reports',JSON.stringify(reports));localStorage.setItem('redline_rules',JSON.stringify(rules))}function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function log(type,detail,ref='—'){audit.unshift({time:new Date().toISOString(),user:currentUser,type,detail,ref});audit=audit.slice(0,500);save();renderAudit();renderActivity()}function fmtTime(t){return new Date(t).toLocaleString('ar-SA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}function statusTag(p){return p.status==='arrested'?'<span class="tag green">✓ تم القبض عليه</span>':p.status==='archived'?'<span class="tag gray">مؤرشف</span>':'<span class="tag red">مطلوب</span>'}function priorityTag(p){return p.priority==='عالي'?'red':p.priority==='متوسط'?'orange':'gray'}function personCard(p){let src=p.images&&p.images[0]||'';return `<article class="person" onclick="viewPerson('${esc(p.id)}')"><img src="${esc(src)}" onerror="this.style.opacity=.15;this.alt='لا توجد صورة'" alt="صورة ${esc(p.name)}"><div class="pbody">${statusTag(p)}<h4>${esc(p.name)}</h4><div class="muted">#${esc(p.id)} • ${esc(p.priority)} الخطورة</div><div class="personFoot"><span class="tag ${priorityTag(p)}">${esc(p.priority)}</span><span class="muted">${(p.images||[]).length} صورة</span></div><button class="btn danger" style="margin-top:10px;width:100%" onclick="event.stopPropagation();deletePerson('${esc(p.id)}')">حذف الملف</button></div></article>`}
+let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false;
+function save(){
+  localStorage.setItem('redline_people',JSON.stringify(people));
+  localStorage.setItem('redline_audit',JSON.stringify(audit));
+  localStorage.setItem('redline_tasks',JSON.stringify(tasks));
+  localStorage.setItem('redline_operations',JSON.stringify(operations));
+  localStorage.setItem('redline_reports',JSON.stringify(reports));
+  localStorage.setItem('redline_rules',JSON.stringify(rules));
+  if(sharedSyncReady){
+    clearTimeout(sharedSaveTimer);
+    sharedSaveTimer=setTimeout(pushSharedState,700);
+  }
+}
+async function pushSharedState(){
+  if(!sharedSyncReady||sharedSyncBusy)return;
+  sharedSyncBusy=true;
+  try{
+    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:{people,audit,tasks,operations,reports,rules}})});
+    if(!response.ok){const err=await response.json().catch(()=>({}));toast(err.error||'تعذّر حفظ البيانات المشتركة');}
+    else {const check=await fetch('/api/state',{credentials:'same-origin',cache:'no-store'});if(check.ok){const latest=await check.json();sharedUpdatedAt=latest.updated_at||sharedUpdatedAt;}}
+  }catch(e){toast('تعذّر الاتصال بقاعدة البيانات المشتركة');}
+  finally{sharedSyncBusy=false;}
+}
+async function pullSharedState(initial=false){
+  if(sharedSyncBusy)return;
+  try{
+    const response=await fetch('/api/state',{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)return;
+    const result=await response.json();
+    if(!result.data)return;
+    if(!initial&&result.updated_at&&result.updated_at===sharedUpdatedAt)return;
+    const cloud=result.data;
+    const keys=['people','audit','tasks','operations','reports','rules'];
+    const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
+    const localCount=people.length+audit.length+tasks.length+operations.length+reports.length+rules.length;
+    if(initial&&cloudCount===0&&localCount>0){
+      sharedSyncReady=true;
+      await pushSharedState();
+      return;
+    }
+    if(cloudCount>0||initial){
+      people=Array.isArray(cloud.people)?cloud.people:[];
+      audit=Array.isArray(cloud.audit)?cloud.audit:[];
+      tasks=Array.isArray(cloud.tasks)?cloud.tasks:[];
+      operations=Array.isArray(cloud.operations)?cloud.operations:[];
+      reports=Array.isArray(cloud.reports)?cloud.reports:[];
+      if(Array.isArray(cloud.rules)&&cloud.rules.length)rules=cloud.rules;
+      localStorage.setItem('redline_people',JSON.stringify(people));
+      localStorage.setItem('redline_audit',JSON.stringify(audit));
+      localStorage.setItem('redline_tasks',JSON.stringify(tasks));
+      localStorage.setItem('redline_operations',JSON.stringify(operations));
+      localStorage.setItem('redline_reports',JSON.stringify(reports));
+      localStorage.setItem('redline_rules',JSON.stringify(rules));
+      if(typeof renderAll==='function')renderAll();
+    }
+    sharedUpdatedAt=result.updated_at||null;
+    sharedSyncReady=true;
+  }catch(e){console.warn('Shared sync unavailable',e);}
+}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function log(type,detail,ref='—'){audit.unshift({time:new Date().toISOString(),user:currentUser,type,detail,ref});audit=audit.slice(0,500);save();renderAudit();renderActivity()}function fmtTime(t){return new Date(t).toLocaleString('ar-SA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}function statusTag(p){return p.status==='arrested'?'<span class="tag green">✓ تم القبض عليه</span>':p.status==='archived'?'<span class="tag gray">مؤرشف</span>':'<span class="tag red">مطلوب</span>'}function priorityTag(p){return p.priority==='عالي'?'red':p.priority==='متوسط'?'orange':'gray'}function personCard(p){let src=p.images&&p.images[0]||'';return `<article class="person" onclick="viewPerson('${esc(p.id)}')"><img src="${esc(src)}" onerror="this.style.opacity=.15;this.alt='لا توجد صورة'" alt="صورة ${esc(p.name)}"><div class="pbody">${statusTag(p)}<h4>${esc(p.name)}</h4><div class="muted">#${esc(p.id)} • ${esc(p.priority)} الخطورة</div><div class="personFoot"><span class="tag ${priorityTag(p)}">${esc(p.priority)}</span><span class="muted">${(p.images||[]).length} صورة</span></div><button class="btn danger" style="margin-top:10px;width:100%" onclick="event.stopPropagation();deletePerson('${esc(p.id)}')">حذف الملف</button></div></article>`}
 function renderDashboard(){let active=people.filter(p=>p.status==='wanted');document.getElementById('statWanted').textContent=active.length;document.getElementById('statSuspects').textContent=people.filter(p=>p.status==='wanted').length;document.getElementById('statArrested').textContent=people.filter(p=>p.status==='arrested').length;document.getElementById('statReports').textContent=reports.length;document.getElementById('dashboardPeople').innerHTML=active.slice(0,3).map(personCard).join('')||'<div class="empty">لا توجد ملفات مطلوبة</div>';renderActivity();renderTasks()}
 function renderWanted(){let q=(document.getElementById('wantedSearch')?.value||'').toLowerCase(),st=document.getElementById('statusFilter')?.value||'all',pr=document.getElementById('priorityFilter')?.value||'all';let arr=people.filter(p=>(p.name+' '+p.id+' '+p.charges).toLowerCase().includes(q)&&(st==='all'||p.status===st)&&(pr==='all'||p.priority===pr));document.getElementById('wantedCount').textContent=arr.length+' ملف';document.getElementById('wantedPeople').innerHTML=arr.map(personCard).join('')||'<div class="empty">لا توجد نتائج مطابقة</div>'}
 function renderSuspects(){document.getElementById('suspectRows').innerHTML=people.filter(p=>p.status!=='archived').map(p=>`<tr><td>${esc(p.id)}</td><td>${esc(p.name)}</td><td>${esc(p.charges||'—')}</td><td>${statusTag(p)}</td><td><button class="btn" onclick="viewPerson('${esc(p.id)}')">فتح الملف</button> <button class="btn danger" onclick="deletePerson('${esc(p.id)}')">حذف الملف</button></td></tr>`).join('')}
@@ -67,24 +126,25 @@ async function initAuth(){
     if(!response.ok) throw new Error('unauthorized');
     const data=await response.json();
     if(!data.authenticated||!data.user) throw new Error('unauthorized');
-    currentUser=data.user.displayName||data.user.username||'Discord user';document.getElementById('profileName').textContent=currentUser;
+    document.getElementById('profileName').textContent=data.user.displayName||data.user.username||'Discord user';
     const avatar=document.getElementById('profileAvatar');
-    if(data.user.avatar){avatar.innerHTML='';const img=document.createElement('img');img.src=data.user.avatar;img.alt='Discord avatar';img.referrerPolicy='no-referrer';img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%';img.onerror=()=>{avatar.textContent=(data.user.displayName||data.user.username||'?').slice(0,1).toUpperCase()};avatar.appendChild(img)}else{avatar.textContent=(data.user.displayName||data.user.username||'?').slice(0,1).toUpperCase()}
+    if(data.user.avatarUrl){
+      avatar.innerHTML='<img alt="" src="'+esc(data.user.avatarUrl)+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+    }else{
+      avatar.textContent=(data.user.displayName||data.user.username||'?').slice(0,1).toUpperCase();
+    }
     document.getElementById('profileRole').textContent='S.W.A.T. REDLINE • Authorized';
     app.classList.remove('auth-locked');
     gate.style.display='none';
+    await pullSharedState(true);
+    sharedSyncReady=true;
     renderAll();
+    setInterval(()=>pullSharedState(false),15000);
   }catch(e){
     app.classList.add('auth-locked');
     gate.style.display='grid';
     if(new URLSearchParams(location.search).has('authError')) error.style.display='block';
   }
-}
-async function logoutFromPortal(){
-  const button=document.getElementById('logoutButton');
-  if(button){button.disabled=true;button.textContent='جارٍ تسجيل الخروج...'}
-  try{await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'}})}catch(e){}
-  location.replace('/?loggedOut=1');
 }
 initAuth();
 </script></body></html>
