@@ -32,6 +32,13 @@ function readSession(req) {
   return user;
 }
 
+async function logSupabaseFailure(operation, response) {
+  let detail = "";
+  try { detail = (await response.text()).slice(0, 1000); } catch {}
+  // Keep provider details in server logs only; never return them to the browser.
+  console.error(`Supabase app_state ${operation} failed:`, response.status, detail);
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -57,7 +64,10 @@ export default async function handler(req, res) {
       const response = await fetch(endpoint + "?id=eq.main&select=data,updated_at,updated_by", {
         headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
       });
-      if (!response.ok) return res.status(502).json({ error: "Could not read shared data." });
+      if (!response.ok) {
+        await logSupabaseFailure("read", response);
+        return res.status(502).json({ error: "Could not read shared data." });
+      }
       const rows = await response.json();
       if (!rows.length) return res.status(200).json({ data: null, updated_at: null });
       return res.status(200).json(rows[0]);
@@ -86,13 +96,17 @@ export default async function handler(req, res) {
           updated_by: user.username,
         }),
       });
-      if (!response.ok) return res.status(502).json({ error: "Could not save shared data." });
+      if (!response.ok) {
+        await logSupabaseFailure("write", response);
+        return res.status(502).json({ error: "Could not save shared data." });
+      }
       return res.status(200).json({ ok: true, updated_by: user.username });
     }
 
     res.setHeader("Allow", "GET, PUT");
     return res.status(405).json({ error: "Method not allowed" });
-  } catch {
+  } catch (error) {
+    console.error("Supabase app_state request failed:", error?.message || "Unknown error");
     return res.status(500).json({ error: "Shared storage request failed." });
   }
 }
