@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed" });
   }
-  const base = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const base = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) return res.status(503).json({ error: "Site image settings are unavailable" });
   try {
