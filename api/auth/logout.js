@@ -34,6 +34,7 @@ export default async function handler(req, res) {
           discord_user_id: user.id,
           display_name: user.displayName || user.username || "Discord user",
           event_type: "logout",
+          session_issued_at: user.issuedAt,
           occurred_at: new Date().toISOString()
         })
       });
