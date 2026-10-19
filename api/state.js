@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: "Shared storage is not configured yet." });
   }
 
-  const endpoint = supabaseUrl.replace(/\/$/, "") + "/rest/v1/app_state?id=eq.main";
+  const endpoint = supabaseUrl.replace(/\/$/, "") + "/rest/v1/app_state";
   const headers = {
     apikey: serviceKey,
     Authorization: "Bearer " + serviceKey,
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const response = await fetch(endpoint + "&select=data,updated_at,updated_by", {
+      const response = await fetch(endpoint + "?id=eq.main&select=data,updated_at,updated_by", {
         headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey },
       });
       if (!response.ok) return res.status(502).json({ error: "Could not read shared data." });
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
       for (const key of allowed) {
         if (Array.isArray(data[key])) safeData[key] = data[key];
       }
-      const response = await fetch(endpoint, {
+      const response = await fetch(endpoint + "?on_conflict=id", {
         method: "POST",
         headers: {
           ...headers,
