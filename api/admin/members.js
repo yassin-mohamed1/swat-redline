@@ -136,8 +136,25 @@ export default async function handler(req, res) {
       console.error("Admin member update failed:", response.status, (await response.text()).slice(0, 500));
       return send(res, 502, { error: "Could not update this member." });
     }
-    const rows = await response.json();
-    if (!rows.length) return send(res, 404, { error: "Member record not found. The person must sign in to the website first." });
+    let rows = await response.json();
+    if (!rows.length) {
+      // A person may exist in the login-event stream before their profile row exists.
+      const eventQuery = new URLSearchParams({ discord_user_id: "eq." + targetId, select: "display_name,occurred_at", order: "occurred_at.desc", limit: "1" });
+      const eventResponse = await supabase(url, key, "staff_login_events?" + eventQuery);
+      const events = eventResponse.ok ? await eventResponse.json() : [];
+      if (!events.length) return send(res, 404, { error: "No login record found for this member." });
+      const event = events[0], now = new Date().toISOString();
+      const created = await supabase(url, key, "staff_profiles", {
+        method: "POST", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ discord_user_id: targetId, display_name: event.display_name || "Discord user", username: "", avatar_url: null, is_active: values.is_active ?? true, is_banned: values.is_banned ?? false, login_count: 0, last_seen: event.occurred_at || now, last_login: event.occurred_at || now, created_at: now, updated_at: now })
+      });
+      if (!created.ok) {
+        console.error("Admin member profile creation failed:", created.status, (await created.text()).slice(0, 400));
+        return send(res, 502, { error: "Could not create the staff profile for this member. Check the staff_profiles database schema." });
+      }
+      rows = await created.json();
+      if (!rows.length) return send(res, 502, { error: "The staff profile was not returned after creation." });
+    }
     try {
       await supabase(url, key, "audit_logs", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({
         actor_discord_id: user.id, actor_name: user.displayName || user.username, action: "permission_change",
