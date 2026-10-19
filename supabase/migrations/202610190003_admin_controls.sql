@@ -46,6 +46,7 @@ create table if not exists public.staff_login_events (
   discord_user_id text not null,
   display_name text,
   event_type text not null check (event_type in ('login', 'logout')),
+  session_issued_at bigint,
   occurred_at timestamptz not null default now()
 );
 create index if not exists staff_login_events_occurred_at_idx
@@ -54,3 +55,7 @@ create index if not exists staff_login_events_discord_user_id_idx
   on public.staff_login_events (discord_user_id);
 alter table public.staff_login_events enable row level security;
 -- No browser policies: only server APIs using the service role can access activity events.
+
+create unique index if not exists staff_login_events_session_event_uidx
+  on public.staff_login_events (discord_user_id, session_issued_at, event_type)
+  where session_issued_at is not null;
