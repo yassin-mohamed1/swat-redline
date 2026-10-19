@@ -245,8 +245,9 @@ async function initAuth(){
     const data=await response.json();
     if(!data.authenticated||!data.user) throw new Error('unauthorized');
     currentIsOwner=Boolean(data.user.isOwner);
+    currentUser=data.user.displayName||data.user.username||data.user.globalName||data.user.id||'Discord user';
     if(currentIsOwner){document.getElementById('settingsNav').style.display='flex';}else{const personnelNav=document.querySelector('#nav button[data-page="personnel"]');if(personnelNav)personnelNav.style.display='none';}
-    document.getElementById('profileName').textContent=data.user.displayName||data.user.username||'Discord user';
+    document.getElementById('profileName').textContent=data.user.displayName||data.user.username||data.user.globalName||'Discord user';
     const avatar=document.getElementById('profileAvatar');
     if(data.user.avatar){
       avatar.innerHTML='<img alt="" src="'+esc(data.user.avatar)+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
