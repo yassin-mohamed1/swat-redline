@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
