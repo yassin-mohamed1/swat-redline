@@ -339,7 +339,7 @@ function viewPerson(id){
 let p=people.find(x=>x.id===id);if(!p)return;
 p.images=Array.isArray(p.images)?p.images:[];p.imageDescriptions=Array.isArray(p.imageDescriptions)?p.imageDescriptions:[];
 let act=p.status==='wanted'?'<button class="btn primary" onclick="arrestPerson(\''+esc(id)+'\')">✓ تم القبض عليه</button>':'<button class="btn" onclick="reopenPerson(\''+esc(id)+'\')">إعادة فتح الملف</button>';
-let poster='<button class="btn" onclick="downloadPoster(\\''+esc(id)+'\\')">تنزيل صورة للملف</button><button class="btn" onclick="downloadCasePDF(\\''+esc(id)+'\\')">تنزيل PDF</button><button class="btn" onclick="downloadCase(\\''+esc(id)+'\\')">تنزيل ملف JSON</button>';
+let poster='<button class="btn" onclick="downloadPoster(\''+esc(id)+'\')">تنزيل صورة للملف</button><button class="btn" onclick="downloadCasePDF(\''+esc(id)+'\')">تنزيل PDF</button><button class="btn" onclick="downloadCase(\''+esc(id)+'\')">تنزيل ملف JSON</button>';
 let imgs=p.images.map((src,i)=>'<div class="evidence-card"><img src="'+esc(src)+'" alt="دليل '+(i+1)+'" onclick="openEvidenceViewer(\''+esc(id)+'\','+i+')" title="فتح الصورة بالحجم الكبير"><div class="evidence-caption">'+esc(p.imageDescriptions[i]||'لا يوجد وصف للصورة')+'</div><button class="btn evidence-open" onclick="openEvidenceViewer(\''+esc(id)+'\','+i+')">عرض / تكبير</button></div>').join('');
 document.getElementById('modalTitle').textContent='ملف '+p.id;
 document.getElementById('personForm').style.display='none';
