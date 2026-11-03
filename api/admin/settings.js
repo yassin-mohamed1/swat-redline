@@ -33,14 +33,14 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationAdsEnabled"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
       const raw = JSON.stringify(value);
       if (raw.length > 120000) return res.status(413).json({ error: "A setting is too large" });
       if (k.endsWith("Color") && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) return res.status(400).json({ error: "Invalid color value" });
-      if (k === "notificationAdsEnabled" && typeof value !== "boolean") return res.status(400).json({ error: "notificationAdsEnabled must be a boolean" });
+      if (k === "notificationRoleMentionDisabled" && typeof value !== "boolean") return res.status(400).json({ error: "notificationRoleMentionDisabled must be a boolean" });
       if ((k === "textOverrides" || k === "styleOverrides") && (!value || typeof value !== "object" || Array.isArray(value))) return res.status(400).json({ error: "Invalid overrides" });
       rows.push({ key: k, value, updated_by: user.id, updated_at: new Date().toISOString() });
     }
