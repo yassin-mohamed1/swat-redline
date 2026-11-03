@@ -285,6 +285,7 @@ export default async function handler(req, res) {
 
     let sent = 0;
     let failed = 0;
+    const failureReasons = {};
     for (const recipient of recipients) {
       let status = "failed";
       let errorCode = null;
@@ -307,6 +308,7 @@ export default async function handler(req, res) {
       } catch (error) {
         failed++;
         errorCode = String(error?.code || error?.message || "delivery_failed").slice(0, 80);
+        failureReasons[errorCode] = (failureReasons[errorCode] || 0) + 1;
       }
 
       const deliveryWrite = await supabaseRequest(config, "discord_notification_deliveries", {
@@ -341,6 +343,11 @@ export default async function handler(req, res) {
       total: recipients.length,
       sent,
       failed,
+      failure_reasons: {
+        no_mutual_guild: failureReasons["50278"] || 0,
+        recipient_dm_blocked: failureReasons["50007"] || 0,
+        other: Object.entries(failureReasons).filter(([code]) => !["50278", "50007"].includes(code)).reduce((sum, [, count]) => sum + count, 0)
+      },
       mode: broadcastEnabled ? "broadcast" : "test_self",
       message: !broadcastEnabled
         ? (failed ? "Private test completed with a delivery failure." : "Private test sent only to the portal owner.")
