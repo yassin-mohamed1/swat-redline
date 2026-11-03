@@ -62,13 +62,13 @@ async function logSupabaseFailure(operation, response) {
   console.error(`Supabase app_state ${operation} failed:`, response.status, detail);
 }
 
-async function readCurrentVersion(endpoint, serviceKey) {
-  const response = await fetch(endpoint + "?id=eq.main&select=updated_at", {
+async function readCurrentState(endpoint, serviceKey) {
+  const response = await fetch(endpoint + "?id=eq.main&select=data,updated_at", {
     headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey }
   });
   if (!response.ok) return null;
   const rows = await response.json();
-  return rows[0]?.updated_at || null;
+  return rows[0] || null;
 }
 
 export default async function handler(req, res) {
@@ -125,16 +125,28 @@ export default async function handler(req, res) {
         if (Array.isArray(data[key])) safeData[key] = data[key];
       }
 
+      const current = await readCurrentState(endpoint, serviceKey);
+      if (!current) return res.status(503).json({ error: "The shared data record is unavailable." });
+      if (current.updated_at !== expectedUpdatedAt) {
+        return res.status(409).json({
+          error: "The shared data changed in another session. Reload the page before saving to avoid overwriting another member's changes.",
+          current_updated_at: current.updated_at
+        });
+      }
+      // Preserve the legacy audit history without accepting client-supplied replacements.
+      if (Array.isArray(current.data?.audit)) safeData.audit = current.data.audit;
+
       const filter = new URLSearchParams({
         id: "eq.main",
         updated_at: `eq.${expectedUpdatedAt}`
       });
+      const nextUpdatedAt = new Date(Math.max(Date.now(), Date.parse(expectedUpdatedAt) + 1)).toISOString();
       const response = await fetch(endpoint + "?" + filter.toString(), {
         method: "PATCH",
         headers: { ...headers, Prefer: "return=representation" },
         body: JSON.stringify({
           data: safeData,
-          updated_at: new Date().toISOString(),
+          updated_at: nextUpdatedAt,
           updated_by: user.displayName || user.username
         })
       });
@@ -144,10 +156,10 @@ export default async function handler(req, res) {
       }
       const rows = await response.json();
       if (!rows.length) {
-        const currentUpdatedAt = await readCurrentVersion(endpoint, serviceKey);
+        const latest = await readCurrentState(endpoint, serviceKey);
         return res.status(409).json({
           error: "The shared data changed in another session. Reload the page before saving to avoid overwriting another member's changes.",
-          current_updated_at: currentUpdatedAt
+          current_updated_at: latest?.updated_at || null
         });
       }
       return res.status(200).json({
