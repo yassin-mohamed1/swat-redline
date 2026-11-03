@@ -158,6 +158,7 @@ async function pullSharedState(initial=false){
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
     const localCount=people.length+investigations.length+tasks.length+operations.length+reports.length+rules.length+dailyCommands.length;
     let repairedReportAuthors=false;
+    sharedUpdatedAt=result.updated_at||null;
     if(initial&&cloudCount===0&&localCount>0){
       sharedSyncReady=true;
       await pushSharedState();
