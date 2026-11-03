@@ -259,6 +259,15 @@ export default async function handler(req, res) {
     const record = records.find(item => String(item?.id ?? "") === entityId);
     if (!record) return res.status(404).json({ error: "The selected record was not found. Refresh the portal and try again." });
 
+    const adsSettingsQuery = new URLSearchParams({ key: "eq.notificationAdsEnabled", select: "value", limit: "1" });
+    const adsSettingsResponse = await supabaseRequest(config, "site_settings?" + adsSettingsQuery, { method: "GET" });
+    if (!adsSettingsResponse.ok) {
+      console.error("Notification ADS setting lookup failed:", adsSettingsResponse.status, (await adsSettingsResponse.text()).slice(0, 250));
+      return res.status(502).json({ error: "Could not verify the notification ADS setting. No alert was sent." });
+    }
+    const adsSettingsRows = await adsSettingsResponse.json();
+    const notificationAdsEnabled = adsSettingsRows[0]?.value === true;
+
     // Safe rollout: broadcast stays OFF unless the environment flag is
     // deliberately enabled after the owner finishes the private self-test.
     const broadcastEnabled = process.env.DISCORD_NOTIFICATIONS_BROADCAST_ENABLED === "true";
@@ -343,7 +352,7 @@ export default async function handler(req, res) {
         {
           method: "POST",
           body: JSON.stringify({
-            content: "<@&" + config.notificationRoleId + ">",
+            content: (notificationAdsEnabled ? "**ADS**\\n" : "") + "<@&" + config.notificationRoleId + ">",
             embeds: [embed],
             allowed_mentions: {
               parse: [],
