@@ -427,10 +427,23 @@ export default async function handler(req, res) {
         inline: true
       });
     }
+    const subjectTitle = type === "operation"
+      ? (record.name || record.title || "عملية بدون اسم")
+      : type === "person"
+        ? (record.name || record.title || "ملف بدون اسم")
+        : type === "report"
+          ? (record.title || "تقرير بدون عنوان")
+          : (record.title || record.name || "ملف تحرٍّ بدون عنوان");
+    const subjectKind = ({
+      person: "ملف شخص",
+      operation: "عملية / اجتماع",
+      report: "تقرير إداري",
+      investigation: "ملف تحرٍّ"
+    })[type] || "إشعار إداري";
     const embed = {
       author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
-      title: "🚨 " + truncate(summary.title, 240),
-      description: "**إشعار إداري جديد**\n" + truncate(summary.description, 1300),
+      title: "🚨 " + truncate(subjectTitle, 240),
+      description: "**" + subjectKind + "  •  إشعار إداري جديد**\n" + truncate(summary.description, 1250),
       color: 0xD92735,
       fields: embedFields,
       footer: { text: "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
