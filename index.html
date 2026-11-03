@@ -93,7 +93,7 @@ const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
-let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false;
+let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
   localStorage.setItem('redline_investigations',JSON.stringify(investigations));
@@ -109,14 +109,29 @@ function save(){
   }
 }
 async function pushSharedState(){
-  if(!sharedSyncReady||sharedSyncBusy)return;
+  if(!sharedSyncReady||sharedWriteConflict)return;
+  if(sharedSyncBusy){sharedWriteQueued=true;return;}
   sharedSyncBusy=true;
   try{
-    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:{people,investigations,audit,tasks,operations,reports,rules,dailyCommands}})});
-    if(!response.ok){const err=await response.json().catch(()=>({}));toast(err.error||'تعذّر حفظ البيانات المشتركة');}
-    else {const check=await fetch('/api/state',{credentials:'same-origin',cache:'no-store'});if(check.ok){const latest=await check.json();sharedUpdatedAt=latest.updated_at||sharedUpdatedAt;}}
+    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:sharedUpdatedAt,data:{people,investigations,tasks,operations,reports,rules,dailyCommands}})});
+    const result=await response.json().catch(()=>({}));
+    if(response.status===409){
+      sharedWriteConflict=true;
+      toast('تم تعديل البيانات من عضو آخر. تغييراتك لم تُحفظ؛ أعد تحميل الصفحة قبل إجراء تعديلات أخرى.');
+    }else if(!response.ok){
+      toast(result.error||'تعذّر حفظ البيانات المشتركة');
+    }else{
+      sharedUpdatedAt=result.updated_at||sharedUpdatedAt;
+    }
   }catch(e){toast('تعذّر الاتصال بقاعدة البيانات المشتركة');}
-  finally{sharedSyncBusy=false;}
+  finally{
+    sharedSyncBusy=false;
+    if(sharedWriteQueued&&!sharedWriteConflict){
+      sharedWriteQueued=false;
+      clearTimeout(sharedSaveTimer);
+      sharedSaveTimer=setTimeout(pushSharedState,350);
+    }
+  }
 }
 function repairLegacyReportAuthors(){
   let changed=false;
@@ -139,9 +154,9 @@ async function pullSharedState(initial=false){
     if(!result.data)return;
     if(!initial&&result.updated_at&&result.updated_at===sharedUpdatedAt)return;
     const cloud=result.data;
-    const keys=['people','investigations','audit','tasks','operations','reports','rules','dailyCommands'];
+    const keys=['people','investigations','tasks','operations','reports','rules','dailyCommands'];
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
-    const localCount=people.length+investigations.length+audit.length+tasks.length+operations.length+reports.length+rules.length+dailyCommands.length;
+    const localCount=people.length+investigations.length+tasks.length+operations.length+reports.length+rules.length+dailyCommands.length;
     let repairedReportAuthors=false;
     if(initial&&cloudCount===0&&localCount>0){
       sharedSyncReady=true;
@@ -151,7 +166,6 @@ async function pullSharedState(initial=false){
     if(cloudCount>0||initial){
       people=Array.isArray(cloud.people)?cloud.people:[];
       if(Array.isArray(cloud.investigations))investigations=cloud.investigations;
-      audit=Array.isArray(cloud.audit)?cloud.audit:[];
       tasks=Array.isArray(cloud.tasks)?cloud.tasks:[];
       operations=Array.isArray(cloud.operations)?cloud.operations:[];
       reports=Array.isArray(cloud.reports)?cloud.reports:[];
@@ -160,7 +174,6 @@ async function pullSharedState(initial=false){
       if(Array.isArray(cloud.dailyCommands)){dailyCommands=cloud.dailyCommands;localStorage.setItem("redline_daily_commands",JSON.stringify(dailyCommands));}
       localStorage.setItem('redline_people',JSON.stringify(people));
       localStorage.setItem('redline_investigations',JSON.stringify(investigations));
-      localStorage.setItem('redline_audit',JSON.stringify(audit));
       localStorage.setItem('redline_tasks',JSON.stringify(tasks));
       localStorage.setItem('redline_operations',JSON.stringify(operations));
       localStorage.setItem('redline_reports',JSON.stringify(reports));
@@ -174,7 +187,36 @@ async function pullSharedState(initial=false){
     if(initial&&currentIsOwner&&(!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations))){await pushSharedState();}
   }catch(e){console.warn('Shared sync unavailable',e);}
 }
-function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function log(type,detail,ref='—'){audit.unshift({time:new Date().toISOString(),user:currentUser,type,detail,ref});audit=audit.slice(0,500);save();renderAudit();renderActivity()}function fmtTime(t){return new Date(t).toLocaleString('ar-SA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}function statusTag(p){return p.status==='arrested'?'<span class="tag green">✓ تم القبض عليه</span>':p.status==='archived'?'<span class="tag gray">مؤرشف</span>':'<span class="tag red">مطلوب</span>'}function priorityTag(p){return p.priority==='عالي'?'red':p.priority==='متوسط'?'orange':'gray'}function personCard(p){let src=p.images&&p.images[0]||'';let id=esc(p.id);let arrestButton=p.status==='wanted'?'<button class="btn primary" style="flex:1;min-width:90px" onclick="event.stopPropagation();arrestPerson(\''+id+'\')">تم القبض</button>':'<button class="btn" style="flex:1;min-width:90px" disabled>تم القبض عليه</button>';return '<article class="person" onclick="viewPerson(\''+id+'\')"><img src="'+esc(src)+'" onerror="this.style.opacity=.15;this.alt=\'لا توجد صورة\'" alt="صورة '+esc(p.name)+'"><div class="pbody">'+statusTag(p)+'<h4>'+esc(p.name)+'</h4><div class="muted">#'+id+' • '+esc(p.priority)+' الخطورة</div><div class="personFoot"><span class="tag '+priorityTag(p)+'">'+esc(p.priority)+'</span><span class="muted">'+(p.images||[]).length+' صورة</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn danger" style="flex:1;min-width:70px" onclick="event.stopPropagation();deletePerson(\''+id+'\')">حذف الملف</button>'+arrestButton+'<button class="btn" style="flex:1;min-width:70px" onclick="event.stopPropagation();editPerson(\''+id+'\')">تعديل الملف</button></div></div></article>'}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function log(type,detail,ref='—'){
+  const event={time:new Date().toISOString(),user:currentUser,type,detail,ref};
+  audit.unshift(event);audit=audit.slice(0,500);
+  save();renderAudit();renderActivity();
+  const action=type==='إضافة'?'create':type==='حذف'?'delete':type==='تصدير'?'download':type==='رفع'?'upload':'update';
+  fetch('/api/audit/log',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,entity_type:'portal_action',entity_id:ref&&ref!=='—'?String(ref):null,details:{type,detail:String(detail||'').slice(0,3000),ref:String(ref||'—')}})})
+    .then(response=>{if(!response.ok)console.warn('Persistent audit event was not saved:',response.status);})
+    .catch(error=>console.warn('Persistent audit service unavailable:',error?.message||'unknown'));
+}
+async function loadAuditLog(){
+  try{
+    const response=await fetch('/api/audit/log',{credentials:'same-origin',cache:'no-store'});
+    if(!response.ok)return;
+    const result=await response.json();
+    if(!Array.isArray(result.events))return;
+    const labels={create:'إضافة',update:'تعديل',delete:'حذف',download:'تصدير',upload:'رفع',permission_change:'تعديل',login:'دخول',logout:'خروج'};
+    audit=result.events.map(item=>({
+      time:item.created_at,
+      user:item.actor_name||'Discord user',
+      type:labels[item.action]||item.action||'حدث',
+      detail:typeof item.details?.detail==='string'?item.details.detail:(item.entity_type||'نشاط إداري'),
+      ref:item.entity_id||item.details?.ref||'—'
+    }));
+    audit=audit.slice(0,500);
+    localStorage.setItem('redline_audit',JSON.stringify(audit));
+    repairLegacyReportAuthors();
+    renderAudit();renderActivity();
+  }catch(error){console.warn('Could not load persistent audit history:',error?.message||'unknown');}
+}function fmtTime(t){return new Date(t).toLocaleString('ar-SA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}function statusTag(p){return p.status==='arrested'?'<span class="tag green">✓ تم القبض عليه</span>':p.status==='archived'?'<span class="tag gray">مؤرشف</span>':'<span class="tag red">مطلوب</span>'}function priorityTag(p){return p.priority==='عالي'?'red':p.priority==='متوسط'?'orange':'gray'}function personCard(p){let src=p.images&&p.images[0]||'';let id=esc(p.id);let arrestButton=p.status==='wanted'?'<button class="btn primary" style="flex:1;min-width:90px" onclick="event.stopPropagation();arrestPerson(\''+id+'\')">تم القبض</button>':'<button class="btn" style="flex:1;min-width:90px" disabled>تم القبض عليه</button>';return '<article class="person" onclick="viewPerson(\''+id+'\')"><img src="'+esc(src)+'" onerror="this.style.opacity=.15;this.alt=\'لا توجد صورة\'" alt="صورة '+esc(p.name)+'"><div class="pbody">'+statusTag(p)+'<h4>'+esc(p.name)+'</h4><div class="muted">#'+id+' • '+esc(p.priority)+' الخطورة</div><div class="personFoot"><span class="tag '+priorityTag(p)+'">'+esc(p.priority)+'</span><span class="muted">'+(p.images||[]).length+' صورة</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="btn danger" style="flex:1;min-width:70px" onclick="event.stopPropagation();deletePerson(\''+id+'\')">حذف الملف</button>'+arrestButton+'<button class="btn" style="flex:1;min-width:70px" onclick="event.stopPropagation();editPerson(\''+id+'\')">تعديل الملف</button></div></div></article>'}
 function renderDashboard(){let active=people.filter(p=>p.status==='wanted');document.getElementById('statWanted').textContent=active.length;document.getElementById('statSuspects').textContent=people.filter(p=>p.status==='wanted').length;document.getElementById('statArrested').textContent=people.filter(p=>p.status==='arrested').length;document.getElementById('statReports').textContent=reports.length;document.getElementById('dashboardPeople').innerHTML=active.slice(0,3).map(personCard).join('')||'<div class="empty">لا توجد ملفات مطلوبة</div>';renderActivity();renderTasks()}
 function renderWanted(){let q=(document.getElementById('wantedSearch')?.value||'').toLowerCase(),st=document.getElementById('statusFilter')?.value||'all',pr=document.getElementById('priorityFilter')?.value||'all';let arr=people.filter(p=>(p.name+' '+p.id+' '+p.charges).toLowerCase().includes(q)&&(st==='all'||p.status===st)&&(pr==='all'||p.priority===pr));document.getElementById('wantedCount').textContent=arr.length+' ملف';document.getElementById('wantedPeople').innerHTML=arr.map(personCard).join('')||'<div class="empty">لا توجد نتائج مطابقة</div>'}
 function renderSuspects(){document.getElementById('suspectRows').innerHTML=people.filter(p=>p.status!=='archived').map(p=>`<tr><td>${esc(p.id)}</td><td>${esc(p.name)}</td><td>${esc(p.charges||'—')}</td><td>${statusTag(p)}</td><td><button class="btn" onclick="viewPerson('${esc(p.id)}')">فتح الملف</button> <button class="btn danger" onclick="deletePerson('${esc(p.id)}')">حذف الملف</button></td></tr>`).join('')}
@@ -401,7 +443,7 @@ div.innerHTML='<div style="display:grid;grid-template-columns:130px 1fr;gap:16px
 modal.appendChild(div);document.getElementById('modalBack').classList.add('open')
 }
 function restoreForm(){document.getElementById('viewContent')?.remove();document.getElementById('editContent')?.remove();document.getElementById('personForm').style.display='block'}const closeOriginal=closeModal;closeModal=function(){closeEvidenceViewer();document.getElementById('modalBack').classList.remove('open');restoreForm()};
-function arrestPerson(id){let p=people.find(x=>x.id===id);if(!p||!confirm('تأكيد تسجيل القبض على '+p.name+'؟'))return;p.status='arrested';p.arrestedAt=new Date().toISOString();p.arrestedBy='Yassin (Demo)';save();log('قبض','تم تغيير حالة '+p.name+' إلى تم القبض عليه',id);closeModal();renderAll();toast('تم تحديث الحالة وحفظ السجل')}
+function arrestPerson(id){let p=people.find(x=>x.id===id);if(!p||!confirm('تأكيد تسجيل القبض على '+p.name+'؟'))return;p.status='arrested';p.arrestedAt=new Date().toISOString();p.arrestedBy=currentUser||'Discord user';save();log('قبض','تم تغيير حالة '+p.name+' إلى تم القبض عليه',id);closeModal();renderAll();toast('تم تحديث الحالة وحفظ السجل')}
 function reopenPerson(id){let p=people.find(x=>x.id===id);if(!p)return;p.status='wanted';save();log('تعديل','إعادة فتح ملف '+p.name,id);closeModal();renderAll();toast('تمت إعادة فتح الملف')}
 function archivePerson(id){let p=people.find(x=>x.id===id);if(!p)return;if(!confirm('أرشفة الملف دون حذفه؟'))return;p.status='archived';save();log('تعديل','تمت أرشفة ملف '+p.name,id);closeModal();renderAll();toast('تمت أرشفة الملف')}
 function deletePerson(id){let p=people.find(x=>x.id===id);if(!p)return;if(!confirm('حذف ملف '+p.name+' ('+p.id+') نهائيًا من هذه النسخة التجريبية؟ سيتم حذف ارتباطه من قائمة المطلوبين والمتهمين.'))return;people=people.filter(x=>x.id!==id);save();log('حذف','حذف ملف الشخص '+p.name,id);closeModal();renderAll();toast('تم حذف الملف من بيانات هذه النسخة التجريبية')}
@@ -485,7 +527,7 @@ let a=document.createElement('a');a.download='case-file-'+String(p.id).replace(/
 }
 function exportAll(){downloadBlob(JSON.stringify(people,null,2),'redline-records.json','application/json');log('تصدير','تم تصدير قائمة الملفات','ALL');toast('تم تنزيل JSON')}function downloadAudit(){downloadBlob(JSON.stringify(audit,null,2),'redline-audit-log.json','application/json');toast('تم تنزيل سجل النشاط')}
 function toggleTask(i,v){tasks[i].done=v;save();log('تعديل',(v?'إكمال':'إعادة فتح')+' المهمة: '+tasks[i].text,'TASK-'+(i+1));renderTasks()}function addTask(){let t=prompt('اكتب المهمة الجديدة:');if(!t)return;tasks.unshift({text:t,done:false});save();log('إضافة','إضافة مهمة: '+t,'TASK-NEW');renderTasks();toast('تمت إضافة المهمة')}
-function newOperation(){let name=prompt('اسم العملية:');if(!name)return;operations.unshift({id:'OP-'+String(Date.now()).slice(-6),name,owner:'Yassin',status:'جارية',time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})});save();renderOps();log('إضافة','إنشاء عملية: '+name);toast('تمت إضافة العملية (تجريبي)')}function deleteReport(id){let r=reports.find(x=>x.id===id);if(!r)return;if(!confirm('تأكيد حذف التقرير '+r.id+' — '+r.title+'؟'))return;reports=reports.filter(x=>x.id!==id);save();log('حذف','حذف التقرير '+r.title,id);renderReports();renderDashboard();toast('تم حذف التقرير')}function newReport(){let title=prompt('عنوان التقرير:');if(!title)return;const report={id:'R-'+String(Date.now()).slice(-6),title,owner:currentUser||'Discord user',createdByDiscordId:currentUserId,status:'مسودة',date:new Date().toLocaleDateString('en-GB')};reports.unshift(report);save();renderReports();log('إضافة','إنشاء تقرير: '+title,report.id);toast('تم إنشاء التقرير (تجريبي)')}
+function newOperation(){let name=prompt('اسم العملية:');if(!name)return;operations.unshift({id:'OP-'+String(Date.now()).slice(-6),name,owner:currentUser||'Discord user',createdByDiscordId:currentUserId,status:'جارية',time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})});save();renderOps();log('إضافة','إنشاء عملية: '+name);toast('تمت إضافة العملية (تجريبي)')}function deleteReport(id){let r=reports.find(x=>x.id===id);if(!r)return;if(!confirm('تأكيد حذف التقرير '+r.id+' — '+r.title+'؟'))return;reports=reports.filter(x=>x.id!==id);save();log('حذف','حذف التقرير '+r.title,id);renderReports();renderDashboard();toast('تم حذف التقرير')}function newReport(){let title=prompt('عنوان التقرير:');if(!title)return;const report={id:'R-'+String(Date.now()).slice(-6),title,owner:currentUser||'Discord user',createdByDiscordId:currentUserId,status:'مسودة',date:new Date().toLocaleDateString('en-GB')};reports.unshift(report);save();renderReports();log('إضافة','إنشاء تقرير: '+title,report.id);toast('تم إنشاء التقرير (تجريبي)')}
 async function logoutFromPortal(){
   const button=document.getElementById('logoutButton');
   if(button){button.disabled=true;button.textContent='جارٍ تسجيل الخروج...';}
@@ -536,6 +578,7 @@ async function initAuth(){
     gate.style.display='none';
     await pullSharedState(true);
     sharedSyncReady=true;
+    await loadAuditLog();
     loadSiteSettings();
     renderAll();
     setInterval(()=>pullSharedState(false),15000);
