@@ -113,7 +113,7 @@ export default async function handler(req, res) {
                 {
                   method: "POST",
                   headers: { ...supabaseHeaders, Prefer: "return=minimal" },
-                  body: JSON.stringify({ ...profile, created_at: now }),
+                  body: JSON.stringify({ ...profile, notifications_enabled: true, created_at: now }),
                 }
               );
           if (!profileWrite.ok) {
