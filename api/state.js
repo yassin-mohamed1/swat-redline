@@ -36,7 +36,7 @@ function readSession(req) {
 
 async function isActiveStaff(user) {
   if (user.isOwner) return true;
-  const base = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const base = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) return true; // Preserve compatibility if staff-profile storage is not configured.
   const query = new URLSearchParams({
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   if (!await isActiveStaff(user)) return res.status(403).json({ error: "Account inactive or could not be verified" });
 
-  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) return res.status(503).json({ error: "Shared storage is not configured yet." });
 
