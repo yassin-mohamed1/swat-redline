@@ -140,11 +140,7 @@ function describeRecord(type, record) {
       ]
     };
   }
-  if (type === "task") {
-    const taskText = typeof record === "string" ? record : record.text;
-    return { title: "تنبيه بخصوص مهمة اليوم", description: "تم إرسال تنبيه بخصوص مهمة مسجلة في بوابة S.W.A.T. REDLINE.", fields: [{ name: "المهمة", value: truncate(taskText || "بدون نص", 900) }, { name: "الحالة", value: record?.done ? "مكتملة" : "قيد التنفيذ", inline: true }] };
-  }
-  if (type === "report") {
+    if (type === "report") {
     return {
       title: "تنبيه بخصوص تقرير",
       description: "تم إصدار تنبيه إداري بخصوص تقرير في بوابة S.W.A.T. REDLINE.",
@@ -251,7 +247,6 @@ function notificationSubjectTitle(type, record) {
   if (type === "operation") return truncate(record.name || record.title || "عملية بدون اسم", 200);
   if (type === "person") return truncate(record.name || record.title || "ملف بدون اسم", 200);
   if (type === "report") return truncate(record.title || "تقرير بدون عنوان", 200);
-  if (type === "task") return truncate(typeof record === "string" ? record : record.text || "مهمة اليوم", 200);
   return truncate(record.title || record.name || "ملف تحرٍّ بدون عنوان", 200);
 }
 
@@ -404,7 +399,7 @@ export default async function handler(req, res) {
   const entityId = typeof body.entity_id === "string" ? body.entity_id.trim() : "";
   const batchKey = typeof body.batch_key === "string" ? body.batch_key : "";
 
-  if (!["person", "operation", "report", "investigation", "task"].includes(type) ||
+  if (!["person", "operation", "report", "investigation"].includes(type) ||
       !entityId || entityId.length > 100 ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchKey)) {
     return res.status(400).json({ error: "Invalid notification request." });
@@ -431,11 +426,9 @@ export default async function handler(req, res) {
     }
     const stateRows = await stateResponse.json();
     const state = stateRows[0]?.data || {};
-    const sourceKey = ({ person: "people", operation: "operations", report: "reports", investigation: "investigations", task: "tasks" })[type];
+    const sourceKey = ({ person: "people", operation: "operations", report: "reports", investigation: "investigations" })[type];
     const records = Array.isArray(state[sourceKey]) ? state[sourceKey] : [];
-    const record = type === "task"
-      ? records.find(item => String(typeof item === "string" ? item : item?.text ?? "") === entityId)
-      : records.find(item => String(item?.id ?? "") === entityId);
+    const record = records.find(item => String(item?.id ?? "") === entityId);
     if (!record) return res.status(404).json({ error: "The selected record was not found. Refresh the portal and try again." });
 
     const mentionSettingsQuery = new URLSearchParams({ key: "eq.notificationRoleMentionDisabled", select: "value", limit: "1" });
