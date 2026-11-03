@@ -114,6 +114,16 @@ async function discordRequest(config, path, options = {}) {
 
 function describeRecord(type, record) {
   const id = truncate(record.id, 80);
+  if (type === "task") {
+    return {
+      title: "تنبيه بخصوص مهمة اليوم",
+      description: "تم إرسال تنبيه بخصوص مهمة مسجلة في مهام اليوم ببوابة S.W.A.T. REDLINE.",
+      fields: [
+        { name: "المهمة", value: truncate(record.text || "مهمة بدون عنوان", 900) },
+        { name: "الحالة", value: record.done ? "مكتملة" : "قيد التنفيذ", inline: true }
+      ]
+    };
+  }
   if (type === "person") {
     return {
       title: "تنبيه بخصوص ملف شخص",
@@ -247,6 +257,7 @@ function notificationSubjectTitle(type, record) {
   if (type === "operation") return truncate(record.name || record.title || "عملية بدون اسم", 200);
   if (type === "person") return truncate(record.name || record.title || "ملف بدون اسم", 200);
   if (type === "report") return truncate(record.title || "تقرير بدون عنوان", 200);
+  if (type === "task") return truncate(record.text || "مهمة بدون عنوان", 200);
   return truncate(record.title || record.name || "ملف تحرٍّ بدون عنوان", 200);
 }
 
@@ -430,6 +441,9 @@ export default async function handler(req, res) {
     const records = type === "task" ? (Array.isArray(state.tasks) ? state.tasks : []) : (Array.isArray(state[sourceKey]) ? state[sourceKey] : []);
     const record = type === "task" ? records[Number(entityId)] : records.find(item => String(item?.id ?? "") === entityId);
     if (!record) return res.status(404).json({ error: "The selected record was not found. Refresh the portal and try again." });
+    if (type === "task" && (typeof body.task_text !== "string" || !body.task_text.trim() || body.task_text.trim() !== String(record.text || "").trim())) {
+      return res.status(409).json({ error: "The selected task changed. Refresh the portal and try again." });
+    }
 
     const mentionSettingsQuery = new URLSearchParams({ key: "eq.notificationRoleMentionDisabled", select: "value", limit: "1" });
     const adsSettingsResponse = await supabaseRequest(config, "site_settings?" + mentionSettingsQuery, { method: "GET" });
