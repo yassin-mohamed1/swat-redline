@@ -35,7 +35,7 @@ function getSession(req) {
 
 async function isActiveStaff(user) {
   if (user.isOwner) return true;
-  const base = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const base = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) return true; // Legacy installations without staff profiles remain compatible.
   const query = new URLSearchParams({
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
   if (!user) return send(res, 401, { error: "Authentication required" });
   if (!await isActiveStaff(user)) return send(res, 403, { error: "Account inactive or could not be verified" });
 
-  const url = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return send(res, 503, { error: "Database is not configured" });
 
