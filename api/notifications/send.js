@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const MAX_RECIPIENTS_PER_BATCH = 10;
+const MAX_RECIPIENTS_PER_BATCH = 200;
 const MAX_NOTIFICATION_IMAGES = 4;
 const MAX_NOTIFICATION_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_NOTIFICATION_TOTAL_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -516,7 +516,8 @@ export default async function handler(req, res) {
     let sent = 0;
     let failed = 0;
     const failureReasons = {};
-    for (const recipient of recipients) {
+
+    async function deliverToRecipient(recipient) {
       let status = "failed";
       let errorCode = null;
       try {
@@ -542,23 +543,36 @@ export default async function handler(req, res) {
         failureReasons[errorCode] = (failureReasons[errorCode] || 0) + 1;
       }
 
-      const deliveryWrite = await supabaseRequest(config, "discord_notification_deliveries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({
-          batch_id: batchId,
-          recipient_discord_id: recipient.discord_user_id,
-          status,
-          error_code: errorCode
-        })
-      });
-      if (!deliveryWrite.ok) {
-        console.error("Notification delivery audit insert failed:", deliveryWrite.status, (await deliveryWrite.text()).slice(0, 200));
+      try {
+        const deliveryWrite = await supabaseRequest(config, "discord_notification_deliveries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify({
+            batch_id: batchId,
+            recipient_discord_id: recipient.discord_user_id,
+            status,
+            error_code: errorCode
+          })
+        });
+        if (!deliveryWrite.ok) {
+          console.error("Notification delivery audit insert failed:", deliveryWrite.status, (await deliveryWrite.text()).slice(0, 200));
+        }
+      } catch (error) {
+        console.error("Notification delivery audit insert failed:", error?.message || "unknown");
       }
-
-      // Sequential delivery with a modest pause avoids a burst of DM-channel creation.
-      if (recipients.length > 1) await new Promise(resolve => setTimeout(resolve, 300));
     }
+
+    // Use a small worker pool to reach every opted-in member without creating
+    // a burst of Discord requests or processing a large guild serially.
+    let nextRecipientIndex = 0;
+    const workerCount = Math.min(4, recipients.length);
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const index = nextRecipientIndex++;
+        if (index >= recipients.length) return;
+        await deliverToRecipient(recipients[index]);
+      }
+    }));
 
     const updateBatch = await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batchId), {
       method: "PATCH",
@@ -581,7 +595,7 @@ export default async function handler(req, res) {
       sent,
       failed,
       channel_sent: channelSent,
-      role_ping_sent: channelSent,
+      role_ping_sent: channelSent && !notificationRoleMentionDisabled,
       channel_error_code: channelErrorCode,
       failure_reasons: {
         no_mutual_guild: failureReasons["50278"] || 0,
@@ -590,14 +604,12 @@ export default async function handler(req, res) {
       },
       mode: broadcastEnabled ? "broadcast" : "test_self",
       message: !channelSent
-        ? "The channel post failed. Direct-message delivery was attempted separately."
+        ? "The channel post failed. No direct messages were sent."
         : recipients.length === 0
-          ? "The alert was published to the notification channel. No opted-in DM recipients were found."
-          : !broadcastEnabled
-            ? (failed ? "Channel post published; private test DM had a delivery failure." : "Channel post published; private test was limited to the portal owner.")
-            : (failed
-              ? `Channel post published; ${sent} DMs sent and ${failed} failed.`
-              : `Channel post published; ${sent} DMs sent.`)
+          ? "The alert was published to the notification channel. No active portal members currently have private alerts enabled."
+          : failed
+            ? `Channel post published; ${sent} DMs sent and ${failed} failed.`
+            : `Channel post published; ${sent} DMs sent.`
     });
   } catch (error) {
     console.error("Notification send failed:", error instanceof Error ? error.message : "unknown");
