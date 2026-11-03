@@ -352,7 +352,7 @@ export default async function handler(req, res) {
         {
           method: "POST",
           body: JSON.stringify({
-            content: (notificationAdsEnabled ? "**ADS**\\n" : "") + "<@&" + config.notificationRoleId + ">",
+            content: (notificationAdsEnabled ? "**ADS**\n" : "") + "<@&" + config.notificationRoleId + ">",
             embeds: [embed],
             allowed_mentions: {
               parse: [],
