@@ -480,8 +480,8 @@ async function checkDiscordBotStatus(button){
 }
 
 async function sendPortalNotification(entityType,entityId,button){
- if(!currentIsOwner){toast('إرسال التنبيهات متاح للمالك فقط');return}
- const label=({person:'ملف الشخص',operation:'العملية / الاجتماع',report:'التقرير',investigation:'ملف التحري'})[entityType]||'السجل';
+ 
+ const label=({person:'ملف الشخص',operation:'العملية / الاجتماع',report:'التقرير',investigation:'ملف التحري',task:'مهمة اليوم'})[entityType]||'السجل';
  if(!confirm('سيتم نشر التنبيه في روم SWAT Notification Website، وإرسال رسالة خاصة إلى كل عضو نشط في البوابة لم يوقف استقبال الرسائل من الإعدادات. هل تريد المتابعة؟'))return;
  if(button?.disabled)return;
  const oldText=button?.textContent||'إرسال تنبيه';
