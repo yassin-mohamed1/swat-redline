@@ -345,7 +345,7 @@ export default async function handler(req, res) {
 
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized." });
-  if (!user.isOwner) return res.status(403).json({ error: "Only the portal owner can inspect or send alerts." });
+  if (req.method === "GET" && !user.isOwner) return res.status(403).json({ error: "Only the portal owner can inspect notification diagnostics." });
 
   if (req.method === "GET") {
     const token = process.env.DISCORD_BOT_TOKEN;
@@ -399,7 +399,7 @@ export default async function handler(req, res) {
   const entityId = typeof body.entity_id === "string" ? body.entity_id.trim() : "";
   const batchKey = typeof body.batch_key === "string" ? body.batch_key : "";
 
-  if (!["person", "operation", "report", "investigation"].includes(type) ||
+  if (!["person", "operation", "report", "investigation", "task"].includes(type) ||
       !entityId || entityId.length > 100 ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchKey)) {
     return res.status(400).json({ error: "Invalid notification request." });
@@ -427,8 +427,8 @@ export default async function handler(req, res) {
     const stateRows = await stateResponse.json();
     const state = stateRows[0]?.data || {};
     const sourceKey = ({ person: "people", operation: "operations", report: "reports", investigation: "investigations" })[type];
-    const records = Array.isArray(state[sourceKey]) ? state[sourceKey] : [];
-    const record = records.find(item => String(item?.id ?? "") === entityId);
+    const records = type === "task" ? (Array.isArray(state.tasks) ? state.tasks : []) : (Array.isArray(state[sourceKey]) ? state[sourceKey] : []);
+    const record = type === "task" ? records[Number(entityId)] : records.find(item => String(item?.id ?? "") === entityId);
     if (!record) return res.status(404).json({ error: "The selected record was not found. Refresh the portal and try again." });
 
     const mentionSettingsQuery = new URLSearchParams({ key: "eq.notificationRoleMentionDisabled", select: "value", limit: "1" });
@@ -533,7 +533,8 @@ export default async function handler(req, res) {
       person: "ملف شخص",
       operation: "عملية / اجتماع",
       report: "تقرير إداري",
-      investigation: "ملف تحرٍّ"
+      investigation: "ملف تحرٍّ",
+      task: "مهمة اليوم"
     })[type] || "إشعار إداري";
     const embed = {
       author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
