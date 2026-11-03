@@ -142,6 +142,7 @@ async function pullSharedState(initial=false){
     const keys=['people','investigations','audit','tasks','operations','reports','rules','dailyCommands'];
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
     const localCount=people.length+investigations.length+audit.length+tasks.length+operations.length+reports.length+rules.length+dailyCommands.length;
+    let repairedReportAuthors=false;
     if(initial&&cloudCount===0&&localCount>0){
       sharedSyncReady=true;
       await pushSharedState();
@@ -154,7 +155,7 @@ async function pullSharedState(initial=false){
       tasks=Array.isArray(cloud.tasks)?cloud.tasks:[];
       operations=Array.isArray(cloud.operations)?cloud.operations:[];
       reports=Array.isArray(cloud.reports)?cloud.reports:[];
-      const repairedReportAuthors=repairLegacyReportAuthors();
+      repairedReportAuthors=repairLegacyReportAuthors();
       if(Array.isArray(cloud.rules)&&cloud.rules.length)rules=cloud.rules;
       if(Array.isArray(cloud.dailyCommands)){dailyCommands=cloud.dailyCommands;localStorage.setItem("redline_daily_commands",JSON.stringify(dailyCommands));}
       localStorage.setItem('redline_people',JSON.stringify(people));
@@ -168,7 +169,7 @@ async function pullSharedState(initial=false){
     }
     sharedUpdatedAt=result.updated_at||null;
     sharedSyncReady=true;
-    if(typeof repairedReportAuthors!=='undefined'&&repairedReportAuthors)await pushSharedState();
+    if(repairedReportAuthors)await pushSharedState();
     // Migrate the owner's existing local daily orders once, if the shared record predates this field.
     if(initial&&currentIsOwner&&(!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations))){await pushSharedState();}
   }catch(e){console.warn('Shared sync unavailable',e);}
