@@ -327,6 +327,7 @@ export default async function handler(req, res) {
     };
 
     // Every manual alert is first published to exactly one configured channel.
+    // DISCORD_NOTIFICATION_CHANNEL_ID is the only channel destination; DM delivery remains opt-in.
     // This is independent from per-member DM preferences.
     let channelSent = false;
     let channelMessageId = null;
