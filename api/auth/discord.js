@@ -55,8 +55,7 @@ export default async function handler(req, res) {
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith("a_") ? "gif" : "png"}?size=128`
       : `https://cdn.discordapp.com/embed/avatars/${Number(BigInt(user.id) >> 22n) % 6}.png`;
 
-    // Profile sync is best-effort: a Supabase schema/key/RLS issue must not
-    // prevent a valid Discord staff member from signing in.
+    // A staff profile is required for server-side active/ban checks.
     try {
       const supabaseUrl = process.env.SUPABASE_URL;
       const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -77,6 +76,7 @@ export default async function handler(req, res) {
         );
         if (!profileLookup.ok) {
           console.error("Staff profile lookup failed:", profileLookup.status, (await profileLookup.text()).slice(0, 300));
+          return res.status(503).send("Could not verify your staff profile. Please try again.");
         } else {
           const existingProfiles = await profileLookup.json();
           const isProtectedOwner = Boolean(ownerId && user.id === ownerId);
@@ -118,42 +118,18 @@ export default async function handler(req, res) {
               );
           if (!profileWrite.ok) {
             console.error("Staff profile save failed:", profileWrite.status, (await profileWrite.text()).slice(0, 300));
+            return res.status(503).send("Could not save your staff profile. Please try again.");
           }
         }
       }
     } catch (profileError) {
       console.error("Staff profile sync failed:", profileError instanceof Error ? profileError.message : "Unknown error");
+      if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return res.status(503).send("Could not synchronize your staff profile. Please try again.");
+      }
     }
 
-    try {
-      const eventUrl = process.env.SUPABASE_URL;
-      const eventKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (eventUrl && eventKey) {
-        const eventResponse = await fetch(eventUrl.replace(new RegExp("/+$"), "") + "/rest/v1/staff_login_events", {
-          method: "POST",
-          headers: { apikey: eventKey, Authorization: "Bearer " + eventKey, "Content-Type": "application/json", Prefer: "return=minimal" },
-          body: JSON.stringify({ discord_user_id: user.id, display_name: displayName, event_type: "login", session_issued_at: Date.now(), occurred_at: new Date().toISOString() })
-        });
-        if (!eventResponse.ok) console.error("Staff login event save failed:", eventResponse.status, (await eventResponse.text()).slice(0, 300));
-      }
-    } catch (eventError) {
-      console.error("Staff login event save failed:", eventError instanceof Error ? eventError.message : "Unknown error");
-    }
-
-    try {
-      const eventUrl = process.env.SUPABASE_URL;
-      const eventKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      if (eventUrl && eventKey) {
-        const eventResponse = await fetch(eventUrl.replace(new RegExp("/+$"), "") + "/rest/v1/staff_login_events", {
-          method: "POST",
-          headers: { apikey: eventKey, Authorization: "Bearer " + eventKey, "Content-Type": "application/json", Prefer: "return=minimal" },
-          body: JSON.stringify({ discord_user_id: user.id, display_name: displayName, event_type: "login", session_issued_at: Date.now(), occurred_at: new Date().toISOString() })
-        });
-        if (!eventResponse.ok) console.error("Staff login event save failed:", eventResponse.status, (await eventResponse.text()).slice(0, 300));
-      }
-    } catch (eventError) {
-      console.error("Staff login event save failed:", eventError instanceof Error ? eventError.message : "Unknown error");
-    }
+    // Login activity is recorded once by /api/auth/session after the signed cookie is issued.
 
     const session = Buffer.from(JSON.stringify({ id: user.id, username: user.username, displayName, avatar, roleId, isOwner, issuedAt: Date.now() })).toString("base64url");
     const signature = crypto.createHmac("sha256", sessionSecret).update(session).digest("base64url");
