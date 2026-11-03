@@ -445,6 +445,17 @@ async function sendPortalNotification(entityType,entityId,button){
  const oldText=button?.textContent||'إرسال تنبيه';
  if(button){button.disabled=true;button.textContent='جاري الإرسال...'}
  try{
+  if(sharedSyncReady){
+   clearTimeout(sharedSaveTimer);
+   if(sharedSyncBusy){
+    sharedWriteQueued=true;
+    for(let i=0;i<100&&sharedSyncBusy;i++)await new Promise(resolve=>setTimeout(resolve,50));
+    if(sharedSyncBusy)throw new Error('لا يزال حفظ السجل جاريًا. حاول مرة أخرى بعد لحظة.');
+   }else{
+    await pushSharedState();
+   }
+   if(sharedWriteConflict)throw new Error('هناك تعارض في البيانات المشتركة. حدّث الصفحة قبل إرسال التنبيه.');
+  }
   const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity_type:entityType,entity_id:String(entityId),batch_key:crypto.randomUUID()})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر إرسال التنبيه');
