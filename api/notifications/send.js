@@ -48,9 +48,10 @@ function getConfig() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const botToken = process.env.DISCORD_BOT_TOKEN;
   const notificationChannelId = process.env.DISCORD_NOTIFICATION_CHANNEL_ID;
+  const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
   if (!base || !serviceKey) return { error: "storage_not_configured" };
   if (!botToken) return { error: "bot_token_missing" };
-  return { base, serviceKey, botToken, notificationChannelId };
+  return { base, serviceKey, botToken, notificationChannelId, notificationRoleId };
 }
 
 function truncate(value, max = 900) {
@@ -240,6 +241,9 @@ export default async function handler(req, res) {
   if (!config.notificationChannelId || !/^\d{17,20}$/.test(config.notificationChannelId)) {
     return res.status(503).json({ error: "Set DISCORD_NOTIFICATION_CHANNEL_ID in Vercel to the ID of #swat-notification-website. No DM will be sent until the channel target is configured." });
   }
+  if (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId)) {
+    return res.status(503).json({ error: "Set DISCORD_NOTIFICATION_ROLE_ID in Vercel to the exact SWAT role ID. No notification will be sent until the role ping is configured." });
+  }
 
   try {
     const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
@@ -339,8 +343,12 @@ export default async function handler(req, res) {
         {
           method: "POST",
           body: JSON.stringify({
+            content: "<@&" + config.notificationRoleId + ">",
             embeds: [embed],
-            allowed_mentions: { parse: [] }
+            allowed_mentions: {
+              parse: [],
+              roles: [config.notificationRoleId]
+            }
           })
         }
       );
@@ -440,6 +448,7 @@ export default async function handler(req, res) {
       sent,
       failed,
       channel_sent: channelSent,
+      role_ping_sent: channelSent,
       channel_error_code: channelErrorCode,
       failure_reasons: {
         no_mutual_guild: failureReasons["50278"] || 0,
