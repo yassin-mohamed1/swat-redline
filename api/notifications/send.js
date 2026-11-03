@@ -350,6 +350,28 @@ export default async function handler(req, res) {
       console.error("Discord notification channel delivery failed:", channelErrorCode);
     }
 
+    if (!channelSent) {
+      const failedBatch = await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batchId), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({
+          sent_count: 0,
+          failed_count: 0,
+          channel_status: "failed",
+          channel_message_id: null,
+          channel_error_code: channelErrorCode
+        })
+      });
+      if (!failedBatch.ok) {
+        console.error("Failed to record channel delivery failure:", failedBatch.status, (await failedBatch.text()).slice(0, 200));
+      }
+      return res.status(502).json({
+        error: "The notification was not sent. Discord could not publish it in #swat-notification-website, so no direct messages were sent either.",
+        channel_sent: false,
+        channel_error_code: channelErrorCode
+      });
+    }
+
     let sent = 0;
     let failed = 0;
     const failureReasons = {};
