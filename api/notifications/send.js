@@ -350,8 +350,9 @@ export default async function handler(req, res) {
     // Safe by default during testing: missing preference means role mentions are disabled.
     const notificationRoleMentionDisabled = mentionSettingsRows[0]?.value !== false;
 
-    // Safe rollout: broadcast stays OFF unless the environment flag is
-    // deliberately enabled after the owner finishes the private self-test.
+    // Production broadcast is enabled. Members receive DMs by default;
+    // the member-level notifications_enabled preference is the opt-out switch.
+    // Keep the environment flag as an emergency owner-side kill switch.
     const broadcastEnabled = process.env.DISCORD_NOTIFICATIONS_BROADCAST_ENABLED === "true";
     const recipientQuery = new URLSearchParams({
       select: "discord_user_id,display_name",
