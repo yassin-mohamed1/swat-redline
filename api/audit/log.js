@@ -85,7 +85,34 @@ export default async function handler(req, res) {
         console.error("Audit history read failed:", response.status, (await response.text()).slice(0, 400));
         return send(res, 502, { error: "Could not load audit history" });
       }
-      return send(res, 200, { events: await response.json() });
+      const events = await response.json();
+
+      // Keep pre-migration browser audit entries visible, but clearly distinguish
+      // them from server-written records that cannot be replaced by clients.
+      const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
+      const stateResponse = await fetch(`${url}/rest/v1/app_state?${stateQuery}`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` }
+      });
+      if (stateResponse.ok) {
+        const stateRows = await stateResponse.json();
+        const legacy = Array.isArray(stateRows[0]?.data?.audit) ? stateRows[0].data.audit : [];
+        for (let i = 0; i < legacy.length; i++) {
+          const item = legacy[i];
+          if (!item || typeof item !== "object") continue;
+          events.push({
+            id: `legacy-${i}`,
+            actor_discord_id: null,
+            actor_name: typeof item.user === "string" ? item.user : "Unknown user",
+            action: item.type === "إضافة" ? "create" : item.type === "حذف" ? "delete" : item.type === "تصدير" ? "download" : "update",
+            entity_type: "legacy_browser_audit",
+            entity_id: item.ref == null ? null : String(item.ref),
+            details: { type: item.type || "حدث", detail: item.detail || "سجل قديم", ref: item.ref || "—", legacy: true },
+            created_at: item.time || null
+          });
+        }
+      }
+      events.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      return send(res, 200, { events: events.slice(0, 500) });
     } catch (error) {
       console.error("Audit history service failed:", error?.message || "unknown");
       return send(res, 502, { error: "Audit service unavailable" });
