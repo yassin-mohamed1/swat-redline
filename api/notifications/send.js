@@ -404,7 +404,7 @@ export default async function handler(req, res) {
 
     const summary = describeRecord(type, record);
     const { images: notificationImages, skipped: skippedImageCount } = extractNotificationImages(record);
-    const siteHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.SITE_URL || "";
+    const siteHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.SITE_URL || "swat-redline.vercel.app";
     const siteUrl = siteHost
       ? (siteHost.startsWith("http") ? siteHost : "https://" + siteHost)
       : "";
