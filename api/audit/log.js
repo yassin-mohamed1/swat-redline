@@ -5,16 +5,14 @@ function parseCookies(header = "") {
   for (const part of header.split(";")) {
     const i = part.indexOf("=");
     if (i < 0) continue;
-    const key = part.slice(0, i).trim();
-    const value = part.slice(i + 1).trim();
-    try { result[key] = decodeURIComponent(value); } catch {}
+    try { result[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch {}
   }
   return result;
 }
 
 function getSession(req) {
   const secret = process.env.SESSION_SECRET;
-  const raw = parseCookies(req.headers.cookie).swat_session;
+  const raw = parseCookies(req.headers.cookie || "").swat_session;
   if (!secret || !raw || !raw.includes(".")) return null;
 
   const splitAt = raw.lastIndexOf(".");
@@ -27,45 +25,94 @@ function getSession(req) {
 
   let user;
   try { user = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return null; }
+  const owner = Boolean(process.env.DISCORD_OWNER_ID && user.id === process.env.DISCORD_OWNER_ID);
   if (!user.id || !user.username || !user.issuedAt ||
       Date.now() - user.issuedAt > 8 * 60 * 60 * 1000 ||
       user.issuedAt > Date.now() + 60_000 ||
-      user.roleId !== process.env.DISCORD_ROLE_ID) return null;
-  return user;
+      (!owner && user.roleId !== process.env.DISCORD_ROLE_ID)) return null;
+  return { ...user, isOwner: owner };
+}
+
+async function isActiveStaff(user) {
+  if (user.isOwner) return true;
+  const base = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !key) return true; // Legacy installations without staff profiles remain compatible.
+  const query = new URLSearchParams({
+    discord_user_id: `eq.${user.id}`,
+    select: "is_active,is_banned",
+    limit: "1"
+  });
+  try {
+    const response = await fetch(`${base}/rest/v1/staff_profiles?${query}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    if (!response.ok) return false;
+    const rows = await response.json();
+    return Boolean(rows[0]) && rows[0].is_active !== false && !rows[0].is_banned;
+  } catch {
+    return false;
+  }
+}
+
+function send(res, status, body) {
+  return res.status(status).json(body);
 }
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
-  }
 
   const user = getSession(req);
-  if (!user) return res.status(401).json({ error: "Authentication required" });
+  if (!user) return send(res, 401, { error: "Authentication required" });
+  if (!await isActiveStaff(user)) return send(res, 403, { error: "Account inactive or could not be verified" });
 
-  const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
+  const url = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return res.status(503).json({ error: "Database is not configured" });
+  if (!url || !key) return send(res, 503, { error: "Database is not configured" });
 
-  const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+  if (req.method === "GET") {
+    try {
+      const query = new URLSearchParams({
+        select: "id,actor_discord_id,actor_name,action,entity_type,entity_id,details,created_at",
+        order: "created_at.desc",
+        limit: "500"
+      });
+      const response = await fetch(`${url}/rest/v1/audit_logs?${query}`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` }
+      });
+      if (!response.ok) {
+        console.error("Audit history read failed:", response.status, (await response.text()).slice(0, 400));
+        return send(res, 502, { error: "Could not load audit history" });
+      }
+      return send(res, 200, { events: await response.json() });
+    } catch (error) {
+      console.error("Audit history service failed:", error?.message || "unknown");
+      return send(res, 502, { error: "Audit service unavailable" });
+    }
+  }
+
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
+    return send(res, 405, { error: "Method not allowed" });
+  }
+
+  const body = typeof req.body === "string"
+    ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
+    : (req.body || {});
   const allowedActions = new Set(["create", "update", "delete", "login", "logout", "upload", "download", "permission_change"]);
   const action = typeof body.action === "string" ? body.action.trim() : "";
   const entityType = typeof body.entity_type === "string" ? body.entity_type.trim().slice(0, 80) : "";
   const entityId = body.entity_id == null ? null : String(body.entity_id).slice(0, 160);
-  if (!allowedActions.has(action) || !entityType) {
-    return res.status(400).json({ error: "Invalid audit event" });
-  }
+  if (!allowedActions.has(action) || !entityType) return send(res, 400, { error: "Invalid audit event" });
 
   let details = body.details && typeof body.details === "object" && !Array.isArray(body.details) ? body.details : {};
-  // Bound payload size and avoid accepting arbitrary oversized client data.
   try {
     const encoded = JSON.stringify(details);
-    if (encoded.length > 4000) return res.status(413).json({ error: "Audit details are too large" });
+    if (encoded.length > 4000) return send(res, 413, { error: "Audit details are too large" });
     details = JSON.parse(encoded);
   } catch {
-    return res.status(400).json({ error: "Invalid audit details" });
+    return send(res, 400, { error: "Invalid audit details" });
   }
 
   try {
@@ -75,7 +122,7 @@ export default async function handler(req, res) {
         apikey: key,
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
-        Prefer: "return=minimal",
+        Prefer: "return=minimal"
       },
       body: JSON.stringify({
         actor_discord_id: user.id,
@@ -83,14 +130,15 @@ export default async function handler(req, res) {
         action,
         entity_type: entityType,
         entity_id: entityId,
-        details,
-      }),
+        details
+      })
     });
     if (!response.ok) {
-      return res.status(502).json({ error: "Could not save audit event" });
+      console.error("Audit event write failed:", response.status, (await response.text()).slice(0, 400));
+      return send(res, 502, { error: "Could not save audit event" });
     }
-    return res.status(201).json({ ok: true });
+    return send(res, 201, { ok: true });
   } catch {
-    return res.status(502).json({ error: "Audit service unavailable" });
+    return send(res, 502, { error: "Audit service unavailable" });
   }
 }
