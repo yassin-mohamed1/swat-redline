@@ -47,9 +47,10 @@ function getConfig() {
   const base = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const botToken = process.env.DISCORD_BOT_TOKEN;
+  const notificationChannelId = process.env.DISCORD_NOTIFICATION_CHANNEL_ID;
   if (!base || !serviceKey) return { error: "storage_not_configured" };
   if (!botToken) return { error: "bot_token_missing" };
-  return { base, serviceKey, botToken };
+  return { base, serviceKey, botToken, notificationChannelId };
 }
 
 function truncate(value, max = 900) {
@@ -236,6 +237,9 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: "Discord bot is not connected yet. Add DISCORD_BOT_TOKEN to Vercel Production." });
   }
   if (config.error) return res.status(503).json({ error: "Notification storage is not configured." });
+  if (!config.notificationChannelId || !/^\d{17,20}$/.test(config.notificationChannelId)) {
+    return res.status(503).json({ error: "Set DISCORD_NOTIFICATION_CHANNEL_ID in Vercel to the ID of #swat-notification-website. No DM will be sent until the channel target is configured." });
+  }
 
   try {
     const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
@@ -275,12 +279,6 @@ export default async function handler(req, res) {
       .filter(row => /^\d{17,20}$/.test(String(row.discord_user_id || "")))
       .map(row => [String(row.discord_user_id), row])).values()];
 
-    if (!recipients.length) {
-      return res.status(200).json({
-        ok: true, total: 0, sent: 0, failed: 0,
-        message: "No active members have opted in to Discord notifications yet."
-      });
-    }
     if (recipients.length > MAX_RECIPIENTS_PER_BATCH) {
       return res.status(409).json({
         error: `This manual batch has ${recipients.length} opted-in recipients. The safe single-request limit is ${MAX_RECIPIENTS_PER_BATCH}; use a queued delivery workflow before sending to a larger group.`
@@ -327,6 +325,30 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString(),
       ...(siteUrl ? { url: siteUrl } : {})
     };
+
+    // Every manual alert is first published to exactly one configured channel.
+    // This is independent from per-member DM preferences.
+    let channelSent = false;
+    let channelMessageId = null;
+    let channelErrorCode = null;
+    try {
+      const channelMessage = await discordRequest(
+        config,
+        "/channels/" + encodeURIComponent(config.notificationChannelId) + "/messages",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            embeds: [embed],
+            allowed_mentions: { parse: [] }
+          })
+        }
+      );
+      channelSent = true;
+      channelMessageId = channelMessage.id || null;
+    } catch (error) {
+      channelErrorCode = String(error?.code || error?.message || "channel_delivery_failed").slice(0, 80);
+      console.error("Discord notification channel delivery failed:", channelErrorCode);
+    }
 
     let sent = 0;
     let failed = 0;
@@ -377,7 +399,13 @@ export default async function handler(req, res) {
     const updateBatch = await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batchId), {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ sent_count: sent, failed_count: failed })
+      body: JSON.stringify({
+        sent_count: sent,
+        failed_count: failed,
+        channel_status: channelSent ? "sent" : "failed",
+        channel_message_id: channelMessageId,
+        channel_error_code: channelErrorCode
+      })
     });
     if (!updateBatch.ok) {
       console.error("Notification batch summary update failed:", updateBatch.status, (await updateBatch.text()).slice(0, 200));
@@ -388,17 +416,23 @@ export default async function handler(req, res) {
       total: recipients.length,
       sent,
       failed,
+      channel_sent: channelSent,
+      channel_error_code: channelErrorCode,
       failure_reasons: {
         no_mutual_guild: failureReasons["50278"] || 0,
         recipient_dm_blocked: failureReasons["50007"] || 0,
         other: Object.entries(failureReasons).filter(([code]) => !["50278", "50007"].includes(code)).reduce((sum, [, count]) => sum + count, 0)
       },
       mode: broadcastEnabled ? "broadcast" : "test_self",
-      message: !broadcastEnabled
-        ? (failed ? "Private test completed with a delivery failure." : "Private test sent only to the portal owner.")
-        : (failed
-          ? `Notification batch completed: ${sent} sent, ${failed} failed.`
-          : `Notification batch completed: ${sent} sent.`)
+      message: !channelSent
+        ? "The channel post failed. Direct-message delivery was attempted separately."
+        : recipients.length === 0
+          ? "The alert was published to the notification channel. No opted-in DM recipients were found."
+          : !broadcastEnabled
+            ? (failed ? "Channel post published; private test DM had a delivery failure." : "Channel post published; private test was limited to the portal owner.")
+            : (failed
+              ? `Channel post published; ${sent} DMs sent and ${failed} failed.`
+              : `Channel post published; ${sent} DMs sent.`)
     });
   } catch (error) {
     console.error("Notification send failed:", error instanceof Error ? error.message : "unknown");
