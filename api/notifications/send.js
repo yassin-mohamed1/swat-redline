@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const MAX_RECIPIENTS_PER_BATCH = 40;
+const MAX_RECIPIENTS_PER_BATCH = 10;
 
 function parseCookies(header = "") {
   const out = {};
