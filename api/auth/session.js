@@ -34,10 +34,13 @@ export default async function handler(req, res) {
       const check = await fetch(`${base}/rest/v1/staff_profiles?${query.toString()}`, {
         headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: "Bearer " + process.env.SUPABASE_SERVICE_ROLE_KEY }
       });
-      if (check.ok) {
-        const rows = await check.json();
-        if (rows[0] && (rows[0].is_banned || rows[0].is_active === false))
-          return res.status(401).json({ authenticated: false, error: "Account deactivated" });
+      if (!check.ok) {
+        console.error("Staff access check failed:", check.status, (await check.text()).slice(0, 250));
+        return res.status(503).json({ authenticated: false, error: "Could not verify staff access. Please try again." });
+      }
+      const rows = await check.json();
+      if (!rows[0] || rows[0].is_banned || rows[0].is_active === false) {
+        return res.status(401).json({ authenticated: false, error: "Account deactivated or not registered" });
       }
     } catch {}
   }
