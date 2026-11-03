@@ -42,7 +42,10 @@ export default async function handler(req, res) {
       if (!rows[0] || rows[0].is_banned || rows[0].is_active === false) {
         return res.status(401).json({ authenticated: false, error: "Account deactivated or not registered" });
       }
-    } catch {}
+    } catch (error) {
+      console.error("Staff access verification failed:", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ authenticated: false, error: "Could not verify staff access. Please try again." });
+    }
   }
   // Record this authenticated session once; the unique index prevents page refreshes
   // from creating duplicate login events for the same signed session.
