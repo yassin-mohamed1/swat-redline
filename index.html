@@ -444,7 +444,7 @@ async function checkDiscordBotStatus(button){
  if(button){button.disabled=true;button.textContent='جاري الفحص...'}
  badge.className='tag gray';badge.textContent='جاري الفحص';message.textContent='جاري الاتصال بـ Discord والتحقق من وجود البوت في سيرفر الموقع...';
  try{
-  const response=await fetch('/api/notifications/status',{credentials:'same-origin',cache:'no-store'});
+  const response=await fetch('/api/notifications/send',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذر فحص اتصال البوت');
   if(data.tokenValid===false){
@@ -464,7 +464,7 @@ async function checkDiscordBotStatus(button){
 async function sendPortalNotification(entityType,entityId,button){
  if(!currentIsOwner){toast('إرسال التنبيهات متاح للمالك فقط');return}
  const label=({person:'ملف الشخص',operation:'العملية / الاجتماع',report:'التقرير',investigation:'ملف التحري'})[entityType]||'السجل';
- if(!confirm('وضع الاختبار مفعّل: سيتم إرسال رسالة Discord خاصة بخصوص '+label+' إلى حساب المالك فقط. لن تصل لأي عضو آخر، حتى لو فعّل الإشعارات. هل تريد المتابعة؟'))return;
+ if(!confirm('سيتم نشر التنبيه في روم SWAT Notification Website، وإرسال رسالة خاصة لحساب المالك فقط أثناء الاختبار. لن تصل رسالة خاصة لأي عضو آخر. هل تريد المتابعة؟'))return;
  if(button?.disabled)return;
  const oldText=button?.textContent||'إرسال تنبيه';
  if(button){button.disabled=true;button.textContent='جاري الإرسال...'}
@@ -483,13 +483,16 @@ async function sendPortalNotification(entityType,entityId,button){
   const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity_type:entityType,entity_id:String(entityId),batch_key:crypto.randomUUID()})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر إرسال التنبيه');
-  if(!data.total){toast('لا يوجد أعضاء فعّلوا استقبال إشعارات Discord حتى الآن');return}
-  if(data.failed&&data.failure_reasons?.no_mutual_guild){
+  if(!data.channel_sent){
+   toast('فشل نشر التنبيه في روم الإشعارات. راجع صلاحية البوت أو Channel ID.');
+  }else if(!data.total){
+   toast('تم نشر التنبيه في الروم، لكن لا يوجد مستلم DM مفعّل حاليًا.');
+  }else if(data.failed&&data.failure_reasons?.no_mutual_guild){
    toast('Discord رفض الرسالة: البوت وحسابك ليسا في سيرفر مشترك. أضف البوت إلى سيرفر الموقع.');
   }else if(data.failed&&data.failure_reasons?.recipient_dm_blocked){
    toast('تعذر إرسال الرسالة بسبب إعدادات الخصوصية أو حظر رسائل البوت في حساب Discord.');
   }else{
-   toast(data.mode==='test_self'?'تم إرسال اختبار خاص إلى حساب المالك.':'تم إرسال '+Number(data.sent||0)+' من '+Number(data.total||0)+' تنبيه. فشل: '+Number(data.failed||0));
+   toast(data.mode==='test_self'?'تم النشر في الروم وإرسال DM لحسابك بنجاح.':'تم النشر في الروم وإرسال '+Number(data.sent||0)+' من '+Number(data.total||0)+' رسالة خاصة. فشل: '+Number(data.failed||0));
   }
  }catch(error){
   toast(error.message||'تعذّر إرسال التنبيه');
