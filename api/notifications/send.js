@@ -242,6 +242,97 @@ function buildNotificationEmbeds(mainEmbed, images) {
   });
   return embeds;
 }
+ 
+function notificationSubjectTitle(type, record) {
+  if (type === "operation") return truncate(record.name || record.title || "عملية بدون اسم", 200);
+  if (type === "person") return truncate(record.name || record.title || "ملف بدون اسم", 200);
+  if (type === "report") return truncate(record.title || "تقرير بدون عنوان", 200);
+  return truncate(record.title || record.name || "ملف تحرٍّ بدون عنوان", 200);
+}
+
+async function writeNotificationAudit(config, user, type, entityId, record, batchId, result) {
+  const subjectTitle = notificationSubjectTitle(type, record);
+  const actorName = truncate(user.displayName || user.username, 100);
+  const actorUsername = truncate(user.username, 100);
+  const channelStatus = result.channelStatus || "pending";
+  const detail = `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${channelStatus === "sent" ? "تم نشره في روم الإشعارات" : channelStatus === "failed" ? "فشل نشره في روم الإشعارات" : "جارٍ نشره"}.`;
+  const details = {
+    type: "إرسال تنبيه Discord",
+    detail,
+    ref: entityId,
+    notification_batch_id: batchId,
+    notification_type: type,
+    record_title: subjectTitle,
+    actor_username: actorUsername,
+    channel_status: channelStatus,
+    channel_message_id: result.channelMessageId || null,
+    channel_error_code: result.channelErrorCode || null,
+    dm_total: Number(result.dmTotal || 0),
+    dm_sent: Number(result.dmSent || 0),
+    dm_failed: Number(result.dmFailed || 0)
+  };
+
+  try {
+    const response = await supabaseRequest(config, "audit_logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({
+        actor_discord_id: user.id,
+        actor_name: actorName,
+        action: "create",
+        entity_type: "discord_notification",
+        entity_id: entityId,
+        details
+      })
+    });
+    if (!response.ok) {
+      console.error("Discord notification audit insert failed:", response.status, (await response.text()).slice(0, 300));
+      return { id: null, details };
+    }
+    const rows = await response.json();
+    return { id: rows[0]?.id || null, details };
+  } catch (error) {
+    console.error("Discord notification audit insert failed:", error?.message || "unknown");
+    return { id: null, details };
+  }
+}
+
+async function updateNotificationAudit(config, auditEntry, user, type, entityId, record, batchId, result) {
+  if (!auditEntry?.id) return;
+  const subjectTitle = notificationSubjectTitle(type, record);
+  const actorName = truncate(user.displayName || user.username, 100);
+  const actorUsername = truncate(user.username, 100);
+  const sent = Number(result.dmSent || 0);
+  const failed = Number(result.dmFailed || 0);
+  const total = Number(result.dmTotal || 0);
+  const channelStatus = result.channelStatus || "sent";
+  const statusText = channelStatus === "failed"
+    ? "فشل نشره في روم الإشعارات"
+    : `تم نشره في روم الإشعارات؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
+  const details = {
+    ...auditEntry.details,
+    detail: `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${statusText}.`,
+    channel_status: channelStatus,
+    channel_message_id: result.channelMessageId || null,
+    channel_error_code: result.channelErrorCode || null,
+    dm_total: total,
+    dm_sent: sent,
+    dm_failed: failed
+  };
+  try {
+    const query = new URLSearchParams({ id: "eq." + String(auditEntry.id) });
+    const response = await supabaseRequest(config, "audit_logs?" + query, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ details })
+    });
+    if (!response.ok) {
+      console.error("Discord notification audit update failed:", response.status, (await response.text()).slice(0, 300));
+    }
+  } catch (error) {
+    console.error("Discord notification audit update failed:", error?.message || "unknown");
+  }
+}
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -387,6 +478,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         batch_key: batchKey,
         actor_discord_id: user.id,
+        actor_display_name: user.displayName || user.username,
+        actor_username: user.username,
         entity_type: type,
         entity_id: entityId,
         total_recipients: recipients.length
@@ -428,13 +521,14 @@ export default async function handler(req, res) {
         inline: true
       });
     }
-    const subjectTitle = type === "operation"
-      ? (record.name || record.title || "عملية بدون اسم")
-      : type === "person"
-        ? (record.name || record.title || "ملف بدون اسم")
-        : type === "report"
-          ? (record.title || "تقرير بدون عنوان")
-          : (record.title || record.name || "ملف تحرٍّ بدون عنوان");
+    const subjectTitle = notificationSubjectTitle(type, record);
+    const senderDisplayName = truncate(user.displayName || user.username, 100);
+    const senderUsername = truncate(user.username, 100);
+    embedFields.unshift({
+      name: "👤 أرسل بواسطة",
+      value: `**${senderDisplayName}**\n@${senderUsername}\nDiscord ID: ${user.id}`,
+      inline: false
+    });
     const subjectKind = ({
       person: "ملف شخص",
       operation: "عملية / اجتماع",
@@ -507,6 +601,14 @@ export default async function handler(req, res) {
       if (!failedBatch.ok) {
         console.error("Failed to record channel delivery failure:", failedBatch.status, (await failedBatch.text()).slice(0, 200));
       }
+      const failedAudit = await writeNotificationAudit(
+        config, user, type, entityId, record, batchId,
+        { channelStatus: "failed", channelErrorCode, dmTotal: 0, dmSent: 0, dmFailed: 0 }
+      );
+      await updateNotificationAudit(
+        config, failedAudit, user, type, entityId, record, batchId,
+        { channelStatus: "failed", channelErrorCode, dmTotal: 0, dmSent: 0, dmFailed: 0 }
+      );
       return res.status(502).json({
         error: "The notification was not sent. Discord could not publish it in #swat-notification-website, so no direct messages were sent either.",
         channel_sent: false,
@@ -514,6 +616,10 @@ export default async function handler(req, res) {
       });
     }
 
+    const notificationAudit = await writeNotificationAudit(
+      config, user, type, entityId, record, batchId,
+      { channelStatus: "sent", channelMessageId, dmTotal: recipients.length, dmSent: 0, dmFailed: 0 }
+    );
     let sent = 0;
     let failed = 0;
     const failureReasons = {};
@@ -589,6 +695,10 @@ export default async function handler(req, res) {
     if (!updateBatch.ok) {
       console.error("Notification batch summary update failed:", updateBatch.status, (await updateBatch.text()).slice(0, 200));
     }
+    await updateNotificationAudit(
+      config, notificationAudit, user, type, entityId, record, batchId,
+      { channelStatus: "sent", channelMessageId, dmTotal: recipients.length, dmSent: sent, dmFailed: failed }
+    );
 
     return res.status(200).json({
       ok: true,
