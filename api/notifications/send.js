@@ -2,6 +2,9 @@ import crypto from "node:crypto";
 
 const DISCORD_API = "https://discord.com/api/v10";
 const MAX_RECIPIENTS_PER_BATCH = 10;
+const MAX_NOTIFICATION_IMAGES = 4;
+const MAX_NOTIFICATION_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_NOTIFICATION_TOTAL_IMAGE_BYTES = 8 * 1024 * 1024;
 
 function parseCookies(header = "") {
   const out = {};
@@ -71,11 +74,12 @@ async function supabaseRequest(config, path, options = {}) {
 }
 
 async function discordRequest(config, path, options = {}) {
+  const isMultipart = typeof FormData !== "undefined" && options.body instanceof FormData;
   const request = () => fetch(DISCORD_API + path, {
     ...options,
     headers: {
       Authorization: "Bot " + config.botToken,
-      "Content-Type": "application/json",
+      ...(!isMultipart ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {})
     }
   });
@@ -160,6 +164,83 @@ function describeRecord(type, record) {
       { name: "ملخص الواقعة", value: truncate(record.incident || record.notes || "لا توجد تفاصيل إضافية.", 900) }
     ]
   };
+}
+
+function extractNotificationImages(record) {
+  const candidates = Array.isArray(record?.images)
+    ? record.images
+    : Array.isArray(record?.photos)
+      ? record.photos
+      : record?.image
+        ? [record.image]
+        : [];
+  const images = [];
+  let totalBytes = 0;
+  let skipped = 0;
+
+  for (const item of candidates) {
+    if (images.length >= MAX_NOTIFICATION_IMAGES) {
+      skipped++;
+      continue;
+    }
+
+    const src = typeof item === "string"
+      ? item
+      : (item?.src || item?.dataUrl || item?.data || item?.content || "");
+    const match = /^data:(image\/(?:jpeg|png|webp|gif));base64,([a-z0-9+/=\s]+)$/i.exec(String(src));
+    if (!match) {
+      skipped++;
+      continue;
+    }
+
+    const mime = match[1].toLowerCase();
+    const buffer = Buffer.from(match[2].replace(/\s/g, ""), "base64");
+    if (!buffer.length || buffer.length > MAX_NOTIFICATION_IMAGE_BYTES ||
+        totalBytes + buffer.length > MAX_NOTIFICATION_TOTAL_IMAGE_BYTES) {
+      skipped++;
+      continue;
+    }
+
+    totalBytes += buffer.length;
+    const extension = mime === "image/jpeg" ? "jpg" : mime.split("/")[1];
+    const index = images.length + 1;
+    const description = typeof item === "object" && item
+      ? truncate(item.description || item.caption || "", 700)
+      : "";
+    images.push({
+      buffer,
+      mime,
+      filename: "swat-evidence-" + String(index).padStart(2, "0") + "." + extension,
+      description
+    });
+  }
+
+  return { images, skipped, totalBytes };
+}
+
+function createDiscordMessageBody(payload, images) {
+  if (!images.length) return JSON.stringify(payload);
+
+  const form = new FormData();
+  form.append("payload_json", JSON.stringify(payload));
+  images.forEach((image, index) => {
+    form.append("files[" + index + "]", new Blob([image.buffer], { type: image.mime }), image.filename);
+  });
+  return form;
+}
+
+function buildNotificationEmbeds(mainEmbed, images) {
+  const embeds = [mainEmbed];
+  images.forEach((image, index) => {
+    embeds.push({
+      color: 0xD92735,
+      title: "الدليل المرفق " + (index + 1),
+      ...(image.description ? { description: image.description } : {}),
+      image: { url: "attachment://" + image.filename },
+      footer: { text: "S.W.A.T. REDLINE • EVIDENCE ATTACHMENT" }
+    });
+  });
+  return embeds;
 }
 
 export default async function handler(req, res) {
@@ -322,23 +403,50 @@ export default async function handler(req, res) {
     if (!batchId) return res.status(502).json({ error: "Could not confirm the notification batch." });
 
     const summary = describeRecord(type, record);
+    const { images: notificationImages, skipped: skippedImageCount } = extractNotificationImages(record);
     const siteHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.SITE_URL || "";
     const siteUrl = siteHost
       ? (siteHost.startsWith("http") ? siteHost : "https://" + siteHost)
       : "";
+    const embedFields = summary.fields.map(field => ({
+      name: truncate(field.name, 256),
+      value: truncate(field.value || "—", 1024),
+      inline: Boolean(field.inline)
+    }));
+    if (notificationImages.length) {
+      embedFields.push({
+        name: "📎 المرفقات",
+        value: `تم إرفاق ${notificationImages.length} صورة من أدلة السجل.`,
+        inline: true
+      });
+    }
+    if (skippedImageCount) {
+      embedFields.push({
+        name: "ملاحظة المرفقات",
+        value: "تعذّر إرفاق بعض الصور بسبب نوع الملف أو حد الحجم الآمن.",
+        inline: true
+      });
+    }
     const embed = {
-      title: truncate(summary.title, 256),
-      description: truncate(summary.description, 1500),
+      author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
+      title: "🚨 " + truncate(summary.title, 240),
+      description: "**إشعار إداري جديد**\n" + truncate(summary.description, 1300),
       color: 0xD92735,
-      fields: summary.fields.map(field => ({
-        name: truncate(field.name, 256),
-        value: truncate(field.value || "—", 1024),
-        inline: Boolean(field.inline)
-      })),
-      footer: { text: "S.W.A.T. REDLINE • COMMAND PORTAL" },
+      fields: embedFields,
+      footer: { text: "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
       timestamp: new Date().toISOString(),
       ...(siteUrl ? { url: siteUrl } : {})
     };
+    const notificationEmbeds = buildNotificationEmbeds(embed, notificationImages);
+    const siteComponents = siteUrl ? [{
+      type: 1,
+      components: [{
+        type: 2,
+        style: 5,
+        label: "فتح بوابة S.W.A.T. REDLINE",
+        url: siteUrl
+      }]
+    }] : [];
 
     // Every manual alert is first published to exactly one configured channel.
     // DISCORD_NOTIFICATION_CHANNEL_ID is the only channel destination; DM delivery remains opt-in.
@@ -352,14 +460,15 @@ export default async function handler(req, res) {
         "/channels/" + encodeURIComponent(config.notificationChannelId) + "/messages",
         {
           method: "POST",
-          body: JSON.stringify({
+          body: createDiscordMessageBody({
             content: notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
-            embeds: [embed],
+            embeds: notificationEmbeds,
+            ...(siteComponents.length ? { components: siteComponents } : {}),
             allowed_mentions: {
               parse: [],
               roles: notificationRoleMentionDisabled ? [] : [config.notificationRoleId]
             }
-          })
+          }, notificationImages)
         }
       );
       channelSent = true;
@@ -406,10 +515,11 @@ export default async function handler(req, res) {
 
         await discordRequest(config, "/channels/" + encodeURIComponent(dm.id) + "/messages", {
           method: "POST",
-          body: JSON.stringify({
-            embeds: [embed],
+          body: createDiscordMessageBody({
+            embeds: notificationEmbeds,
+            ...(siteComponents.length ? { components: siteComponents } : {}),
             allowed_mentions: { parse: [] }
-          })
+          }, notificationImages)
         });
         status = "sent";
         sent++;
