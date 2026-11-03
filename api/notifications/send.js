@@ -206,6 +206,9 @@ export default async function handler(req, res) {
     const record = records.find(item => String(item?.id ?? "") === entityId);
     if (!record) return res.status(404).json({ error: "The selected record was not found. Refresh the portal and try again." });
 
+    // Safe rollout: broadcast stays OFF unless the environment flag is
+    // deliberately enabled after the owner finishes the private self-test.
+    const broadcastEnabled = process.env.DISCORD_NOTIFICATIONS_BROADCAST_ENABLED === "true";
     const recipientQuery = new URLSearchParams({
       select: "discord_user_id,display_name",
       notifications_enabled: "eq.true",
@@ -213,6 +216,10 @@ export default async function handler(req, res) {
       is_banned: "eq.false",
       order: "created_at.asc"
     });
+    if (!broadcastEnabled) {
+      // During testing, never address any other profile, even if it opted in.
+      recipientQuery.set("discord_user_id", "eq." + user.id);
+    }
     const recipientResponse = await supabaseRequest(config, "staff_profiles?" + recipientQuery, { method: "GET" });
     if (!recipientResponse.ok) {
       console.error("Notification recipient lookup failed:", recipientResponse.status, (await recipientResponse.text()).slice(0, 250));
@@ -334,9 +341,12 @@ export default async function handler(req, res) {
       total: recipients.length,
       sent,
       failed,
-      message: failed
-        ? `Notification batch completed: ${sent} sent, ${failed} failed.`
-        : `Notification batch completed: ${sent} sent.`
+      mode: broadcastEnabled ? "broadcast" : "test_self",
+      message: !broadcastEnabled
+        ? (failed ? "Private test completed with a delivery failure." : "Private test sent only to the portal owner.")
+        : (failed
+          ? `Notification batch completed: ${sent} sent, ${failed} failed.`
+          : `Notification batch completed: ${sent} sent.`)
     });
   } catch (error) {
     console.error("Notification send failed:", error instanceof Error ? error.message : "unknown");
