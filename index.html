@@ -92,7 +92,7 @@ html[dir="ltr"] body{font-family:Arial,Helvetica,sans-serif}html[dir="ltr"] .sid
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentIsOwner=false;let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -118,6 +118,18 @@ async function pushSharedState(){
   }catch(e){toast('تعذّر الاتصال بقاعدة البيانات المشتركة');}
   finally{sharedSyncBusy=false;}
 }
+function repairLegacyReportAuthors(){
+  let changed=false;
+  reports=reports.map(report=>{
+    if(!report||report.owner!=='Yassin')return report;
+    const expectedDetail='إنشاء تقرير: '+String(report.title||'');
+    const matchingEvent=audit.find(event=>event&&event.detail===expectedDetail&&typeof event.user==='string'&&event.user.trim());
+    if(!matchingEvent||matchingEvent.user.trim()===report.owner)return report;
+    changed=true;
+    return {...report,owner:matchingEvent.user.trim()};
+  });
+  return changed;
+}
 async function pullSharedState(initial=false){
   if(sharedSyncBusy)return;
   try{
@@ -142,6 +154,7 @@ async function pullSharedState(initial=false){
       tasks=Array.isArray(cloud.tasks)?cloud.tasks:[];
       operations=Array.isArray(cloud.operations)?cloud.operations:[];
       reports=Array.isArray(cloud.reports)?cloud.reports:[];
+      const repairedReportAuthors=repairLegacyReportAuthors();
       if(Array.isArray(cloud.rules)&&cloud.rules.length)rules=cloud.rules;
       if(Array.isArray(cloud.dailyCommands)){dailyCommands=cloud.dailyCommands;localStorage.setItem("redline_daily_commands",JSON.stringify(dailyCommands));}
       localStorage.setItem('redline_people',JSON.stringify(people));
@@ -155,6 +168,7 @@ async function pullSharedState(initial=false){
     }
     sharedUpdatedAt=result.updated_at||null;
     sharedSyncReady=true;
+    if(typeof repairedReportAuthors!=='undefined'&&repairedReportAuthors)await pushSharedState();
     // Migrate the owner's existing local daily orders once, if the shared record predates this field.
     if(initial&&currentIsOwner&&(!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations))){await pushSharedState();}
   }catch(e){console.warn('Shared sync unavailable',e);}
@@ -470,7 +484,7 @@ let a=document.createElement('a');a.download='case-file-'+String(p.id).replace(/
 }
 function exportAll(){downloadBlob(JSON.stringify(people,null,2),'redline-records.json','application/json');log('تصدير','تم تصدير قائمة الملفات','ALL');toast('تم تنزيل JSON')}function downloadAudit(){downloadBlob(JSON.stringify(audit,null,2),'redline-audit-log.json','application/json');toast('تم تنزيل سجل النشاط')}
 function toggleTask(i,v){tasks[i].done=v;save();log('تعديل',(v?'إكمال':'إعادة فتح')+' المهمة: '+tasks[i].text,'TASK-'+(i+1));renderTasks()}function addTask(){let t=prompt('اكتب المهمة الجديدة:');if(!t)return;tasks.unshift({text:t,done:false});save();log('إضافة','إضافة مهمة: '+t,'TASK-NEW');renderTasks();toast('تمت إضافة المهمة')}
-function newOperation(){let name=prompt('اسم العملية:');if(!name)return;operations.unshift({id:'OP-'+String(Date.now()).slice(-6),name,owner:'Yassin',status:'جارية',time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})});save();renderOps();log('إضافة','إنشاء عملية: '+name);toast('تمت إضافة العملية (تجريبي)')}function deleteReport(id){let r=reports.find(x=>x.id===id);if(!r)return;if(!confirm('تأكيد حذف التقرير '+r.id+' — '+r.title+'؟'))return;reports=reports.filter(x=>x.id!==id);save();log('حذف','حذف التقرير '+r.title,id);renderReports();renderDashboard();toast('تم حذف التقرير')}function newReport(){let title=prompt('عنوان التقرير:');if(!title)return;reports.unshift({id:'R-'+String(Date.now()).slice(-6),title,owner:'Yassin',status:'مسودة',date:new Date().toLocaleDateString('en-GB')});save();renderReports();log('إضافة','إنشاء تقرير: '+title);toast('تم إنشاء التقرير (تجريبي)')}
+function newOperation(){let name=prompt('اسم العملية:');if(!name)return;operations.unshift({id:'OP-'+String(Date.now()).slice(-6),name,owner:'Yassin',status:'جارية',time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})});save();renderOps();log('إضافة','إنشاء عملية: '+name);toast('تمت إضافة العملية (تجريبي)')}function deleteReport(id){let r=reports.find(x=>x.id===id);if(!r)return;if(!confirm('تأكيد حذف التقرير '+r.id+' — '+r.title+'؟'))return;reports=reports.filter(x=>x.id!==id);save();log('حذف','حذف التقرير '+r.title,id);renderReports();renderDashboard();toast('تم حذف التقرير')}function newReport(){let title=prompt('عنوان التقرير:');if(!title)return;const report={id:'R-'+String(Date.now()).slice(-6),title,owner:currentUser||'Discord user',createdByDiscordId:currentUserId,status:'مسودة',date:new Date().toLocaleDateString('en-GB')};reports.unshift(report);save();renderReports();log('إضافة','إنشاء تقرير: '+title,report.id);toast('تم إنشاء التقرير (تجريبي)')}
 async function logoutFromPortal(){
   const button=document.getElementById('logoutButton');
   if(button){button.disabled=true;button.textContent='جارٍ تسجيل الخروج...';}
@@ -506,6 +520,7 @@ async function initAuth(){
     const data=await response.json();
     if(!data.authenticated||!data.user) throw new Error('unauthorized');
     currentIsOwner=Boolean(data.user.isOwner);
+    currentUserId=data.user.id||null;
     currentUser=data.user.displayName||data.user.username||data.user.globalName||data.user.id||'Discord user';
     if(currentIsOwner){document.getElementById('settingsNav').style.display='flex';}else{const personnelNav=document.querySelector('#nav button[data-page="personnel"]');if(personnelNav)personnelNav.style.display='none';}
     document.getElementById('profileName').textContent=data.user.displayName||data.user.username||data.user.globalName||'Discord user';
