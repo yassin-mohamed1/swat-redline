@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { handleAnnouncementForwarder } from "../../lib/announcement-forwarder.js";
+import { requireSameOrigin } from "../../lib/request-security.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
 const MAX_RECIPIENTS_PER_BATCH = 200;
@@ -455,6 +456,8 @@ export default async function handler(req, res) {
       return res.status(503).json({ ok: false, error: "Could not reach Discord to inspect the bot." });
     }
   }
+
+  if (!requireSameOrigin(req, res)) return;
 
   const body = typeof req.body === "string"
     ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
