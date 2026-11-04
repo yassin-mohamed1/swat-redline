@@ -54,7 +54,7 @@ function getConfig() {
   const notificationChannelId = process.env.DISCORD_NOTIFICATION_CHANNEL_ID;
   // Manual site notifications use one Discord channel per record family.
   // These defaults are the owner-provided announcement and evidence room IDs.
-  const announcementPostChannelId = process.env.DISCORD_ANNOUNCEMENT_POST_CHANNEL_ID || "1561485863492259840";
+  const announcementPostChannelId = "1561485863492259840"; // Fixed owner-selected #𝐀𝐍𝐍𝐎𝐔𝐍𝐂𝐄𝐌𝐍𝐄𝐓 room.
   const evidenceChannelId = process.env.DISCORD_EVIDENCE_CHANNEL_ID || "1562393479953518612";
   const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
   if (!base || !serviceKey) return { error: "storage_not_configured" };
