@@ -545,7 +545,10 @@ async function flushSharedStateNow(){
  sharedWriteQueued=false;
  clearTimeout(sharedSaveTimer);
  const saved=await pushSharedState();
- if(!saved||shareasync function deleteRule(i){
+ if(!saved||sharedLastSaveError||sharedWriteConflict)throw new Error(sharedLastSaveError||'السيرفر لم يؤكد حفظ التعديل.');
+ return true;
+}
+async function deleteRule(i){
  if(!rules[i])return;
  if(!sharedSyncReady){toast('انتظر اكتمال مزامنة البيانات قبل الحذف.');return}
  const r=rules[i];if(!confirm('تأكيد حذف «'+r.title+'»؟'))return;
@@ -563,7 +566,6 @@ async function flushSharedStateNow(){
   toast(error.message||'لم يؤكد السيرفر الحذف؛ تم استرجاع العنصر.');
  }
 }
-
 function newDailyCommand(){let text=prompt('اكتب نص الأمر الجديد:');if(!text||!text.trim())return;dailyCommands.push({text:text.trim()});save();log('إضافة','إضافة أمر يومي: '+text.trim(),'DAILY-COMMAND');renderDailyCommands();toast('تمت إضافة الأمر')}
 function editDailyCommand(i){if(!dailyCommands[i])return;let text=prompt('عدّل نص الأمر:',dailyCommands[i].text);if(text===null||!text.trim())return;let old=dailyCommands[i].text;dailyCommands[i]={...dailyCommands[i],text:text.trim()};save();log('تعديل','تعديل الأمر اليومي: '+old+' ← '+text.trim(),'DAILY-COMMAND-'+(i+1));renderDailyCommands();toast('تم تعديل الأمر')}
 function deleteDailyCommand(i){if(!dailyCommands[i])return;let c=dailyCommands[i];if(!confirm('حذف الأمر «'+c.text+'»؟'))return;dailyCommands.splice(i,1);save();log('حذف','حذف الأمر اليومي: '+c.text,'DAILY-COMMAND-'+(i+1));renderDailyCommands();toast('تم حذف الأمر')}
