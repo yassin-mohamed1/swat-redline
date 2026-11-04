@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requireSameOrigin } from "../../lib/request-security.js";
 
 function readSession(req) {
   const secret = process.env.SESSION_SECRET;
@@ -22,6 +23,11 @@ function readSession(req) {
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  if (!requireSameOrigin(req, res)) return;
   const user = readSession(req);
   if (user && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
@@ -48,10 +54,5 @@ export default async function handler(req, res) {
     "swat_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
     "discord_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
   ]);
-  if (req.method === "GET") return res.redirect(302, "/?loggedOut=1");
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "GET, POST");
-    return res.status(405).json({ error: "Method not allowed" });
-  }
   return res.status(200).json({ ok: true, redirect: "/" });
 }
