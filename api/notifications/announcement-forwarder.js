@@ -151,12 +151,20 @@ function buildForwardParts(message, config) {
     sourceUrl ? "🔗 فتح الرسالة الأصلية: " + sourceUrl : ""
   ].filter(Boolean).join("\n");
 
-  const bodyChunks = chunkText(lines.join("\n\n"));
-  return bodyChunks.map((chunk, index) => {
-    const prefix = index === 0
-      ? header + "\n\n"
-      : "📣 استكمال الإعلان — الجزء " + (index + 1) + "/" + bodyChunks.length + "\n\n";
-    return (prefix + chunk).slice(0, 2000);
+  const bodyText = lines.join("\n\n");
+  const firstPrefix = header + "\n\n";
+  const firstLimit = Math.max(300, 2000 - firstPrefix.length - 4);
+  const rawParts = chunkText(bodyText, firstLimit);
+  const parts = [firstPrefix + (rawParts.shift() || "")];
+  const continuationPrefixLength = "📣 استكمال الإعلان — الجزء 999/999\n\n".length;
+  const continuationLimit = 2000 - continuationPrefixLength - 4;
+  for (const rawPart of rawParts) {
+    parts.push(...chunkText(rawPart, continuationLimit));
+  }
+  return parts.map((part, index) => {
+    if (index === 0) return part;
+    const prefix = "📣 استكمال الإعلان — الجزء " + (index + 1) + "/" + parts.length + "\n\n";
+    return prefix + part;
   });
 }
 
