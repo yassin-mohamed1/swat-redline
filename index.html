@@ -128,7 +128,7 @@ html[dir="ltr"] body{font-family:Arial,Helvetica,sans-serif}html[dir="ltr"] .sid
 <script>
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
-if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
+if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;
 function save(){
@@ -141,6 +141,7 @@ function save(){
   localStorage.setItem('redline_reports',JSON.stringify(reports));
   localStorage.setItem('redline_announcements',JSON.stringify(announcements));
   localStorage.setItem('redline_rules',JSON.stringify(rules));
+  localStorage.setItem('redline_deleted_rule_ids',JSON.stringify(deletedRuleIds));
   localStorage.setItem('redline_daily_commands',JSON.stringify(dailyCommands));
   if(sharedSyncReady){
     clearTimeout(sharedSaveTimer);
@@ -153,7 +154,7 @@ async function pushSharedState(){
   if(sharedSyncBusy){sharedWriteQueued=true;return false;}
   sharedSyncBusy=true;sharedLastSaveError=null;
   try{
-    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:sharedUpdatedAt,data:{people,cases,investigations,tasks,operations,reports,announcements,rules,dailyCommands}})});
+    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:sharedUpdatedAt,data:{people,cases,investigations,tasks,operations,reports,announcements,rules,dailyCommands,deletedRuleIds}})});
     const result=await response.json().catch(()=>({}));
     if(response.status===409){
       sharedWriteConflict=true;
@@ -203,7 +204,7 @@ async function pullSharedState(initial=false){
     if(!result.data)return;
     if(!initial&&result.updated_at&&result.updated_at===sharedUpdatedAt)return;
     const cloud=result.data;
-    const keys=['people','cases','investigations','tasks','operations','reports','announcements','rules','dailyCommands'];
+    const keys=['people','cases','investigations','tasks','operations','reports','announcements','rules','dailyCommands','deletedRuleIds'];
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
     const hasCloudSnapshot=keys.some(k=>Array.isArray(cloud[k]));
     const hasCompleteCloudSnapshot=keys.every(k=>Array.isArray(cloud[k]));
@@ -225,6 +226,7 @@ async function pullSharedState(initial=false){
       announcements=Array.isArray(cloud.announcements)?cloud.announcements:[];
       repairedReportAuthors=repairLegacyReportAuthors();
       if(Array.isArray(cloud.rules)){rules=cloud.rules;localStorage.setItem('redline_rules',JSON.stringify(rules));}
+      if(Array.isArray(cloud.deletedRuleIds)){deletedRuleIds=cloud.deletedRuleIds;localStorage.setItem('redline_deleted_rule_ids',JSON.stringify(deletedRuleIds));}
       if(Array.isArray(cloud.dailyCommands)){dailyCommands=cloud.dailyCommands;localStorage.setItem("redline_daily_commands",JSON.stringify(dailyCommands));}
       localStorage.setItem('redline_people',JSON.stringify(people));
       localStorage.setItem('redline_cases',JSON.stringify(cases));
@@ -240,7 +242,7 @@ async function pullSharedState(initial=false){
     sharedSyncReady=true;
     if(repairedReportAuthors)await pushSharedState();
     // Migrate the owner's existing local daily orders once, if the shared record predates this field.
-    if(initial&&currentIsOwner&&(!Array.isArray(cloud.cases)||!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations)||!Array.isArray(cloud.announcements))){await pushSharedState();}
+    if(initial&&currentIsOwner&&(!Array.isArray(cloud.cases)||!Array.isArray(cloud.deletedRuleIds)||!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations)||!Array.isArray(cloud.announcements))){await pushSharedState();}
   }catch(e){console.warn('Shared sync unavailable',e);}
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -547,15 +549,17 @@ async function flushSharedStateNow(){
  if(!rules[i])return;
  if(!sharedSyncReady){toast('انتظر اكتمال مزامنة البيانات قبل الحذف.');return}
  const r=rules[i];if(!confirm('تأكيد حذف «'+r.title+'»؟'))return;
- const previousRules=rules.slice();
- rules.splice(i,1);save();renderRules();
+ const previousRules=rules.slice(),previousDeletedRuleIds=deletedRuleIds.slice();
+ rules.splice(i,1);
+ if(!deletedRuleIds.includes(String(r.id)))deletedRuleIds.push(String(r.id));
+ save();renderRules();
  toast('جارٍ تثبيت الحذف في قاعدة البيانات المشتركة...');
  try{
   await flushSharedStateNow();
   log('حذف','حذف '+(r.type==='law'?'القانون: ':'التعميم: ')+r.title,r.id);
   toast('تم حذف «'+r.title+'» نهائيًا من البيانات المشتركة.');
  }catch(error){
-  rules=previousRules;save();renderRules();
+  rules=previousRules;deletedRuleIds=previousDeletedRuleIds;save();renderRules();
   toast(error.message||'لم يؤكد السيرفر الحذف؛ تم استرجاع العنصر.');
  }
 }
