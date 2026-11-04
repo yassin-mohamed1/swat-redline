@@ -1,0 +1,25 @@
+name: Portal quality checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate source and deployment configuration
+        run: node scripts/validate-source.mjs
+      - name: Run security helper tests
+        run: node --test tests/*.test.mjs
