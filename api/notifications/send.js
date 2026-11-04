@@ -115,6 +115,18 @@ async function discordRequest(config, path, options = {}) {
 
 function describeRecord(type, record) {
   const id = truncate(record.id, 80);
+  if (type === "announcement") {
+    return {
+      title: "تنبيه بخصوص إعلان",
+      description: "تم إرسال إعلان جديد من بوابة S.W.A.T. REDLINE. التفاصيل الكاملة مرفقة في الرسائل التالية.",
+      fields: [
+        { name: "نوع الإعلان", value: truncate(record.typeLabel || "إعلان", 100), inline: true },
+        { name: "رقم الإعلان", value: id || "—", inline: true },
+        { name: "المرسل", value: truncate(record.owner || "غير محدد", 120), inline: true },
+        { name: "الموعد", value: truncate(record.dateTime ? new Date(record.dateTime).toLocaleString("en-GB", { timeZone: "Asia/Riyadh" }) + " (Riyadh)" : "غير محدد", 120), inline: false }
+      ]
+    };
+  }
   if (type === "task") {
     return {
       title: "تنبيه بخصوص مهمة اليوم",
@@ -268,6 +280,7 @@ function notificationSubjectTitle(type, record) {
   if (type === "person") return truncate(record.name || record.title || "ملف بدون اسم", 200);
   if (type === "report") return truncate(record.title || "تقرير بدون عنوان", 200);
   if (type === "task") return truncate(record.text || "مهمة بدون عنوان", 200);
+  if (type === "announcement") return truncate(record.title || "إعلان بدون عنوان", 200);
   return truncate(record.title || record.name || "ملف تحرٍّ بدون عنوان", 200);
 }
 
@@ -424,7 +437,7 @@ export default async function handler(req, res) {
   const entityId = typeof body.entity_id === "string" ? body.entity_id.trim() : "";
   const batchKey = typeof body.batch_key === "string" ? body.batch_key : "";
 
-  if (!["person", "operation", "report", "investigation", "task"].includes(type) ||
+  if (!["person", "operation", "report", "investigation", "task", "announcement"].includes(type) ||
       !entityId || entityId.length > 100 ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchKey)) {
     return res.status(400).json({ error: "Invalid notification request." });
@@ -451,7 +464,7 @@ export default async function handler(req, res) {
     }
     const stateRows = await stateResponse.json();
     const state = stateRows[0]?.data || {};
-    const sourceKey = ({ person: "people", operation: "operations", report: "reports", investigation: "investigations" })[type];
+    const sourceKey = ({ person: "people", operation: "operations", report: "reports", investigation: "investigations", announcement: "announcements" })[type];
     const records = type === "task" ? (Array.isArray(state.tasks) ? state.tasks : []) : (Array.isArray(state[sourceKey]) ? state[sourceKey] : []);
     const record = type === "task" ? records[Number(entityId)] : records.find(item => String(item?.id ?? "") === entityId);
     if (!record) return res.status(404).json({ error: "The selected record was not found. Refresh the portal and try again." });
@@ -562,7 +575,8 @@ export default async function handler(req, res) {
       operation: "عملية / اجتماع",
       report: "تقرير إداري",
       investigation: "ملف تحرٍّ",
-      task: "مهمة اليوم"
+      task: "مهمة اليوم",
+      announcement: "إعلان إداري"
     })[type] || "إشعار إداري";
     const embed = {
       author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
@@ -598,6 +612,17 @@ export default async function handler(req, res) {
         ].filter(Boolean).join("\n\n")
       : "";
     const reportChunks = type === "report" ? splitDiscordText(reportFullText) : [];
+    const announcementFullText = type === "announcement"
+      ? [
+          "نوع الإعلان: " + String(record.typeLabel || "إعلان"),
+          "اسم الإعلان: " + String(record.title || ""),
+          record.dateTime ? "الموعد: " + new Date(record.dateTime).toLocaleString("en-GB", { timeZone: "Asia/Riyadh" }) + " (Riyadh)" : "الموعد: غير محدد",
+          "المرسل: " + String(record.owner || "غير محدد"),
+          "",
+          String(record.description || "")
+        ].join("\\n")
+      : "";
+    const announcementChunks = type === "announcement" ? splitDiscordText(announcementFullText) : [];
     const notificationMessages = [{
       embeds: notificationEmbeds,
       images: notificationImages,
@@ -616,6 +641,22 @@ export default async function handler(req, res) {
           description: chunk,
           color: 0xD92735,
           footer: { text: "S.W.A.T. REDLINE  •  استكمال التقرير" },
+          timestamp: new Date().toISOString()
+        }],
+        images: [],
+        components: [],
+        content: "",
+        allowedMentions: { parse: [] }
+      });
+    });
+    announcementChunks.forEach((chunk, index) => {
+      notificationMessages.push({
+        embeds: [{
+          author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
+          title: "📣 تفاصيل الإعلان — الجزء " + (index + 1) + "/" + announcementChunks.length,
+          description: chunk,
+          color: 0xD92735,
+          footer: { text: "S.W.A.T. REDLINE  •  تفاصيل الإعلان" },
           timestamp: new Date().toISOString()
         }],
         images: [],
