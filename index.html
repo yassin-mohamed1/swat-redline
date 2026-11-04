@@ -118,7 +118,7 @@ html[dir="ltr"] body{font-family:Arial,Helvetica,sans-serif}html[dir="ltr"] .sid
 <div class="field full"><label for="reportTitle">اسم التقرير *</label><input id="reportTitle" maxlength="220" required placeholder="مثال: التقرير النهائي للعملية الشرقية"></div>
 <div class="field"><label for="reportType">نوع التقرير *</label><select id="reportType"><option value="operation">تقرير عملية</option><option value="case">تقرير قضية</option><option value="investigation">تقرير تحرٍّ</option><option value="administrative">تقرير إداري</option><option value="general">تقرير عام</option></select></div>
 <div class="field"><label for="reportStatus">حالة التقرير</label><select id="reportStatus"><option>مسودة</option><option>قيد المراجعة</option><option>معتمد</option></select></div>
-<div class="field"><label for="reportLinkedType">ربط التقرير بسجل موجود (اختياري)</label><select id="reportLinkedType" onchange="updateReportLinkedOptions()"><option value="">بدون ربط</option><option value="person">ملف شخص / قضية</option><option value="operation">عملية</option><option value="investigation">ملف تحرٍّ</option></select></div>
+<div class="field"><label for="reportLinkedType">ربط التقرير بسجل موجود (اختياري)</label><select id="reportLinkedType" onchange="updateReportLinkedOptions()"><option value="">بدون ربط</option><option value="person">ملف شخص</option><option value="case">قضية</option><option value="operation">عملية</option><option value="investigation">ملف تحرٍّ</option></select></div>
 <div class="field"><label for="reportLinkedRecord">السجل المرتبط</label><select id="reportLinkedRecord" disabled><option value="">اختر نوع الربط أولًا</option></select></div>
 <div class="field full"><label for="reportSummary">ملخص التقرير *</label><textarea id="reportSummary" rows="3" maxlength="2500" required placeholder="ملخص واضح لأهم ما يتضمنه التقرير..."></textarea></div>
 <div class="field full"><label for="reportContent">التفاصيل الكاملة *</label><textarea id="reportContent" rows="8" maxlength="20000" required placeholder="اكتب تسلسل الأحداث والإجراءات والمعلومات بالتفصيل..."></textarea></div>
@@ -283,8 +283,13 @@ async function loadAuditLog(){
   const notifyButton=currentIsOwner?'<button class="btn ghostred" style="flex:1;min-width:100px" onclick="event.stopPropagation();sendPortalNotification(\'person\','+idArg+',this)">إرسال تنبيه</button>':'';
   return '<article class="person" onclick="viewPerson('+idArg+')"><img src="'+src+'" onerror="this.style.opacity=.15;this.alt=\'لا توجد صورة\'" alt="صورة '+esc(p.name)+'"><div class="pbody">'+statusTag(p)+'<h4>'+esc(p.name)+'</h4><div class="muted">#'+esc(p.id)+' • '+esc(p.priority)+' الخطورة</div><div class="personFoot"><span class="tag '+priorityTag(p)+'">'+esc(p.priority)+'</span><span class="muted">'+(p.images||[]).length+' صورة</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+notifyButton+'<button class="btn danger" style="flex:1;min-width:70px" onclick="event.stopPropagation();deletePerson('+idArg+')">حذف الملف</button>'+arrestButton+'<button class="btn" style="flex:1;min-width:70px" onclick="event.stopPropagation();editPerson('+idArg+')">تعديل الملف</button></div></div></article>';
 }
-function renderDashboard(){let active=people.filter(p=>p.status==='wanted');document.getElementById('statWanted').textContent=active.length;document.getElementById('statSuspects').textContent=people.filter(p=>p.status!=='archived'&&String(p.charges||'').trim()).length;document.getElementById('statArrested').textContent=people.filter(p=>p.status==='arrested').length;document.getElementById('statReports').textContent=reports.length;document.getElementById('dashboardPeople').innerHTML=active.slice(0,3).map(personCard).join('')||'<div class="empty">لا توجد ملفات مطلوبة</div>';renderActivity();renderTasks()}
+function renderDashboard(){let active=people.filter(p=>p.status==='wanted');document.getElementById('statWanted').textContent=active.length;document.getElementById('statSuspects').textContent=cases.length+people.filter(p=>p.status!=='archived'&&String(p.charges||'').trim()).length;document.getElementById('statArrested').textContent=people.filter(p=>p.status==='arrested').length;document.getElementById('statReports').textContent=reports.length;document.getElementById('dashboardPeople').innerHTML=active.slice(0,3).map(personCard).join('')||'<div class="empty">لا توجد ملفات مطلوبة</div>';renderActivity();renderTasks()}
 let activeRecordTab='people';
+function openCurrentRecordForm(){
+ if(activeRecordTab==='people')openModal();
+ else if(activeRecordTab==='cases')newCase();
+ else openInvestigationModal();
+}
 function showRecordTab(tab){
  activeRecordTab=['people','cases','investigations'].includes(tab)?tab:'people';
  ['people','cases','investigations'].forEach(key=>{
@@ -293,12 +298,80 @@ function showRecordTab(tab){
   const button=document.getElementById('recordTab'+key.charAt(0).toUpperCase()+key.slice(1));
   if(button){button.classList.toggle('primary',key===activeRecordTab);button.setAttribute('aria-pressed',key===activeRecordTab?'true':'false')}
  });
+ const action=document.getElementById('recordsPrimaryAction');
+ if(action)action.textContent=activeRecordTab==='people'?'＋ إضافة ملف شخص':activeRecordTab==='cases'?'＋ إنشاء قضية':'＋ إنشاء ملف تحرٍّ';
  if(activeRecordTab==='people')renderWanted();
  if(activeRecordTab==='cases')renderSuspects();
  if(activeRecordTab==='investigations')renderInvestigations();
 }
 function renderWanted(){let q=(document.getElementById('wantedSearch')?.value||'').toLowerCase(),st=(document.getElementById('statusFilter')?.value||'all'),pr=(document.getElementById('priorityFilter')?.value||'all');let arr=people.filter(p=>(p.name+' '+p.id+' '+p.charges+' '+p.notes).toLowerCase().includes(q)&&(st==='all'||p.status===st)&&(pr==='all'||p.priority===pr));document.getElementById('wantedCount').textContent=arr.length+' ملف';document.getElementById('wantedPeople').innerHTML=arr.map(personCard).join('')||'<div class="empty">لا توجد نتائج مطابقة</div>'}
-function renderSuspects(){const body=document.getElementById('suspectRows');if(!body)return;const q=(document.getElementById('suspectSearch')?.value||'').trim().toLowerCase();const records=people.filter(p=>p.status!=='archived'&&String(p.charges||'').trim()&&[p.name,p.id,p.charges,p.notes].join(' ').toLowerCase().includes(q));const count=document.getElementById('suspectCount');if(count)count.textContent=records.length+' ملف مرتبط باتهام';body.innerHTML=records.map(p=>'<tr><td>'+esc(p.id)+'</td><td><b>'+esc(p.name)+'</b></td><td style="white-space:pre-wrap;min-width:220px">'+esc(p.charges||'—')+'</td><td>'+statusTag(p)+'</td><td><button class="btn ghostred" onclick="sendPortalNotification(\'person\','+jsArg(p.id)+',this)">إرسال تنبيه</button> <button class="btn" onclick="viewPerson('+jsArg(p.id)+')">فتح الملف</button></td></tr>').join('')||'<tr><td colspan="5" class="empty">لا توجد ملفات تحتوي على اتهامات مسجلة. أضف التهمة إلى ملف الشخص لتظهر هنا.</td></tr>'}
+const CASE_TYPES={criminal:'جنائية داخل RP',disciplinary:'انضباطية',administrative:'إدارية',incident:'واقعة',other:'أخرى'};
+function listCaseRecords(){
+ const linkedLegacy=cases.filter(c=>c&&c.legacyPersonId).map(c=>String(c.legacyPersonId));
+ const legacy=people.filter(p=>String(p.charges||'').trim()&&!linkedLegacy.includes(String(p.id))).map(p=>({id:'LEGACY-'+p.id,legacy:true,legacyPersonId:p.id,title:'اتهام مسجل في ملف '+(p.name||p.id),caseType:'criminal',personId:p.id,personName:p.name||'',charge:p.charges||'',summary:p.notes||'بيانات الاتهام محفوظة في ملف الشخص القديم.',details:p.notes||'',status:p.status==='archived'?'مغلقة':'مفتوحة',priority:p.priority||'متوسط',date:p.created||''}));
+ return cases.map(c=>({...c,legacy:false})).concat(legacy);
+}
+function renderSuspects(){
+ const body=document.getElementById('suspectRows');if(!body)return;
+ const q=(document.getElementById('suspectSearch')?.value||'').trim().toLowerCase(),status=document.getElementById('caseStatusFilter')?.value||'all',type=document.getElementById('caseTypeFilter')?.value||'all';
+ const records=listCaseRecords().filter(c=>(status==='all'||c.status===status)&&(type==='all'||c.caseType===type)&&[c.id,c.title,c.personName,c.charge,c.summary,c.details,c.assignedTo].join(' ').toLowerCase().includes(q));
+ const count=document.getElementById('suspectCount');if(count)count.textContent=records.length+' قضية / اتهام';
+ body.innerHTML=records.map(c=>{
+  const tag=c.status==='مغلقة'?'green':c.status==='محالة'?'blue':c.status==='قيد المراجعة'?'orange':'red';
+  const actions=c.legacy
+   ? '<button class="btn" onclick="viewPerson('+jsArg(c.legacyPersonId)+')">فتح ملف الشخص</button><button class="btn" onclick="newCaseFromPerson('+jsArg(c.legacyPersonId)+')">إنشاء قضية مستقلة</button>'
+   : '<button class="btn" onclick="viewCase('+jsArg(c.id)+')">عرض</button><button class="btn" onclick="editCase('+jsArg(c.id)+')">تعديل</button><button class="btn ghostred" onclick="sendPortalNotification(\'case\','+jsArg(c.id)+',this)">إرسال تنبيه</button><button class="btn danger" onclick="deleteCase('+jsArg(c.id)+')">حذف</button>';
+  return '<tr><td><code>'+esc(c.id)+'</code>'+(c.legacy?'<div class="muted">سجل قديم</div>':'')+'</td><td><b>'+esc(c.title||'بدون عنوان')+'</b><div class="muted">'+esc(c.personName||'غير مرتبط بملف شخص')+'</div></td><td style="white-space:pre-wrap;min-width:220px">'+esc(c.charge||c.summary||'—')+'</td><td><span class="tag gray">'+esc(CASE_TYPES[c.caseType]||'قضية')+'</span></td><td><span class="tag '+tag+'">'+esc(c.status||'مفتوحة')+'</span></td><td><div class="actions" style="flex-wrap:wrap">'+actions+'</div></td></tr>';
+ }).join('')||'<tr><td colspan="6" class="empty">لا توجد قضايا مطابقة. اضغط «إنشاء قضية» لإضافة أول قضية.</td></tr>';
+}
+let editingCaseId=null;
+function populateCasePeopleOptions(selectedId=''){
+ const select=document.getElementById('casePersonId');if(!select)return;
+ select.innerHTML='<option value="">بدون ربط</option>'+people.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+' — '+esc(p.id)+'</option>').join('');
+ if(selectedId)select.value=String(selectedId);
+}
+function syncCasePersonName(){const id=document.getElementById('casePersonId')?.value||'',person=people.find(p=>String(p.id)===String(id));if(person)document.getElementById('caseSubjectName').value=person.name||''}
+function newCase(){
+ editingCaseId=null;document.getElementById('caseForm').reset();
+ document.getElementById('caseModalTitle').textContent='إنشاء قضية جديدة';document.getElementById('caseSaveButton').textContent='حفظ القضية';
+ populateCasePeopleOptions();document.getElementById('caseDate').value=new Date().toISOString().slice(0,10);
+ document.getElementById('caseModalBack').classList.add('open');
+}
+function newCaseFromPerson(personId){const p=people.find(x=>String(x.id)===String(personId));newCase();if(p){document.getElementById('casePersonId').value=String(p.id);document.getElementById('caseSubjectName').value=p.name||'';document.getElementById('caseCharge').value=p.charges||'';document.getElementById('caseSummary').value=p.notes||p.charges||'';}}
+function editCase(id){
+ const c=cases.find(x=>String(x.id)===String(id));if(!c)return;
+ editingCaseId=c.id;document.getElementById('caseForm').reset();document.getElementById('caseModalTitle').textContent='تعديل القضية '+c.id;document.getElementById('caseSaveButton').textContent='حفظ التعديلات';
+ document.getElementById('caseTitle').value=c.title||'';document.getElementById('caseType').value=c.caseType||'other';document.getElementById('caseStatus').value=c.status||'مفتوحة';
+ populateCasePeopleOptions(c.personId||'');document.getElementById('caseSubjectName').value=c.personName||'';
+ document.getElementById('caseCharge').value=c.charge||'';document.getElementById('casePriority').value=c.priority||'متوسط';document.getElementById('caseDate').value=c.date||'';
+ document.getElementById('caseAssigned').value=c.assignedTo||'';document.getElementById('caseSummary').value=c.summary||'';document.getElementById('caseDetails').value=c.details||'';
+ document.getElementById('caseModalBack').classList.add('open');
+}
+function closeCaseModal(){document.getElementById('caseModalBack').classList.remove('open');document.getElementById('caseForm').reset();editingCaseId=null}
+async function saveCase(event){
+ event.preventDefault();if(!sharedSyncReady){toast('انتظر اكتمال مزامنة البيانات قبل حفظ القضية.');return}
+ const title=document.getElementById('caseTitle').value.trim(),charge=document.getElementById('caseCharge').value.trim(),summary=document.getElementById('caseSummary').value.trim();
+ if(!title||!charge||!summary){toast('أكمل عنوان القضية والتهمة والملخص.');return}
+ const personId=document.getElementById('casePersonId').value||'',person=people.find(p=>String(p.id)===String(personId));
+ if(personId&&!person){toast('ملف الشخص المرتبط لم يعد موجودًا.');return}
+ const now=new Date(),old=editingCaseId?cases.find(x=>String(x.id)===String(editingCaseId)):null,previous=cases.slice();
+ const item={...(old||{}),id:old?.id||'CASE-'+now.getTime().toString().slice(-8),title,caseType:document.getElementById('caseType').value,status:document.getElementById('caseStatus').value,personId,personName:person?.name||document.getElementById('caseSubjectName').value.trim(),charge,priority:document.getElementById('casePriority').value,date:document.getElementById('caseDate').value||now.toISOString().slice(0,10),assignedTo:document.getElementById('caseAssigned').value.trim(),summary,details:document.getElementById('caseDetails').value.trim(),owner:old?.owner||currentUser,createdByDiscordId:old?.createdByDiscordId||currentUserId,createdAt:old?.createdAt||now.toISOString(),updatedAt:now.toISOString()};
+ if(old)cases=cases.map(x=>String(x.id)===String(old.id)?item:x);else cases.unshift(item);
+ save();renderSuspects();toast('جارٍ حفظ القضية في قاعدة البيانات المشتركة...');
+ try{await flushSharedStateNow();log(old?'تعديل':'إضافة',(old?'تعديل القضية: ':'إنشاء القضية: ')+title,item.id);closeCaseModal();renderSuspects();toast(old?'تم تحديث القضية':'تم حفظ القضية بنجاح')}
+ catch(error){cases=previous;save();renderSuspects();toast(error.message||'لم يؤكد السيرفر حفظ القضية.')}
+}
+async function deleteCase(id){
+ const item=cases.find(x=>String(x.id)===String(id));if(!item)return;if(!confirm('تأكيد حذف القضية '+item.id+' — '+item.title+'؟'))return;
+ const previous=cases.slice();cases=cases.filter(x=>String(x.id)!==String(id));save();renderSuspects();
+ try{await flushSharedStateNow();log('حذف','حذف القضية '+item.title,item.id);toast('تم حذف القضية نهائيًا')}
+ catch(error){cases=previous;save();renderSuspects();toast(error.message||'لم يؤكد السيرفر الحذف.')}
+}
+function viewCase(id){
+ const c=cases.find(x=>String(x.id)===String(id));if(!c)return;const overlay=document.createElement('div');overlay.id='caseViewOverlay';overlay.style.cssText='position:fixed;inset:0;z-index:2600;background:#000c;display:grid;place-items:center;padding:18px';overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
+ const part=(title,value)=>value?'<section style="margin:16px 0"><h3>'+esc(title)+'</h3><p style="white-space:pre-wrap;line-height:1.8">'+esc(value)+'</p></section>':'';
+ overlay.innerHTML='<div style="width:min(850px,100%);max-height:90vh;overflow:auto;background:#111317;border:1px solid #552127;border-radius:14px;padding:22px;color:#eee"><div class="sectionhead"><div><span class="tag '+(c.status==='مغلقة'?'green':'orange')+'">'+esc(c.status||'مفتوحة')+'</span><h2>'+esc(c.title)+'</h2><div class="muted">'+esc(c.id)+' • '+esc(CASE_TYPES[c.caseType]||'قضية')+'</div></div><button class="btn" onclick="document.getElementById(\'caseViewOverlay\')?.remove()">إغلاق ×</button></div><div class="muted">الشخص المرتبط: '+esc(c.personName||'غير مرتبط')+' • الأولوية: '+esc(c.priority||'متوسط')+' • المسؤول: '+esc(c.assignedTo||c.owner||'غير محدد')+' • التاريخ: '+esc(c.date||'—')+'</div>'+part('التهمة / سبب القضية',c.charge)+part('ملخص القضية',c.summary)+part('التفاصيل والإجراءات',c.details)+'<div class="modalactions"><button class="btn primary" onclick="document.getElementById(\'caseViewOverlay\')?.remove();editCase('+jsArg(c.id)+')">تعديل القضية</button><button class="btn ghostred" onclick="sendPortalNotification(\'case\','+jsArg(c.id)+',this)">إرسال تنبيه</button></div></div>';document.body.appendChild(overlay);
+}
 const ANNOUNCEMENT_TYPES={meeting:'اجتماع',announcement:'إعلان',general:'تعميم',attendance:'طلب حضور / تواجد',training:'تدريب',scenario:'سيناريو',admin_notice:'تنبيه إداري'};
 let selectedAnnouncementType='meeting';
 function formatAnnouncementDate(value){
@@ -389,7 +462,7 @@ function renderOps(){
  }).join('')||'<tr><td colspan="6" class="empty">لا توجد عمليات مسجلة</td></tr>';
 }
 const REPORT_TYPES={operation:'تقرير عملية',case:'تقرير قضية',investigation:'تقرير تحرٍّ',administrative:'تقرير إداري',general:'تقرير عام'};
-function reportLinkedLabel(report){const type=report.linkedEntityType,id=report.linkedEntityId;if(!type||!id)return 'غير مرتبط';const source=type==='person'?people:type==='operation'?operations:type==='investigation'?investigations:[];const item=source.find(x=>String(x.id)===String(id));return item?(item.name||item.title||item.id)+' ('+id+')':(report.linkedEntityLabel||id)}
+function reportLinkedLabel(report){const type=report.linkedEntityType,id=report.linkedEntityId;if(!type||!id)return 'غير مرتبط';const source=type==='person'?people:type==='case'?cases:type==='operation'?operations:type==='investigation'?investigations:[];const item=source.find(x=>String(x.id)===String(id));return item?(item.name||item.title||item.id)+' ('+id+')':(report.linkedEntityLabel||id)}
 function renderReports(){
  const body=document.getElementById('reportRows');if(!body)return;
  const q=(document.getElementById('reportSearch')?.value||'').trim().toLowerCase(),status=document.getElementById('reportStatusFilter')?.value||'all',type=document.getElementById('reportTypeFilter')?.value||'all';
@@ -400,7 +473,7 @@ function renderReports(){
 let editingReportId=null;
 function updateReportLinkedOptions(selectedId=''){
  const type=document.getElementById('reportLinkedType')?.value||'',select=document.getElementById('reportLinkedRecord');if(!select)return;
- const source=type==='person'?people:type==='operation'?operations:type==='investigation'?investigations:[];
+ const source=type==='person'?people:type==='case'?cases:type==='operation'?operations:type==='investigation'?investigations:[];
  const label=x=>type==='person'?(x.name||x.id):type==='operation'?(x.name||x.title||x.id):(x.title||x.name||x.id);
  select.innerHTML='<option value="">اختر السجل المرتبط</option>'+source.map(x=>'<option value="'+esc(x.id)+'">'+esc(label(x))+' — '+esc(x.id)+'</option>').join('');
  select.disabled=!type||!source.length;if(selectedId)select.value=String(selectedId);
@@ -831,7 +904,7 @@ function go(page){
  if(page==='personnel'&&currentIsOwner)renderPersonnel();if(page==='settings'){loadDiscordNotificationPreference();if(currentIsOwner)loadSiteSettings();}
  if(page==='gallery')renderSiteGallery();applySiteSettings();window.scrollTo({top:0,behavior:'smooth'})
 }document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)go(b.dataset.page)});
-function openModal(){document.getElementById('personForm').reset();pendingImages=[];document.getElementById('imagePreview').innerHTML='';document.getElementById('modalTitle').textContent='إضافة ملف شخص / قضية';document.getElementById('modalBack').classList.add('open')}function closeModal(){document.getElementById('modalBack').classList.remove('open')}document.getElementById('fImages').addEventListener('change',async e=>{pendingImages=[];pendingImageDescriptions=[];let files=[...e.target.files];for(let f of files){if(!f.type.startsWith('image/'))continue;if(f.size>1.5*1024*1024){toast('الصورة أكبر من 1.5MB في النموذج التجريبي');continue}let data=await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)});pendingImages.push(data);pendingImageDescriptions.push('')}document.getElementById('imagePreview').innerHTML=pendingImages.map((src,i)=>'<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:start;width:100%;margin:8px 0;padding:8px;border:1px solid #30343b;border-radius:8px"><img src="'+src+'" alt="صورة '+(i+1)+'" style="width:76px;height:76px;object-fit:cover;border-radius:6px"><div><label for="fImageDesc'+i+'" style="display:block;margin-bottom:6px">وصف الصورة '+(i+1)+'</label><textarea id="fImageDesc'+i+'" rows="2" placeholder="اكتب وصف هذه الصورة أو الدليل..." style="width:100%;min-height:60px"></textarea></div></div>').join('')});
+function openModal(){document.getElementById('viewContent')?.remove();document.getElementById('editContent')?.remove();document.getElementById('personForm').style.display='';document.getElementById('personForm').reset();pendingImages=[];document.getElementById('imagePreview').innerHTML='';document.getElementById('modalTitle').textContent='إضافة ملف شخص / قضية';document.getElementById('modalBack').classList.add('open')}function closeModal(){document.getElementById('modalBack').classList.remove('open')}document.getElementById('fImages').addEventListener('change',async e=>{pendingImages=[];pendingImageDescriptions=[];let files=[...e.target.files];for(let f of files){if(!f.type.startsWith('image/'))continue;if(f.size>1.5*1024*1024){toast('الصورة أكبر من 1.5MB في النموذج التجريبي');continue}let data=await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)});pendingImages.push(data);pendingImageDescriptions.push('')}document.getElementById('imagePreview').innerHTML=pendingImages.map((src,i)=>'<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:start;width:100%;margin:8px 0;padding:8px;border:1px solid #30343b;border-radius:8px"><img src="'+src+'" alt="صورة '+(i+1)+'" style="width:76px;height:76px;object-fit:cover;border-radius:6px"><div><label for="fImageDesc'+i+'" style="display:block;margin-bottom:6px">وصف الصورة '+(i+1)+'</label><textarea id="fImageDesc'+i+'" rows="2" placeholder="اكتب وصف هذه الصورة أو الدليل..." style="width:100%;min-height:60px"></textarea></div></div>').join('')});
 document.getElementById('personForm').addEventListener('submit',e=>{e.preventDefault();let id=document.getElementById('fId').value.trim();if(people.some(p=>p.id.toLowerCase()===id.toLowerCase())){toast('رقم الملف موجود بالفعل');return}let p={id,name:document.getElementById('fName').value.trim(),priority:document.getElementById('fPriority').value,status:document.getElementById('fStatus').value,charges:document.getElementById('fCharges').value.trim(),notes:document.getElementById('fNotes').value.trim(),images:pendingImages,imageDescriptions:pendingImages.map((_,i)=>document.getElementById('fImageDesc'+i)?.value.trim()||''),created:new Date().toISOString()};people.unshift(p);save();log('إضافة','تم إنشاء ملف '+p.name,p.id);closeModal();renderAll();toast('تم حفظ الملف في النسخة التجريبية');go('wanted')});
 function viewPerson(id){
   const p=people.find(x=>x.id===id);if(!p)return;
