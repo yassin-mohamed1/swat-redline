@@ -1221,11 +1221,13 @@ async function pullSharedState(initial=false){
     const keys=['people','cases','investigations','tasks','operations','reports','announcements','rules','dailyCommands','deletedRuleIds'];
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
     const hasCloudSnapshot=keys.some(k=>Array.isArray(cloud[k]));
-    const hasCompleteCloudSnapshot=keys.every(k=>Array.isArray(cloud[k]));
     const localCount=people.length+cases.length+investigations.length+tasks.length+operations.length+reports.length+announcements.length+rules.length+dailyCommands.length;
     let repairedReportAuthors=false;
     sharedUpdatedAt=result.updated_at||null;
-    if(initial&&cloudCount===0&&localCount>0&&!hasCompleteCloudSnapshot){
+    // If the shared snapshot contains only empty collections, preserve and
+    // migrate any existing browser-local records instead of treating the
+    // newly-complete schema shape as proof that the cloud already has data.
+    if(initial&&cloudCount===0&&localCount>0){
       sharedSyncReady=true;
       await pushSharedState();
       return;
