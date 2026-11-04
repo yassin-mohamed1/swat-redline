@@ -289,7 +289,8 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
   const actorName = truncate(user.displayName || user.username, 100);
   const actorUsername = truncate(user.username, 100);
   const channelStatus = result.channelStatus || "pending";
-  const detail = `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${channelStatus === "sent" ? "تم نشره في روم الإشعارات" : channelStatus === "failed" ? "فشل نشره في روم الإشعارات" : "جارٍ نشره"}.`;
+  const channelText = channelStatus === "sent" ? "تم نشره في روم الإشعارات" : channelStatus === "disabled" ? "النشر في روم الإشعارات متوقف بإعدادات المالك" : channelStatus === "failed" ? "فشل نشره في روم الإشعارات" : "جارٍ نشره";
+  const detail = `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${channelText}.`;
   const details = {
     type: "إرسال تنبيه Discord",
     detail,
@@ -340,9 +341,11 @@ async function updateNotificationAudit(config, auditEntry, user, type, entityId,
   const failed = Number(result.dmFailed || 0);
   const total = Number(result.dmTotal || 0);
   const channelStatus = result.channelStatus || "sent";
-  const statusText = channelStatus === "failed"
-    ? "فشل نشره في روم الإشعارات"
-    : `تم نشره في روم الإشعارات؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
+  const statusText = channelStatus === "disabled"
+    ? "النشر في روم الإشعارات متوقف بإعدادات المالك"
+    : channelStatus === "failed"
+      ? "فشل نشره في روم الإشعارات؛ تمت معالجة الرسائل الخاصة بشكل مستقل"
+      : `تم نشره في روم الإشعارات؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
   const details = {
     ...auditEntry.details,
     detail: `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${statusText}.`,
@@ -472,19 +475,30 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: "The selected task changed. Refresh the portal and try again." });
     }
 
-    const mentionSettingsQuery = new URLSearchParams({ key: "eq.notificationRoleMentionDisabled", select: "value", limit: "1" });
-    const adsSettingsResponse = await supabaseRequest(config, "site_settings?" + mentionSettingsQuery, { method: "GET" });
-    if (!adsSettingsResponse.ok) {
-      console.error("Notification mention setting lookup failed:", adsSettingsResponse.status, (await adsSettingsResponse.text()).slice(0, 250));
-      return res.status(502).json({ error: "Could not verify the notification mention setting. No alert was sent." });
+    const deliverySettingsQuery = new URLSearchParams({
+      key: "in.(notificationRoleMentionDisabled,notificationChannelEnabled,notificationMemberDmEnabled)",
+      select: "key,value"
+    });
+    const deliverySettingsResponse = await supabaseRequest(config, "site_settings?" + deliverySettingsQuery, { method: "GET" });
+    if (!deliverySettingsResponse.ok) {
+      console.error("Notification delivery settings lookup failed:", deliverySettingsResponse.status, (await deliverySettingsResponse.text()).slice(0, 250));
+      return res.status(502).json({ error: "Could not verify the owner notification delivery settings. No alert was sent." });
     }
-    const mentionSettingsRows = await adsSettingsResponse.json();
-    // Safe by default during testing: missing preference means role mentions are disabled.
-    const notificationRoleMentionDisabled = mentionSettingsRows[0]?.value !== false;
+    const deliverySettingsRows = await deliverySettingsResponse.json();
+    const deliverySettings = new Map(deliverySettingsRows.map(row => [row.key, row.value]));
+    const notificationRoleMentionDisabled = deliverySettings.get("notificationRoleMentionDisabled") !== false;
+    // Both delivery channels start disabled until the owner explicitly enables them.
+    const channelEnabled = deliverySettings.get("notificationChannelEnabled") === true;
+    const memberDmEnabled = deliverySettings.get("notificationMemberDmEnabled") === true;
 
-    // Production broadcast is enabled. Members receive DMs by default;
-    // the member-level notifications_enabled preference is the opt-out switch.
-    // Keep the environment flag as an emergency owner-side kill switch.
+    const ownerDiscordId = String(process.env.DISCORD_OWNER_ID || "");
+    if (!/^\d{17,20}$/.test(ownerDiscordId)) {
+      return res.status(503).json({ error: "The protected owner Discord ID is not configured; no notification was sent." });
+    }
+
+    // Other staff members receive DMs only when the owner-level DM switch is on
+    // and their personal opt-in remains enabled. The portal owner is always added
+    // independently of their personal toggle, active flag, or ban flag.
     const broadcastEnabled = process.env.DISCORD_NOTIFICATIONS_BROADCAST_ENABLED === "true";
     const recipientQuery = new URLSearchParams({
       select: "discord_user_id,display_name",
@@ -493,19 +507,27 @@ export default async function handler(req, res) {
       is_banned: "eq.false",
       order: "created_at.asc"
     });
-    if (!broadcastEnabled) {
-      // During testing, never address any other profile, even if it opted in.
-      recipientQuery.set("discord_user_id", "eq." + user.id);
+    if (!memberDmEnabled || !broadcastEnabled) {
+      recipientQuery.set("discord_user_id", "eq." + ownerDiscordId);
     }
     const recipientResponse = await supabaseRequest(config, "staff_profiles?" + recipientQuery, { method: "GET" });
     if (!recipientResponse.ok) {
       console.error("Notification recipient lookup failed:", recipientResponse.status, (await recipientResponse.text()).slice(0, 250));
-      return res.status(502).json({ error: "Could not load opted-in notification recipients." });
+      return res.status(502).json({ error: "Could not load notification recipients." });
     }
     const recipientRows = await recipientResponse.json();
-    const recipients = [...new Map(recipientRows
+    const recipientMap = new Map(recipientRows
       .filter(row => /^\d{17,20}$/.test(String(row.discord_user_id || "")))
-      .map(row => [String(row.discord_user_id), row])).values()];
+      .map(row => [String(row.discord_user_id), row]));
+    if (!recipientMap.has(ownerDiscordId)) {
+      recipientMap.set(ownerDiscordId, {
+        discord_user_id: ownerDiscordId,
+        display_name: ownerDiscordId === String(user.id) ? (user.displayName || user.username) : "S.W.A.T. Owner"
+      });
+    }
+    const recipients = [...recipientMap.values()]
+      .filter(row => memberDmEnabled && broadcastEnabled || String(row.discord_user_id) === ownerDiscordId)
+      .sort((a, b) => String(a.discord_user_id).localeCompare(String(b.discord_user_id)));
 
     if (recipients.length > MAX_RECIPIENTS_PER_BATCH) {
       return res.status(409).json({
@@ -672,63 +694,38 @@ export default async function handler(req, res) {
     let channelSent = false;
     let channelMessageId = null;
     let channelErrorCode = null;
-    try {
-      for (let partIndex = 0; partIndex < notificationMessages.length; partIndex++) {
-        const part = notificationMessages[partIndex];
-        const channelMessage = await discordRequest(
-          config,
-          "/channels/" + encodeURIComponent(config.notificationChannelId) + "/messages",
-          {
-            method: "POST",
-            body: createDiscordMessageBody({
-              ...(part.content ? { content: part.content } : {}),
-              embeds: part.embeds,
-              ...(part.components.length ? { components: part.components } : {}),
-              allowed_mentions: part.allowedMentions
-            }, part.images)
-          }
-        );
-        if (partIndex === 0) channelMessageId = channelMessage.id || null;
+    let channelStatus = "disabled";
+    if (channelEnabled) {
+      channelStatus = "failed";
+      try {
+        for (let partIndex = 0; partIndex < notificationMessages.length; partIndex++) {
+          const part = notificationMessages[partIndex];
+          const channelMessage = await discordRequest(
+            config,
+            "/channels/" + encodeURIComponent(config.notificationChannelId) + "/messages",
+            {
+              method: "POST",
+              body: createDiscordMessageBody({
+                ...(part.content ? { content: part.content } : {}),
+                embeds: part.embeds,
+                ...(part.components.length ? { components: part.components } : {}),
+                allowed_mentions: part.allowedMentions
+              }, part.images)
+            }
+          );
+          if (partIndex === 0) channelMessageId = channelMessage.id || null;
+        }
+        channelSent = true;
+        channelStatus = "sent";
+      } catch (error) {
+        channelErrorCode = String(error?.code || error?.message || "channel_delivery_failed").slice(0, 80);
+        console.error("Discord notification channel delivery failed:", channelErrorCode);
       }
-      channelSent = true;
-    } catch (error) {
-      channelErrorCode = String(error?.code || error?.message || "channel_delivery_failed").slice(0, 80);
-      console.error("Discord notification channel delivery failed:", channelErrorCode);
-    }
-
-    if (!channelSent) {
-      const failedBatch = await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batchId), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({
-          sent_count: 0,
-          failed_count: 0,
-          channel_status: "failed",
-          channel_message_id: null,
-          channel_error_code: channelErrorCode
-        })
-      });
-      if (!failedBatch.ok) {
-        console.error("Failed to record channel delivery failure:", failedBatch.status, (await failedBatch.text()).slice(0, 200));
-      }
-      const failedAudit = await writeNotificationAudit(
-        config, user, type, entityId, record, batchId,
-        { channelStatus: "failed", channelErrorCode, dmTotal: 0, dmSent: 0, dmFailed: 0 }
-      );
-      await updateNotificationAudit(
-        config, failedAudit, user, type, entityId, record, batchId,
-        { channelStatus: "failed", channelErrorCode, dmTotal: 0, dmSent: 0, dmFailed: 0 }
-      );
-      return res.status(502).json({
-        error: "The notification was not sent. Discord could not publish it in #swat-notification-website, so no direct messages were sent either.",
-        channel_sent: false,
-        channel_error_code: channelErrorCode
-      });
     }
 
     const notificationAudit = await writeNotificationAudit(
       config, user, type, entityId, record, batchId,
-      { channelStatus: "sent", channelMessageId, dmTotal: recipients.length, dmSent: 0, dmFailed: 0 }
+      { channelStatus, channelMessageId, channelErrorCode, dmTotal: recipients.length, dmSent: 0, dmFailed: 0 }
     );
     let sent = 0;
     let failed = 0;
@@ -800,7 +797,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         sent_count: sent,
         failed_count: failed,
-        channel_status: channelSent ? "sent" : "failed",
+        channel_status: channelStatus,
         channel_message_id: channelMessageId,
         channel_error_code: channelErrorCode
       })
@@ -810,7 +807,7 @@ export default async function handler(req, res) {
     }
     await updateNotificationAudit(
       config, notificationAudit, user, type, entityId, record, batchId,
-      { channelStatus: "sent", channelMessageId, dmTotal: recipients.length, dmSent: sent, dmFailed: failed }
+      { channelStatus, channelMessageId, channelErrorCode, dmTotal: recipients.length, dmSent: sent, dmFailed: failed }
     );
 
     return res.status(200).json({
@@ -819,6 +816,10 @@ export default async function handler(req, res) {
       sent,
       failed,
       channel_sent: channelSent,
+      channel_enabled: channelEnabled,
+      channel_disabled: !channelEnabled,
+      members_dm_enabled: memberDmEnabled && broadcastEnabled,
+      owner_always_included: true,
       role_ping_sent: channelSent && !notificationRoleMentionDisabled,
       channel_error_code: channelErrorCode,
       failure_reasons: {
@@ -827,13 +828,13 @@ export default async function handler(req, res) {
         other: Object.entries(failureReasons).filter(([code]) => !["50278", "50007"].includes(code)).reduce((sum, [, count]) => sum + count, 0)
       },
       mode: broadcastEnabled ? "broadcast" : "test_self",
-      message: !channelSent
-        ? "The channel post failed. No direct messages were sent."
-        : recipients.length === 0
-          ? "The alert was published to the notification channel. No active portal members currently have private alerts enabled."
+      message: channelStatus === "disabled"
+        ? `Channel publishing is disabled by the owner. ${sent} private messages sent; the owner is always included.`
+        : channelStatus === "failed"
+          ? `Channel publishing failed; ${sent} private messages sent and ${failed} failed independently.`
           : failed
-            ? `Channel post published; ${sent} DMs sent and ${failed} failed.`
-            : `Channel post published; ${sent} DMs sent.`
+            ? `Channel post published; ${sent} private messages sent and ${failed} failed.`
+            : `Channel post published; ${sent} private messages sent.`
     });
   } catch (error) {
     console.error("Notification send failed:", error instanceof Error ? error.message : "unknown");
