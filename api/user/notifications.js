@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requireSameOrigin } from "../../lib/request-security.js";
 
 function parseCookies(header = "") {
   const out = {};
@@ -69,6 +70,7 @@ export default async function handler(req, res) {
 
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized." });
+  if (req.method === "PATCH" && !requireSameOrigin(req, res)) return;
 
   const config = supabaseConfig();
   if (!config) return res.status(503).json({ error: "Notification preferences are not configured." });
