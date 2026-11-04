@@ -620,7 +620,7 @@ export default async function handler(req, res) {
           "المرسل: " + String(record.owner || "غير محدد"),
           "",
           String(record.description || "")
-        ].join("\\n")
+        ].join("\n")
       : "";
     const announcementChunks = type === "announcement" ? splitDiscordText(announcementFullText) : [];
     const notificationMessages = [{
