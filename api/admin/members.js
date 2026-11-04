@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requireSameOrigin } from "../../lib/request-security.js";
 
 function parseCookies(header = "") {
   const out = {};
@@ -116,6 +117,7 @@ export default async function handler(req, res) {
       res.setHeader("Allow", "GET, PATCH");
       return send(res, 405, { error: "Method not allowed" });
     }
+    if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     const targetId = String(body.discord_user_id || "");
     const action = String(body.action || "");
