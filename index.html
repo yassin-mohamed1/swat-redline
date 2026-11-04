@@ -167,15 +167,17 @@ async function pullSharedState(initial=false){
     const cloud=result.data;
     const keys=['people','investigations','tasks','operations','reports','announcements','rules','dailyCommands'];
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
+    const hasCloudSnapshot=keys.some(k=>Array.isArray(cloud[k]));
+    const hasCompleteCloudSnapshot=keys.every(k=>Array.isArray(cloud[k]));
     const localCount=people.length+investigations.length+tasks.length+operations.length+reports.length+announcements.length+rules.length+dailyCommands.length;
     let repairedReportAuthors=false;
     sharedUpdatedAt=result.updated_at||null;
-    if(initial&&cloudCount===0&&localCount>0){
+    if(initial&&cloudCount===0&&localCount>0&&!hasCompleteCloudSnapshot){
       sharedSyncReady=true;
       await pushSharedState();
       return;
     }
-    if(cloudCount>0||initial){
+    if(hasCloudSnapshot||initial){
       people=Array.isArray(cloud.people)?cloud.people:[];
       if(Array.isArray(cloud.investigations))investigations=cloud.investigations;
       tasks=Array.isArray(cloud.tasks)?cloud.tasks:[];
@@ -183,7 +185,7 @@ async function pullSharedState(initial=false){
       reports=Array.isArray(cloud.reports)?cloud.reports:[];
       announcements=Array.isArray(cloud.announcements)?cloud.announcements:[];
       repairedReportAuthors=repairLegacyReportAuthors();
-      if(Array.isArray(cloud.rules)&&cloud.rules.length)rules=cloud.rules;
+      if(Array.isArray(cloud.rules)){rules=cloud.rules;localStorage.setItem('redline_rules',JSON.stringify(rules));}
       if(Array.isArray(cloud.dailyCommands)){dailyCommands=cloud.dailyCommands;localStorage.setItem("redline_daily_commands",JSON.stringify(dailyCommands));}
       localStorage.setItem('redline_people',JSON.stringify(people));
       localStorage.setItem('redline_investigations',JSON.stringify(investigations));
@@ -329,7 +331,32 @@ function closeRuleEditor(){document.getElementById('ruleEditorBack').hidden=true
 function newRule(type='notice'){openRuleEditor(type)}
 document.getElementById('ruleEditorForm').addEventListener('submit',e=>{e.preventDefault();let title=document.getElementById('ruleTitle').value.trim(),description=document.getElementById('ruleDescription').value.trim(),body=document.getElementById('ruleBody').value.trim();if(!title||(ruleEditorType==='law'&&!body)){toast('اكتب عنوان القانون ونصه أولًا');return}if(editingRuleIndex===null){let id=(ruleEditorType==='law'?'LAW-':'CIR-')+String(Date.now()).slice(-6);rules.unshift({id,title,description,body,type:ruleEditorType});save();log('إضافة',(ruleEditorType==='law'?'إضافة قانون: ':'إضافة تعميم: ')+title,id);toast(ruleEditorType==='law'?'تم حفظ القانون':'تم حفظ التعميم')}else{let old=rules[editingRuleIndex];rules[editingRuleIndex]={...old,title,description,body,type:ruleEditorType};save();log('تعديل','تعديل '+(ruleEditorType==='law'?'القانون: ':'التعميم: ')+old.title+' ← '+title,old.id);toast('تم حفظ التعديلات')}closeRuleEditor();renderRules()});
 function editRule(i){if(!rules[i])return;openRuleEditor(rules[i].type||'notice',i)}
-function deleteRule(i){if(!rules[i])return;let r=rules[i];if(!confirm('تأكيد حذف «'+r.title+'»؟'))return;rules.splice(i,1);save();log('حذف','حذف '+(r.type==='law'?'القانون: ':'التعميم: ')+r.title,r.id);renderRules();toast('تم الحذف وتسجيل العملية')}
+async function flushSharedStateNow(){
+ if(!sharedSyncReady)throw new Error('المزامنة المشتركة لم تجهز بعد. حدّث الصفحة وانتظر اكتمال التحميل.');
+ clearTimeout(sharedSaveTimer);
+ for(let attempt=0;sharedSyncBusy&&attempt<60;attempt++)await new Promise(resolve=>setTimeout(resolve,100));
+ if(sharedSyncBusy)throw new Error('الحفظ السابق ما زال جاريًا. حاول مرة أخرى بعد لحظة.');
+ if(sharedWriteConflict)throw new Error('توجد نسخة أحدث من البيانات على السيرفر. أعد تحميل الصفحة قبل الحذف.');
+ await pushSharedState();
+ if(sharedWriteConflict)throw new Error('السيرفر رفض الحذف بسبب تعارض في نسخة البيانات. أعد تحميل الصفحة.');
+}
+async function deleteRule(i){
+ if(!rules[i])return;
+ if(!sharedSyncReady){toast('انتظر اكتمال مزامنة البيانات قبل الحذف.');return}
+ const r=rules[i];
+ if(!confirm('تأكيد حذف «'+r.title+'»؟'))return;
+ const previousRules=rules.slice();
+ rules.splice(i,1);
+ save();log('حذف','حذف '+(r.type==='law'?'القانون: ':'التعميم: ')+r.title,r.id);renderRules();
+ toast('جارٍ حفظ الحذف في قاعدة البيانات المشتركة...');
+ try{
+  await flushSharedStateNow();
+  toast('تم حذف «'+r.title+'» من البيانات المشتركة بنجاح.');
+ }catch(error){
+  rules=previousRules;save();renderRules();
+  toast(error.message||'لم يتم تثبيت الحذف. أُعيد العنصر لحين نجاح الحفظ.');
+ }
+}
 function newDailyCommand(){let text=prompt('اكتب نص الأمر الجديد:');if(!text||!text.trim())return;dailyCommands.push({text:text.trim()});save();log('إضافة','إضافة أمر يومي: '+text.trim(),'DAILY-COMMAND');renderDailyCommands();toast('تمت إضافة الأمر')}
 function editDailyCommand(i){if(!dailyCommands[i])return;let text=prompt('عدّل نص الأمر:',dailyCommands[i].text);if(text===null||!text.trim())return;let old=dailyCommands[i].text;dailyCommands[i]={...dailyCommands[i],text:text.trim()};save();log('تعديل','تعديل الأمر اليومي: '+old+' ← '+text.trim(),'DAILY-COMMAND-'+(i+1));renderDailyCommands();toast('تم تعديل الأمر')}
 function deleteDailyCommand(i){if(!dailyCommands[i])return;let c=dailyCommands[i];if(!confirm('حذف الأمر «'+c.text+'»؟'))return;dailyCommands.splice(i,1);save();log('حذف','حذف الأمر اليومي: '+c.text,'DAILY-COMMAND-'+(i+1));renderDailyCommands();toast('تم حذف الأمر')}
