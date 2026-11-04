@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requireSameOrigin } from "../lib/request-security.js";
 
 function cookies(header = "") {
   const out = {};
@@ -78,6 +79,7 @@ export default async function handler(req, res) {
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   if (!await isActiveStaff(user)) return res.status(403).json({ error: "Account inactive or could not be verified" });
+  if (req.method === "PUT" && !requireSameOrigin(req, res)) return;
 
   const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
