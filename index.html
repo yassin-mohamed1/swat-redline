@@ -607,11 +607,11 @@ async function sendPortalNotification(entityType,entityId,button){
   if(!response.ok)throw new Error(data.error||'تعذّر إرسال التنبيه');
   if(entityType==='announcement'&&data.channel_sent){const item=announcements.find(x=>String(x.id)===String(entityId));if(item){item.sentAt=new Date().toISOString();item.sentBy=currentUser||'Discord user';save();renderAnnouncements();}}
   if(data.channel_disabled&&data.members_dm_disabled){
-   toast('وضع التجربة: تم إرسال التنبيه إلى المالك فقط في الخاص. النشر في الروم والخاص للأعضاء متوقفان.');
+   toast(data.owner_dm_sent?'وضع التجربة: وصلت رسالة التنبيه للمالك فقط في الخاص. النشر في الروم والخاص للأعضاء متوقفان.':'وضع التجربة محفوظ، لكن تعذّر إرسال الخاص للمالك ('+(data.owner_dm_error_code||'خطأ غير معروف')+').');
   }else if(data.channel_disabled&&!data.members_dm_disabled){
-   toast('النشر في الروم متوقف. تم إرسال الخاص إلى '+Number(data.sent||0)+' من '+Number(data.total||0)+' مستلم، والمالك ضمنهم دائمًا.');
+   toast(data.owner_dm_sent?'النشر في الروم متوقف. تم إرسال الخاص إلى '+Number(data.sent||0)+' مستلم، والمالك استلم نسخته.':'النشر في الروم متوقف، لكن تعذّر إرسال الخاص للمالك.');
   }else if(data.members_dm_disabled){
-   toast(data.channel_sent?'تم النشر في روم الإشعارات وإرسال نسخة خاصة للمالك فقط.':'تعذّر النشر في الروم؛ تمت محاولة إرسال الخاص للمالك فقط.');
+   toast(data.channel_sent?(data.owner_dm_sent?'تم النشر في الروم وإرسال نسخة خاصة للمالك فقط.':'تم النشر في الروم لكن تعذّر الخاص للمالك.'):(data.owner_dm_sent?'فشل النشر في الروم؛ وصلت نسخة خاصة للمالك.':'فشل النشر والخاص للمالك.'));
   }else if(!data.channel_sent&&data.channel_enabled){
    toast('تعذّر النشر في روم الإشعارات؛ تمت محاولة إرسال الرسائل الخاصة بشكل مستقل.');
   }else if(data.failed&&data.failure_reasons?.no_mutual_guild){
