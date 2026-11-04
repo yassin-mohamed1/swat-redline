@@ -52,6 +52,10 @@ function getConfig() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const botToken = process.env.DISCORD_BOT_TOKEN;
   const notificationChannelId = process.env.DISCORD_NOTIFICATION_CHANNEL_ID;
+  // Manual site notifications use one Discord channel per record family.
+  // These defaults are the owner-provided announcement and evidence room IDs.
+  const announcementPostChannelId = process.env.DISCORD_ANNOUNCEMENT_POST_CHANNEL_ID || "1561485863492259840";
+  const evidenceChannelId = process.env.DISCORD_EVIDENCE_CHANNEL_ID || "1562393479953518612";
   const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
   if (!base || !serviceKey) return { error: "storage_not_configured" };
   if (!botToken) return { error: "bot_token_missing" };
@@ -304,7 +308,7 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
   const actorName = truncate(user.displayName || user.username, 100);
   const actorUsername = truncate(user.username, 100);
   const channelStatus = result.channelStatus || "pending";
-  const channelText = channelStatus === "sent" ? "تم نشره في روم الإشعارات" : channelStatus === "disabled" ? "النشر في روم الإشعارات متوقف بإعدادات المالك" : channelStatus === "failed" ? "فشل نشره في روم الإشعارات" : "جارٍ نشره";
+  const channelText = channelStatus === "sent" ? "تم نشره في روم Discord المخصصة لنوع التنبيه" : channelStatus === "disabled" ? "النشر في روم Discord المخصصة لنوع التنبيه متوقف بإعدادات المالك" : channelStatus === "failed" ? "فشل نشره في روم Discord المخصصة لنوع التنبيه" : "جارٍ نشره";
   const detail = `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${channelText}.`;
   const details = {
     type: "إرسال تنبيه Discord",
@@ -359,8 +363,8 @@ async function updateNotificationAudit(config, auditEntry, user, type, entityId,
   const statusText = channelStatus === "disabled"
     ? "النشر في روم الإشعارات متوقف بإعدادات المالك"
     : channelStatus === "failed"
-      ? "فشل نشره في روم الإشعارات؛ تمت معالجة الرسائل الخاصة بشكل مستقل"
-      : `تم نشره في روم الإشعارات؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
+      ? "فشل نشره في روم Discord المخصصة؛ تمت معالجة الرسائل الخاصة بشكل مستقل"
+      : `تم نشره في روم Discord المخصصة (${channelRoute.label})؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
   const details = {
     ...auditEntry.details,
     detail: `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${statusText}.`,
@@ -466,8 +470,20 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: "Discord bot is not connected yet. Add DISCORD_BOT_TOKEN to Vercel Production." });
   }
   if (config.error) return res.status(503).json({ error: "Notification storage is not configured." });
-  if (!config.notificationChannelId || !/^\d{17,20}$/.test(config.notificationChannelId)) {
-    return res.status(503).json({ error: "Set DISCORD_NOTIFICATION_CHANNEL_ID in Vercel to the ID of #swat-notification-website. No DM will be sent until the channel target is configured." });
+
+  const channelRoute = type === "announcement"
+    ? { id: config.announcementPostChannelId, label: "الإعلانات" }
+    : ["person", "case", "investigation"].includes(type)
+      ? { id: config.evidenceChannelId, label: "الأدلة والملفات" }
+      : { id: config.notificationChannelId, label: "الإشعارات العامة" };
+  const targetChannelId = String(channelRoute.id || "").trim();
+  if (!/^\d{17,20}$/.test(targetChannelId)) {
+    const variable = type === "announcement"
+      ? "DISCORD_ANNOUNCEMENT_POST_CHANNEL_ID"
+      : ["person", "case", "investigation"].includes(type)
+        ? "DISCORD_EVIDENCE_CHANNEL_ID"
+        : "DISCORD_NOTIFICATION_CHANNEL_ID";
+    return res.status(503).json({ error: "وجهة روم Discord غير صالحة. راجع " + variable + " في إعدادات Vercel." });
   }
   if (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId)) {
     return res.status(503).json({ error: "Set DISCORD_NOTIFICATION_ROLE_ID in Vercel to the exact SWAT role ID. No notification will be sent until the role ping is configured." });
@@ -757,8 +773,8 @@ export default async function handler(req, res) {
     });
 
 
-    // Every manual alert is first published to exactly one configured channel.
-    // DISCORD_NOTIFICATION_CHANNEL_ID is the only channel destination; DM delivery remains opt-in.
+    // Every manual alert is published once to the channel selected for its record type.
+    // The DM recipient list, opt-ins, batching and delivery flow remain unchanged.
     // This is independent from per-member DM preferences.
     let channelSent = false;
     let channelMessageId = null;
@@ -771,7 +787,7 @@ export default async function handler(req, res) {
           const part = notificationMessages[partIndex];
           const channelMessage = await discordRequest(
             config,
-            "/channels/" + encodeURIComponent(config.notificationChannelId) + "/messages",
+            "/channels/" + encodeURIComponent(targetChannelId) + "/messages",
             {
               method: "POST",
               body: createDiscordMessageBody({
