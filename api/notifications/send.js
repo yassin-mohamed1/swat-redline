@@ -614,7 +614,12 @@ export default async function handler(req, res) {
     const reportFullText = type === "report"
       ? [
           reportTitleText ? "عنوان التقرير: " + reportTitleText : "",
-          reportBodyText && reportBodyText !== reportTitleText ? "محتوى التقرير: " + reportBodyText : ""
+          record.reportType ? "نوع التقرير: " + String(record.reportType) : "",
+          record.summary ? "الملخص: " + String(record.summary) : "",
+          reportBodyText && reportBodyText !== reportTitleText ? "التفاصيل الكاملة: " + reportBodyText : "",
+          record.findings ? "النتائج والملاحظات: " + String(record.findings) : "",
+          record.recommendations ? "التوصيات: " + String(record.recommendations) : "",
+          record.linkedEntityLabel ? "السجل المرتبط: " + String(record.linkedEntityLabel) : ""
         ].filter(Boolean).join("\n\n")
       : "";
 
