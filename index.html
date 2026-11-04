@@ -332,7 +332,7 @@ function renderOps(){
   const status=o.status||'جارية';
   const details=[o.description,o.details].filter(Boolean).join(' — ');
   const statusClass=status==='جارية'?'red':status==='مجدولة'?'orange':'green';
-  return `<tr><td>${esc(o.id)}</td><td><b>${esc(o.name)}</b>${o.description?'<div class="muted" style="max-width:280px;white-space:normal">'+esc(o.description)+'</div>':''}</td><td>${esc(o.owner||'غير محدد')}</td><td><span class="tag ${statusClass}">${esc(status)}</span></td><td>${esc(formatOperationStart(o))}</td><td><button class="btn ghostred" onclick="sendPortalNotification('operation',${jsArg(o.id)},this)">إرسال تنبيه</button> <button class="btn danger" onclick="deleteOperation(${jsArg(o.id)})">حذف العملية</button></td></tr>`
+  return `<tr><td>${esc(o.id)}</td><td><b>${esc(o.name)}</b>${o.description?'<div class="muted" style="max-width:280px;white-space:normal">'+esc(o.description)+'</div>':''}${o.details?'<div class="muted" style="max-width:320px;white-space:normal">'+esc(o.details.length>180?o.details.slice(0,177)+'…':o.details)+'</div>':''}</td><td>${esc(o.owner||'غير محدد')}</td><td><span class="tag ${statusClass}">${esc(status)}</span></td><td>${esc(formatOperationStart(o))}</td><td><button class="btn ghostred" onclick="sendPortalNotification('operation',${jsArg(o.id)},this)">إرسال تنبيه</button> <button class="btn danger" onclick="deleteOperation(${jsArg(o.id)})">حذف العملية</button></td></tr>`
  }).join('')||'<tr><td colspan="6" class="empty">لا توجد عمليات مسجلة</td></tr>';
 }
 function renderReports(){document.getElementById('reportRows').innerHTML=reports.map(r=>`<tr><td>${esc(r.id)}</td><td>${esc(r.title)}</td><td>${esc(r.owner)}</td><td><span class="tag ${r.status==='معتمد'?'green':'orange'}">${esc(r.status)}</span></td><td>${esc(r.date)}</td><td><button class="btn ghostred" onclick="sendPortalNotification('report',${jsArg(r.id)},this)">إرسال تنبيه</button> <button class="btn danger" onclick="deleteReport(${jsArg(r.id)})">حذف التقرير</button></td></tr>`).join('')||'<tr><td colspan="6" class="empty">لا توجد تقارير مسجلة</td></tr>'}
@@ -830,7 +830,10 @@ function toggleOperationScheduledTime(){
  const input=document.getElementById('operationStartAt');
  if(!field||!input)return;
  field.hidden=mode!=='scheduled';
+ field.style.display=mode==='scheduled'?'grid':'none';
  input.required=mode==='scheduled';
+ const localNow=new Date(Date.now()-new Date().getTimezoneOffset()*60000);
+ input.min=localNow.toISOString().slice(0,16);
  if(mode==='scheduled'&&!input.value){
   const local=new Date(Date.now()+15*60000);
   local.setMinutes(local.getMinutes()-local.getTimezoneOffset());
