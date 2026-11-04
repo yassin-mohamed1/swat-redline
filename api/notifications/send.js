@@ -615,7 +615,7 @@ export default async function handler(req, res) {
       ? [
           reportTitleText ? "عنوان التقرير: " + reportTitleText : "",
           reportBodyText && reportBodyText !== reportTitleText ? "محتوى التقرير: " + reportBodyText : ""
-        ].filter(Boolean).join("\\n\\n")
+        ].filter(Boolean).join("\n\n")
       : "";
 
     // One shared visual system for every site-generated notification:
