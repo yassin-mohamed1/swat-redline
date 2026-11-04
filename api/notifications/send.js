@@ -127,6 +127,20 @@ function describeRecord(type, record) {
       ]
     };
   }
+  if (type === "case") {
+    return {
+      title: "تنبيه بخصوص قضية",
+      description: "تم تسجيل قضية جديدة أو تحديثها في بوابة S.W.A.T. REDLINE.",
+      fields: [
+        { name: "عنوان القضية", value: truncate(record.title || "بدون عنوان", 200) },
+        { name: "رقم القضية", value: id || "—", inline: true },
+        { name: "النوع", value: truncate(record.caseType || "غير محدد", 100), inline: true },
+        { name: "الحالة", value: truncate(record.status || "غير محددة", 80), inline: true },
+        { name: "الشخص المرتبط", value: truncate(record.personName || "غير مرتبط", 160), inline: true },
+        { name: "التهمة / السبب", value: truncate(record.charge || "غير محدد", 900) }
+      ]
+    };
+  }
   if (type === "task") {
     return {
       title: "تنبيه بخصوص مهمة اليوم",
@@ -278,6 +292,7 @@ function splitDiscordText(value, maxLength = 3000) {
 function notificationSubjectTitle(type, record) {
   if (type === "operation") return truncate(record.name || record.title || "عملية بدون اسم", 200);
   if (type === "person") return truncate(record.name || record.title || "ملف بدون اسم", 200);
+  if (type === "case") return truncate(record.title || "قضية بدون عنوان", 200);
   if (type === "report") return truncate(record.title || "تقرير بدون عنوان", 200);
   if (type === "task") return truncate(record.text || "مهمة بدون عنوان", 200);
   if (type === "announcement") return truncate(record.title || "إعلان بدون عنوان", 200);
@@ -440,7 +455,7 @@ export default async function handler(req, res) {
   const entityId = typeof body.entity_id === "string" ? body.entity_id.trim() : "";
   const batchKey = typeof body.batch_key === "string" ? body.batch_key : "";
 
-  if (!["person", "operation", "report", "investigation", "task", "announcement"].includes(type) ||
+  if (!["person", "case", "operation", "report", "investigation", "task", "announcement"].includes(type) ||
       !entityId || entityId.length > 100 ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(batchKey)) {
     return res.status(400).json({ error: "Invalid notification request." });
@@ -467,7 +482,7 @@ export default async function handler(req, res) {
     }
     const stateRows = await stateResponse.json();
     const state = stateRows[0]?.data || {};
-    const sourceKey = ({ person: "people", operation: "operations", report: "reports", investigation: "investigations", announcement: "announcements" })[type];
+    const sourceKey = ({ person: "people", case: "cases", operation: "operations", report: "reports", investigation: "investigations", announcement: "announcements" })[type];
     const records = type === "task" ? (Array.isArray(state.tasks) ? state.tasks : []) : (Array.isArray(state[sourceKey]) ? state[sourceKey] : []);
     const record = type === "task" ? records[Number(entityId)] : records.find(item => String(item?.id ?? "") === entityId);
     if (!record) return res.status(404).json({ error: "The selected record was not found. Refresh the portal and try again." });
@@ -594,6 +609,7 @@ export default async function handler(req, res) {
     });
     const subjectKind = ({
       person: "ملف شخص",
+      case: "قضية",
       operation: "عملية / اجتماع",
       report: "تقرير إداري",
       investigation: "ملف تحرٍّ",
@@ -629,6 +645,12 @@ export default async function handler(req, res) {
       ? String(record.description || "").trim()
       : type === "person"
         ? String(record.charges || record.notes || record.description || "").trim()
+        : type === "case"
+        ? [
+            record.charge ? "التهمة / سبب القضية: " + String(record.charge).trim() : "",
+            record.summary ? "ملخص القضية: " + String(record.summary).trim() : "",
+            record.details ? "التفاصيل والإجراءات:\n" + String(record.details).trim() : ""
+          ].filter(Boolean).join("\n\n")
         : type === "operation"
           ? [
               record.description ? "الوصف: " + String(record.description).trim() : "",
@@ -647,6 +669,7 @@ export default async function handler(req, res) {
     const titleByType = {
       announcement: (record.type === "meeting" ? "📅 اجتماع | " : "📣 إعلان | ") + String(record.title || "إعلان جديد"),
       person: "👤 ملف شخص | " + String(record.name || "بدون اسم"),
+      case: "📁 قضية | " + String(record.title || "قضية جديدة"),
       operation: "🎯 عملية | " + String(record.name || record.title || "عملية جديدة"),
       report: "📄 تقرير إداري | " + String(record.title || "تقرير جديد").slice(0, 175),
       task: "✅ مهمة اليوم",
@@ -659,8 +682,16 @@ export default async function handler(req, res) {
           { name: "🗓️ الموعد", value: truncate(announcementDateText, 180), inline: true },
           { name: "📌 النوع", value: truncate(record.typeLabel || "إعلان", 100), inline: true }
         ]
-      : type === "operation"
+      : type === "case"
         ? [
+            { name: "🔢 رقم القضية", value: truncate(record.id || "—", 80), inline: true },
+            { name: "🏷️ نوع القضية", value: truncate(record.caseType || "غير محدد", 100), inline: true },
+            { name: "🚦 الحالة", value: truncate(record.status || "مفتوحة", 80), inline: true },
+            { name: "👤 الشخص المرتبط", value: truncate(record.personName || "غير مرتبط", 120), inline: true },
+            { name: "🎖️ المسؤول", value: truncate(record.assignedTo || record.owner || "غير محدد", 120), inline: true }
+          ]
+        : type === "operation"
+          ? [
             { name: "🕒 وقت بدء العملية", value: truncate(record.time || record.scheduledAt || "غير محدد", 180), inline: true },
             { name: "🚦 الحالة", value: truncate(record.status || "غير محددة", 80), inline: true },
             { name: "🎖️ المسؤول", value: truncate(record.owner || "غير محدد", 120), inline: true },
