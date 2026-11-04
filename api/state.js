@@ -119,7 +119,7 @@ export default async function handler(req, res) {
 
       // The audit feed is append-only through /api/audit/log; clients cannot rewrite it
       // by submitting a stale copy of the whole shared-state document.
-      const allowed = ["people", "investigations", "tasks", "operations", "reports", "rules", "dailyCommands"];
+      const allowed = ["people", "investigations", "tasks", "operations", "reports", "announcements", "rules", "dailyCommands"];
       const safeData = {};
       for (const key of allowed) {
         if (Array.isArray(data[key])) safeData[key] = data[key];
