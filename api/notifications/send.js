@@ -561,7 +561,7 @@ export default async function handler(req, res) {
     })[type] || "إشعار إداري";
     const embed = {
       author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
-      title: "🚨 " + truncate(subjectTitle, 240),
+      title: type === "report" ? "🚨 تنبيه بخصوص تقرير إداري" : "🚨 " + truncate(subjectTitle, 240),
       description: "**" + subjectKind + "  •  إشعار إداري جديد**\n" + truncate(summary.description, 1250),
       color: 0xD92735,
       fields: embedFields,
