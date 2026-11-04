@@ -607,34 +607,67 @@ export default async function handler(req, res) {
           timeStyle: "short"
         }) + " (توقيت الرياض)"
       : "لم يتم تحديد موعد";
-    const announcementRawBody = type === "announcement"
-      ? String(record.description || "").trim() || "لا توجد تفاصيل إضافية."
+    const reportTitleText = type === "report" ? String(record.title || "").trim() : "";
+    const reportBodyText = type === "report"
+      ? String(record.content || record.body || record.description || record.text || "").trim()
       : "";
-    // Put the full announcement description in the main embed. Only very long
-    // descriptions beyond Discord's embed limit are continued in numbered messages.
-    const announcementBodyChunks = type === "announcement"
-      ? splitDiscordText(announcementRawBody, 3800)
-      : [];
-    const announcementBody = announcementBodyChunks[0] || "";
-    const announcementFields = type === "announcement"
+    const reportFullText = type === "report"
+      ? [
+          reportTitleText ? "عنوان التقرير: " + reportTitleText : "",
+          reportBodyText && reportBodyText !== reportTitleText ? "محتوى التقرير: " + reportBodyText : ""
+        ].filter(Boolean).join("\\n\\n")
+      : "";
+
+    // One shared visual system for every site-generated notification:
+    // strong title, readable main description, compact metadata, red accent and footer.
+    const notificationBodyText = type === "announcement"
+      ? String(record.description || "").trim()
+      : type === "person"
+        ? String(record.charges || record.notes || record.description || "").trim()
+        : type === "operation"
+          ? String(record.description || record.details || record.notes || "").trim() || "تم تسجيل العملية في بوابة S.W.A.T. REDLINE."
+          : type === "report"
+            ? reportFullText || "تم إنشاء تقرير إداري في بوابة S.W.A.T. REDLINE."
+            : type === "task"
+              ? String(record.text || "").trim()
+              : String(record.incident || record.notes || record.description || "").trim();
+
+    const notificationBody = notificationBodyText || "لا توجد تفاصيل إضافية.";
+    const notificationBodyChunks = splitDiscordText(notificationBody, 3800);
+    const mainDescription = notificationBodyChunks[0] || "لا توجد تفاصيل إضافية.";
+
+    const titleByType = {
+      announcement: (record.type === "meeting" ? "📅 اجتماع | " : "📣 إعلان | ") + String(record.title || "إعلان جديد"),
+      person: "👤 ملف شخص | " + String(record.name || "بدون اسم"),
+      operation: "🎯 عملية | " + String(record.name || record.title || "عملية جديدة"),
+      report: "📄 تقرير إداري | " + String(record.title || "تقرير جديد").slice(0, 175),
+      task: "✅ مهمة اليوم",
+      investigation: "🔎 ملف تحرٍّ | " + String(record.title || record.name || "ملف جديد")
+    };
+    const notificationTitle = truncate(titleByType[type] || ("📣 " + subjectKind), 240);
+
+    const metadataFields = type === "announcement"
       ? [
           { name: "🗓️ الموعد", value: truncate(announcementDateText, 180), inline: true },
-          { name: "📌 النوع", value: truncate(record.typeLabel || "إعلان", 100), inline: true },
-          { name: "👤 المرسل", value: truncate(record.owner || user.displayName || user.username || "غير محدد", 120), inline: true }
+          { name: "📌 النوع", value: truncate(record.typeLabel || "إعلان", 100), inline: true }
         ]
-      : embedFields;
-    const announcementTitle = type === "announcement"
-      ? (record.type === "meeting" ? "📅 اجتماع | " : "📣 إعلان | ") + truncate(record.title || "إعلان جديد", 210)
-      : "";
+      : summary.fields.filter(field =>
+          !/^(الاسم|اسم العملية|عنوان الملف|اسم التقرير|المهمة|التفاصيل|ملخص الواقعة)$/i.test(String(field.name || "").trim())
+        );
+
+    metadataFields.unshift({
+      name: "👤 أُرسل بواسطة",
+      value: "**" + truncate(user.displayName || user.username, 100) + "**\\n@" + truncate(user.username, 100),
+      inline: true
+    });
+
     const embed = {
-      author: { name: type === "announcement" ? "S.W.A.T. REDLINE  •  الإعلانات الرسمية" : "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
-      title: type === "announcement" ? announcementTitle : type === "report" ? "🚨 تنبيه بخصوص تقرير إداري" : "🚨 " + truncate(subjectTitle, 240),
-      description: type === "announcement"
-        ? "**تفاصيل الإعلان**\n\n" + announcementBody
-        : "**" + subjectKind + "  •  إشعار إداري جديد**\\n" + truncate(summary.description, 1250),
+      author: { name: "S.W.A.T. REDLINE  •  الإشعارات الرسمية" },
+      title: notificationTitle,
+      description: "**التفاصيل**\\n\\n" + truncate(mainDescription, 4000),
       color: 0xD92735,
-      fields: announcementFields,
-      footer: { text: type === "announcement" ? "S.W.A.T. REDLINE  •  COMMAND CENTER" : "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
+      fields: metadataFields,
+      footer: { text: "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
       timestamp: new Date().toISOString(),
       ...(siteUrl ? { url: siteUrl } : {})
     };
@@ -672,25 +705,15 @@ export default async function handler(req, res) {
         roles: notificationRoleMentionDisabled ? [] : [config.notificationRoleId]
       }
     }];
-    // A regular announcement is one embed. Continue only when its description
-    // exceeds Discord's embed description limit.
-    announcementBodyChunks.slice(1).forEach((chunk, index) => {
-      notificationMessages.push({
-        embeds: [],
-        images: [],
-        components: [],
-        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementBodyChunks.length + "**\n\n" + chunk,
-        allowedMentions: { parse: [] }
-      });
-    });
-    reportChunks.forEach((chunk, index) => {
+    // Long descriptions continue with the same official visual identity.
+    notificationBodyChunks.slice(1).forEach((chunk, index) => {
       notificationMessages.push({
         embeds: [{
-          author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
-          title: "📄 النص الكامل للتقرير — الجزء " + (index + 1) + "/" + reportChunks.length,
-          description: chunk,
+          author: { name: "S.W.A.T. REDLINE  •  الإشعارات الرسمية" },
+          title: "استكمال | " + notificationTitle + " — " + (index + 2) + "/" + notificationBodyChunks.length,
+          description: "**استكمال التفاصيل**\\n\\n" + chunk,
           color: 0xD92735,
-          footer: { text: "S.W.A.T. REDLINE  •  استكمال التقرير" },
+          footer: { text: "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
           timestamp: new Date().toISOString()
         }],
         images: [],
