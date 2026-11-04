@@ -153,9 +153,8 @@ function describeRecord(type, record) {
     if (type === "report") {
     return {
       title: "تنبيه بخصوص تقرير",
-      description: "تم إصدار تنبيه إداري بخصوص تقرير في بوابة S.W.A.T. REDLINE.",
+      description: "تم إصدار تنبيه إداري بخصوص تقرير في بوابة S.W.A.T. REDLINE. النص الكامل مرفق في الرسائل التالية على أجزاء مرقّمة.",
       fields: [
-        { name: "عنوان التقرير", value: truncate(record.title || "بدون عنوان", 200) },
         { name: "رقم التقرير", value: id || "—", inline: true },
         { name: "الحالة", value: truncate(record.status || "غير محددة", 80), inline: true },
         { name: "الكاتب", value: truncate(record.owner || "غير محدد", 120), inline: true },
@@ -253,6 +252,16 @@ function buildNotificationEmbeds(mainEmbed, images) {
   return embeds;
 }
  
+function splitDiscordText(value, maxLength = 3000) {
+  const text = String(value ?? "");
+  if (!text) return ["لا يوجد نص للتقرير."];
+  const chunks = [];
+  for (let start = 0; start < text.length; start += maxLength) {
+    chunks.push(text.slice(start, start + maxLength));
+  }
+  return chunks;
+}
+
 function notificationSubjectTitle(type, record) {
   if (type === "operation") return truncate(record.name || record.title || "عملية بدون اسم", 200);
   if (type === "person") return truncate(record.name || record.title || "ملف بدون اسم", 200);
@@ -571,6 +580,46 @@ export default async function handler(req, res) {
       }]
     }] : [];
 
+    // A report's title field may contain the complete narrative. Never squeeze it
+    // into Discord's 256-character embed title or a 1024-character field value.
+    const reportTitleText = type === "report" ? String(record.title || "") : "";
+    const reportBodyText = type === "report"
+      ? String(record.content || record.body || record.description || record.text || "")
+      : "";
+    const reportFullText = type === "report"
+      ? [
+          reportTitleText ? "عنوان التقرير:\n" + reportTitleText : "",
+          reportBodyText && reportBodyText !== reportTitleText ? "محتوى التقرير:\n" + reportBodyText : ""
+        ].filter(Boolean).join("\n\n")
+      : "";
+    const reportChunks = type === "report" ? splitDiscordText(reportFullText) : [];
+    const notificationMessages = [{
+      embeds: notificationEmbeds,
+      images: notificationImages,
+      components: siteComponents,
+      content: notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
+      allowedMentions: {
+        parse: [],
+        roles: notificationRoleMentionDisabled ? [] : [config.notificationRoleId]
+      }
+    }];
+    reportChunks.forEach((chunk, index) => {
+      notificationMessages.push({
+        embeds: [{
+          author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
+          title: "📄 النص الكامل للتقرير — الجزء " + (index + 1) + "/" + reportChunks.length,
+          description: chunk,
+          color: 0xD92735,
+          footer: { text: "S.W.A.T. REDLINE  •  استكمال التقرير" },
+          timestamp: new Date().toISOString()
+        }],
+        images: [],
+        components: [],
+        content: "",
+        allowedMentions: { parse: [] }
+      });
+    });
+
     // Every manual alert is first published to exactly one configured channel.
     // DISCORD_NOTIFICATION_CHANNEL_ID is the only channel destination; DM delivery remains opt-in.
     // This is independent from per-member DM preferences.
@@ -578,24 +627,24 @@ export default async function handler(req, res) {
     let channelMessageId = null;
     let channelErrorCode = null;
     try {
-      const channelMessage = await discordRequest(
-        config,
-        "/channels/" + encodeURIComponent(config.notificationChannelId) + "/messages",
-        {
-          method: "POST",
-          body: createDiscordMessageBody({
-            content: notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
-            embeds: notificationEmbeds,
-            ...(siteComponents.length ? { components: siteComponents } : {}),
-            allowed_mentions: {
-              parse: [],
-              roles: notificationRoleMentionDisabled ? [] : [config.notificationRoleId]
-            }
-          }, notificationImages)
-        }
-      );
+      for (let partIndex = 0; partIndex < notificationMessages.length; partIndex++) {
+        const part = notificationMessages[partIndex];
+        const channelMessage = await discordRequest(
+          config,
+          "/channels/" + encodeURIComponent(config.notificationChannelId) + "/messages",
+          {
+            method: "POST",
+            body: createDiscordMessageBody({
+              ...(part.content ? { content: part.content } : {}),
+              embeds: part.embeds,
+              ...(part.components.length ? { components: part.components } : {}),
+              allowed_mentions: part.allowedMentions
+            }, part.images)
+          }
+        );
+        if (partIndex === 0) channelMessageId = channelMessage.id || null;
+      }
       channelSent = true;
-      channelMessageId = channelMessage.id || null;
     } catch (error) {
       channelErrorCode = String(error?.code || error?.message || "channel_delivery_failed").slice(0, 80);
       console.error("Discord notification channel delivery failed:", channelErrorCode);
@@ -649,14 +698,17 @@ export default async function handler(req, res) {
         });
         if (!dm.id) throw Object.assign(new Error("discord_dm_channel_missing"), { code: "dm_channel_missing" });
 
-        await discordRequest(config, "/channels/" + encodeURIComponent(dm.id) + "/messages", {
-          method: "POST",
-          body: createDiscordMessageBody({
-            embeds: notificationEmbeds,
-            ...(siteComponents.length ? { components: siteComponents } : {}),
-            allowed_mentions: { parse: [] }
-          }, notificationImages)
-        });
+        for (const part of notificationMessages) {
+          await discordRequest(config, "/channels/" + encodeURIComponent(dm.id) + "/messages", {
+            method: "POST",
+            body: createDiscordMessageBody({
+              ...(part.content ? { content: part.content } : {}),
+              embeds: part.embeds,
+              ...(part.components.length ? { components: part.components } : {}),
+              allowed_mentions: { parse: [] }
+            }, part.images)
+          });
+        }
         status = "sent";
         sent++;
       } catch (error) {
