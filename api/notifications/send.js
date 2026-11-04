@@ -62,6 +62,27 @@ function getConfig() {
   if (!botToken) return { error: "bot_token_missing" };
   return { base, serviceKey, botToken, notificationChannelId, announcementPostChannelId, evidenceChannelId, notificationRoleId };
 }
+async function isActiveStaffForNotifications(config, user) {
+  if (user.isOwner) return true;
+  const query = new URLSearchParams({
+    discord_user_id: "eq." + String(user.id),
+    select: "is_active,is_banned",
+    limit: "1"
+  });
+  try {
+    const response = await supabaseRequest(config, "staff_profiles?" + query.toString());
+    if (!response.ok) {
+      console.error("Notification staff authorization lookup failed:", response.status, (await response.text()).slice(0, 250));
+      return false;
+    }
+    const rows = await response.json();
+    return Boolean(rows[0]) && rows[0].is_active !== false && !rows[0].is_banned;
+  } catch (error) {
+    console.error("Notification staff authorization lookup failed:", error?.message || "unknown");
+    return false;
+  }
+}
+
 
 function truncate(value, max = 900) {
   const text = String(value ?? "").trim();
@@ -477,6 +498,9 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: "Discord bot is not connected yet. Add DISCORD_BOT_TOKEN to Vercel Production." });
   }
   if (config.error) return res.status(503).json({ error: "Notification storage is not configured." });
+  if (!await isActiveStaffForNotifications(config, user)) {
+    return res.status(403).json({ error: "This staff account is inactive or could not be verified. Sign in again or contact the portal owner." });
+  }
 
   const channelRoute = type === "announcement"
     ? { id: config.announcementPostChannelId, label: "الإعلانات" }
