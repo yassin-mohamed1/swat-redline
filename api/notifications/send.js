@@ -375,47 +375,6 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
   }
 }
 
-async function updateNotificationAudit(config, auditEntry, user, type, entityId, record, batchId, result) {
-  if (!auditEntry?.id) return;
-  const subjectTitle = notificationSubjectTitle(type, record);
-  const actorName = truncate(user.displayName || user.username, 100);
-  const actorUsername = truncate(user.username, 100);
-  const sent = Number(result.dmSent || 0);
-  const failed = Number(result.dmFailed || 0);
-  const total = Number(result.dmTotal || 0);
-  const channelStatus = result.channelStatus || "sent";
-  const statusText = channelStatus === "disabled"
-    ? "النشر في روم Discord المخصصة لنوع التنبيه متوقف بإعدادات المالك"
-    : channelStatus === "failed"
-      ? "فشل نشره في روم Discord المخصصة؛ تمت معالجة الرسائل الخاصة بشكل مستقل"
-      : `تم نشره في روم Discord المخصصة (${result.channelLabel || "غير محددة"})؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
-  const details = {
-    ...auditEntry.details,
-    detail: `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${statusText}.`,
-    channel_status: channelStatus,
-    channel_message_id: result.channelMessageId || null,
-    channel_id: result.channelId || auditEntry.details?.channel_id || null,
-    channel_label: result.channelLabel || auditEntry.details?.channel_label || null,
-    channel_error_code: result.channelErrorCode || null,
-    dm_total: total,
-    dm_sent: sent,
-    dm_failed: failed
-  };
-  try {
-    const query = new URLSearchParams({ id: "eq." + String(auditEntry.id) });
-    const response = await supabaseRequest(config, "audit_logs?" + query, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ details })
-    });
-    if (!response.ok) {
-      console.error("Discord notification audit update failed:", response.status, (await response.text()).slice(0, 300));
-    }
-  } catch (error) {
-    console.error("Discord notification audit update failed:", error?.message || "unknown");
-  }
-}
-
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -839,10 +798,6 @@ export default async function handler(req, res) {
       }
     }
 
-    const notificationAudit = await writeNotificationAudit(
-      config, user, type, entityId, record, batchId,
-      { channelStatus, channelMessageId, channelErrorCode, channelId: targetChannelId, channelLabel: channelRoute.label, dmTotal: recipients.length, dmSent: 0, dmFailed: 0 }
-    );
     let sent = 0;
     let failed = 0;
     let ownerDmSent = false;
@@ -925,8 +880,10 @@ export default async function handler(req, res) {
     if (!updateBatch.ok) {
       console.error("Notification batch summary update failed:", updateBatch.status, (await updateBatch.text()).slice(0, 200));
     }
-    await updateNotificationAudit(
-      config, notificationAudit, user, type, entityId, record, batchId,
+    // Insert the final notification audit only after all deliveries finish.
+    // audit_logs is intentionally append-only; the sender must never UPDATE it.
+    await writeNotificationAudit(
+      config, user, type, entityId, record, batchId,
       { channelStatus, channelMessageId, channelErrorCode, channelId: targetChannelId, channelLabel: channelRoute.label, dmTotal: recipients.length, dmSent: sent, dmFailed: failed }
     );
 
