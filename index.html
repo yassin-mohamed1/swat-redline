@@ -816,7 +816,8 @@ async function sendPortalNotification(entityType,entityId,button){
  const taskText=entityType==='task'?String(tasks[Number(entityId)]?.text||''):'';
  
  const label=({person:'ملف الشخص',operation:'العملية / الاجتماع',report:'التقرير',investigation:'ملف التحري',task:'مهمة اليوم',announcement:'الإعلان'})[entityType]||'السجل';
- if(!confirm('سيتم نشر التنبيه في روم SWAT Notification Website، وإرسال رسالة خاصة إلى كل عضو نشط في البوابة لم يوقف استقبال الرسائل من الإعدادات. هل تريد المتابعة؟'))return;
+ const channelLabel=entityType==='announcement'?'روم 𝐀𝐍𝐍𝐎𝐔𝐍𝐂𝐄𝐌𝐍𝐄𝐓':(['person','case','investigation'].includes(entityType)?'روم 𝐄𝐕𝐈𝐃𝐄𝐍𝐂𝐄・𝐑𝐎𝐎𝐌':'روم الإشعارات المعتادة');
+ if(!confirm('سيتم نشر التنبيه في '+channelLabel+' مرة واحدة، وإرسال نسخة خاصة إلى كل عضو نشط في البوابة لم يوقف استقبال الرسائل من الإعدادات. رسائل الموقع في روم الإعلانات لن تُحوّل مرة ثانية للخاص. هل تريد المتابعة؟'))return;
  if(button?.disabled)return;
  const oldText=button?.textContent||'إرسال تنبيه';
  if(button){button.disabled=true;button.textContent='جاري الإرسال...'}
