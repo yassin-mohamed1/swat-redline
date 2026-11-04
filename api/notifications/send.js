@@ -669,7 +669,7 @@ export default async function handler(req, res) {
       images: notificationImages,
       components: siteComponents,
       content: type === "announcement"
-        ? (notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">\\n\\n") + (announcementTextChunks[0] || "")
+        ? (notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">\n\n") + (announcementTextChunks[0] || "")
         : notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
       allowedMentions: {
         parse: [],
@@ -683,7 +683,7 @@ export default async function handler(req, res) {
         embeds: [],
         images: [],
         components: [],
-        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementTextChunks.length + "**\\n\\n" + chunk,
+        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementTextChunks.length + "**\n\n" + chunk,
         allowedMentions: { parse: [] }
       });
     });
