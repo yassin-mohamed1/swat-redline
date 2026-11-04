@@ -116,11 +116,12 @@ html[dir="ltr"] body{font-family:Arial,Helvetica,sans-serif}html[dir="ltr"] .sid
 <script>
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
-if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
+if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
-let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false;
+let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
+  localStorage.setItem('redline_cases',JSON.stringify(cases));
   localStorage.setItem('redline_investigations',JSON.stringify(investigations));
   localStorage.setItem('redline_audit',JSON.stringify(audit));
   localStorage.setItem('redline_tasks',JSON.stringify(tasks));
@@ -135,22 +136,32 @@ function save(){
   }
 }
 async function pushSharedState(){
-  if(!sharedSyncReady||sharedWriteConflict)return;
-  if(sharedSyncBusy){sharedWriteQueued=true;return;}
-  sharedSyncBusy=true;
+  if(!sharedSyncReady){sharedLastSaveError='المزامنة المشتركة لم تجهز بعد.';return false;}
+  if(sharedWriteConflict){sharedLastSaveError='توجد نسخة أحدث من البيانات على السيرفر. أعد تحميل الصفحة.';return false;}
+  if(sharedSyncBusy){sharedWriteQueued=true;return false;}
+  sharedSyncBusy=true;sharedLastSaveError=null;
   try{
-    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:sharedUpdatedAt,data:{people,investigations,tasks,operations,reports,announcements,rules,dailyCommands}})});
+    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:sharedUpdatedAt,data:{people,cases,investigations,tasks,operations,reports,announcements,rules,dailyCommands}})});
     const result=await response.json().catch(()=>({}));
     if(response.status===409){
       sharedWriteConflict=true;
-      toast('تم تعديل البيانات من عضو آخر. تغييراتك لم تُحفظ؛ أعد تحميل الصفحة قبل إجراء تعديلات أخرى.');
-    }else if(!response.ok){
-      toast(result.error||'تعذّر حفظ البيانات المشتركة');
-    }else{
-      sharedUpdatedAt=result.updated_at||sharedUpdatedAt;
+      sharedLastSaveError=result.error||'تغيرت البيانات في جلسة أخرى. أعد تحميل الصفحة.';
+      toast(sharedLastSaveError);
+      return false;
     }
-  }catch(e){toast('تعذّر الاتصال بقاعدة البيانات المشتركة');}
-  finally{
+    if(!response.ok){
+      sharedLastSaveError=result.error||'تعذّر حفظ البيانات المشتركة.';
+      toast(sharedLastSaveError);
+      return false;
+    }
+    sharedUpdatedAt=result.updated_at||sharedUpdatedAt;
+    sharedLastSaveError=null;
+    return true;
+  }catch(e){
+    sharedLastSaveError=e?.message||'تعذّر الاتصال بقاعدة البيانات المشتركة.';
+    toast(sharedLastSaveError);
+    return false;
+  }finally{
     sharedSyncBusy=false;
     if(sharedWriteQueued&&!sharedWriteConflict){
       sharedWriteQueued=false;
@@ -180,11 +191,11 @@ async function pullSharedState(initial=false){
     if(!result.data)return;
     if(!initial&&result.updated_at&&result.updated_at===sharedUpdatedAt)return;
     const cloud=result.data;
-    const keys=['people','investigations','tasks','operations','reports','announcements','rules','dailyCommands'];
+    const keys=['people','cases','investigations','tasks','operations','reports','announcements','rules','dailyCommands'];
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
     const hasCloudSnapshot=keys.some(k=>Array.isArray(cloud[k]));
     const hasCompleteCloudSnapshot=keys.every(k=>Array.isArray(cloud[k]));
-    const localCount=people.length+investigations.length+tasks.length+operations.length+reports.length+announcements.length+rules.length+dailyCommands.length;
+    const localCount=people.length+cases.length+investigations.length+tasks.length+operations.length+reports.length+announcements.length+rules.length+dailyCommands.length;
     let repairedReportAuthors=false;
     sharedUpdatedAt=result.updated_at||null;
     if(initial&&cloudCount===0&&localCount>0&&!hasCompleteCloudSnapshot){
@@ -194,6 +205,7 @@ async function pullSharedState(initial=false){
     }
     if(hasCloudSnapshot||initial){
       people=Array.isArray(cloud.people)?cloud.people:[];
+      if(Array.isArray(cloud.cases))cases=cloud.cases;
       if(Array.isArray(cloud.investigations))investigations=cloud.investigations;
       tasks=Array.isArray(cloud.tasks)?cloud.tasks:[];
       operations=Array.isArray(cloud.operations)?cloud.operations:[];
@@ -203,6 +215,7 @@ async function pullSharedState(initial=false){
       if(Array.isArray(cloud.rules)){rules=cloud.rules;localStorage.setItem('redline_rules',JSON.stringify(rules));}
       if(Array.isArray(cloud.dailyCommands)){dailyCommands=cloud.dailyCommands;localStorage.setItem("redline_daily_commands",JSON.stringify(dailyCommands));}
       localStorage.setItem('redline_people',JSON.stringify(people));
+      localStorage.setItem('redline_cases',JSON.stringify(cases));
       localStorage.setItem('redline_investigations',JSON.stringify(investigations));
       localStorage.setItem('redline_tasks',JSON.stringify(tasks));
       localStorage.setItem('redline_operations',JSON.stringify(operations));
@@ -215,7 +228,7 @@ async function pullSharedState(initial=false){
     sharedSyncReady=true;
     if(repairedReportAuthors)await pushSharedState();
     // Migrate the owner's existing local daily orders once, if the shared record predates this field.
-    if(initial&&currentIsOwner&&(!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations)||!Array.isArray(cloud.announcements))){await pushSharedState();}
+    if(initial&&currentIsOwner&&(!Array.isArray(cloud.cases)||!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations)||!Array.isArray(cloud.announcements))){await pushSharedState();}
   }catch(e){console.warn('Shared sync unavailable',e);}
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -417,34 +430,51 @@ let ruleEditorType='law',editingRuleIndex=null;
 function openRuleEditor(type,index=null){ruleEditorType=type;editingRuleIndex=index;let item=index===null?null:rules[index];let law=type==='law';document.getElementById('ruleEditorHeading').textContent=(index===null?'إضافة ':'تعديل ')+(law?'قانون':'تعميم أو دليل');document.getElementById('ruleTitleLabel').textContent=law?'عنوان القانون':'وصف أو اسم التعميم';document.getElementById('ruleTitle').placeholder=law?'مثال: قانون استخدام القوة':'مثال: دليل إجراءات القسم';document.getElementById('ruleDescriptionField').hidden=!law;document.getElementById('ruleDescriptionLabel').textContent='وصف القانون';document.getElementById('ruleBodyLabel').textContent=law?'نص القانون / القانون عبارة عن إيه؟':'التعميم أو الدليل';document.getElementById('ruleBody').placeholder=law?'اكتب نص القانون بالتفصيل...':'اكتب التعميم أو الدليل كاملًا هنا...';document.getElementById('ruleSaveButton').textContent=law?'حفظ القانون':'حفظ التعميم أو الدليل';document.getElementById('ruleTitle').value=item?.title||'';document.getElementById('ruleDescription').value=item?.description||'';document.getElementById('ruleBody').value=item?.body||'';document.getElementById('ruleBody').required=true;document.getElementById('ruleEditorBack').hidden=false}
 function closeRuleEditor(){document.getElementById('ruleEditorBack').hidden=true;document.getElementById('ruleEditorForm').reset();editingRuleIndex=null}
 function newRule(type='notice'){openRuleEditor(type)}
-document.getElementById('ruleEditorForm').addEventListener('submit',e=>{e.preventDefault();let title=document.getElementById('ruleTitle').value.trim(),description=document.getElementById('ruleDescription').value.trim(),body=document.getElementById('ruleBody').value.trim();if(!title||(ruleEditorType==='law'&&!body)){toast('اكتب عنوان القانون ونصه أولًا');return}if(editingRuleIndex===null){let id=(ruleEditorType==='law'?'LAW-':'CIR-')+String(Date.now()).slice(-6);rules.unshift({id,title,description,body,type:ruleEditorType});save();log('إضافة',(ruleEditorType==='law'?'إضافة قانون: ':'إضافة تعميم: ')+title,id);toast(ruleEditorType==='law'?'تم حفظ القانون':'تم حفظ التعميم')}else{let old=rules[editingRuleIndex];rules[editingRuleIndex]={...old,title,description,body,type:ruleEditorType};save();log('تعديل','تعديل '+(ruleEditorType==='law'?'القانون: ':'التعميم: ')+old.title+' ← '+title,old.id);toast('تم حفظ التعديلات')}closeRuleEditor();renderRules()});
+document.getElementById('ruleEditorForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const title=document.getElementById('ruleTitle').value.trim(),description=document.getElementById('ruleDescription').value.trim(),body=document.getElementById('ruleBody').value.trim();
+ if(!title||(ruleEditorType==='law'&&!body)){toast('اكتب عنوان القانون ونصه أولًا');return}
+ if(!sharedSyncReady){toast('انتظر اكتمال المزامنة قبل الحفظ.');return}
+ const previous=rules.slice(),isNew=editingRuleIndex===null;
+ let item,action;
+ if(isNew){item={id:(ruleEditorType==='law'?'LAW-':'CIR-')+String(Date.now()).slice(-6),title,description,body,type:ruleEditorType};rules.unshift(item);action='إضافة'}
+ else{const old=rules[editingRuleIndex];item={...old,title,description,body,type:ruleEditorType};rules[editingRuleIndex]=item;action='تعديل'}
+ save();renderRules();toast('جارٍ حفظ التعديل في قاعدة البيانات المشتركة...');
+ try{
+  await flushSharedStateNow();
+  log(action,(action==='إضافة'?'إضافة ':'تعديل ')+(ruleEditorType==='law'?'القانون: ':'التعميم: ')+title,item.id);
+  closeRuleEditor();renderRules();toast(isNew?'تم حفظ الإضافة نهائيًا.':'تم حفظ التعديلات نهائيًا.');
+ }catch(error){
+  rules=previous;save();renderRules();toast(error.message||'لم يتم تأكيد الحفظ؛ تمت استعادة النسخة السابقة.');
+ }
+});
 function editRule(i){if(!rules[i])return;openRuleEditor(rules[i].type||'notice',i)}
 async function flushSharedStateNow(){
  if(!sharedSyncReady)throw new Error('المزامنة المشتركة لم تجهز بعد. حدّث الصفحة وانتظر اكتمال التحميل.');
  clearTimeout(sharedSaveTimer);
- for(let attempt=0;sharedSyncBusy&&attempt<60;attempt++)await new Promise(resolve=>setTimeout(resolve,100));
+ for(let attempt=0;sharedSyncBusy&&attempt<100;attempt++)await new Promise(resolve=>setTimeout(resolve,100));
  if(sharedSyncBusy)throw new Error('الحفظ السابق ما زال جاريًا. حاول مرة أخرى بعد لحظة.');
- if(sharedWriteConflict)throw new Error('توجد نسخة أحدث من البيانات على السيرفر. أعد تحميل الصفحة قبل الحذف.');
- await pushSharedState();
- if(sharedWriteConflict)throw new Error('السيرفر رفض الحذف بسبب تعارض في نسخة البيانات. أعد تحميل الصفحة.');
-}
-async function deleteRule(i){
+ if(sharedWriteConflict)throw new Error(sharedLastSaveError||'توجد نسخة أحدث من البيانات على السيرفر. أعد تحميل الصفحة قبل التعديل.');
+ sharedWriteQueued=false;
+ clearTimeout(sharedSaveTimer);
+ const saved=await pushSharedState();
+ if(!saved||shareasync function deleteRule(i){
  if(!rules[i])return;
  if(!sharedSyncReady){toast('انتظر اكتمال مزامنة البيانات قبل الحذف.');return}
- const r=rules[i];
- if(!confirm('تأكيد حذف «'+r.title+'»؟'))return;
+ const r=rules[i];if(!confirm('تأكيد حذف «'+r.title+'»؟'))return;
  const previousRules=rules.slice();
- rules.splice(i,1);
- save();log('حذف','حذف '+(r.type==='law'?'القانون: ':'التعميم: ')+r.title,r.id);renderRules();
- toast('جارٍ حفظ الحذف في قاعدة البيانات المشتركة...');
+ rules.splice(i,1);save();renderRules();
+ toast('جارٍ تثبيت الحذف في قاعدة البيانات المشتركة...');
  try{
   await flushSharedStateNow();
-  toast('تم حذف «'+r.title+'» من البيانات المشتركة بنجاح.');
+  log('حذف','حذف '+(r.type==='law'?'القانون: ':'التعميم: ')+r.title,r.id);
+  toast('تم حذف «'+r.title+'» نهائيًا من البيانات المشتركة.');
  }catch(error){
   rules=previousRules;save();renderRules();
-  toast(error.message||'لم يتم تثبيت الحذف. أُعيد العنصر لحين نجاح الحفظ.');
+  toast(error.message||'لم يؤكد السيرفر الحذف؛ تم استرجاع العنصر.');
  }
 }
+
 function newDailyCommand(){let text=prompt('اكتب نص الأمر الجديد:');if(!text||!text.trim())return;dailyCommands.push({text:text.trim()});save();log('إضافة','إضافة أمر يومي: '+text.trim(),'DAILY-COMMAND');renderDailyCommands();toast('تمت إضافة الأمر')}
 function editDailyCommand(i){if(!dailyCommands[i])return;let text=prompt('عدّل نص الأمر:',dailyCommands[i].text);if(text===null||!text.trim())return;let old=dailyCommands[i].text;dailyCommands[i]={...dailyCommands[i],text:text.trim()};save();log('تعديل','تعديل الأمر اليومي: '+old+' ← '+text.trim(),'DAILY-COMMAND-'+(i+1));renderDailyCommands();toast('تم تعديل الأمر')}
 function deleteDailyCommand(i){if(!dailyCommands[i])return;let c=dailyCommands[i];if(!confirm('حذف الأمر «'+c.text+'»؟'))return;dailyCommands.splice(i,1);save();log('حذف','حذف الأمر اليومي: '+c.text,'DAILY-COMMAND-'+(i+1));renderDailyCommands();toast('تم حذف الأمر')}
@@ -893,7 +923,7 @@ let H=pad*2+blocks.reduce((n,b)=>n+b.height+18,0);temp.width=W;temp.height=H;ctx
 let y=pad;for(let b of blocks){ctx.textBaseline='top';if(b.type==='brand'){ctx.fillStyle='#f12b39';ctx.font='bold 48px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y);ctx.fillStyle='#ed2635';ctx.fillRect(pad,y+61,inner,4)}else if(b.type==='title'){ctx.fillStyle='#fff';ctx.font='bold 68px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y)}else if(b.type==='name'){ctx.fillStyle='#fff';ctx.font='bold 54px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y,inner)}else if(b.type==='meta'){ctx.fillStyle='#22252b';ctx.fillRect(pad,y,inner,b.height-15);ctx.fillStyle='#ff4b56';ctx.font='bold 32px Arial';ctx.textAlign='left';ctx.fillText('CASE ID: '+p.id,pad+22,y+18);ctx.fillText('STATUS: '+caseStatusLabel(p),pad+22,y+68);ctx.fillText('PRIORITY: '+(p.priority||'غير محدد'),pad+22,y+118);ctx.fillStyle='#eee';ctx.font='29px Arial';ctx.fillText('عدد الأدلة: '+imgs.length,pad+22,y+164)}else if(b.type==='section'||b.type==='evidence-title'){ctx.fillStyle=b.type==='section'?'#ff3545':'#fff';ctx.font='bold 38px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y);ctx.fillStyle='#ed2635';ctx.fillRect(pad,y+45,inner,3)}else if(b.type==='text'){ctx.fillStyle='#f0f0f0';ctx.font=b.font;ctx.textAlign='right';ctx.direction='rtl';for(let j=0;j<b.lines.length;j++)ctx.fillText(b.lines[j],W-pad,y+j*b.lineH,inner);ctx.direction='ltr'}else if(b.type==='image'){let im=b.img,h=b.height-20,scale=Math.min(inner/im.width,h/im.height),iw=im.width*scale,ih=im.height*scale;ctx.fillStyle='#fff';ctx.fillRect(pad,y,inner,h+12);ctx.drawImage(im,pad+(inner-iw)/2,y+(h-ih)/2,iw,ih)}else if(b.type==='footer'){ctx.fillStyle='#a9abb2';ctx.font='27px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y)}y+=b.height+18}
 let a=document.createElement('a');a.download='case-file-'+String(p.id).replace(/[^a-z0-9_-]/gi,'_')+'.png';a.href=temp.toDataURL('image/png');a.click();log('تصدير','تنزيل صورة كاملة للملف '+p.name,p.id);toast('تم تنزيل صورة الملف كاملة')
 }
-function exportAll(){downloadBlob(JSON.stringify(people,null,2),'redline-records.json','application/json');log('تصدير','تم تصدير قائمة الملفات','ALL');toast('تم تنزيل JSON')}function downloadAudit(){downloadBlob(JSON.stringify(audit,null,2),'redline-audit-log.json','application/json');toast('تم تنزيل سجل النشاط')}
+function exportAll(){const bundle={exportedAt:new Date().toISOString(),people,cases,investigations,operations,reports,announcements,rules,tasks,dailyCommands};downloadBlob(JSON.stringify(bundle,null,2),'swat-redline-records.json','application/json');log('تصدير','تم تصدير جميع سجلات البوابة','ALL');toast('تم تنزيل نسخة JSON الكاملة')}function downloadAudit(){downloadBlob(JSON.stringify(audit,null,2),'redline-audit-log.json','application/json');toast('تم تنزيل سجل النشاط')}
 function toggleTask(i,v){tasks[i].done=v;save();log('تعديل',(v?'إكمال':'إعادة فتح')+' المهمة: '+tasks[i].text,'TASK-'+(i+1));renderTasks()}function addTask(){let t=prompt('اكتب المهمة الجديدة:');if(!t)return;tasks.unshift({text:t,done:false});save();log('إضافة','إضافة مهمة: '+t,'TASK-NEW');renderTasks();toast('تمت إضافة المهمة')}
 function newOperation(){
  const form=document.getElementById('operationForm');if(!form)return;
