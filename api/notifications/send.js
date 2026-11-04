@@ -607,38 +607,36 @@ export default async function handler(req, res) {
           timeStyle: "short"
         }) + " (توقيت الرياض)"
       : "لم يتم تحديد موعد";
-    const announcementPlainText = type === "announcement"
-      ? [
-          "📣 **إعلان رسمي | " + String(record.typeLabel || "إعلان") + "**",
-          "### " + String(record.title || "إعلان جديد"),
-          "> **" + String(record.description || "").trim() + "**"
-        ].filter(Boolean).join("\n\n")
+    const announcementRawBody = type === "announcement"
+      ? String(record.description || "").trim() || "لا توجد تفاصيل إضافية."
       : "";
-    const announcementTextChunks = type === "announcement"
-      ? splitDiscordText(announcementPlainText, 1650)
+    // Put the full announcement description in the main embed. Only very long
+    // descriptions beyond Discord's embed limit are continued in numbered messages.
+    const announcementBodyChunks = type === "announcement"
+      ? splitDiscordText(announcementRawBody, 3800)
       : [];
-    const announcementBody = type === "announcement"
-      ? truncate(String(record.description || "").trim() || "لا توجد تفاصيل إضافية.", 4000)
-      : "";
+    const announcementBody = announcementBodyChunks[0] || "";
     const announcementFields = type === "announcement"
       ? [
-          { name: "📅 الموعد والتوقيت", value: truncate(announcementDateText, 180), inline: false },
-          { name: "🏷️ تصنيف الإعلان", value: truncate(record.typeLabel || "إعلان", 100), inline: false },
-          { name: "👤 أُعلن بواسطة", value: truncate(record.owner || user.displayName || user.username || "غير محدد", 120), inline: false }
+          { name: "🗓️ الموعد", value: truncate(announcementDateText, 180), inline: true },
+          { name: "📌 النوع", value: truncate(record.typeLabel || "إعلان", 100), inline: true },
+          { name: "👤 المرسل", value: truncate(record.owner || user.displayName || user.username || "غير محدد", 120), inline: true }
         ]
       : embedFields;
-    const announcementTitle = type === "announcement" ? "📋 بيانات الإعلان" : "";
+    const announcementTitle = type === "announcement"
+      ? (record.type === "meeting" ? "📅 اجتماع | " : "📣 إعلان | ") + truncate(record.title || "إعلان جديد", 210)
+      : "";
     const embed = {
       author: { name: type === "announcement" ? "S.W.A.T. REDLINE  •  الإعلانات الرسمية" : "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
       title: type === "announcement" ? announcementTitle : type === "report" ? "🚨 تنبيه بخصوص تقرير إداري" : "🚨 " + truncate(subjectTitle, 240),
       description: type === "announcement"
-        ? "**بطاقة بيانات الإعلان الرسمية**\nالتصنيف والموعد والجهة المعلنة."
-        : "**" + subjectKind + "  •  إشعار إداري جديد**\n" + truncate(summary.description, 1250),
+        ? "**تفاصيل الإعلان**\\n\\n" + announcementBody
+        : "**" + subjectKind + "  •  إشعار إداري جديد**\\n" + truncate(summary.description, 1250),
       color: 0xD92735,
       fields: announcementFields,
-      footer: { text: type === "announcement" ? "S.W.A.T. REDLINE  •  COMMAND PORTAL" : "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
+      footer: { text: type === "announcement" ? "S.W.A.T. REDLINE  •  COMMAND CENTER" : "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
       timestamp: new Date().toISOString(),
-      ...(siteUrl && type !== "announcement" ? { url: siteUrl } : {})
+      ...(siteUrl ? { url: siteUrl } : {})
     };
     const notificationEmbeds = buildNotificationEmbeds(embed, notificationImages);
     const siteComponents = siteUrl ? [{
@@ -668,22 +666,20 @@ export default async function handler(req, res) {
       embeds: notificationEmbeds,
       images: notificationImages,
       components: siteComponents,
-      content: type === "announcement"
-        ? (notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">\n\n") + (announcementTextChunks[0] || "")
-        : notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
+      content: notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
       allowedMentions: {
         parse: [],
         roles: notificationRoleMentionDisabled ? [] : [config.notificationRoleId]
       }
     }];
-    // Normal-length announcements remain in one readable message. Only unusually
-    // long descriptions need numbered continuation messages to preserve all text.
-    announcementTextChunks.slice(1).forEach((chunk, index) => {
+    // A regular announcement is one embed. Continue only when its description
+    // exceeds Discord's embed description limit.
+    announcementBodyChunks.slice(1).forEach((chunk, index) => {
       notificationMessages.push({
         embeds: [],
         images: [],
         components: [],
-        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementTextChunks.length + "**\n\n" + chunk,
+        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementBodyChunks.length + "**\\n\\n" + chunk,
         allowedMentions: { parse: [] }
       });
     });
