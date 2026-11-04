@@ -657,14 +657,14 @@ export default async function handler(req, res) {
 
     metadataFields.unshift({
       name: "👤 أُرسل بواسطة",
-      value: "**" + truncate(user.displayName || user.username, 100) + "**\\n@" + truncate(user.username, 100),
+      value: "**" + truncate(user.displayName || user.username, 100) + "**\n@" + truncate(user.username, 100),
       inline: true
     });
 
     const embed = {
       author: { name: "S.W.A.T. REDLINE  •  الإشعارات الرسمية" },
       title: notificationTitle,
-      description: "**التفاصيل**\\n\\n" + truncate(mainDescription, 4000),
+      description: "**التفاصيل**\n\n" + truncate(mainDescription, 4000),
       color: 0xD92735,
       fields: metadataFields,
       footer: { text: "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
@@ -682,19 +682,6 @@ export default async function handler(req, res) {
       }]
     }] : [];
 
-    // A report's title field may contain the complete narrative. Never squeeze it
-    // into Discord's 256-character embed title or a 1024-character field value.
-    const reportTitleText = type === "report" ? String(record.title || "") : "";
-    const reportBodyText = type === "report"
-      ? String(record.content || record.body || record.description || record.text || "")
-      : "";
-    const reportFullText = type === "report"
-      ? [
-          reportTitleText ? "عنوان التقرير:\n" + reportTitleText : "",
-          reportBodyText && reportBodyText !== reportTitleText ? "محتوى التقرير:\n" + reportBodyText : ""
-        ].filter(Boolean).join("\n\n")
-      : "";
-    const reportChunks = type === "report" ? splitDiscordText(reportFullText) : [];
     const notificationMessages = [{
       embeds: notificationEmbeds,
       images: notificationImages,
@@ -711,7 +698,7 @@ export default async function handler(req, res) {
         embeds: [{
           author: { name: "S.W.A.T. REDLINE  •  الإشعارات الرسمية" },
           title: "استكمال | " + notificationTitle + " — " + (index + 2) + "/" + notificationBodyChunks.length,
-          description: "**استكمال التفاصيل**\\n\\n" + chunk,
+          description: "**استكمال التفاصيل**\n\n" + chunk,
           color: 0xD92735,
           footer: { text: "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
           timestamp: new Date().toISOString()
