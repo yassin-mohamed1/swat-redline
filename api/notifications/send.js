@@ -630,7 +630,7 @@ export default async function handler(req, res) {
       author: { name: type === "announcement" ? "S.W.A.T. REDLINE  •  الإعلانات الرسمية" : "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
       title: type === "announcement" ? announcementTitle : type === "report" ? "🚨 تنبيه بخصوص تقرير إداري" : "🚨 " + truncate(subjectTitle, 240),
       description: type === "announcement"
-        ? "**تفاصيل الإعلان**\\n\\n" + announcementBody
+        ? "**تفاصيل الإعلان**\n\n" + announcementBody
         : "**" + subjectKind + "  •  إشعار إداري جديد**\\n" + truncate(summary.description, 1250),
       color: 0xD92735,
       fields: announcementFields,
@@ -679,7 +679,7 @@ export default async function handler(req, res) {
         embeds: [],
         images: [],
         components: [],
-        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementBodyChunks.length + "**\\n\\n" + chunk,
+        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementBodyChunks.length + "**\n\n" + chunk,
         allowedMentions: { parse: [] }
       });
     });
