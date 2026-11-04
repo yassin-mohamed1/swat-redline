@@ -627,8 +627,8 @@ export default async function handler(req, res) {
         : type === "operation"
           ? [
               record.description ? "الوصف: " + String(record.description).trim() : "",
-              record.details ? "تفاصيل العملية:\\n" + String(record.details).trim() : ""
-            ].filter(Boolean).join("\\n\\n") || "تم تسجيل العملية في بوابة S.W.A.T. REDLINE."
+              record.details ? "تفاصيل العملية:\n" + String(record.details).trim() : ""
+            ].filter(Boolean).join("\n\n") || "تم تسجيل العملية في بوابة S.W.A.T. REDLINE."
           : type === "report"
             ? reportFullText || "تم إنشاء تقرير إداري في بوابة S.W.A.T. REDLINE."
             : type === "task"
