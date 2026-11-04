@@ -119,12 +119,7 @@ export default async function handler(req, res) {
 
       // The audit feed is append-only through /api/audit/log; clients cannot rewrite it
       // by submitting a stale copy of the whole shared-state document.
-      const allowed = ["people", "cases", "investigations", "tasks", "operations", "reports", "announcements", "rules", "dailyCommands"];
-      const safeData = {};
-      for (const key of allowed) {
-        if (Array.isArray(data[key])) safeData[key] = data[key];
-      }
-
+      const allowed = ["people", "cases", "investigations", "tasks", "operations", "reports", "announcements", "rules", "dailyCommands", "deletedRuleIds"];
       const current = await readCurrentState(endpoint, serviceKey);
       if (!current) return res.status(503).json({ error: "The shared data record is unavailable." });
       if (current.updated_at !== expectedUpdatedAt) {
@@ -133,6 +128,27 @@ export default async function handler(req, res) {
           current_updated_at: current.updated_at
         });
       }
+
+      // Merge keys that older open browser tabs do not know about instead of
+      // silently deleting newer collections such as cases or rule tombstones.
+      const safeData = {};
+      for (const key of allowed) {
+        if (Array.isArray(data[key])) safeData[key] = data[key];
+        else if (Array.isArray(current.data?.[key])) safeData[key] = current.data[key];
+      }
+
+      // A deleted rule ID remains tombstoned so stale tabs cannot resurrect it.
+      const incomingDeleted = Array.isArray(data.deletedRuleIds) ? data.deletedRuleIds : [];
+      const currentDeleted = Array.isArray(current.data?.deletedRuleIds) ? current.data.deletedRuleIds : [];
+      const deletedRuleIds = [...new Set([...currentDeleted, ...incomingDeleted]
+        .filter(value => typeof value === "string" && value.trim())
+        .map(value => value.trim()))].slice(-5000);
+      safeData.deletedRuleIds = deletedRuleIds;
+      if (Array.isArray(safeData.rules) && deletedRuleIds.length) {
+        const deleted = new Set(deletedRuleIds);
+        safeData.rules = safeData.rules.filter(rule => !deleted.has(String(rule?.id || "")));
+      }
+
       // Preserve the legacy audit history without accepting client-supplied replacements.
       if (Array.isArray(current.data?.audit)) safeData.audit = current.data.audit;
 
