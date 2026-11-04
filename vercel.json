@@ -3,6 +3,9 @@
   "functions": {
     "api/notifications/send.js": {
       "maxDuration": 60
+    },
+    "api/notifications/announcement-forwarder.js": {
+      "maxDuration": 60
     }
   }
 }
