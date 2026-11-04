@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { handleAnnouncementForwarder } from "../../lib/announcement-forwarder.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
 const MAX_RECIPIENTS_PER_BATCH = 200;
@@ -357,6 +358,10 @@ async function updateNotificationAudit(config, auditEntry, user, type, entityId,
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+  if (req.method === "GET" && req.headers["x-announcement-sync-secret"] !== undefined) {
+    return handleAnnouncementForwarder(req, res);
+  }
 
   if (req.method !== "GET" && req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
