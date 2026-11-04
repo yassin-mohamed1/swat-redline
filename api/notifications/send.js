@@ -729,6 +729,8 @@ export default async function handler(req, res) {
     );
     let sent = 0;
     let failed = 0;
+    let ownerDmSent = false;
+    let ownerDmErrorCode = null;
     const failureReasons = {};
 
     async function deliverToRecipient(recipient) {
@@ -754,9 +756,11 @@ export default async function handler(req, res) {
         }
         status = "sent";
         sent++;
+        if (String(recipient.discord_user_id) === ownerDiscordId) ownerDmSent = true;
       } catch (error) {
         failed++;
         errorCode = String(error?.code || error?.message || "delivery_failed").slice(0, 80);
+        if (String(recipient.discord_user_id) === ownerDiscordId) ownerDmErrorCode = errorCode;
         failureReasons[errorCode] = (failureReasons[errorCode] || 0) + 1;
       }
 
@@ -819,7 +823,10 @@ export default async function handler(req, res) {
       channel_enabled: channelEnabled,
       channel_disabled: !channelEnabled,
       members_dm_enabled: memberDmEnabled && broadcastEnabled,
+      members_dm_disabled: !(memberDmEnabled && broadcastEnabled),
       owner_always_included: true,
+      owner_dm_sent: ownerDmSent,
+      owner_dm_error_code: ownerDmErrorCode,
       role_ping_sent: channelSent && !notificationRoleMentionDisabled,
       channel_error_code: channelErrorCode,
       failure_reasons: {
