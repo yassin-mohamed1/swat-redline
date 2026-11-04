@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { requireSameOrigin } from "../../lib/request-security.js";
 
 function cookies(header = "") {
   const out = {};
@@ -26,6 +27,7 @@ export default async function handler(req, res) {
   const user = session(req);
   if (!user) return res.status(401).json({ error: "Authentication required" });
   if (!user.isOwner) return res.status(403).json({ error: "Owner permission required" });
+  if (!requireSameOrigin(req, res)) return;
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "Method not allowed" }); }
   const base = process.env.SUPABASE_URL?.replace(/\/+$/, ""), key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) return res.status(503).json({ error: "Database is not configured" });
