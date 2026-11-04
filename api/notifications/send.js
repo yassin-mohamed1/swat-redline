@@ -59,7 +59,7 @@ function getConfig() {
   const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
   if (!base || !serviceKey) return { error: "storage_not_configured" };
   if (!botToken) return { error: "bot_token_missing" };
-  return { base, serviceKey, botToken, notificationChannelId, notificationRoleId };
+  return { base, serviceKey, botToken, notificationChannelId, announcementPostChannelId, evidenceChannelId, notificationRoleId };
 }
 
 function truncate(value, max = 900) {
