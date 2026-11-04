@@ -320,6 +320,8 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
     actor_username: actorUsername,
     channel_status: channelStatus,
     channel_message_id: result.channelMessageId || null,
+    channel_id: result.channelId || null,
+    channel_label: result.channelLabel || null,
     channel_error_code: result.channelErrorCode || null,
     dm_total: Number(result.dmTotal || 0),
     dm_sent: Number(result.dmSent || 0),
@@ -361,15 +363,17 @@ async function updateNotificationAudit(config, auditEntry, user, type, entityId,
   const total = Number(result.dmTotal || 0);
   const channelStatus = result.channelStatus || "sent";
   const statusText = channelStatus === "disabled"
-    ? "النشر في روم الإشعارات متوقف بإعدادات المالك"
+    ? "النشر في روم Discord المخصصة لنوع التنبيه متوقف بإعدادات المالك"
     : channelStatus === "failed"
       ? "فشل نشره في روم Discord المخصصة؛ تمت معالجة الرسائل الخاصة بشكل مستقل"
-      : `تم نشره في روم Discord المخصصة (${channelRoute.label})؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
+      : `تم نشره في روم Discord المخصصة (${result.channelLabel || "غير محددة"})؛ الرسائل الخاصة: ${sent} ناجحة من ${total}، وفشل ${failed}`;
   const details = {
     ...auditEntry.details,
     detail: `أرسل ${actorName} (@${actorUsername}) تنبيه Discord بخصوص «${subjectTitle}» — ${statusText}.`,
     channel_status: channelStatus,
     channel_message_id: result.channelMessageId || null,
+    channel_id: result.channelId || auditEntry.details?.channel_id || null,
+    channel_label: result.channelLabel || auditEntry.details?.channel_label || null,
     channel_error_code: result.channelErrorCode || null,
     dm_total: total,
     dm_sent: sent,
@@ -810,7 +814,7 @@ export default async function handler(req, res) {
 
     const notificationAudit = await writeNotificationAudit(
       config, user, type, entityId, record, batchId,
-      { channelStatus, channelMessageId, channelErrorCode, dmTotal: recipients.length, dmSent: 0, dmFailed: 0 }
+      { channelStatus, channelMessageId, channelErrorCode, channelId: targetChannelId, channelLabel: channelRoute.label, dmTotal: recipients.length, dmSent: 0, dmFailed: 0 }
     );
     let sent = 0;
     let failed = 0;
@@ -896,7 +900,7 @@ export default async function handler(req, res) {
     }
     await updateNotificationAudit(
       config, notificationAudit, user, type, entityId, record, batchId,
-      { channelStatus, channelMessageId, channelErrorCode, dmTotal: recipients.length, dmSent: sent, dmFailed: failed }
+      { channelStatus, channelMessageId, channelErrorCode, channelId: targetChannelId, channelLabel: channelRoute.label, dmTotal: recipients.length, dmSent: sent, dmFailed: failed }
     );
 
     return res.status(200).json({
@@ -914,6 +918,8 @@ export default async function handler(req, res) {
       owner_dm_error_code: ownerDmErrorCode,
       role_ping_sent: channelSent && !notificationRoleMentionDisabled,
       channel_error_code: channelErrorCode,
+      channel_id: targetChannelId,
+      channel_label: channelRoute.label,
       failure_reasons: {
         no_mutual_guild: failureReasons["50278"] || 0,
         recipient_dm_blocked: failureReasons["50007"] || 0,
