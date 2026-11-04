@@ -625,7 +625,10 @@ export default async function handler(req, res) {
       : type === "person"
         ? String(record.charges || record.notes || record.description || "").trim()
         : type === "operation"
-          ? String(record.description || record.details || record.notes || "").trim() || "تم تسجيل العملية في بوابة S.W.A.T. REDLINE."
+          ? [
+              record.description ? "الوصف: " + String(record.description).trim() : "",
+              record.details ? "تفاصيل العملية:\\n" + String(record.details).trim() : ""
+            ].filter(Boolean).join("\\n\\n") || "تم تسجيل العملية في بوابة S.W.A.T. REDLINE."
           : type === "report"
             ? reportFullText || "تم إنشاء تقرير إداري في بوابة S.W.A.T. REDLINE."
             : type === "task"
@@ -651,9 +654,16 @@ export default async function handler(req, res) {
           { name: "🗓️ الموعد", value: truncate(announcementDateText, 180), inline: true },
           { name: "📌 النوع", value: truncate(record.typeLabel || "إعلان", 100), inline: true }
         ]
-      : summary.fields.filter(field =>
-          !/^(الاسم|اسم العملية|عنوان الملف|اسم التقرير|المهمة|التفاصيل|ملخص الواقعة)$/i.test(String(field.name || "").trim())
-        );
+      : type === "operation"
+        ? [
+            { name: "🕒 وقت بدء العملية", value: truncate(record.time || record.scheduledAt || "غير محدد", 180), inline: true },
+            { name: "🚦 الحالة", value: truncate(record.status || "غير محددة", 80), inline: true },
+            { name: "🎖️ المسؤول", value: truncate(record.owner || "غير محدد", 120), inline: true },
+            { name: "🔢 رقم العملية", value: truncate(record.id || "—", 80), inline: true }
+          ]
+        : summary.fields.filter(field =>
+            !/^(الاسم|اسم العملية|عنوان الملف|اسم التقرير|المهمة|التفاصيل|ملخص الواقعة)$/i.test(String(field.name || "").trim())
+          );
 
     metadataFields.unshift({
       name: "👤 أُرسل بواسطة",
