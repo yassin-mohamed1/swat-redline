@@ -607,30 +607,38 @@ export default async function handler(req, res) {
           timeStyle: "short"
         }) + " (توقيت الرياض)"
       : "لم يتم تحديد موعد";
+    const announcementPlainText = type === "announcement"
+      ? [
+          "📣 **إعلان رسمي | " + String(record.typeLabel || "إعلان") + "**",
+          "### " + String(record.title || "إعلان جديد"),
+          "> **" + String(record.description || "").trim() + "**"
+        ].filter(Boolean).join("\n\n")
+      : "";
+    const announcementTextChunks = type === "announcement"
+      ? splitDiscordText(announcementPlainText, 1650)
+      : [];
     const announcementBody = type === "announcement"
       ? truncate(String(record.description || "").trim() || "لا توجد تفاصيل إضافية.", 4000)
       : "";
     const announcementFields = type === "announcement"
       ? [
-          { name: "📌 نوع الإعلان", value: truncate(record.typeLabel || "إعلان", 100), inline: true },
-          { name: "🕒 الموعد", value: truncate(announcementDateText, 180), inline: true },
-          { name: "👤 أُعلن بواسطة", value: truncate(record.owner || user.displayName || user.username || "غير محدد", 120), inline: true }
+          { name: "📅 الموعد والتوقيت", value: truncate(announcementDateText, 180), inline: false },
+          { name: "🏷️ تصنيف الإعلان", value: truncate(record.typeLabel || "إعلان", 100), inline: false },
+          { name: "👤 أُعلن بواسطة", value: truncate(record.owner || user.displayName || user.username || "غير محدد", 120), inline: false }
         ]
       : embedFields;
-    const announcementTitle = type === "announcement"
-      ? (record.type === "meeting" ? "📅 اجتماع: " : "📢 ") + truncate(record.title || "إعلان جديد", 210)
-      : "";
+    const announcementTitle = type === "announcement" ? "📋 بيانات الإعلان" : "";
     const embed = {
       author: { name: type === "announcement" ? "S.W.A.T. REDLINE  •  الإعلانات الرسمية" : "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
       title: type === "announcement" ? announcementTitle : type === "report" ? "🚨 تنبيه بخصوص تقرير إداري" : "🚨 " + truncate(subjectTitle, 240),
       description: type === "announcement"
-        ? "**تفاصيل الإعلان**\n" + announcementBody
+        ? "**بطاقة بيانات الإعلان الرسمية**\nالتصنيف والموعد والجهة المعلنة."
         : "**" + subjectKind + "  •  إشعار إداري جديد**\n" + truncate(summary.description, 1250),
       color: 0xD92735,
       fields: announcementFields,
       footer: { text: type === "announcement" ? "S.W.A.T. REDLINE  •  COMMAND PORTAL" : "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
       timestamp: new Date().toISOString(),
-      ...(siteUrl ? { url: siteUrl } : {})
+      ...(siteUrl && type !== "announcement" ? { url: siteUrl } : {})
     };
     const notificationEmbeds = buildNotificationEmbeds(embed, notificationImages);
     const siteComponents = siteUrl ? [{
@@ -660,12 +668,25 @@ export default async function handler(req, res) {
       embeds: notificationEmbeds,
       images: notificationImages,
       components: siteComponents,
-      content: notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
+      content: type === "announcement"
+        ? (notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">\\n\\n") + (announcementTextChunks[0] || "")
+        : notificationRoleMentionDisabled ? "" : "<@&" + config.notificationRoleId + ">",
       allowedMentions: {
         parse: [],
         roles: notificationRoleMentionDisabled ? [] : [config.notificationRoleId]
       }
     }];
+    // Normal-length announcements remain in one readable message. Only unusually
+    // long descriptions need numbered continuation messages to preserve all text.
+    announcementTextChunks.slice(1).forEach((chunk, index) => {
+      notificationMessages.push({
+        embeds: [],
+        images: [],
+        components: [],
+        content: "📣 **استكمال الإعلان — الجزء " + (index + 2) + "/" + announcementTextChunks.length + "**\\n\\n" + chunk,
+        allowedMentions: { parse: [] }
+      });
+    });
     reportChunks.forEach((chunk, index) => {
       notificationMessages.push({
         embeds: [{
