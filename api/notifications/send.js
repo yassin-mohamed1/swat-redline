@@ -600,13 +600,35 @@ export default async function handler(req, res) {
       task: "مهمة اليوم",
       announcement: "إعلان إداري"
     })[type] || "إشعار إداري";
+    const announcementDateText = record.dateTime
+      ? new Date(record.dateTime).toLocaleString("ar-SA", {
+          timeZone: "Asia/Riyadh",
+          dateStyle: "full",
+          timeStyle: "short"
+        }) + " (توقيت الرياض)"
+      : "لم يتم تحديد موعد";
+    const announcementBody = type === "announcement"
+      ? truncate(String(record.description || "").trim() || "لا توجد تفاصيل إضافية.", 4000)
+      : "";
+    const announcementFields = type === "announcement"
+      ? [
+          { name: "📌 نوع الإعلان", value: truncate(record.typeLabel || "إعلان", 100), inline: true },
+          { name: "🕒 الموعد", value: truncate(announcementDateText, 180), inline: true },
+          { name: "👤 أُعلن بواسطة", value: truncate(record.owner || user.displayName || user.username || "غير محدد", 120), inline: true }
+        ]
+      : embedFields;
+    const announcementTitle = type === "announcement"
+      ? (record.type === "meeting" ? "📅 اجتماع: " : "📢 ") + truncate(record.title || "إعلان جديد", 210)
+      : "";
     const embed = {
-      author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
-      title: type === "report" ? "🚨 تنبيه بخصوص تقرير إداري" : "🚨 " + truncate(subjectTitle, 240),
-      description: "**" + subjectKind + "  •  إشعار إداري جديد**\n" + truncate(summary.description, 1250),
+      author: { name: type === "announcement" ? "S.W.A.T. REDLINE  •  الإعلانات الرسمية" : "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
+      title: type === "announcement" ? announcementTitle : type === "report" ? "🚨 تنبيه بخصوص تقرير إداري" : "🚨 " + truncate(subjectTitle, 240),
+      description: type === "announcement"
+        ? "**تفاصيل الإعلان**\n" + announcementBody
+        : "**" + subjectKind + "  •  إشعار إداري جديد**\n" + truncate(summary.description, 1250),
       color: 0xD92735,
-      fields: embedFields,
-      footer: { text: "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
+      fields: announcementFields,
+      footer: { text: type === "announcement" ? "S.W.A.T. REDLINE  •  COMMAND PORTAL" : "S.W.A.T. REDLINE  •  SECURE COMMAND CENTER" },
       timestamp: new Date().toISOString(),
       ...(siteUrl ? { url: siteUrl } : {})
     };
@@ -634,17 +656,6 @@ export default async function handler(req, res) {
         ].filter(Boolean).join("\n\n")
       : "";
     const reportChunks = type === "report" ? splitDiscordText(reportFullText) : [];
-    const announcementFullText = type === "announcement"
-      ? [
-          "نوع الإعلان: " + String(record.typeLabel || "إعلان"),
-          "اسم الإعلان: " + String(record.title || ""),
-          record.dateTime ? "الموعد: " + new Date(record.dateTime).toLocaleString("en-GB", { timeZone: "Asia/Riyadh" }) + " (Riyadh)" : "الموعد: غير محدد",
-          "المرسل: " + String(record.owner || "غير محدد"),
-          "",
-          String(record.description || "")
-        ].join("\n")
-      : "";
-    const announcementChunks = type === "announcement" ? splitDiscordText(announcementFullText) : [];
     const notificationMessages = [{
       embeds: notificationEmbeds,
       images: notificationImages,
@@ -671,22 +682,7 @@ export default async function handler(req, res) {
         allowedMentions: { parse: [] }
       });
     });
-    announcementChunks.forEach((chunk, index) => {
-      notificationMessages.push({
-        embeds: [{
-          author: { name: "S.W.A.T. REDLINE  •  COMMAND PORTAL" },
-          title: "📣 تفاصيل الإعلان — الجزء " + (index + 1) + "/" + announcementChunks.length,
-          description: chunk,
-          color: 0xD92735,
-          footer: { text: "S.W.A.T. REDLINE  •  تفاصيل الإعلان" },
-          timestamp: new Date().toISOString()
-        }],
-        images: [],
-        components: [],
-        content: "",
-        allowedMentions: { parse: [] }
-      });
-    });
+
 
     // Every manual alert is first published to exactly one configured channel.
     // DISCORD_NOTIFICATION_CHANNEL_ID is the only channel destination; DM delivery remains opt-in.
