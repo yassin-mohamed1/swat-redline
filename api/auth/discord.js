@@ -94,6 +94,8 @@ export default async function handler(req, res) {
             avatar_url: avatar,
             discord_roles: Array.isArray(member.roles) ? member.roles : [],
             discord_roles_synced_at: now,
+            is_manual: false,
+            manual_created_by_discord_id: null,
             updated_at: now,
             last_seen: now,
             last_login: now,
