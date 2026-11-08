@@ -566,7 +566,7 @@ export default async function handler(req, res) {
       const targetId = String(body.discord_user_id || "");
       const desiredLevel = Number(body.warning_level);
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-      if (!/^\\d{15,22}$/.test(targetId) || ![0,1,2,3].includes(desiredLevel) ||
+      if (!/^\\d{15,22}$/.test(targetId) || ![0,1,2].includes(desiredLevel) ||
           !reason || reason.length > 1000) {
         return json(res, 400, { error: "راجع معرّف العضو والحالة وسبب التعديل." });
       }
@@ -576,15 +576,13 @@ export default async function handler(req, res) {
       const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
       const targetName = discordName(target);
       const targetAvatar = discordAvatarUrl(target, cfg.guildId);
-      const desiredStatus = desiredLevel === 3 ? "dismissed" : "active";
+      const desiredStatus = "active";
       const expiresAt = desiredLevel === 1 || desiredLevel === 2
         ? new Date(Date.now() + warningValidityDays(desiredLevel) * 24 * 60 * 60 * 1000).toISOString()
         : null;
       let roleResult;
       try {
-        roleResult = desiredLevel === 3
-          ? await updateMemberRoles(cfg, targetId, 3, true)
-          : await syncWarningLevel(cfg, targetId, desiredLevel);
+        roleResult = await syncWarningLevel(cfg, targetId, desiredLevel);
       } catch (error) {
         return json(res, error.status || 502, { error: error.message || "تعذّر تعديل رتب العضو في Discord." });
       }
