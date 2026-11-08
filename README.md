@@ -67,7 +67,7 @@ The site notification route posts announcements to the owner-selected Announceme
 - Dismissal is available only after Warning 2. The bot removes all removable member roles only when its role hierarchy allows every role to be removed; otherwise dismissal is blocked and the unmanageable roles are reported.
 - `DISCORD_BOT_ROLE_ID` identifies the bot's own Discord role. The bot needs Manage Roles and must be above Warning 1, Warning 2, and every role it is expected to remove.
 - The bot also needs View Channel, Send Messages, and Embed Links in `DISCORD_WARNINGS_CHANNEL_ID`.
-- The expiry worker uses the production-only `CRON_SECRET` and a matching secret held in Supabase Vault; keep both server-side.
+- The expiry worker runs inside the existing `/api/warnings?task=expire` serverless function to stay within Vercel Hobby's function limit. It uses the production-only `CRON_SECRET` and a matching secret held in Supabase Vault; keep both server-side.
 - Disciplinary records are stored in `disciplinary_subjects` and `disciplinary_actions`; RLS is enabled and browser-role access is revoked.
 
 ## Database and storage
