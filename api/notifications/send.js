@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import { handleAnnouncementForwarder } from "../../lib/announcement-forwarder.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
+import { discordApiRequest } from "../../lib/discord-rest.js";
 
-const DISCORD_API = "https://discord.com/api/v10";
 const MAX_RECIPIENTS_PER_BATCH = 200;
 const MAX_NOTIFICATION_IMAGES = 4;
 const MAX_NOTIFICATION_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -101,44 +101,13 @@ async function supabaseRequest(config, path, options = {}) {
 }
 
 async function discordRequest(config, path, options = {}) {
-  const isMultipart = typeof FormData !== "undefined" && options.body instanceof FormData;
-  const request = () => fetch(DISCORD_API + path, {
-    ...options,
-    headers: {
-      Authorization: "Bot " + config.botToken,
-      ...(!isMultipart ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers || {})
-    }
-  });
-
-  let response = await request();
-  if (response.status === 429) {
-    const rate = await response.json().catch(() => ({}));
-    const retryAfter = Number(rate.retry_after ?? response.headers.get("retry-after") ?? 0);
-    // Keep this request bounded for serverless execution. Larger waits are reported
-    // for a later manual retry rather than holding a serverless function open.
-    if (Number.isFinite(retryAfter) && retryAfter > 0 && retryAfter <= 2) {
-      await new Promise(resolve => setTimeout(resolve, Math.ceil(retryAfter * 1000) + 100));
-      response = await request();
-    } else {
-      const error = new Error("discord_rate_limited");
-      error.code = "rate_limited";
-      throw error;
-    }
-  }
-
-  const raw = await response.text();
-  let data = {};
-  try { data = raw ? JSON.parse(raw) : {}; } catch {}
-  if (!response.ok) {
-    const code = data.code ? String(data.code) : String(response.status);
-    const error = new Error("discord_" + code);
-    error.code = code;
+  try {
+    return await discordApiRequest(config.botToken,path,options,{maxRetries:3,maxRetryWaitMs:8000});
+  } catch(error) {
+    if(error?.status===429){error.message="discord_rate_limited";error.code="rate_limited";}
     throw error;
   }
-  return data;
 }
-
 function describeRecord(type, record) {
   const id = truncate(record.id, 80);
   if (type === "announcement") {
@@ -399,12 +368,10 @@ export default async function handler(req, res) {
       return res.status(503).json({ ok: false, botTokenConfigured: Boolean(token), guildConfigured: Boolean(guildId), error: "Bot token or server ID is missing." });
     }
     try {
-      const botResponse = await fetch(DISCORD_API + "/users/@me", {
-        headers: { Authorization: "Bot " + token }
-      });
-      const botData = await botResponse.json().catch(() => ({}));
-      if (!botResponse.ok) {
-        const code = String(botData.code || botResponse.status);
+      let botData;
+      try { botData = await discordRequest({botToken:token}, "/users/@me"); }
+      catch(error) {
+        const code = String(error?.code || error?.status || "unknown");
         return res.status(200).json({
           ok: false, botTokenConfigured: true, guildConfigured: true,
           tokenValid: false, botInGuild: false, errorCode: code,
@@ -413,11 +380,11 @@ export default async function handler(req, res) {
             : "Could not authenticate the Discord bot."
         });
       }
-      const guildResponse = await fetch(DISCORD_API + "/guilds/" + encodeURIComponent(guildId), {
-        headers: { Authorization: "Bot " + token }
-      });
-      const guildData = await guildResponse.json().catch(() => ({}));
-      if (!guildResponse.ok) {
+      let guildData;
+      try { guildData = await discordRequest({botToken:token}, "/guilds/" + encodeURIComponent(guildId)); }
+      catch(error) {
+        guildData = {code:error?.code||error?.status||"unknown"};
+
         return res.status(200).json({
           ok: true, tokenValid: true, botInGuild: false,
           botUsername: botData.username || null,
