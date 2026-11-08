@@ -1,5 +1,16 @@
 import crypto from "node:crypto";
+import { discordApiRequest } from "../../lib/discord-rest.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
+
+const ASSIGNMENT_RANKS = [
+  { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
+  { key: "deputyswatcommander", label: "DEPUTY S.W.A.T COMMANDER" },
+  { key: "swatteamleader", label: "S.W.A.T TEAM LEADER" },
+  { key: "swatsupervisor", label: "S.W.A.T SUPERVISOR" },
+  { key: "swatsenioroperator", label: "S.W.A.T SENIOR OPERATOR" },
+  { key: "swatoperator", label: "S.W.A.T OPERATOR" },
+  { key: "swatrecruit", label: "S.W.A.T RECRUIT" }
+];
 
 function parseCookies(header = "") {
   const out = {};
@@ -52,30 +63,23 @@ async function supabase(url, key, path, init = {}) {
     ...(init.headers || {})
   }});
 }
-const ASSIGNMENT_DISCORD_API = "https://discord.com/api/v10";
-const ASSIGNMENT_RANKS = [
-  { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
-  { key: "deputyswatcommander", label: "DEPUTY S.W.A.T COMMANDER" },
-  { key: "swatteamleader", label: "S.W.A.T TEAM LEADER" },
-  { key: "swatsupervisor", label: "S.W.A.T SUPERVISOR" },
-  { key: "swatsenioroperator", label: "S.W.A.T SENIOR OPERATOR" },
-  { key: "swatoperator", label: "S.W.A.T OPERATOR" },
-  { key: "swatrecruit", label: "S.W.A.T RECRUIT" }
-];
 async function assignmentDiscord(token, path, init = {}) {
-  const response = await fetch(ASSIGNMENT_DISCORD_API + path, { ...init, headers: {
-    Authorization: "Bot " + token, "Content-Type": "application/json", ...(init.headers || {})
-  }});
-  const raw = await response.text();
-  let data = {};
-  try { data = raw ? JSON.parse(raw) : {}; } catch {}
-  if (!response.ok) {
-    const error = new Error("فشل طلب Discord (رمز الخطأ: " + String(data.code || response.status) + ").");
-    error.status = response.status;
-    error.code = String(data.code || response.status);
-    throw error;
+  try {
+    return await discordApiRequest(token, path, init, {
+      maxRetries: 3,
+      maxRetryWaitMs: 8000
+    });
+  } catch (error) {
+    const status = Number(error?.status || 502);
+    const code = String(error?.code || status);
+    const retryAfterSeconds = Number(error?.retryAfterSeconds);
+    const message = status === 429
+      ? "Discord تجاوز حد الطلبات المؤقت. " + (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? "يرجى الانتظار " + Math.ceil(retryAfterSeconds) + " ثانية ثم تحديث القائمة."
+        : "يرجى الانتظار قليلًا ثم تحديث القائمة.")
+      : "فشل طلب Discord (رمز الخطأ: " + code + ").";
+    throw Object.assign(new Error(message), { status, code, retryAfterSeconds: Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : null });
   }
-  return data;
 }
 function assignmentRankKey(name) {
   const normalized = String(name || "").normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g,"").replace(/^\d+/,"");
@@ -188,7 +192,7 @@ async function listAssignments(url,key,token,guildId) {
   const profiles=await profileResponse.json(),assignments=await assignmentResponse.json();
   const byAssignment=new Map(assignments.map(item=>[String(item.discord_user_id),item]));
   const roles=assignmentRankList(guild.roles,Number(guild.botTop.position));
-  const members=await assignmentMapLimit(profiles,5,async profile=>{
+  const members=await assignmentMapLimit(profiles,2,async profile=>{
     const live=await assignmentMember(token,guildId,profile.discord_user_id);
     return {...profile,assignment:byAssignment.get(String(profile.discord_user_id))||null,
       live_name:live.name,avatar_url:live.avatar||profile.avatar_url||null,in_guild:live.inGuild,
@@ -198,6 +202,7 @@ async function listAssignments(url,key,token,guildId) {
   return {members,roles,bot:{can_manage_roles:guild.canManageRoles,top_role:guild.botTop.name},callsign_presets:Array.from({length:16},(_,i)=>"Alpha "+i)};
 }
 async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
+  if (!token || !/^\d{15,22}$/.test(String(guildId || ""))) return send(res,503,{error:"لم يتم إعداد اتصال بوت Discord والسيرفر."});
   const targetId=String(body.discord_user_id||"");
   const action=body.action==="remove"?"remove":body.action==="assign"?"assign":"";
   if(!action||!/^\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
