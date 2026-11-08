@@ -1129,10 +1129,10 @@ html[dir="ltr"] .field label{text-align:left}
 </style>
 <div class="sectionhead">
  <div><h2>التعيينات والنداءات</h2><div class="sub">إدارة الرتب الرسمية وأكواد النداء للأعضاء المسجلين في بوابة S.W.A.T. REDLINE</div></div>
- <button class="btn" type="button" onclick="renderAssignments()">↻ تحديث القائمة</button>
+ <div class="assignment-toolbar"><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" type="button" onclick="renderAssignments()">↻ تحديث القائمة</button></div>
 </div>
 <div class="assignment-summary">
- <div class="panel"><div class="muted">أعضاء مسجلون</div><strong id="assignmentTotal">0</strong></div>
+ <div class="panel"><div class="muted">أفراد في الدليل</div><strong id="assignmentTotal">0</strong></div>
  <div class="panel"><div class="muted">تعيينات مسجلة</div><strong id="assignmentAssigned">0</strong></div>
  <div class="panel"><div class="muted">بدون تعيين</div><strong id="assignmentUnassigned">0</strong></div>
  <div class="panel"><div class="muted">متصلون بسيرفر Discord</div><strong id="assignmentInGuild">0</strong></div>
@@ -1141,10 +1141,10 @@ html[dir="ltr"] .field label{text-align:left}
 <div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div class="panel" style="margin-bottom:15px">
  <div class="panelhead"><div><h3>الرتب المتاحة من سيرفر Discord</h3><span class="sub">القائمة تُقرأ مباشرةً من الرتب الموجودة في السيرفر، ولا تنشئ رتبًا جديدة</span></div><span class="tag gray" id="assignmentRoleCount">0 رتبة</span></div>
- <div class="panelbody"><div class="assignment-role-grid" id="assignmentRoleCards"><div class="muted">جارٍ تحميل رتب Discord...</div></div></div>
+ <div class="panelbody"><div id="assignmentBotRoleInfo" class="muted" style="margin-bottom:10px"></div><div class="assignment-role-grid" id="assignmentRoleCards"><div class="muted">جارٍ تحميل رتب Discord...</div></div></div>
 </div>
 <div class="panel">
- <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل حساب مسجل في الموقع يظهر هنا مع رتبته الفعلية وكود النداء المسجل</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
+ <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو مضاف إلى الدليل يظهر هنا مع رتبته في Discord وكود النداء، حتى دون تسجيل دخول للموقع</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
  <div class="panelbody">
   <div class="assignment-toolbar" style="margin-bottom:12px">
    <input id="assignmentSearch" class="assignment-input" style="flex:1;min-width:220px" placeholder="ابحث باسم العضو أو Discord ID أو كود النداء..." oninput="renderAssignmentRows()">
@@ -1153,7 +1153,31 @@ html[dir="ltr"] .field label{text-align:left}
    </select>
   </div>
   <div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>رتبته الحالية في Discord</th><th>التعيين المسجل بالموقع</th><th>كود النداء</th><th>حالة الحساب</th><th>إدارة</th></tr></thead><tbody id="assignmentRows"><tr><td colspan="7">جارٍ تحميل الأعضاء...</td></tr></tbody></table></div>
-  <div class="muted" style="margin-top:10px;line-height:1.8">المعروض هنا هم الأشخاص الذين سجّلوا حساباتهم في الموقع. لا يتم تعيين أي رتبة أو كود نداء تلقائيًا؛ كل تغيير يحتاج اختيارك وحفظك.</div>
+  <div class="muted" style="margin-top:10px;line-height:1.8">يمكن إضافة عضو يدويًا باستخدام Discord ID دون تسجيل دخوله للموقع. يجب أن يكون العضو موجودًا بالفعل في سيرفر Discord حتى يستطيع البوت جلب اسمه وصورته وإدارة رتبته. لا يتم تعيين رتبة أو كود نداء دون اختيارك وحفظك.</div>
+ </div>
+</div>
+<div id="assignmentManualModal" class="assignment-modal" hidden>
+ <div class="assignment-modal-card" style="width:min(560px,100%)">
+  <div class="assignment-modal-head">
+   <div><h3 style="margin:0">إضافة عضو بدون تسجيل دخول</h3><div class="muted">إضافته إلى دليل الأفراد باستخدام Discord ID فقط</div></div>
+   <button class="btn" type="button" onclick="closeManualMemberModal()">إغلاق</button>
+  </div>
+  <div class="assignment-modal-body">
+   <div class="notice" style="margin:0">البوت سيتحقق أن العضو موجود في سيرفر Discord، ثم يجلب اسمه وصورته ورتبه الحالية تلقائيًا. لا يحتاج العضو إلى فتح الموقع أو تسجيل الدخول.</div>
+   <div class="assignment-field">
+    <label for="manualDiscordUserId">Discord User ID</label>
+    <input id="manualDiscordUserId" class="assignment-input" type="text" inputmode="numeric" maxlength="22" placeholder="مثال: 123456789012345678" style="width:100%">
+   </div>
+   <div class="assignment-field">
+    <label for="manualDisplayName">اسم العرض (اختياري)</label>
+    <input id="manualDisplayName" class="assignment-input" type="text" maxlength="100" placeholder="اتركه فارغًا لاستخدام اسم Discord" style="width:100%">
+   </div>
+   <div id="manualMemberStatus" class="muted" aria-live="polite"></div>
+   <div class="assignment-actions">
+    <button class="btn primary" id="manualMemberSaveButton" type="button" onclick="submitManualMember()">إضافة إلى دليل الأفراد</button>
+    <button class="btn" type="button" onclick="closeManualMemberModal()">إلغاء</button>
+   </div>
+  </div>
  </div>
 </div>
 <div id="assignmentModal" class="assignment-modal" hidden>
@@ -2126,13 +2150,21 @@ function callsignFromRecord(value){
  const match=String(value||'').match(/^Alpha (\d+)$/i);
  return match?match[1]:'';
 }
+function assignmentRoleUnavailableReason(role){
+ if(role.unavailable_reason==='hierarchy')return 'أعلى من رتبة البوت — ارفع رتبة البوت فوقها';
+ if(role.unavailable_reason==='managed')return 'رتبة مُدارة من Discord أو تكامل';
+ if(role.unavailable_reason==='everyone')return 'رتبة @everyone لا يمكن تعيينها';
+ if(role.unavailable_reason==='permission')return 'البوت يحتاج صلاحية Manage Roles';
+ return '';
+}
 function renderAssignmentRoles(){
  const root=document.getElementById('assignmentRoleCards');if(!root)return;
- const count=document.getElementById('assignmentRoleCount');if(count)count.textContent=assignmentData.roles.length+' رتبة';
+ const count=document.getElementById('assignmentRoleCount');if(count)count.textContent=assignmentData.roles.length+' رتبة من السيرفر';
  root.innerHTML=assignmentData.roles.map(role=>{
   const available=role.assignable;
-  return '<div class="assignment-role-card '+(available?'':'unavailable')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b>'+assignmentEscape(role.label)+'</b><span class="tag '+(available?'green':'red')+'">'+(available?'متاحة':'غير متاحة')+'</span></div><div class="muted" style="margin-top:6px">'+assignmentEscape(role.name)+'</div><div class="muted" style="margin-top:5px">Position: '+Number(role.position||0)+'</div></div>';
- }).join('')||'<div class="empty" style="grid-column:1/-1">لم يتم العثور على رتب مطابقة للأسماء الموجودة في الصورة. راجع أسماء الرتب في Discord حتى يتمكن الموقع من ربطها.</div>';
+  const reason=assignmentRoleUnavailableReason(role);
+  return '<div class="assignment-role-card '+(available?'':'unavailable')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b>'+assignmentEscape(role.label||role.name)+'</b><span class="tag '+(available?'green':'red')+'">'+(available?'متاحة':'غير متاحة')+'</span></div><div class="muted" style="margin-top:6px">'+assignmentEscape(role.name)+'</div><div class="muted" style="margin-top:5px">Position: '+Number(role.position||0)+'</div>'+(reason?'<div class="muted" style="margin-top:5px;color:#e7a3a3">'+assignmentEscape(reason)+'</div>':'')+'</div>';
+ }).join('')||'<div class="empty" style="grid-column:1/-1">لم يتم إرجاع أي رتب من Discord.</div>';
 }
 function renderAssignmentRows(){
  const body=document.getElementById('assignmentRows');if(!body)return;
@@ -2160,8 +2192,39 @@ function renderAssignmentRows(){
   const canEdit=member.in_guild!==false&&member.account_status==='active';
   const avatar=member.avatar_url?'<img src="'+assignmentEscape(member.avatar_url)+'" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">':'';
   const action=canEdit?'<button class="btn" type="button" onclick="openAssignmentModal(\''+assignmentEscape(member.discord_user_id)+'\')">إدارة التعيين</button>':'<span class="muted">غير متاح</span>';
-  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.live_name||member.display_name||'Discord user')+'</b>'+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(member.discord_user_id)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+action+'</td></tr>';
+  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+(member.is_manual?'<div class="muted">إضافة يدوية • لم يسجل دخول الموقع</div>':'')+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(member.discord_user_id)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+action+'</td></tr>';
  }).join('')||'<tr><td colspan="7"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
+}
+function openManualMemberModal(){
+ const id=document.getElementById('manualDiscordUserId');if(id)id.value='';
+ const name=document.getElementById('manualDisplayName');if(name)name.value='';
+ const status=document.getElementById('manualMemberStatus');if(status)status.textContent='';
+ const button=document.getElementById('manualMemberSaveButton');if(button)button.disabled=false;
+ const modal=document.getElementById('assignmentManualModal');if(modal)modal.hidden=false;
+}
+function closeManualMemberModal(){
+ const modal=document.getElementById('assignmentManualModal');if(modal)modal.hidden=true;
+}
+async function submitManualMember(){
+ const id=String(document.getElementById('manualDiscordUserId')?.value||'').trim();
+ const displayName=String(document.getElementById('manualDisplayName')?.value||'').trim();
+ const status=document.getElementById('manualMemberStatus');
+ const button=document.getElementById('manualMemberSaveButton');
+ if(!/^\\d{15,22}$/.test(id)){if(status)status.textContent='أدخل Discord ID صحيحًا من 15 إلى 22 رقمًا.';return;}
+ if(button)button.disabled=true;
+ if(status)status.textContent='جارٍ التحقق من العضو وجلب اسمه وصورته من Discord...';
+ try{
+  const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add_manual_member',discord_user_id:id,display_name:displayName})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّرت إضافة العضو.');
+  if(status)status.textContent='تمت إضافة '+(data.member?.display_name||'العضو')+' إلى دليل الأفراد.';
+  closeManualMemberModal();
+  toast('تمت إضافة العضو إلى دليل الأفراد دون تسجيل دخول.');
+  await renderAssignments();
+ }catch(error){
+  if(status)status.textContent=error.message||'تعذّرت إضافة العضو.';
+  if(button)button.disabled=false;
+ }
 }
 async function renderAssignments(){
  if(!currentIsOwner)return;
@@ -2178,6 +2241,10 @@ async function renderAssignments(){
   for(const [id,value] of Object.entries(vals)){const node=document.getElementById(id);if(node)node.textContent=value;}
   const syncNotice=document.getElementById('assignmentSyncNotice');
   if(syncNotice){syncNotice.style.display=data.member_sync_warning?'block':'none';syncNotice.textContent=data.member_sync_warning||'';}
+  const botInfo=document.getElementById('assignmentBotRoleInfo');
+  if(botInfo)botInfo.textContent=data.bot?.top_role
+    ?'أعلى رتبة للبوت: '+data.bot.top_role+' • Position '+Number(data.bot.top_role_position||0)+'. يستطيع البوت إدارة الرتب الموجودة تحته فقط.'
+    :'تعذّر تحديد أعلى رتبة للبوت.';
   const notice=document.getElementById('assignmentBotNotice');
   if(notice){
    const noRoles=!assignmentData.roles.length;
@@ -2204,8 +2271,8 @@ function openAssignmentModal(id){
  if(live)live.textContent='رتبته الحالية: '+(current.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='last_login'?'آخر رتبة محفوظة من تسجيل الدخول':'لم يتم التحقق مباشرةً'))+' • التعيين المسجل: '+(saved?.rank_role_name||'لا يوجد')+' • كود النداء: '+(saved?.callsign||'—')+(member.in_guild===null?' • سيتم التحقق من العضوية عند الحفظ':'');
  const rank=document.getElementById('assignmentRankSelect');
  if(rank){
-  rank.innerHTML='<option value="">اختر رتبة S.W.A.T...</option>'+assignmentData.roles.map(role=>'<option value="'+assignmentEscape(role.id)+'" '+(!role.assignable?'disabled':'')+'>'+assignmentEscape(role.label)+' — '+assignmentEscape(role.name)+(role.assignable?'':' (غير متاحة للبوت)')+'</option>').join('');
-  const selected=saved?.rank_role_id||current.find(role=>role.assignable)?.id||'';
+  rank.innerHTML='<option value="">اختر رتبة من سيرفر Discord...</option>'+assignmentData.roles.map(role=>'<option value="'+assignmentEscape(role.id)+'" '+(!role.assignable?'disabled':'')+'>'+assignmentEscape(role.label||role.name)+' — '+assignmentEscape(role.name)+(role.assignable?'':' ('+assignmentEscape(assignmentRoleUnavailableReason(role))+')')+'</option>').join('');
+  const selected=saved?.rank_role_id||'';
   rank.value=selected;
  }
  const callsign=document.getElementById('assignmentCallsignSelect');
@@ -2220,7 +2287,7 @@ function openAssignmentModal(id){
  toggleCustomCallsign();
  const status=document.getElementById('assignmentActionStatus');if(status)status.textContent='';
  const save=document.getElementById('assignmentSaveButton');if(save)save.disabled=!assignmentData.bot.can_manage_roles;
- const remove=document.getElementById('assignmentRemoveButton');if(remove)remove.disabled=!assignmentData.bot.can_manage_roles||(!saved&&!current.length);
+ const hasLegacyAssignmentRole=current.some(role=>Boolean(role.key));const remove=document.getElementById('assignmentRemoveButton');if(remove)remove.disabled=!assignmentData.bot.can_manage_roles||(!saved&&!hasLegacyAssignmentRole);
  const modal=document.getElementById('assignmentModal');if(modal)modal.hidden=false;
 }
 function closeAssignmentModal(){const modal=document.getElementById('assignmentModal');if(modal)modal.hidden=true;assignmentTargetId='';}
