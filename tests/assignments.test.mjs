@@ -70,7 +70,6 @@ test("callsign creation is a separate persistent action, not an inline custom se
   assert.match(html, /＋ إضافة كود نداء جديد/);
   assert.match(html, /submitNewCallsign\(\)/);
   assert.doesNotMatch(html, /assignmentCustomCallsignWrap|id="assignmentCustomCallsign"/);
-  assert.doesNotMatch(html, /assignmentCustomCallsignWrap|id="assignmentCustomCallsign"/);
 });
 
 test("manual personnel creation lives under Personnel and does not require member OAuth", async () => {
