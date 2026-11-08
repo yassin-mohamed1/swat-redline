@@ -1221,7 +1221,7 @@ html[dir="ltr"] .field label{text-align:left}
     <button class="btn danger" id="assignmentRemoveButton" type="button" onclick="submitStaffAssignment('remove')">إنهاء التعيين وإزالة الرتبة</button>
     <button class="btn" type="button" onclick="closeAssignmentModal()">إلغاء</button>
    </div>
-   <div class="muted" style="line-height:1.8">عند الحفظ، سيضيف البوت كل رتب Discord التي اخترتها، ويحدّث كود النداء في سجل الموقع، ويرسل للعضو رسالة خاصة رسمية. لن يتغير أي شخص قبل ضغطك على زر الحفظ.</div>
+   <div class="muted" style="line-height:1.8">عند الحفظ، سيضيف البوت رتب Discord التي اخترتها ويحفظ التعيين وكود النداء في سجل الموقع. سيحاول إرسال رسالة خاصة رسمية؛ وإذا منع Discord الرسائل الخاصة، سيظل التعيين محفوظًا ولن تُزال الرتب.</div>
   </div>
  </div>
 </div>
@@ -2358,18 +2358,24 @@ async function submitStaffAssignment(action){
  const description=action==='assign'
   ?'تعيين '+(member.live_name||member.display_name)+' بالرتب '+roleNames.join('، ')+(callsign?' مع كود النداء '+callsign:'')
   :'إنهاء تعيين '+(member.live_name||member.display_name)+' وإزالة رتب التعيين الحالية';
- if(!confirm('هل تؤكد '+description+'؟\n\nسيقوم البوت بتحديث رتب Discord وإرسال رسالة خاصة للعضو وحفظ العملية في سجل الموقع.'))return;
+ const confirmation=currentPortalLanguage()==='en'?'Confirm '+description+'?\n\nThe bot will update Discord roles and save the appointment. It will then try to send a DM. A DM delivery failure will not undo the appointment.':'هل تؤكد '+description+'؟\n\nسيقوم البوت بتحديث رتب Discord وحفظ التعيين، ثم سيحاول إرسال رسالة خاصة للعضو. إذا فشل الخاص، لن يتم إلغاء التعيين أو إزالة الرتب.';\n if(!confirm(confirmation))return;
  const save=document.getElementById('assignmentSaveButton'),remove=document.getElementById('assignmentRemoveButton');
  if(save)save.disabled=true;if(remove)remove.disabled=true;
- const status=document.getElementById('assignmentActionStatus');if(status)status.textContent='جارٍ تحديث رتب Discord وإرسال رسالة التعيين وحفظ السجل...';
+ const status=document.getElementById('assignmentActionStatus');if(status)status.textContent=currentPortalLanguage()==='en'?'Updating Discord roles and saving the appointment...':'جارٍ تحديث رتب Discord وحفظ التعيين...';
  try{
   const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    action,discord_user_id:assignmentTargetId,rank_role_ids:rankRoleIds,callsign
   })});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تنفيذ التعيين.');
-  if(status)status.textContent='تم تحديث رتب Discord وإرسال الرسالة الخاصة وحفظ التعيين.';
-  toast(action==='assign'?'تم تعيين الرتب وكود النداء بنجاح.':'تم إنهاء التعيين وإزالة رتب التعيين.');
+  if(data.dm_status==='failed'){
+   const deliveryMessage=currentPortalLanguage()==='en'?(data.dm_message_en||'The appointment was saved, but Discord could not deliver the DM.'):(data.dm_message||'تم حفظ التعيين، لكن تعذّر إرسال الرسالة الخاصة.');
+   if(status)status.textContent=deliveryMessage;
+   toast(deliveryMessage);
+  }else{
+   if(status)status.textContent=currentPortalLanguage()==='en'?'Discord roles updated, appointment saved, and DM sent.':'تم تحديث رتب Discord وحفظ التعيين وإرسال الرسالة الخاصة.';
+   toast(currentPortalLanguage()==='en'?(action==='assign'?'Roles and callsign assigned successfully.':'Appointment ended and assignment roles removed.'):(action==='assign'?'تم تعيين الرتب وكود النداء بنجاح.':'تم إنهاء التعيين وإزالة رتب التعيين.'));
+  }
   closeAssignmentModal();
   await renderAssignments();
   if(typeof loadAuditLog==='function')loadAuditLog();
@@ -3174,7 +3180,7 @@ Object.assign(PORTAL_TRANSLATIONS,{
 
 
 'حفظ التعيين ومزامنة Discord':'Save appointment & sync Discord','إنهاء التعيين وإزالة الرتبة':'End appointment & remove rank',
-'عند الحفظ، سيضيف البوت رتبة Discord المختارة، ويحدّث كود النداء في سجل الموقع، ويرسل للعضو رسالة خاصة رسمية. لن يتغير أي شخص قبل ضغطك على زر الحفظ.':'On save, the bot adds the selected Discord role, updates the callsign in the portal record, and sends the member an official DM. Nobody changes until you press save.',
+'عند الحفظ، سيضيف البوت رتبة Discord المختارة، ويحدّث كود النداء في سجل الموقع، ويرسل للعضو رسالة خاصة رسمية. لن يتغير أي شخص قبل ضغطك على زر الحفظ.':'On save, the bot adds the selected Discord role, updates the callsign in the portal record, and sends the member an official DM. Nobody changes until you press save.',\n'عند الحفظ، سيضيف البوت رتب Discord التي اخترتها ويحفظ التعيين وكود النداء في سجل الموقع. سيحاول إرسال رسالة خاصة رسمية؛ وإذا منع Discord الرسائل الخاصة، سيظل التعيين محفوظًا ولن تُزال الرتب.':'On save, the bot applies the selected Discord roles and saves the appointment and callsign. It will try to send an official DM, but a DM delivery failure will not undo the appointment or remove the roles.',
 'اختلاف عن Discord':'Different from Discord','خارج السيرفر':'Not in server','نشط':'Active','موقوف':'Inactive','محظور':'Banned',
 'لا يوجد تعيين مسجل':'No appointment recorded','لا توجد رتبة من قائمة S.W.A.T':'No recognized S.W.A.T rank',
 'تم التعيين بنجاح وتسجيل كود النداء.':'Appointment saved and callsign recorded.',
