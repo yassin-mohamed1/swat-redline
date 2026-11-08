@@ -47,8 +47,30 @@ export default async function handler(req, res) {
       rows.push({ key: k, value, updated_by: user.id, updated_at: new Date().toISOString() });
     }
     if (!rows.length) return res.status(400).json({ error: "No supported settings supplied" });
+    const previousResponse=await fetch(base+"/rest/v1/site_settings?select=key,value",{headers});
+    const previousSettings=previousResponse.ok?await previousResponse.json():[];
+    const previousByKey=new Map(previousSettings.map(row=>[row.key,row.value]));
+    const changedRows=rows.filter(row=>JSON.stringify(previousByKey.get(row.key))!==JSON.stringify(row.value));
+    const summarizeSetting=(key,value)=>{
+      if(key==="siteImages")return {keys:Object.keys(value||{}),gallery_count:Array.isArray(value?.gallery)?value.gallery.length:0};
+      if(key==="textOverrides"||key==="styleOverrides")return {entries:Object.keys(value||{}).length};
+      if(typeof value==="string"||typeof value==="boolean"||typeof value==="number")return value;
+      return {type:Array.isArray(value)?"array":typeof value};
+    };
     const r = await fetch(base + "/rest/v1/site_settings?on_conflict=key", { method: "POST", headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
     if (!r.ok) { console.error("Settings write failed:", r.status, (await r.text()).slice(0, 500)); return res.status(502).json({ error: "Could not save settings" }); }
-    return res.status(200).json({ ok: true });
+    const auditRows=changedRows.map(row=>({
+      actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"update",
+      entity_type:"site_setting",entity_id:row.key,
+      details:{type:"تعديل إعدادات الموقع",detail:"تم تحديث إعداد الموقع: "+row.key,setting_key:row.key,
+        before_summary:previousByKey.has(row.key)?summarizeSetting(row.key,previousByKey.get(row.key)):null,
+        after_summary:summarizeSetting(row.key,row.value)}
+    }));
+    let auditLogOk=true;
+    if(auditRows.length){
+      const auditResponse=await fetch(base+"/rest/v1/audit_logs",{method:"POST",headers:{...headers,Prefer:"return=minimal"},body:JSON.stringify(auditRows)});
+      if(!auditResponse.ok){auditLogOk=false;console.error("Settings audit write failed:",auditResponse.status,(await auditResponse.text()).slice(0,300));}
+    }
+    return res.status(200).json({ ok: true,audit_logged_count:auditRows.length,audit_log_ok:auditLogOk });
   } catch (e) { console.error("Settings API failed:", e?.message || "unknown"); return res.status(500).json({ error: "Settings service failed" }); }
 }
