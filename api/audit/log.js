@@ -59,15 +59,15 @@ async function isActiveStaff(user) {
 
 const AUDIT_CHANNEL_ID = "1569047013402738829";
 const SECRET_FIELD_NAMES = /password|passwd|token|secret|authorization|cookie|session|api[_-]?key|client[_-]?secret/i;
-const SENSITIVE_VALUE = /(?:Bearer\\s+[A-Za-z0-9._~+\\/-]+=*|mfa\\.[A-Za-z0-9_-]{20,}|(?:password|passwd|token|secret|api[_-]?key|client[_-]?secret)\\s*[:=]\\s*[^\\s,;]{4,})/i;
+const SENSITIVE_VALUE = /(?:Bearer\s+[A-Za-z0-9._~+\/-]+=*|mfa\.[A-Za-z0-9_-]{20,}|(?:password|passwd|token|secret|api[_-]?key|client[_-]?secret)\s*[:=]\s*[^\s,;]{4,})/i;
 
 function safeAuditText(value, max = 700) {
   let text = String(value ?? "");
-  text = text.replace(/<@!?\\d{15,22}>/g, "[Discord user]")
-    .replace(/<@&\\d{15,22}>/g, "[Discord role]")
-    .replace(/https?:\\/\\/\\S+/gi, "[link]");
+  text = text.replace(/<@!?\d{15,22}>/g, "[Discord user]")
+    .replace(/<@&\d{15,22}>/g, "[Discord role]")
+    .replace(/https?:\/\/\S+/gi, "[link]");
   if (SENSITIVE_VALUE.test(text)) return "[content omitted: possible secret]";
-  text = text.replace(/\\s+/g, " ").trim();
+  text = text.replace(/\s+/g, " ").trim();
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
 }
 
