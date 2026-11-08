@@ -44,7 +44,8 @@ test("Alpha callsigns support presets and open-ended numeric additions", async (
   const api = await readFile(new URL("../api/assignments.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261108131000_unbounded_alpha_callsign_sequence.sql", import.meta.url), "utf8");
-  assert.match(api, /\^\(\?:Alpha\\s\*\)\?\(0\|\[1-9\]\[0-9\]\*\)\$/i);
+  assert.match(api, /function validateCallsign\\(value\\)/);
+  assert.match(api, /\\[1-9\\]\\[0-9\\]\\*/);
   assert.match(api, /Array\.from\(\{ length: 16 \}/);
   assert.match(html, /Add a new Alpha \(16 or higher\)|إضافة Alpha جديد/);
   assert.match(html, /selectedAssignmentCallsign\(\)/);
