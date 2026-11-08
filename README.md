@@ -45,6 +45,9 @@ Set these for the **Production** environment. Use the same Supabase project for 
 - `DISCORD_ANNOUNCEMENT_CHANNEL_ID` — source channel polled by the announcement forwarder; it must be the announcement room configured for the portal
 - `ANNOUNCEMENT_SYNC_SECRET` — shared secret used by the scheduled forwarder
 - `DISCORD_EVIDENCE_CHANNEL_ID` — optional override; defaults in code to the owner-selected Evidence Room ID
+- `DISCORD_WARNING_MANAGER_ROLE_ID` — Discord role allowed to issue, review, and dismiss members through the Warnings page
+- `DISCORD_WARNING_ROLE_1_ID`, `DISCORD_WARNING_ROLE_2_ID`, `DISCORD_WARNING_ROLE_3_ID` — warning roles assigned to disciplined members
+- `DISCORD_WARNINGS_CHANNEL_ID` — channel where official warning and dismissal notices are posted
 
 The site notification route posts announcements to the owner-selected Announcement Room ID and routes people/cases/investigations to the Evidence Room. Other record families retain `DISCORD_NOTIFICATION_CHANNEL_ID`. Keep `DISCORD_ANNOUNCEMENT_CHANNEL_ID` aligned with the source announcement room so the forwarder reads the same room.
 
@@ -55,7 +58,7 @@ The site notification route posts announcements to the owner-selected Announceme
 
 **Never** place `SUPABASE_SERVICE_ROLE_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_SECRET`, or `SESSION_SECRET` in frontend code, HTML, committed files, screenshots, or public issue reports.
 
-## Database and storage
+## Disciplinary warnings\n\n- The Warnings portal is a protected page; its server API verifies the signed portal session, active staff profile, and `DISCORD_WARNING_MANAGER_ROLE_ID` membership against Discord on every request.\n- Warning history is stored in `disciplinary_subjects` and `disciplinary_actions`; the tables have RLS enabled and browser-role access revoked. Only server-side Vercel APIs use the service role.\n- Warning levels must be issued in order. A dismissal requires Warning 3 to be selected and a member already at Warning 2 or Warning 3.\n- The bot must have Manage Roles, be above the three warning roles and all roles intended for removal, and have permission to send embeds in `DISCORD_WARNINGS_CHANNEL_ID`. Discord-managed roles and roles at or above the bot's top role cannot be removed.\n\n## Database and storage
 
 - Public-schema tables use RLS and intentionally have no browser-facing policies. Direct `anon` and `authenticated` table access is revoked; Vercel APIs use the service role server-side.
 - `site-media` is a public bucket limited to JPG, PNG, WEBP, and GIF images up to 2 MB. It contains public branding assets.
