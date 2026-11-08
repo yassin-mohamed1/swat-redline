@@ -38,6 +38,7 @@ function config() {
   const channelId = process.env.DISCORD_WARNINGS_CHANNEL_ID;
   const managerRoleId = process.env.DISCORD_WARNING_MANAGER_ROLE_ID;
   const botRoleId = process.env.DISCORD_BOT_ROLE_ID;
+  const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
   const warningRoles = {
     1: process.env.DISCORD_WARNING_ROLE_1_ID,
     2: process.env.DISCORD_WARNING_ROLE_2_ID
@@ -46,7 +47,10 @@ function config() {
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
     return { error: "لم يتم إعداد نظام التحذيرات بالكامل." };
   }
-  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, warningRoles };
+  if (!/^\d{17,20}$/.test(String(notificationRoleId || ""))) {
+    return { error: "تعذر تحديد رتبة SWAT الخاصة بمنشن الإعلانات. راجع إعداد DISCORD_NOTIFICATION_ROLE_ID." };
+  }
+  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, notificationRoleId, warningRoles };
 }
 async function db(cfg, path, init = {}) {
   return fetch(cfg.base + "/rest/v1/" + path, { ...init, headers: {
@@ -429,7 +433,7 @@ function announcementEmbed(action, level, target, reason, details, actor, action
 async function loadDisciplinaryMentionSettings(cfg) {
   const query = new URLSearchParams({
     select: "key,value",
-    key: "in.(disciplinaryTargetMentionEnabled,disciplinaryEveryoneMentionEnabled)"
+    key: "in.(notificationRoleMentionDisabled,disciplinaryTargetMentionEnabled)"
   });
   const response = await db(cfg, "site_settings?" + query.toString());
   if (!response.ok) {
@@ -438,23 +442,23 @@ async function loadDisciplinaryMentionSettings(cfg) {
   const rows = await response.json();
   const values = Object.fromEntries(rows.map(row => [row.key, row.value]));
   return {
-    targetMentionEnabled: values.disciplinaryTargetMentionEnabled !== false,
-    everyoneMentionEnabled: values.disciplinaryEveryoneMentionEnabled === true
+    swatRoleMentionEnabled: values.notificationRoleMentionDisabled === false,
+    targetMentionEnabled: values.disciplinaryTargetMentionEnabled !== false
   };
 }
 async function sendAnnouncement(cfg, embed, targetId) {
   const mentionSettings = await loadDisciplinaryMentionSettings(cfg);
-  const content = [
-    mentionSettings.targetMentionEnabled ? "<@" + targetId + ">" : null,
-    mentionSettings.everyoneMentionEnabled ? "@everyone" : null
-  ].filter(Boolean).join(" ");
+  const roleMention = mentionSettings.swatRoleMentionEnabled ? "<@&" + cfg.notificationRoleId + ">" : null;
+  const memberMention = mentionSettings.targetMentionEnabled ? "<@" + targetId + ">" : null;
+  const content = [roleMention, memberMention].filter(Boolean).join(" ");
   return discord(cfg, "/channels/" + cfg.channelId + "/messages", {
     method: "POST",
     body: JSON.stringify({
       ...(content ? { content } : {}),
       embeds: [embed],
       allowed_mentions: {
-        parse: mentionSettings.everyoneMentionEnabled ? ["everyone"] : [],
+        parse: [],
+        roles: mentionSettings.swatRoleMentionEnabled ? [cfg.notificationRoleId] : [],
         users: mentionSettings.targetMentionEnabled ? [targetId] : []
       }
     })
