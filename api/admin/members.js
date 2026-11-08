@@ -63,6 +63,22 @@ async function supabase(url, key, path, init = {}) {
     ...(init.headers || {})
   }});
 }
+async function requireAssignmentManager(url,key,token,guildId,user) {
+  if(user?.isOwner)return;
+  const managerRoleId=String(process.env.DISCORD_WARNING_MANAGER_ROLE_ID||"");
+  if(!/^\\d{15,22}$/.test(managerRoleId))
+    throw Object.assign(new Error("لم يتم إعداد رتبة إدارة التحذيرات والتعيينات في إعدادات الخادم."),{status:503});
+  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))
+    throw Object.assign(new Error("لم يتم إعداد اتصال بوت Discord والسيرفر."),{status:503});
+  const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(user.id)+"&select=is_active,is_banned&limit=1");
+  if(!profileResponse.ok)throw Object.assign(new Error("تعذّر التحقق من صلاحية حساب المدير."),{status:503});
+  const profile=(await profileResponse.json())[0];
+  if(!profile||profile.is_active===false||profile.is_banned)
+    throw Object.assign(new Error("حسابك غير نشط أو غير مصرح له بإدارة التعيينات."),{status:403});
+  const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+user.id);
+  if(!Array.isArray(member.roles)||!member.roles.includes(managerRoleId))
+    throw Object.assign(new Error("ليس لديك رتبة إدارة التحذيرات المصرح لها بإدارة التعيينات والنداءات."),{status:403});
+}
 async function assignmentDiscord(token, path, init = {}) {
   try {
     return await discordApiRequest(token, path, init, {
@@ -238,9 +254,10 @@ async function assignmentMember(token,guildId,id) {
 }
 async function listAssignments(url,key,token,guildId) {
   if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
-  const [profileResponse,assignmentResponse]=await Promise.all([
+  const [profileResponse,assignmentResponse,callsignResponse]=await Promise.all([
     supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,created_at&order=display_name.asc"),
-    supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,callsign,status,assigned_by_name,updated_at")
+    supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,rank_role_ids,rank_role_names,callsign,status,assigned_by_name,updated_at"),
+    supabase(url,key,"staff_callsigns?select=callsign&is_active=eq.true&order=callsign.asc")
   ]);
   if(!profileResponse.ok)throw new Error("تعذّر تحميل أعضاء الموقع المسجلين.");
   if(!assignmentResponse.ok)throw new Error("تعذّر تحميل سجل التعيينات.");
@@ -279,12 +296,17 @@ async function listAssignments(url,key,token,guildId) {
     }
     const currentRoles=Array.isArray(roleIds)?roleIds:[];
     const currentRankRoles=roles.filter(role=>currentRoles.includes(role.id));
-    return {...profile,assignment:byAssignment.get(id)||null,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
+    const rawAssignment=byAssignment.get(id)||null;
+    const assignment=rawAssignment?{...rawAssignment,rank_role_ids:Array.isArray(rawAssignment.rank_role_ids)&&rawAssignment.rank_role_ids.length?rawAssignment.rank_role_ids:(rawAssignment.rank_role_id?[rawAssignment.rank_role_id]:[]),rank_role_names:Array.isArray(rawAssignment.rank_role_names)&&rawAssignment.rank_role_names.length?rawAssignment.rank_role_names:(rawAssignment.rank_role_name?[rawAssignment.rank_role_name]:[])}:null;
+    return {...profile,assignment,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
       in_guild:inGuild,current_roles:currentRoles,current_rank_roles:currentRankRoles,role_data_source:roleDataSource,
       account_status:profile.is_banned?"banned":profile.is_active===false?"inactive":"active"};
   });
-  return {members,roles,bot:{can_manage_roles:Boolean(guild?.canManageRoles),top_role:guild?.botTop?.name||"",top_role_position:Number(guild?.botTop?.position||0)},
-    member_sync_warning:guildWarning,callsign_presets:Array.from({length:16},(_,i)=>"Alpha "+i)};
+  const callsigns=[...new Set(callsignRows.filter(row=>row?.is_active!==false).map(row=>String(row.callsign||"")).filter(value=>/^Alpha (0|[1-9][0-9]*)$/.test(value)))].sort((a,b)=>Number(a.slice(6))-Number(b.slice(6)));
+  for(const item of assignments)if(item.status==="assigned"&&item.callsign&&!callsigns.includes(item.callsign))callsigns.push(item.callsign);
+  callsigns.sort((a,b)=>Number(a.slice(6))-Number(b.slice(6)));
+  return {members,roles,callsigns,bot:{can_manage_roles:Boolean(guild?.canManageRoles),top_role:guild?.botTop?.name||"",top_role_position:Number(guild?.botTop?.position||0)},
+    member_sync_warning:guildWarning};
 }
 async function handleAddManualMember(url,key,token,guildId,user,body,res) {
   if (!token || !/^\d{15,22}$/.test(String(guildId || "")))
