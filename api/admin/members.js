@@ -193,13 +193,23 @@ async function assignmentSendDm(token,targetId,embed) {
 }
 function assignmentDmFailureMessage(error) {
   const code=String(error?.code||"");
-  if(code==="50278")
-    return "تم حفظ التعيين وتحديث رتب Discord، لكن Discord رفض الرسالة الخاصة (50278) لأنه لا يرى سيرفرًا مشتركًا يسمح بمراسلة هذا العضو. راجع عضوية العضو وإعدادات الخصوصية في Discord.";
-  if(code==="50007")
-    return "تم حفظ التعيين وتحديث رتب Discord، لكن Discord منع الرسالة الخاصة (50007). قد يكون العضو حاظرًا التطبيق أو لا يسمح باستقبال رسائله.";
-  if(Number(error?.status)===429)
-    return "تم حفظ التعيين وتحديث رتب Discord، لكن Discord حدّ إرسال الرسالة الخاصة مؤقتًا. يمكن إعادة المحاولة لاحقًا.";
-  return "تم حفظ التعيين وتحديث رتب Discord، لكن تعذّر إرسال الرسالة الخاصة من Discord (رمز الخطأ: "+(code||"غير معروف")+").";
+  if(code==="50278")return {
+    ar:"تم حفظ التعيين وتحديث رتب Discord، لكن Discord رفض الرسالة الخاصة (50278) لأنه لا يرى سيرفرًا مشتركًا يسمح بمراسلة هذا العضو. راجع عضوية العضو وإعدادات الخصوصية في Discord.",
+    en:"The appointment and Discord roles were saved, but Discord rejected the DM (50278) because it does not see a mutual server that allows messaging this member. Check the member's server membership and Discord privacy settings."
+  };
+  if(code==="50007")return {
+    ar:"تم حفظ التعيين وتحديث رتب Discord، لكن Discord منع الرسالة الخاصة (50007). قد يكون العضو حاظرًا التطبيق أو لا يسمح باستقبال رسائله.",
+    en:"The appointment and Discord roles were saved, but Discord blocked the DM (50007). The member may have blocked the app or disabled messages from it."
+  };
+  if(Number(error?.status)===429)return {
+    ar:"تم حفظ التعيين وتحديث رتب Discord، لكن Discord حدّ إرسال الرسالة الخاصة مؤقتًا. يمكن إعادة المحاولة لاحقًا.",
+    en:"The appointment and Discord roles were saved, but Discord temporarily rate-limited the DM. Retry the message later."
+  };
+  const value=code||"غير معروف";
+  return {
+    ar:"تم حفظ التعيين وتحديث رتب Discord، لكن تعذّر إرسال الرسالة الخاصة من Discord (رمز الخطأ: "+value+").",
+    en:"The appointment and Discord roles were saved, but Discord could not deliver the DM (error code: "+(code||"unknown")+")."
+  };
 }
 async function assignmentDeleteDm(token,dm) {
   if(dm?.channelId&&dm?.messageId)await assignmentDiscord(token,"/channels/"+dm.channelId+"/messages/"+dm.messageId,{method:"DELETE"});
@@ -475,10 +485,12 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     await assignmentSendDm(token,targetId,embed);
   }catch(error){
     dmStatus="failed";
+    const messages=assignmentDmFailureMessage(error);
     dmFailure={
       code:String(error?.code||error?.status||"unknown"),
       stage:error?.dmStage||"unknown",
-      message:assignmentDmFailureMessage(error)
+      message:messages.ar,
+      message_en:messages.en
     };
     console.warn("Assignment DM delivery failed:",JSON.stringify({code:dmFailure.code,stage:dmFailure.stage,status:Number(error?.status||0)}));
   }
