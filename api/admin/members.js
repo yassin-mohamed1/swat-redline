@@ -78,7 +78,7 @@ async function assignmentDiscord(token, path, init = {}) {
         ? "يرجى الانتظار " + Math.ceil(retryAfterSeconds) + " ثانية ثم تحديث القائمة."
         : "يرجى الانتظار قليلًا ثم تحديث القائمة.")
       : "فشل طلب Discord (رمز الخطأ: " + code + ").";
-    throw Object.assign(new Error(message), { status, code, retryAfterSeconds: Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : null });
+    throw Object.assign(new Error(message), { status, code, path:error?.path||null, retryAfterSeconds: Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : null });
   }
 }
 function assignmentRankKey(name) {
