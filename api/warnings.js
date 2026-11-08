@@ -198,7 +198,8 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
     discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId),
     loadGuildRoleData(cfg)
   ]);
-  const current = new Set(member.roles || []);
+  const originalRoles = [...(member.roles || [])];
+  const current = new Set(originalRoles);
   const warningIds = Object.values(cfg.warningRoles);
   if (!dismiss) {
     const targetRole = cfg.warningRoles[level], role = guild.byId.get(targetRole);
@@ -206,7 +207,7 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
       const configuredRole = guild.byId.get(id);
       return !configuredRole || configuredRole.managed || configuredRole.position >= guild.botTop.position;
     });
-    if (!role) throw Object.assign(new Error("A configured warning role does not exist in this Discord server."), { status: 503 });
+    if (!role) throw Object.assign(new Error("The selected Warning role does not exist in this Discord server."), { status: 503 });
     if (unmanageableWarningRoles.length) {
       throw Object.assign(new Error("Move the bot role above Warning 1 and Warning 2 in Discord Server Settings > Roles."), { status: 409 });
     }
@@ -216,37 +217,97 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
     if (targetId === process.env.DISCORD_OWNER_ID) {
       throw Object.assign(new Error("The protected server owner cannot be dismissed."), { status: 403 });
     }
-    for (const id of current) {
-      const role = guild.byId.get(id);
-      if (!role || role.managed) continue;
-      if (role.position < guild.botTop.position) current.delete(id);
+    const unmanageable = originalRoles.map(id => guild.byId.get(id)).filter(role =>
+      !role || role.managed || role.position >= guild.botTop.position
+    );
+    if (unmanageable.length) {
+      const names = unmanageable.map(role => role?.name || "Unknown/managed role").join(", ");
+      throw Object.assign(new Error("Dismissal cannot be completed because the bot cannot remove these roles: " + names + ". Move the bot higher or remove managed roles manually first."), { status: 409 });
     }
+    for (const id of originalRoles) current.delete(id);
   }
   const roles = [...current];
   await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId, {
     method: "PATCH", body: JSON.stringify({ roles })
   });
-  return { member, removedRoleCount: (member.roles || []).filter(id => !current.has(id)).length };
-}
-function announcementEmbed(action, level, target, reason, details, actor, actionId) {
-  const dismissed = action === "dismissal";
-  const color = dismissed ? 0xD92735 : level === 3 ? 0xB4232D : 0xD99A24;
   return {
-    title: dismissed ? "MEMBER DISMISSED" : "S.W.A.T. DISCIPLINARY WARNING",
+    member, originalRoles, appliedRoles: roles,
+    removedRoleCount: originalRoles.filter(id => !current.has(id)).length
+  };
+}
+async function restoreMemberRoles(cfg, targetId, originalRoles) {
+  await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId, {
+    method: "PATCH", body: JSON.stringify({ roles: originalRoles })
+  });
+}
+function disciplinaryNoticeEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
+  const dismissed = action === "dismissal";
+  const fields = [
+    { name: "Member", value: String(target.name || "Discord user").slice(0, 200), inline: true },
+    { name: "Discord ID", value: target.id, inline: true },
+    { name: "Decision", value: dismissed ? "DISMISSAL" : "WARNING " + level, inline: true },
+    { name: "Reason", value: String(reason).slice(0, 1000), inline: false },
+    ...(details ? [{ name: "Additional Details", value: String(details).slice(0, 1000), inline: false }] : []),
+    { name: "Issued By", value: String(actor).slice(0, 150), inline: true },
+    { name: "Reference", value: String(actionId), inline: true }
+  ];
+  if (dismissed) fields.push({ name: "Status", value: "Membership dismissed; removable server roles revoked.", inline: false });
+  else {
+    fields.push({ name: "Validity", value: "30 days", inline: true });
+    fields.push({ name: "Expires", value: new Date(expiresAt).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", dateStyle: "medium", timeStyle: "short" }) + " (Riyadh time)", inline: true });
+  }
+  return {
+    author: { name: "S.W.A.T. REDLINE • OFFICIAL DISCIPLINARY RECORD" },
+    title: dismissed ? "⛔ MEMBER DISMISSED" : "⚠️ OFFICIAL WARNING " + level,
     description: dismissed
-      ? "A member has been formally dismissed from S.W.A.T. REDLINE."
-      : "An official disciplinary warning has been issued.",
-    color,
-    fields: [
-      { name: "Member", value: String(target.name || "Discord user").slice(0, 200), inline: true },
-      { name: "Discord ID", value: target.id, inline: true },
-      { name: "Disciplinary Action", value: dismissed ? "DISMISSAL" : "WARNING " + level, inline: true },
-      { name: "Reason", value: String(reason).slice(0, 1000), inline: false },
-      ...(details ? [{ name: "Details", value: String(details).slice(0, 1000), inline: false }] : []),
-      { name: "Issued By", value: String(actor).slice(0, 150), inline: true },
-      { name: "Reference", value: actionId, inline: true }
-    ],
-    footer: { text: "S.W.A.T. REDLINE • DISCIPLINARY RECORD" },
+      ? "An official dismissal decision has been registered by S.W.A.T. REDLINE."
+      : "An official disciplinary warning has been issued and registered.",
+    color: dismissed ? 0xB4232D : 0xD99A24,
+    fields,
+    footer: { text: "S.W.A.T. REDLINE • DISCIPLINARY & COMPLIANCE" },
+    timestamp: new Date().toISOString()
+  };
+}
+async function sendDirectNotice(cfg, targetId, embed) {
+  const dm = await discord(cfg, "/users/@me/channels", {
+    method: "POST", body: JSON.stringify({ recipient_id: targetId })
+  });
+  if (!dm?.id) throw Object.assign(new Error("Discord did not create a private channel for this member."), { code: "dm_channel_missing" });
+  const sent = await discord(cfg, "/channels/" + dm.id + "/messages", {
+    method: "POST",
+    body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } })
+  });
+  if (!sent?.id) throw Object.assign(new Error("Discord did not confirm the private message."), { code: "dm_message_missing" });
+  return { channelId: dm.id, messageId: sent.id };
+}
+async function deleteDirectNotice(cfg, dm) {
+  if (!dm?.channelId || !dm?.messageId) return;
+  await discord(cfg, "/channels/" + dm.channelId + "/messages/" + dm.messageId, { method: "DELETE" });
+}
+function announcementEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
+  const dismissed = action === "dismissal";
+  const fields = [
+    { name: "Member", value: String(target.name || "Discord user").slice(0, 200), inline: true },
+    { name: "Discord ID", value: target.id, inline: true },
+    { name: "Disciplinary Action", value: dismissed ? "DISMISSAL" : "WARNING " + level, inline: true },
+    { name: "Reason", value: String(reason).slice(0, 1000), inline: false },
+    ...(details ? [{ name: "Additional Details", value: String(details).slice(0, 1000), inline: false }] : []),
+    { name: "Issued By", value: String(actor).slice(0, 150), inline: true },
+    { name: "Reference", value: actionId, inline: true }
+  ];
+  if (!dismissed) {
+    fields.push({ name: "Validity", value: "30 days", inline: true });
+    fields.push({ name: "Expires", value: new Date(expiresAt).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", dateStyle: "medium", timeStyle: "short" }) + " (Riyadh time)", inline: true });
+  } else fields.push({ name: "Status", value: "Membership dismissed; removable server roles revoked.", inline: false });
+  return {
+    author: { name: "S.W.A.T. REDLINE • OFFICIAL DISCIPLINARY RECORD" },
+    title: dismissed ? "⛔ MEMBER DISMISSED" : "⚠️ OFFICIAL WARNING " + level,
+    description: dismissed
+      ? "An official dismissal decision has been registered by S.W.A.T. REDLINE."
+      : "An official disciplinary warning has been issued and registered.",
+    color: dismissed ? 0xB4232D : 0xD99A24,
+    fields,
+    footer: { text: "S.W.A.T. REDLINE • DISCIPLINARY & COMPLIANCE" },
     timestamp: new Date().toISOString()
   };
 }
