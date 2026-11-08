@@ -189,7 +189,7 @@ async function assignmentGuildContext(token,guildId) {
   }
 }
 async function assignmentGuildMembers(token,guildId,profiles) {
-  const targetIds=new Set(profiles.map(profile=>String(profile.discord_user_id)).filter(id=>/^\\d{15,22}$/.test(id)));
+  const targetIds=new Set(profiles.map(profile=>String(profile.discord_user_id)).filter(id=>/^\d{15,22}$/.test(id)));
   const found=new Map();
   if(!targetIds.size)return {found,complete:true,scannedThrough:null};
   let after=null,scannedThrough=null,complete=false,pages=0;
@@ -207,14 +207,23 @@ async function assignmentGuildMembers(token,guildId,profiles) {
     if(batch.length<1000){complete=true;break;}
     const pendingAboveCursor=Array.from(targetIds).some(id=>!found.has(id)&&BigInt(id)>BigInt(scannedThrough||"0"));
     if(!pendingAboveCursor)break;
-    if(!/^\\d{15,22}$/.test(scannedThrough))break;
+    if(!/^\d{15,22}$/.test(scannedThrough))break;
     after=scannedThrough;
     pages++;
   }
   return {found,complete,scannedThrough};
 }
+async function assignmentMember(token,guildId,id) {
+  try {
+    const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+id);
+    return {inGuild:true,roles:member.roles||[],name:assignmentMemberName(member),avatar:assignmentAvatar(member,guildId)};
+  } catch(error) {
+    if(error.status===404)return {inGuild:false,roles:[],name:null,avatar:null};
+    throw error;
+  }
+}
 async function listAssignments(url,key,token,guildId) {
-  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
+  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
   const [profileResponse,assignmentResponse]=await Promise.all([
     supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,created_at&order=display_name.asc"),
     supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,callsign,status,assigned_by_name,updated_at")
