@@ -156,7 +156,7 @@ test("disciplinary embeds display the Discord member avatar and fallback avatar"
 test("every disciplinary Discord message includes the portal link button", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   assert.match(api, /function portalLinkComponents\(\)/);
-  assert.match(api, /label: "فتح بوابة S\\.W\\.A\\.T\\. REDLINE"/);
+  assert.ok(api.includes('label: "فتح بوابة S.W.A.T. REDLINE"'));
   assert.match(api, /components: portalLinkComponents\(\)/);
   assert.match(api, /embeds: \[embed\], components: portalLinkComponents\(\)/);
 });
