@@ -62,6 +62,23 @@ export default async function handler(req, res) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return send(res, 503, { error: "Database is not configured" });
   try {
+    if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("activity") === "1") {
+      const query = new URLSearchParams({
+        select: "id,discord_user_id,display_name,event_type,session_issued_at,occurred_at",
+        order: "occurred_at.desc",
+        limit: "100"
+      });
+      const response = await supabase(url, key, "staff_login_events?" + query.toString());
+      if (!response.ok) {
+        const detail = (await response.text()).slice(0, 500);
+        console.error("Staff activity read failed:", response.status, detail);
+        return send(res, 502, { error: "Could not load login activity.", diagnostics: {
+          status: response.status, databaseError: detail,
+          hint: "Verify public.staff_login_events exists in the same Supabase project as SUPABASE_URL."
+        }});
+      }
+      return send(res, 200, { events: await response.json() });
+    }
     if (req.method === "GET") {
       const q = new URLSearchParams({
         select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned,last_seen,last_login,login_count,created_at,updated_at",
