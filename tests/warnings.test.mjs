@@ -102,3 +102,17 @@ test("warnings page follows the existing Arabic and English portal switch", asyn
   assert.match(html, /page-warnings.*classList\.contains\('active'\).*renderWarnings\(\)/s);
   assert.match(html, /Object\.assign\(PORTAL_ATTRIBUTE_TRANSLATIONS/);
 });
+
+test("Warning 1 expires after 30 days and Warning 2 expires after 60 days", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+  assert.match(api, /function warningValidityDays\(level\)\s*\{\s*return Number\(level\) === 2 \? 60 : 30;/);
+  assert.match(api, /warningValidityDays\(level\) \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(api, /warningValidityDays\(level\) \+ " يومًا"/);
+  assert.match(html, /function warningDurationDays\(level\)\s*\{\s*return Number\(level\)===2\?60:30;/);
+  assert.match(html, /يظل الإنذار الأول ساريًا لمدة 30 يومًا/);
+  assert.match(html, /يظل الإنذار الثاني ساريًا لمدة 60 يومًا/);
+  assert.match(html, /ينتهي بعد '\+warningDurationDays\(level\)\+' يومًا\.'/);
+  assert.match(html, /"ينتهي بعد 60 يومًا\."\s*:\s*"Expires after 60 days\."/);
+});
