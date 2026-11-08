@@ -5,10 +5,12 @@ import { readFile } from "node:fs/promises";
 test("warnings API uses manager role checks and server-only secrets", async () => {
   const source = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   assert.match(source, /DISCORD_WARNING_MANAGER_ROLE_ID/);
+  assert.match(source, /DISCORD_BOT_ROLE_ID/);
   assert.match(source, /requireSameOrigin/);
   assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(source, /DISCORD_BOT_TOKEN/);
-  assert.match(source, /The protected owner cannot be disciplined/);
+  assert.match(source, /Your Discord account does not have the Warnings management role/);
+  assert.match(source, /params.get\("diagnostics"\) === "1"/);
 });
 
 test("warnings workflow supports warning progression and dismissal", async () => {
