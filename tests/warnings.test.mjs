@@ -34,7 +34,7 @@ test("disciplinary ladder permits Warning 1, Warning 2, then Dismissal only", as
   assert.doesNotMatch(html, /<option value="3">Warning 3<\/option>/);
   assert.match(html, /الأعضاء المفصولون/);
 
-  const restartMigration = await readFile(new URL("../supabase/migrations/20261108091500_allow_warning_cycle_restart_after_dismissal.sql", import.meta.url), "utf8");
+  const restartMigration = await readFile(new URL("../supabase/migrations/20261108091704_allow_warning_cycle_restart_after_dismissal.sql", import.meta.url), "utf8");
   assert.match(restartMigration, /v_subject\.status = 'dismissed'/);
   assert.match(restartMigration, /p_action_type <> 'warning' OR p_warning_level <> 1/);
   assert.match(html, /subject\?\.status==='dismissed'&&level===1/);
