@@ -1685,7 +1685,7 @@ function refreshWarningForm(){
  const current=Number(subject?.warning_level||0),isDismissed=subject?.status==='dismissed';
  const canIssue=Boolean(id)&&!isDismissed&&level===current+1;
  if(issue)issue.disabled=!canIssue;
- if(dismiss)dismiss.disabled=!id||isDismissed||current!==2;
+ if(dismiss)dismiss.disabled=!id||isDismissed||!(current===2||current===3);
 }
 async function renderWarnings(){
  if(!currentCanManageWarnings||warningLoadBusy)return;
