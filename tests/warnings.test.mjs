@@ -117,3 +117,34 @@ test("Warning 1 expires after 30 days and Warning 2 expires after 60 days", asyn
   assert.match(html, /ينتهي بعد '\+warningDurationDays\(level\)\+' يومًا\.'/);
   assert.match(html, /"ينتهي بعد 60 يومًا\."\s*:\s*"Expires after 60 days\."/);
 });
+
+test("warning announcements ping the target and optionally ping everyone", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const settingsApi = await readFile(new URL("../api/admin/settings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+  assert.match(api, /async function loadDisciplinaryMentionSettings/);
+  assert.match(api, /targetMentionEnabled: values\.disciplinaryTargetMentionEnabled !== false/);
+  assert.match(api, /everyoneMentionEnabled: values\.disciplinaryEveryoneMentionEnabled === true/);
+  assert.match(api, /mentionSettings\.targetMentionEnabled \? "<@" \+ targetId \+ ">" : null/);
+  assert.match(api, /mentionSettings\.everyoneMentionEnabled \? "@everyone" : null/);
+  assert.match(api, /parse: mentionSettings\.everyoneMentionEnabled \? \["everyone"\] : \[\]/);
+  assert.match(api, /users: mentionSettings\.targetMentionEnabled \? \[targetId\] : \[\]/);
+  assert.match(settingsApi, /"disciplinaryTargetMentionEnabled", "disciplinaryEveryoneMentionEnabled"/);
+  assert.match(settingsApi, /"disciplinaryTargetMentionEnabled", "disciplinaryEveryoneMentionEnabled"\].includes\(k\)/);
+  assert.match(html, /id="disciplinaryTargetMentionToggle"/);
+  assert.match(html, /id="disciplinaryEveryoneMentionToggle"/);
+  assert.match(html, /saveDisciplinaryMentionPreference\('disciplinaryTargetMentionEnabled'/);
+  assert.match(html, /saveDisciplinaryMentionPreference\('disciplinaryEveryoneMentionEnabled'/);
+});
+
+test("disciplinary embeds display the Discord member avatar and fallback avatar", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  assert.match(api, /function discordAvatarUrl\(member, guildId\)/);
+  assert.match(api, /cdn\.discordapp\.com\/guilds\//);
+  assert.match(api, /cdn\.discordapp\.com\/avatars\//);
+  assert.match(api, /cdn\.discordapp\.com\/embed\/avatars\//);
+  assert.match(api, /thumbnail: \{ url: target\.avatarUrl \}/);
+  assert.match(api, /avatarUrl: discordAvatarUrl\(target, cfg\.guildId\)/);
+  assert.match(api, /p_avatar_url: targetProfile\.avatarUrl/);
+});
