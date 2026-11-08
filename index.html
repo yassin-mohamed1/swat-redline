@@ -1106,41 +1106,119 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="panel"><div class="panelhead"><h3>سجل الإعلانات</h3><span class="sub">الإعلانات المحفوظة تظهر لجميع أعضاء البوابة</span></div><div class="tablewrap"><table><thead><tr><th>الرقم</th><th>النوع</th><th>اسم الإعلان والتفاصيل</th><th>المرسل</th><th>التاريخ والوقت</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="announcementRows"></tbody></table></div></div>
 </section>
 <section class="page" id="page-personnel"><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">حسابات Discord التي سجّلت الدخول إلى بوابة S.W.A.T. REDLINE</div></div><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجّلت الدخول إلى الموقع مرة واحدة على الأقل، وليس كل أعضاء سيرفر Discord تلقائيًا.</div><div class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div></section>
-<section class="page" id="page-warnings"><style>.warning-input{display:block;box-sizing:border-box;background:#101216;color:#e8e9ec;border:1px solid #353a43;border-radius:8px;padding:11px 12px;font:inherit;min-height:42px}.warning-input:focus{outline:2px solid rgba(217,39,53,.35);border-color:#d92735}.warning-input:disabled{opacity:.55;cursor:not-allowed}#page-warnings .btn:disabled{opacity:.45;cursor:not-allowed}#page-warnings .tag.yellow{color:#e6b94e;border-color:rgba(230,185,78,.35)}</style>
-<div class="sectionhead"><div><h2>التحذيرات</h2><div class="sub">السجلات التأديبية الرسمية وإدارة تحذيرات الأعضاء</div></div><button class="btn" type="button" onclick="renderWarnings()">↻ تحديث</button></div>
-<div class="stats" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px">
- <div class="panel" style="padding:16px"><div class="muted">الإنذار الأول</div><strong id="warningCount1" style="font-size:28px">0</strong></div>
- <div class="panel" style="padding:16px"><div class="muted">الإنذار الثاني</div><strong id="warningCount2" style="font-size:28px">0</strong></div>
- <div class="panel" style="padding:16px"><div class="muted">الأعضاء المفصولون</div><strong id="warningCount3" style="font-size:28px">0</strong></div>
+<section class="page" id="page-warnings">
+<style>
+#page-warnings .warning-input{display:block;box-sizing:border-box;background:#101216;color:#e8e9ec;border:1px solid #353a43;border-radius:8px;padding:11px 12px;font:inherit;min-height:42px}
+#page-warnings .warning-input:focus{outline:2px solid rgba(217,39,53,.35);border-color:#d92735}
+#page-warnings .warning-input:disabled{opacity:.55;cursor:not-allowed}
+#page-warnings .btn:disabled{opacity:.45;cursor:not-allowed}
+#page-warnings .warning-tabs,#page-warnings .warning-filters{display:flex;gap:8px;flex-wrap:wrap}
+#page-warnings .warning-tabs .btn.active,#page-warnings .warning-filters .btn.active{border-color:#d92735;background:rgba(217,39,53,.16);color:#fff}
+#page-warnings .warning-modal{position:fixed;inset:0;z-index:10020;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#page-warnings .warning-modal[hidden]{display:none!important}
+#page-warnings .warning-modal-card{width:min(680px,100%);max-height:min(90vh,900px);overflow:auto;background:#111318;border:1px solid #3b414b;border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+#page-warnings .warning-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #2b3038}
+#page-warnings .warning-modal-body{padding:18px;display:grid;gap:14px}
+#page-warnings .warning-modal-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-start}
+#page-warnings .warning-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}
+#page-warnings .warning-summary .panel{padding:14px}
+#page-warnings .warning-summary strong{font-size:27px}
+@media(max-width:760px){#page-warnings .warning-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<div class="sectionhead">
+ <div><h2>التحذيرات</h2><div class="sub">إدارة الحالات التأديبية، الرسائل الرسمية، وسجل الإجراءات</div></div>
+ <button class="btn" type="button" onclick="renderWarnings()">↻ تحديث البيانات</button>
 </div>
-<div class="panel" style="margin-bottom:18px">
- <div class="panelhead"><h3>＋ إضافة تحذير</h3><span class="tag red">مدير التحذيرات</span></div>
- <div class="panelbody" style="display:grid;gap:13px">
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-   <button class="btn primary" id="warningRegisteredMode" type="button" onclick="setWarningSource('registered')">اختيار عضو مسجل</button>
-   <button class="btn" id="warningManualMode" type="button" onclick="setWarningSource('manual')">إدخال معرّف ديسكورد يدويًا</button>
+<div class="warning-summary">
+ <div class="panel"><div class="muted">الإنذار الأول</div><strong id="warningCount1">0</strong></div>
+ <div class="panel"><div class="muted">الإنذار الثاني</div><strong id="warningCount2">0</strong></div>
+ <div class="panel"><div class="muted">الأعضاء المفصولون</div><strong id="warningCount3">0</strong></div>
+ <div class="panel"><div class="muted">إجمالي السجلات</div><strong id="warningCountAll">0</strong></div>
+</div>
+<div class="warning-tabs panel" style="padding:10px;margin-bottom:15px">
+ <button class="btn active" id="warningTabMembers" type="button" onclick="showWarningView('members')">إدارة الحالات</button>
+ <button class="btn" id="warningTabCreate" type="button" onclick="showWarningView('create')">＋ إجراء جديد</button>
+ <button class="btn" id="warningTabHistory" type="button" onclick="showWarningView('history')">سجل الإجراءات والرسائل</button>
+</div>
+
+<div id="warningViewMembers">
+ <div class="panel">
+  <div class="panelhead"><div><h3>الأعضاء والحالات الحالية</h3><span class="sub" id="warningRecordCount">0 عضو</span></div><span class="tag gray">إدارة ومراجعة</span></div>
+  <div class="panelbody">
+   <div class="warning-filters" style="margin-bottom:12px">
+    <button class="btn active" type="button" data-warning-filter="all" onclick="setWarningFilter('all')">كل الأعضاء</button>
+    <button class="btn" type="button" data-warning-filter="first" onclick="setWarningFilter('first')">الإنذار الأول</button>
+    <button class="btn" type="button" data-warning-filter="second" onclick="setWarningFilter('second')">الإنذار الثاني</button>
+    <button class="btn" type="button" data-warning-filter="dismissed" onclick="setWarningFilter('dismissed')">المفصولون</button>
+    <button class="btn" type="button" data-warning-filter="clear" onclick="setWarningFilter('clear')">بدون إنذار</button>
+   </div>
+   <input id="warningSearch" class="warning-input" placeholder="ابحث بالاسم أو معرّف ديسكورد..." style="width:100%;margin-bottom:12px" oninput="renderWarningRecords()">
+   <div class="tablewrap"><table><thead><tr><th>العضو</th><th>معرّف ديسكورد</th><th>الحالة الحالية</th><th>سبب آخر إجراء</th><th>آخر تحديث</th><th>الانتهاء</th><th>إدارة</th></tr></thead><tbody id="warningRecordRows"><tr><td colspan="7">جارٍ تحميل السجلات...</td></tr></tbody></table></div>
   </div>
-  <div id="warningRegisteredPicker"><label for="warningMemberSelect">اختر عضوًا مسجلًا في الموقع</label><select id="warningMemberSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="">اختر عضوًا...</option></select></div>
-  <div id="warningManualPicker" style="display:none"><label for="warningManualId">معرّف مستخدم ديسكورد</label><input id="warningManualId" class="warning-input" inputmode="numeric" maxlength="22" placeholder="الصق معرّف ديسكورد هنا" style="width:100%;margin-top:6px" oninput="refreshWarningForm()"></div>
-  <div id="warningCurrentMember" class="muted">اختر عضوًا للمتابعة.</div>
-  <div><label for="warningLevelSelect">الإجراء التأديبي</label><select id="warningLevelSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="1">الإنذار الأول</option><option value="2">الإنذار الثاني</option><option value="3">الفصل</option></select><div class="muted" id="warningDurationNotice" style="margin-top:6px;font-size:12px">يظل الإنذار الأول ساريًا لمدة 30 يومًا، ثم تُزال رتبته من ديسكورد تلقائيًا.</div></div>
-  <div><label for="warningReason">سبب الإجراء <span style="color:var(--red)">*</span></label><textarea id="warningReason" class="warning-input" rows="3" maxlength="1000" placeholder="اكتب سبب المخالفة..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
-  <div><label for="warningDetails">تفاصيل إضافية (اختياري)</label><textarea id="warningDetails" class="warning-input" rows="2" maxlength="3000" placeholder="ملخص الأدلة أو أي معلومات إضافية..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
-  <div id="warningDismissNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">الفصل: يؤدي هذا الإجراء إلى إزالة جميع رتب ديسكورد التي يستطيع البوت إزالتها، مع تسجيل السبب.</div>
-  <div style="display:flex;gap:9px;flex-wrap:wrap">
-   <button class="btn primary" id="warningIssueButton" type="button" onclick="submitWarningAction('issue')">إصدار الإنذار</button>
-   <button class="btn danger" id="warningDismissButton" type="button" style="display:none" onclick="submitWarningAction('dismiss')">تنفيذ قرار الفصل</button>
-  </div>
-  <div id="warningActionStatus" class="muted" aria-live="polite"></div>
  </div>
 </div>
-<div class="panel" style="margin-bottom:18px">
- <div class="panelhead"><h3>سجل الإنذارات</h3><span class="sub" id="warningRecordCount">0 عضو</span></div>
- <div class="panelbody"><input id="warningSearch" class="warning-input" placeholder="ابحث بالاسم أو معرّف ديسكورد..." style="width:100%;margin-bottom:12px" oninput="renderWarningRecords()"><div class="tablewrap"><table><thead><tr><th>العضو</th><th>معرّف ديسكورد</th><th>مستوى الإنذار</th><th>الحالة</th><th>سبب آخر إجراء</th><th>آخر تحديث</th><th>تاريخ الانتهاء</th></tr></thead><tbody id="warningRecordRows"><tr><td colspan="7">جارٍ تحميل سجل الإنذارات...</td></tr></tbody></table></div></div>
+
+<div id="warningViewCreate" style="display:none">
+ <div class="panel">
+  <div class="panelhead"><h3>إنشاء إجراء تأديبي</h3><span class="tag red">مدير التحذيرات</span></div>
+  <div class="panelbody" style="display:grid;gap:13px">
+   <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn primary" id="warningRegisteredMode" type="button" onclick="setWarningSource('registered')">اختيار عضو مسجل</button>
+    <button class="btn" id="warningManualMode" type="button" onclick="setWarningSource('manual')">إدخال معرّف ديسكورد يدويًا</button>
+   </div>
+   <div id="warningRegisteredPicker"><label for="warningMemberSelect">اختر عضوًا مسجلًا في الموقع</label><select id="warningMemberSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="">اختر عضوًا...</option></select></div>
+   <div id="warningManualPicker" style="display:none"><label for="warningManualId">معرّف مستخدم ديسكورد</label><input id="warningManualId" class="warning-input" inputmode="numeric" maxlength="22" placeholder="الصق معرّف ديسكورد هنا" style="width:100%;margin-top:6px" oninput="refreshWarningForm()"></div>
+   <div id="warningCurrentMember" class="muted">اختر عضوًا للمتابعة.</div>
+   <div><label for="warningLevelSelect">الإجراء التأديبي</label><select id="warningLevelSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="1">الإنذار الأول</option><option value="2">الإنذار الثاني</option><option value="3">الفصل</option></select><div class="muted" id="warningDurationNotice" style="margin-top:6px;font-size:12px">الإنذار الأول ساري لمدة 30 يومًا.</div></div>
+   <div><label for="warningReason">سبب الإجراء <span style="color:var(--red)">*</span></label><textarea id="warningReason" class="warning-input" rows="3" maxlength="1000" placeholder="اكتب سبب المخالفة..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
+   <div><label for="warningDetails">تفاصيل إضافية (اختياري)</label><textarea id="warningDetails" class="warning-input" rows="2" maxlength="3000" placeholder="ملخص الأدلة أو أي معلومات إضافية..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
+   <div id="warningDismissNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">الفصل: يؤدي هذا الإجراء إلى إزالة جميع رتب ديسكورد التي يستطيع البوت إزالتها، مع تسجيل السبب.</div>
+   <div style="display:flex;gap:9px;flex-wrap:wrap">
+    <button class="btn primary" id="warningIssueButton" type="button" onclick="submitWarningAction('issue')">إصدار الإنذار</button>
+    <button class="btn danger" id="warningDismissButton" type="button" style="display:none" onclick="submitWarningAction('dismiss')">تنفيذ قرار الفصل</button>
+   </div>
+   <div id="warningActionStatus" class="muted" aria-live="polite"></div>
+  </div>
+ </div>
 </div>
-<div class="panel">
- <div class="panelhead"><h3>أحدث الإجراءات التأديبية</h3><span class="sub">آخر 50 إجراء</span></div>
- <div class="panelbody"><div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>العضو</th><th>الإجراء</th><th>السبب</th><th>صدر بواسطة</th><th>الرسالة الخاصة</th><th>قناة التحذيرات</th><th>تاريخ الانتهاء</th></tr></thead><tbody id="warningHistoryRows"><tr><td colspan="8">جارٍ تحميل سجل الإجراءات...</td></tr></tbody></table></div></div>
+
+<div id="warningViewHistory" style="display:none">
+ <div class="panel">
+  <div class="panelhead"><div><h3>سجل الإجراءات والرسائل الأصلية</h3><span class="sub">تعديل السبب أو التفاصيل يحدّث رسالة Discord الأصلية</span></div><span class="tag gray">آخر 500 إجراء</span></div>
+  <div class="panelbody">
+   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    <select id="warningHistoryFilter" class="warning-input" style="max-width:220px" onchange="renderWarningHistory()"><option value="all">كل الإجراءات</option><option value="warning">الإنذارات فقط</option><option value="dismissal">الفصل فقط</option><option value="expired">الإنذارات المنتهية</option></select>
+    <input id="warningHistorySearch" class="warning-input" style="flex:1;min-width:220px" placeholder="ابحث في سجل الإجراءات..." oninput="renderWarningHistory()">
+   </div>
+   <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>العضو</th><th>الإجراء</th><th>السبب</th><th>صدر بواسطة</th><th>الخاص</th><th>القناة</th><th>الانتهاء</th><th>تعديل</th></tr></thead><tbody id="warningHistoryRows"><tr><td colspan="9">جارٍ تحميل سجل الإجراءات...</td></tr></tbody></table></div>
+  </div>
+ </div>
+</div>
+
+<div id="warningManageModal" class="warning-modal" hidden>
+ <div class="warning-modal-card">
+  <div class="warning-modal-head"><div><h3 style="margin:0" id="warningManageTitle">إدارة حالة العضو</h3><div class="muted" id="warningManageMember"></div></div><button class="btn" type="button" onclick="closeWarningModal('warningManageModal')">إغلاق</button></div>
+  <div class="warning-modal-body">
+   <div><label for="warningManageLevel">الحالة الجديدة</label><select id="warningManageLevel" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningManageModal()"><option value="0">إزالة الإنذار الحالي / بدون إنذار</option><option value="1">الإنذار الأول</option><option value="2">الإنذار الثاني</option><option value="3">فصل العضو</option></select></div>
+   <div id="warningManageHint" class="muted" style="line-height:1.8"></div>
+   <div><label for="warningManageReason">سبب التعديل <span style="color:var(--red)">*</span></label><textarea id="warningManageReason" class="warning-input" rows="3" maxlength="1000" placeholder="اكتب سبب إزالة الإنذار أو تعديل الحالة..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
+   <div id="warningManageStatus" class="muted" aria-live="polite"></div>
+   <div class="warning-modal-actions"><button class="btn primary" id="warningManageSave" type="button" onclick="submitWarningAdjustment()">حفظ الحالة الجديدة</button><button class="btn" type="button" onclick="closeWarningModal('warningManageModal')">إلغاء</button></div>
+  </div>
+ </div>
+</div>
+
+<div id="warningEditModal" class="warning-modal" hidden>
+ <div class="warning-modal-card">
+  <div class="warning-modal-head"><div><h3 style="margin:0">تعديل الرسالة التأديبية</h3><div class="muted" id="warningEditMember"></div></div><button class="btn" type="button" onclick="closeWarningModal('warningEditModal')">إغلاق</button></div>
+  <div class="warning-modal-body">
+   <div><label for="warningEditReason">سبب الإجراء</label><textarea id="warningEditReason" class="warning-input" rows="3" maxlength="1000" style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
+   <div><label for="warningEditDetails">تفاصيل إضافية</label><textarea id="warningEditDetails" class="warning-input" rows="3" maxlength="3000" style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
+   <div class="muted" style="line-height:1.8">سيتم تحديث الرسالة الأصلية في قناة التحذيرات والرسالة الخاصة للعضو. وسيظل التعديل مسجلًا في سجل النشاط.</div>
+   <div id="warningEditStatus" class="muted" aria-live="polite"></div>
+   <div class="warning-modal-actions"><button class="btn primary" id="warningEditSave" type="button" onclick="submitWarningEdit()">حفظ وتحديث رسائل Discord</button><button class="btn" type="button" onclick="closeWarningModal('warningEditModal')">إلغاء</button></div>
+  </div>
+ </div>
 </div>
 </section>
 <section class="page" id="page-gallery"><div class="sectionhead"><div><h2>صور الموقع</h2><div class="sub">معرض الصور التي يضيفها مالك البوابة</div></div></div><div class="panel"><div class="panelhead"><h3>معرض الصور</h3><span class="sub" id="siteGalleryCount">0 صورة</span></div><div class="panelbody"><div id="siteGalleryPublic" class="site-gallery-grid"></div></div></div></section><section class="page" id="page-settings"><div class="sectionhead"><div><h2>إعدادات الحساب</h2><div class="sub">إدارة إشعاراتك وتفضيلات حسابك، وإعدادات النظام للمالك فقط</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>إشعارات Discord</h3><span class="tag gray">إعداد شخصي</span></div><div class="panelbody"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>استقبال التنبيهات الخاصة</b><p class="muted" style="line-height:1.8;margin:6px 0 0">رسائل التنبيه الخاصة مفعّلة تلقائيًا بعد دخولك إلى البوابة. لو مش حابب تستقبل رسائل من البوت، شيل علامة الصح من خيار استقبال رسائل التنبيه هنا. تقدر ترجع تفعّلها في أي وقت.</p></div><label for="discordNotificationsToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="discordNotificationsToggle" type="checkbox" disabled onchange="saveDiscordNotificationPreference(this.checked)" style="accent-color:var(--red);width:18px;height:18px"> استقبال رسائل التنبيه</label></div><div id="discordNotificationsStatus" class="muted" style="margin-top:12px">جاري تحميل تفضيلات الإشعارات...</div></div></div><div id="ownerSettingsPanels" style="display:none"><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>حالة اتصال بوت Discord</h3><span id="discordBotStatusBadge" class="tag gray">لم يتم الفحص</span></div><div class="panelbody"><p class="muted">افحص أن البوت مثبت في نفس سيرفر Discord المستخدم لتسجيل الدخول إلى البوابة. هذا الفحص لا يعرض التوكن.</p><button class="btn primary" type="button" onclick="checkDiscordBotStatus(this)">فحص اتصال البوت بالسيرفر</button><div id="discordBotStatusMessage" class="muted" style="margin-top:10px">لم يتم إجراء الفحص بعد.</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>التحكم في منشن SWAT</h3><span class="tag gray">خاص بالمالك</span></div><div class="panelbody"><div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>إيقاف منشن رتبة SWAT مؤقتًا</b><p class="muted" style="margin:6px 0 0;line-height:1.8">هذا الإعداد يتحكم في منشن رتبة @SWAT داخل التنبيهات العامة وإعلانات التحذيرات وقرارات الفصل. عند إيقافه، لن يظهر منشن رتبة SWAT في أي من هذه الرسائل. منشن العضو المستهدف له إعداد مستقل بالأسفل.</p></div><label for="notificationMentionDisabledToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="notificationMentionDisabledToggle" type="checkbox" checked disabled onchange="saveNotificationMentionPreference(this.checked)" style="accent-color:var(--red);width:18px;height:18px"> إيقاف المنشن مؤقتًا</label></div><div id="notificationMentionStatus" class="muted" style="margin-top:12px">جاري تحميل إعداد المنشن...</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>التحكم في منشن العضو المستهدف</h3><span class="tag gray">خاص بالمالك</span></div><div class="panelbody" style="display:grid;gap:15px">
@@ -1182,7 +1260,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentCanManageWarnings=false;let warningData={members:[],subjects:[],actions:[]};let warningSourceMode='registered';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentCanManageWarnings=false;let warningData={members:[],subjects:[],actions:[]};let warningSourceMode='registered';let warningRecordFilter='all';let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -2547,6 +2625,35 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "تعذّر نشر الإشعار في قناة التحذيرات. تم التراجع عن تغيير الرتبة ومحاولة حذف الرسالة الخاصة.":"The notice could not be posted in the warnings channel. The role change was rolled back and deletion of the private message was attempted.",
   "تم تسجيل قرار فصل العضو من إدارة S.W.A.T. REDLINE.":"The dismissal decision has been recorded by S.W.A.T. REDLINE.",
   "تم إصدار وتسجيل إنذار رسمي وفقًا للوائح S.W.A.T. REDLINE.":"An official warning has been issued and recorded under S.W.A.T. REDLINE regulations."
+});
+Object.assign(PORTAL_TRANSLATIONS,{
+'إدارة الحالات':'Manage cases','＋ إجراء جديد':'＋ New action','سجل الإجراءات والرسائل':'Actions & messages log',
+'تحديث البيانات':'Refresh data','الأعضاء والحالات الحالية':'Members & current statuses','إدارة ومراجعة':'Manage & review',
+'كل الأعضاء':'All members','المفصولون':'Dismissed members','بدون إنذار':'No warning','إدارة':'Manage',
+'إنشاء إجراء تأديبي':'Create disciplinary action','اختيار عضو مسجل':'Select registered member',
+'إدخال معرّف ديسكورد يدويًا':'Enter Discord ID manually','اختر عضوًا مسجلًا في الموقع':'Select a registered portal member',
+'اختر عضوًا...':'Select a member...','اختر عضوًا للمتابعة.':'Select a member to continue.',
+'الإجراء التأديبي':'Disciplinary action','سبب الإجراء':'Reason for action','تفاصيل إضافية (اختياري)':'Additional details (optional)',
+'اكتب سبب المخالفة...':'Enter the violation reason...','ملخص الأدلة أو أي معلومات إضافية...':'Evidence summary or additional information...',
+'إصدار الإنذار':'Issue warning','تنفيذ قرار الفصل':'Execute dismissal','سجل الإجراءات والرسائل الأصلية':'Action and original message log',
+'تعديل السبب أو التفاصيل يحدّث رسالة Discord الأصلية':'Editing the reason or details updates the original Discord message',
+'كل الإجراءات':'All actions','الإنذارات فقط':'Warnings only','الفصل فقط':'Dismissals only','الإنذارات المنتهية':'Expired warnings',
+'ابحث في سجل الإجراءات...':'Search the action log...','التاريخ':'Date','العضو':'Member','الإجراء':'Action',
+'صدر بواسطة':'Issued by','الخاص':'DM','القناة':'Channel','الانتهاء':'Expiry','تعديل':'Edit',
+'إدارة حالة العضو':'Manage member status','إغلاق':'Close','الحالة الجديدة':'New status',
+'إزالة الإنذار الحالي / بدون إنذار':'Remove current warning / no warning','فصل العضو':'Dismiss member',
+'سبب التعديل *':'Reason for change *','اكتب سبب إزالة الإنذار أو تعديل الحالة...':'Enter the reason for removing the warning or changing the status...',
+'حفظ الحالة الجديدة':'Save new status','إلغاء':'Cancel','تعديل الرسالة التأديبية':'Edit disciplinary message',
+'سيتم تحديث الرسالة الأصلية في قناة التحذيرات والرسالة الخاصة للعضو. وسيظل التعديل مسجلًا في سجل النشاط.':'The original message in the warnings channel and the member DM will be updated. The edit will remain in the activity log.',
+'حفظ وتحديث رسائل Discord':'Save and update Discord messages','تعديل الرسالة':'Edit message',
+'تم تحديث الحالة التأديبية ومزامنة رتب Discord.':'Disciplinary status updated and Discord roles synchronized.',
+'تعذّر تعديل الحالة التأديبية.':'Could not update disciplinary status.',
+'تم تعديل الرسالة التأديبية الأصلية في Discord.':'The original disciplinary message was updated in Discord.',
+'تعذّر تعديل الرسالة التأديبية.':'Could not edit the disciplinary message.',
+'إعادة تفعيل السجل لا تعيد الرتب العادية التي أزيلت من Discord عند الفصل؛ أعد توزيعها من إدارة الرتب إذا لزم.':'Reactivating the record does not restore regular Discord roles removed at dismissal; reassign them from role management if needed.',
+'سيتم حذف رتبة التحذير الحالية فقط مع الحفاظ على بقية رتب العضو.':'Only the current warning role will be removed; the member’s other roles will be preserved.',
+'سيتم تحديث رتبة التحذير في Discord وإعادة احتساب مدة الصلاحية من الآن.':'The warning role in Discord will be updated and its validity period will restart from now.',
+'الفصل متاح بعد الإنذار الثاني فقط.':'Dismissal is available only after Warning 2.'
 });
 const PORTAL_ATTRIBUTE_TRANSLATIONS = Object.assign({
 'ابحث عن اسم أو رقم ملف... ( / )':'Search by name or file ID... ( / )',
