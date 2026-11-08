@@ -78,7 +78,7 @@ async function assignmentDiscord(token, path, init = {}) {
   return data;
 }
 function assignmentRankKey(name) {
-  const normalized = String(name || "").normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g,"").replace(/^\\d+/,"");
+  const normalized = String(name || "").normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g,"").replace(/^\d+/,"");
   const rank = ASSIGNMENT_RANKS.find(item => item.key === normalized || (item.aliases || []).includes(normalized));
   return rank?.key || null;
 }
@@ -97,9 +97,9 @@ function assignmentMemberName(member, fallback = "Discord user") {
 function assignmentAvatar(member, guildId) {
   const user = member?.user || {}, id = String(user.id || "");
   const valid = value => typeof value === "string" && /^[a-zA-Z0-9_]+$/.test(value);
-  if (valid(member?.avatar) && /^\\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/guilds/"+guildId+"/users/"+id+"/avatars/"+member.avatar+"."+(member.avatar.startsWith("a_")?"gif":"png")+"?size=128";
-  if (valid(user.avatar) && /^\\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/avatars/"+id+"/"+user.avatar+"."+(user.avatar.startsWith("a_")?"gif":"png")+"?size=128";
-  if (/^\\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/embed/avatars/"+Number((BigInt(id)>>22n)%6n)+".png";
+  if (valid(member?.avatar) && /^\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/guilds/"+guildId+"/users/"+id+"/avatars/"+member.avatar+"."+(member.avatar.startsWith("a_")?"gif":"png")+"?size=128";
+  if (valid(user.avatar) && /^\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/avatars/"+id+"/"+user.avatar+"."+(user.avatar.startsWith("a_")?"gif":"png")+"?size=128";
+  if (/^\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/embed/avatars/"+Number((BigInt(id)>>22n)%6n)+".png";
   return null;
 }
 async function assignmentMapLimit(items, limit, worker) {
@@ -149,7 +149,7 @@ async function assignmentDeleteDm(token,dm) {
 }
 function assignmentCallsign(value) {
   if(value==null||value==="")return null;
-  const match=String(value).trim().match(/^(?:Alpha\\s*)?(0|[1-9][0-9]*)$/i);
+  const match=String(value).trim().match(/^(?:Alpha\s*)?(0|[1-9][0-9]*)$/i);
   if(!match)throw Object.assign(new Error("كود النداء يجب أن يكون Alpha متبوعًا برقم صحيح يبدأ من 0."),{status:400});
   return "Alpha "+match[1];
 }
@@ -177,7 +177,7 @@ async function assignmentMember(token,guildId,id) {
   }
 }
 async function listAssignments(url,key,token,guildId) {
-  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
+  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
   const [profileResponse,assignmentResponse,guild]=await Promise.all([
     supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned,created_at&order=display_name.asc"),
     supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,callsign,status,assigned_by_name,updated_at"),
@@ -200,7 +200,7 @@ async function listAssignments(url,key,token,guildId) {
 async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   const targetId=String(body.discord_user_id||"");
   const action=body.action==="remove"?"remove":body.action==="assign"?"assign":"";
-  if(!action||!/^\\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
+  if(!action||!/^\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
   const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&limit=1");
   if(!profileResponse.ok)return send(res,503,{error:"تعذّر التحقق من تسجيل العضو في الموقع."});
   const profile=(await profileResponse.json())[0];
