@@ -99,12 +99,13 @@ async function requireManager(cfg, user) {
   }
 }
 async function listData(cfg) {
-  const [staffResponse, subjectResponse] = await Promise.all([
+  const [staffResponse, subjectResponse, actionResponse] = await Promise.all([
     db(cfg, "staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&order=display_name.asc"),
-    db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,created_at,updated_at&order=updated_at.desc")
+    db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,created_at,updated_at&order=updated_at.desc"),
+    db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,channel_status,channel_message_id,created_at&order=created_at.desc&limit=500")
   ]);
-  if (!staffResponse.ok || !subjectResponse.ok) throw new Error("Could not load warning records.");
-  return { members: await staffResponse.json(), subjects: await subjectResponse.json() };
+  if (!staffResponse.ok || !subjectResponse.ok || !actionResponse.ok) throw new Error("Could not load warning records.");
+  return { members: await staffResponse.json(), subjects: await subjectResponse.json(), actions: await actionResponse.json() };
 }
 async function loadGuildRoleData(cfg) {
   const [roles, botUser] = await Promise.all([
@@ -198,6 +199,9 @@ export default async function handler(req, res) {
   if (cfg.error) return json(res, 503, { error: cfg.error });
   try {
     await requireManager(cfg, user);
+    if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("access") === "1") {
+      return json(res, 200, { authorized: true });
+    }
     if (req.method === "GET") {
       const data = await listData(cfg);
       return json(res, 200, data);
