@@ -1678,8 +1678,12 @@ function warningDeliveryLabel(status){
 }
 function fmtWarningDate(value){
  if(!value)return '—';
- try{return new Date(value).toLocaleString('ar-SA',{timeZone:'Asia/Riyadh',calendar:'gregory',numberingSystem:'latn',dateStyle:'medium',timeStyle:'short'})}
- catch{return '—'}
+ try{
+  const english=currentPortalLanguage()==='en';
+  return new Date(value).toLocaleString(english?'en-GB':'ar-SA',{
+   timeZone:'Asia/Riyadh',calendar:'gregory',numberingSystem:'latn',dateStyle:'medium',timeStyle:'short'
+  })+(english?' (Riyadh time)':' بتوقيت الرياض');
+ }catch{return '—'}
 }
 function setWarningSource(mode){
  warningSourceMode=mode==='manual'?'manual':'registered';
@@ -2389,6 +2393,109 @@ Object.assign(PORTAL_TRANSLATIONS, {"الإعلانات":"Announcements","مرك
 Object.assign(PORTAL_TRANSLATIONS, {'موثّق عبر Discord':'Verified via Discord'});
 Object.assign(PORTAL_TRANSLATIONS, {'التبديل إلى الإنجليزية':'Switch to English'});
 Object.assign(PORTAL_TRANSLATIONS, {"آخر تحديث:":"Last updated:","أكتوبر":"October","إصدار":"Version","قواعد الانضباط والتواصل":"Discipline & Communication Rules","إنشاء تقرير:":"Create report:","إنشاء":"Create","أدخل اسم":"Enter a name","اكتب اسم":"Enter a name","اكتب تفاصيل":"Enter details","كاملة...":"in full...","تاريخ ووقت":"Date & Time","(الرياض)":"(Riyadh)","جارية":"Active","بدأت الآن":"Started now","مجدولة":"Scheduled","تقرير":"Report","• مرتبط بملف:":"• Linked file:","• آخر تحديث:":"• Last updated:","اسم الشخص أو وصفه إن توفر":"Person name or description, if available","صورة":"Image","خلفية الموقع":"Site background","الشعار القديم":"Legacy logo","صورة في معرض الموقع":"Site gallery image","رفع/تغيير":"Upload/Change","صورة الموقع":"Site image","تم تحديث صورة الموقع":"Site image updated","والعودة للإعداد الافتراضي":"and restore the default","تعذر حفظ الإعدادات":"Could not save settings","تغيير اسم صورة في معرض الموقع إلى:":"Rename a site gallery image to:","النشر في روم Discord متوقف؛ لن ينشر الموقع أي رسالة في الروم.":"Discord channel posting is disabled; the website will not post in a channel.","الرسائل الخاصة للأعضاء متوقفة؛ المالك فقط يستقبل التنبيهات في الخاص.":"Member DMs are disabled; only the owner receives private alerts.","تم تحميل الإعدادات المحفوظة.":"Saved settings loaded.","تعذّر حفظ إعداد المنشن":"Could not save mention setting","جاري حفظ إعداد الإرسال...":"Saving delivery setting...","النشر في روم Discord متوقف؛ المالك سيستمر في استقبال الخاص.":"Discord channel posting is disabled; the owner will still receive DMs.","تم إيقاف خيار الإرسال":"Channel posting disabled.","تعذّر حفظ إعداد الإرسال.":"Could not save delivery setting.","تعذّر حفظ إعداد الإرسال":"Could not save delivery setting","تعذر حفظ الألوان":"Could not save colors","وضع التحرير متوقف.":"Visual editing is off.","تم حفظ النص المعدّل للجميع":"Updated text saved for everyone.","تعذر حفظ النص":"Could not save text.","اكتب اللون بصيغة #RRGGBB":"Enter a color in #RRGGBB format.","تم حفظ اللون للجميع":"Color saved for everyone.","تعذر حفظ اللون":"Could not save color.","تعذر المسح":"Could not reset settings.","أضف البوت إلى سيرفر الموقع نفسه.":"Add the bot to the portal’s Discord server.","البوت":"Bot","موجود في السيرفر":"is in the server","المحدد":"selected","تعذر الفحص":"Could not verify","فشل الفحص":"Verification failed","ملف الشخص":"Person file","التقرير":"Report","ملف التحري":"Investigation file","مهمة اليوم":"Daily task","السجل":"Activity log","روم الإشعارات المعتادة":"standard notifications channel","سيتم نشر التنبيه في":"The alert will be posted in","هناك تعارض في البيانات المشتركة. حدّث الصفحة قبل إرسال التنبيه.":"Shared data conflict. Reload the page before sending the alert.","تعذّر إرسال التنبيه":"Could not send alert","وضع التجربة محفوظ، لكن تعذّر إرسال الخاص للمالك (":"Test mode is saved, but the owner DM could not be sent (","خطأ غير معروف":"Unknown error","مستلم، والمالك استلم نسخته.":"recipient(s); the owner received a copy.","النشر في الروم متوقف، لكن تعذّر إرسال الخاص للمالك.":"Channel posting is disabled, but the owner DM could not be sent.","تم النشر في الروم لكن تعذّر الخاص للمالك.":"The alert was posted in the channel, but the owner DM could not be sent.","فشل النشر والخاص للمالك.":"Channel posting and the owner DM both failed.","تعذّر النشر في روم الإشعارات؛ تمت محاولة إرسال الرسائل الخاصة بشكل مستقل.":"Could not post in the notifications channel; direct messages were attempted separately.","تعذر إرسال بعض الرسائل بسبب إعدادات الخصوصية أو حظر رسائل البوت.":"Some messages could not be sent because of privacy settings or blocked bot DMs.","تم النشر في الروم.":"Posted in the channel.","مستلم. فشل:":"recipient(s). Failed:","تم حفظ تفضيلات الإشعارات":"Notification preferences saved.","تعذّر حفظ تفضيلات الإشعارات":"Could not save notification preferences.","تم إنشاء ملف":"File created.","لا يوجد وصف للصورة":"No image description.","تأكيد تسجيل القبض على":"Confirm arrest of","تم تغيير حالة":"Status changed:","إعادة فتح ملف":"Reopen file","حذف ملف":"Delete file","حذف ملف الشخص":"Delete person file","اختر ملفات صور فقط":"Select image files only.","— دليل":"— Evidence"});
+Object.assign(PORTAL_TRANSLATIONS, {
+  "التحذيرات":"Warnings",
+  "تحذيرات":"Warnings",
+  "السجلات التأديبية الرسمية وإدارة تحذيرات الأعضاء":"Official disciplinary records and member warning management",
+  "تحديث":"Refresh",
+  "الإنذار الأول":"Warning 1",
+  "الإنذار الثاني":"Warning 2",
+  "الأعضاء المفصولون":"Dismissed Members",
+  "إضافة تحذير":"Add Warning",
+  "مدير التحذيرات":"Warnings Manager",
+  "اختيار عضو مسجل":"Select Registered Member",
+  "إدخال معرّف ديسكورد يدويًا":"Enter Discord ID Manually",
+  "اختر عضوًا مسجلًا في الموقع":"Select a member registered on the website",
+  "اختر عضوًا...":"Choose a member...",
+  "معرّف مستخدم ديسكورد":"Discord User ID",
+  "الصق معرّف ديسكورد هنا":"Paste the Discord ID here",
+  "اختر عضوًا للمتابعة.":"Choose a member to continue.",
+  "الإجراء التأديبي":"Disciplinary Action",
+  "الفصل":"Dismissal",
+  "يظل كل إنذار ساريًا لمدة 30 يومًا، ثم تُزال رتبته من ديسكورد تلقائيًا.":"Each warning remains active for 30 days, then its Discord role is removed automatically.",
+  "سبب الإجراء":"Reason",
+  "اكتب سبب المخالفة...":"Enter the reason for the violation...",
+  "تفاصيل إضافية (اختياري)":"Additional Details (Optional)",
+  "ملخص الأدلة أو أي معلومات إضافية...":"Evidence summary or any additional information...",
+  "الفصل: يؤدي هذا الإجراء إلى إزالة جميع رتب ديسكورد التي يستطيع البوت إزالتها، مع تسجيل السبب.":"Dismissal: This action removes all Discord roles the bot can manage and records the reason.",
+  "إصدار الإنذار الأول":"Issue Warning 1",
+  "إصدار الإنذار الثاني":"Issue Warning 2",
+  "بدء دورة جديدة • إصدار الإنذار الأول":"Start New Cycle • Issue Warning 1",
+  "تنفيذ قرار الفصل":"Execute Dismissal",
+  "جارٍ تحديث رتب ديسكورد وإرسال الإشعار الخاص ونشر السجل الرسمي...":"Updating Discord roles, sending the private notice, and publishing the official record...",
+  "سجل الإنذارات":"Warning Records",
+  "عضو":"Member",
+  "ابحث بالاسم أو معرّف ديسكورد...":"Search by name or Discord ID...",
+  "مستوى الإنذار":"Warning Level",
+  "سبب آخر إجراء":"Last Action Reason",
+  "آخر تحديث":"Last Updated",
+  "تاريخ الانتهاء":"Expiration Date",
+  "جارٍ تحميل سجل الإنذارات...":"Loading warning records...",
+  "أحدث الإجراءات التأديبية":"Recent Disciplinary Actions",
+  "آخر 50 إجراء":"Latest 50 actions",
+  "التاريخ":"Date",
+  "صدر بواسطة":"Issued By",
+  "الرسالة الخاصة":"Private Message",
+  "قناة التحذيرات":"Warnings Channel",
+  "جارٍ تحميل سجل الإجراءات...":"Loading action history...",
+  "لا توجد إجراءات تأديبية مسجلة.":"No disciplinary actions recorded.",
+  "لا توجد سجلات تحذيرات حتى الآن.":"No warning records found.",
+  "المستوى الحالي: ":"Current level: ",
+  "الحالة: ":"Status: ",
+  "نشط":"Active",
+  "مفصول":"Dismissed",
+  "فصل":"Dismissal",
+  "فصل العضو":"Dismissal",
+  "بدون إنذار":"No Warning",
+  "تم الإرسال":"Sent",
+  "فشل الإرسال":"Failed",
+  "قيد الانتظار":"Pending",
+  "منتهي":"Expired",
+  "سجل سابق: العضو مفصول. يمكنك بدء دورة إنذارات جديدة بإصدار الإنذار الأول.":"Previous record: The member was dismissed. You can start a new warning cycle by issuing Warning 1.",
+  "العضو: ":"Member: ",
+  "لا يوجد له سجل إنذارات سابق":"No previous warning record",
+  "أدخل معرّف مستخدم ديسكورد صحيحًا أو اختر عضوًا من القائمة.":"Enter a valid Discord user ID or choose a member from the list.",
+  "سبب الإجراء التأديبي مطلوب.":"A disciplinary reason is required.",
+  "لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.":"Dismissal is only available after Warning 2.",
+  "يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني. وبعد الفصل يمكن بدء دورة جديدة بالإنذار الأول.":"Warnings must be issued in order: Warning 1, then Warning 2. After dismissal, a new cycle can start with Warning 1.",
+  "تم فصل العضو وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات.":"The member was dismissed. The private notice was sent and the warnings-channel announcement was published.",
+  " وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.":". The private notice was sent and the warnings-channel announcement was published. Expires after 30 days.",
+  "تم تحديث الرتب، لكن تعذّر نشر الإعلان في ديسكورد. راجع صلاحيات البوت في القناة.":"Roles were updated, but the Discord announcement could not be published. Check the bot's channel permissions.",
+  "تم تنفيذ قرار الفصل بنجاح.":"Dismissal completed successfully.",
+  "تم إصدار الإنذار بنجاح.":"Warning issued successfully.",
+  "تعذّر تنفيذ الإجراء التأديبي.":"Could not complete the disciplinary action.",
+  "تعذّر تحميل سجل التحذيرات.":"Could not load warning records.",
+  "تعذّر تحميل سجل الإجراءات.":"Could not load action history.",
+  "فشل تنفيذ عملية قاعدة البيانات.":"The database operation failed.",
+  "فشل طلب ديسكورد (رمز الخطأ: ":"Discord request failed (error code: ",
+  "). أضف هذه الرتبة إلى حسابك لإصدار التحذيرات.":"). Assign this role to your account to issue warnings.",
+  "لم يتم إعداد نظام التحذيرات بالكامل.":"The warnings integration is not fully configured.",
+  "تعذّر التحقق من حساب الموظف.":"Could not verify the staff account.",
+  "يجب أن يكون حساب الموظف نشطًا.":"An active staff profile is required.",
+  "حسابك لا يمتلك رتبة إدارة التحذيرات (المعرّف: ":"Your account does not have the Warnings Manager role (ID: ",
+  "تعذّر تحميل سجلات التحذيرات.":"Could not load warning records.",
+  "تعذّر تحديد رتبة البوت في هذا السيرفر.":"Could not identify the bot role in this server.",
+  "رتبة البوت المحددة غير موجودة أو غير مُسندة إلى حساب البوت. راجع إعداد معرّف رتبة البوت.":"The configured bot role is missing or is not assigned to the bot account. Check the bot role ID setting.",
+  "البوت لا يمتلك صلاحية إدارة الرتب. افتح إعدادات السيرفر ثم الرتب، واختر رتبة البوت وفعّل صلاحية إدارة الرتب ثم احفظ. اترك رتبة البوت أعلى من رتبتي الإنذار الأول والإنذار الثاني.":"The bot is missing the Manage Roles permission. Open Server Settings → Roles, select the bot role, enable Manage Roles, and save. Keep the bot role above Warning 1 and Warning 2.",
+  "تعذّر التحقق من ترتيب رتب البوت.":"Could not verify the bot's role hierarchy.",
+  "لا يستطيع البوت إدارة رتبة الإنذار المنتهي رقم ":"The bot cannot manage expired Warning role ",
+  "رتبة الإنذار المحددة غير موجودة في سيرفر ديسكورد.":"The selected warning role does not exist in this Discord server.",
+  "ارفع رتبة البوت في إعدادات السيرفر لتكون أعلى من رتبتي الإنذار الأول والإنذار الثاني.":"Move the bot role above Warning 1 and Warning 2 in Server Settings → Roles.",
+  "لا يمكن فصل مالك السيرفر المحمي.":"The protected server owner cannot be dismissed.",
+  "لم يتمكن ديسكورد من إنشاء محادثة خاصة مع هذا العضو.":"Discord could not create a private channel for this member.",
+  "لم يؤكد ديسكورد إرسال الرسالة الخاصة.":"Discord did not confirm delivery of the private message.",
+  "طريقة الطلب غير مسموح بها.":"This request method is not allowed.",
+  "يلزم التحقق من صلاحية مهمة الجدولة.":"Cron task authorization is required.",
+  "فشلت معالجة انتهاء صلاحية الإنذارات.":"Warning expiry processing failed.",
+  "يجب تسجيل الدخول أولًا.":"Authentication is required.",
+  "راجع معرّف العضو والإجراء والسبب ومعرّف الطلب.":"Check the member ID, action, reason, and request ID.",
+  "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي من خلال هذه الأداة.":"The protected owner cannot receive disciplinary actions through this tool.",
+  "فشل إرسال الرسالة الخاصة كما فشل التراجع عن تغيير الرتبة. يلزم إصلاح الرتبة يدويًا من ديسكورد.":"The private message failed and role rollback also failed. Manual role recovery in Discord is required.",
+  "تعذّر إرسال الرسالة الخاصة إلى العضو. تم التراجع عن تغيير الرتبة ولم يتم تسجيل الإنذار أو قرار الفصل.":"The private message could not be delivered. The role change was rolled back, and the warning or dismissal was not recorded.",
+  "تعذّر نشر الإشعار في قناة التحذيرات. تم التراجع عن تغيير الرتبة ومحاولة حذف الرسالة الخاصة.":"The notice could not be posted in the warnings channel. The role change was rolled back and deletion of the private message was attempted.",
+  "تم تسجيل قرار فصل العضو من إدارة S.W.A.T. REDLINE.":"The dismissal decision has been recorded by S.W.A.T. REDLINE.",
+  "تم إصدار وتسجيل إنذار رسمي وفقًا للوائح S.W.A.T. REDLINE.":"An official warning has been issued and recorded under S.W.A.T. REDLINE regulations."
+});
 const PORTAL_ATTRIBUTE_TRANSLATIONS = Object.assign({
 'ابحث عن اسم أو رقم ملف... ( / )':'Search by name or file ID... ( / )',
 'ابحث بالاسم أو رقم الملف...':'Search by name or file ID...',
@@ -2399,6 +2506,12 @@ const PORTAL_ATTRIBUTE_TRANSLATIONS = Object.assign({
 'أي معلومات إضافية تريد حفظها...':'Any additional information to save...'
 }, {"ابحث عن اسم أو رقم ملف... ( / )":"Search by name or file ID... ( / )","ابحث بالاسم أو رقم الملف أو التهمة...":"Search by name, file ID, or charge...","ابحث برقم القضية أو اسم الشخص أو التهمة أو التفاصيل...":"Search by case ID, person, charge, or details...","ابحث بالاسم أو رقم الملف أو الواقعة...":"Search by name, file ID, or incident...","ابحث بالعنوان أو الرقم أو الكاتب أو المحتوى...":"Search by title, ID, author, or content...","اسم الصورة (اختياري)":"Image name (optional)","مثال: قانون استخدام القوة":"Example: Use of Force Policy","اكتب وصفًا مختصرًا للقانون":"Write a short rule description","اكتب نص القانون بالتفصيل...":"Enter the full rule text...","اسم الشخص أو: شخص مجهول":"Person’s name or “Unknown person”","معرّف داخل السيرفر":"In-server identifier","اكتب عنوانًا مختصرًا للواقعة":"Enter a short incident title","اكتب ما تم الإبلاغ عنه، وافصل بين الوقائع المؤكدة والمعلومات غير المتحقق منها.":"Describe what was reported, separating confirmed facts from unverified information.","الموقع أو آخر مكان معروف":"Location or last known location","متى بدأت الواقعة؟ وما الذي حدث بالترتيب؟":"When did it start, and what happened in sequence?","أوصاف، مركبات، ملابس، أرقام، حسابات، أساليب، أشياء مفقودة أو أي تفاصيل أخرى...":"Descriptions, vehicles, clothing, numbers, accounts, methods, missing items, or other details...","من شاهد الواقعة؟ وما مصدر كل معلومة؟ وما الذي لم يتم التحقق منه؟":"Who witnessed it? What is the source of each detail, and what remains unverified?","اكتب اسم أو وصف كل شخص، سبب الاشتباه، المعلومات المتاحة، وما يحتاج إلى تحقق. لا تعتبر الاشتباه دليل إدانة.":"Enter each person, the reason for suspicion, available information, and what needs verification. Suspicion is not proof of guilt.","الإفادات المطلوبة، الأسئلة المفتوحة، وما يلزم التحقق منه...":"Required statements, open questions, and items to verify...","اسم الإعلان":"Announcement name","اكتب اسم الإعلان":"Enter announcement name","اكتب تفاصيل الإعلان كاملة...":"Enter full announcement details...","مثال: اجتماع جميع أفراد S.W.A.T.":"Example: Meeting with all S.W.A.T. members","اكتب ملخصًا واضحًا عن هدف العملية":"Write a clear summary of the operation objective","اكتب خطة العملية، التعليمات، الأفراد المطلوبين، والملاحظات المهمة...":"Enter the operation plan, instructions, required personnel, and important notes...","مثال: قضية سرقة المركبة رقم 245":"Example: Vehicle theft case #245","اسم الشخصية أو الطرف المعني":"Character or involved party name","اكتب التهمة أو سبب فتح القضية":"Enter the charge or reason for opening the case","اسم المسؤول (اختياري)":"Assigned officer (optional)","اكتب ملخصًا واضحًا لما حدث وسبب فتح القضية...":"Write a clear summary of what happened and why the case was opened...","التسلسل الزمني، الأدلة، الشهود، الإجراءات التي تمت، والملاحظات...":"Timeline, evidence, witnesses, actions taken, and notes...","مثال: التقرير النهائي للعملية الشرقية":"Example: Final report for the eastern operation","ملخص واضح لأهم ما يتضمنه التقرير...":"A clear summary of the report’s key points...","اكتب تسلسل الأحداث والإجراءات والمعلومات بالتفصيل...":"Describe events, actions, and information in detail...","ما الذي تم التوصل إليه؟ وما الملاحظات المهمة؟":"What was found, and what are the important observations?","اكتب التوصيات أو الخطوات التالية المقترحة...":"Enter recommendations or proposed next steps...","اكتب تفاصيل الواقعة أو القوانين ذات الصلة...":"Enter incident details or related rules...","أي معلومات إضافية تريد حفظها...":"Any additional information you want to save...","ما الذي تظهره الصورة؟ وما مصدرها؟":"What does the image show, and what is its source?","اكتب وصفًا لهذه الصورة":"Enter a description for this image","اكتب وصف هذه الصورة أو الدليل...":"Describe this image or evidence..."});
 Object.assign(PORTAL_ATTRIBUTE_TRANSLATIONS, {"اسم الشخص أو وصفه إن توفر":"Person name or description, if available","الموقع أو آخر مكان معروف":"Location or last known location","معرّف داخل السيرفر":"In-server ID","اكتب عنوانًا مختصرًا للواقعة":"Enter a short incident title","اكتب ما تم الإبلاغ عنه، وافصل بين الوقائع المؤكدة والمعلومات غير المتحقق منها.":"Describe what was reported, separating confirmed facts from unverified information.","أوصاف، مركبات، ملابس، أرقام، حسابات، أساليب، أشياء مفقودة أو أي تفاصيل أخرى...":"Descriptions, vehicles, clothing, numbers, accounts, methods, missing items, or other details...","من شاهد الواقعة؟ وما مصدر كل معلومة؟ وما الذي لم يتم التحقق منه؟":"Who witnessed it? What is the source of each detail, and what remains unverified?","اكتب اسم أو وصف كل شخص، سبب الاشتباه، المعلومات المتاحة، وما يحتاج إلى تحقق. لا تعتبر الاشتباه دليل إدانة.":"Enter each person, the reason for suspicion, available information, and what needs verification. Suspicion is not proof of guilt.","الإفادات المطلوبة، الأسئلة المفتوحة، وما يلزم التحقق منه...":"Required statements, open questions, and items to verify...","اكتب اسم الاجتماع والتعليمات والتفاصيل...":"Enter the meeting name, instructions, and details...","اكتب تفاصيل الاجتماع والتعليمات والتفاصيل...":"Enter the meeting details, instructions, and agenda...","اكتب تفاصيل الإعلان كاملة...":"Enter the full announcement details...","مثال: اجتماع جميع أفراد S.W.A.T.":"Example: Meeting with all S.W.A.T. members","اكتب ملخصًا واضحًا عن هدف العملية":"Write a clear summary of the operation objective","اكتب خطة العملية، التعليمات، الأفراد المطلوبين، والملاحظات المهمة...":"Enter the operation plan, instructions, required personnel, and important notes...","مثال: قضية سرقة المركبة رقم 245":"Example: Vehicle theft case #245","اسم الشخصية أو الطرف المعني":"Character or involved party name","اكتب التهمة أو سبب فتح القضية":"Enter the charge or reason for opening the case","اسم المسؤول (اختياري)":"Assigned officer (optional)","اكتب ملخصًا واضحًا لما حدث وسبب فتح القضية...":"Write a clear summary of what happened and why the case was opened...","التسلسل الزمني، الأدلة، الشهود، الإجراءات التي تمت، والملاحظات...":"Timeline, evidence, witnesses, actions taken, and notes...","مثال: التقرير النهائي للعملية الشرقية":"Example: Final report for the eastern operation","ملخص واضح لأهم ما يتضمنه التقرير...":"A clear summary of the report’s key points...","اكتب تسلسل الأحداث والإجراءات والمعلومات بالتفصيل...":"Describe events, actions, and information in detail...","ما الذي تم التوصل إليه؟ وما الملاحظات المهمة؟":"What was found, and what are the important observations?","اكتب التوصيات أو الخطوات التالية المقترحة...":"Enter recommendations or proposed next steps...","اختر ملفات صور فقط":"Select image files only.","اسم الصورة":"Image name","وصف الدليل":"Evidence description"});
+Object.assign(PORTAL_ATTRIBUTE_TRANSLATIONS, {
+  "ابحث بالاسم أو معرّف ديسكورد...":"Search by name or Discord ID...",
+  "اكتب سبب المخالفة...":"Enter the reason for the violation...",
+  "ملخص الأدلة أو أي معلومات إضافية...":"Evidence summary or any additional information...",
+  "الصق معرّف ديسكورد هنا":"Paste the Discord ID here"
+});
 const portalTextNodes = new WeakMap(), portalAttributes = new WeakMap();
 const portalTranslationEntries = Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
 function replaceArabicPhrase(source,phrase,translation){
@@ -2453,7 +2566,11 @@ function applyPortalLanguage(){
   }
  });
 }
-function togglePortalLanguage(){localStorage.setItem('swat-language-preference',currentPortalLanguage()==='ar'?'en':'ar');applyPortalLanguage();}
+function togglePortalLanguage(){
+ localStorage.setItem('swat-language-preference',currentPortalLanguage()==='ar'?'en':'ar');
+ applyPortalLanguage();
+ if(currentCanManageWarnings&&document.getElementById('page-warnings')?.classList.contains('active'))renderWarnings();
+}
 const portalLanguageObserver=new MutationObserver(()=>{
  if(window.portalLanguageFrame)cancelAnimationFrame(window.portalLanguageFrame);
  window.portalLanguageFrame=requestAnimationFrame(applyPortalLanguage);
