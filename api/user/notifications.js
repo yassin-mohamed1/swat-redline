@@ -130,7 +130,7 @@ export default async function handler(req, res) {
     if(!audit.ok)console.error("Notification preference audit failed:",audit.status,(await audit.text()).slice(0,300));
     else await forwardAuditToDiscord(user,{action:"update",entity_type:"staff_notification_preference",entity_id:user.id,
       details:{type:"تغيير تفضيلات الإشعارات",detail:"تم "+(newValue?"تفعيل":"إيقاف")+" الإشعارات الخاصة بالحساب."}});
-    return res.status(200).json({}
+    return res.status(200).json({
       ok: true,
       notifications_enabled: newValue,
       audit_log_ok:audit.ok
