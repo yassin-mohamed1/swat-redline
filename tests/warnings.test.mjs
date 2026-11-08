@@ -118,24 +118,28 @@ test("Warning 1 expires after 30 days and Warning 2 expires after 60 days", asyn
   assert.match(html, /"ينتهي بعد 60 يومًا\."\s*:\s*"Expires after 60 days\."/);
 });
 
-test("warning announcements ping the target and optionally ping everyone", async () => {
+test("warning announcements use the existing SWAT role toggle and target mention", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const settingsApi = await readFile(new URL("../api/admin/settings.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
-  assert.match(api, /async function loadDisciplinaryMentionSettings/);
+  assert.match(api, /notificationRoleId = process\.env\.DISCORD_NOTIFICATION_ROLE_ID/);
+  assert.match(api, /swatRoleMentionEnabled: values\.notificationRoleMentionDisabled === false/);
   assert.match(api, /targetMentionEnabled: values\.disciplinaryTargetMentionEnabled !== false/);
-  assert.match(api, /everyoneMentionEnabled: values\.disciplinaryEveryoneMentionEnabled === true/);
-  assert.match(api, /mentionSettings\.targetMentionEnabled \? "<@" \+ targetId \+ ">" : null/);
-  assert.match(api, /mentionSettings\.everyoneMentionEnabled \? "@everyone" : null/);
-  assert.match(api, /parse: mentionSettings\.everyoneMentionEnabled \? \["everyone"\] : \[\]/);
+  assert.match(api, /swatRoleMentionEnabled \? "<@&" \+ cfg\.notificationRoleId \+ ">" : null/);
+  assert.match(api, /targetMentionEnabled \? "<@" \+ targetId \+ ">" : null/);
+  assert.match(api, /parse: \[\]/);
+  assert.match(api, /roles: mentionSettings\.swatRoleMentionEnabled \? \[cfg\.notificationRoleId\] : \[\]/);
   assert.match(api, /users: mentionSettings\.targetMentionEnabled \? \[targetId\] : \[\]/);
-  assert.match(settingsApi, /"disciplinaryTargetMentionEnabled", "disciplinaryEveryoneMentionEnabled"/);
-  assert.match(settingsApi, /"disciplinaryTargetMentionEnabled", "disciplinaryEveryoneMentionEnabled"\].includes\(k\)/);
+  assert.doesNotMatch(api, /@everyone|disciplinaryEveryoneMentionEnabled/);
+
+  assert.match(settingsApi, /"disciplinaryTargetMentionEnabled"\]\)/);
+  assert.doesNotMatch(settingsApi, /disciplinaryEveryoneMentionEnabled/);
+  assert.match(html, /id="notificationMentionDisabledToggle"/);
+  assert.match(html, /إعلانات التحذيرات وقرارات الفصل/);
   assert.match(html, /id="disciplinaryTargetMentionToggle"/);
-  assert.match(html, /id="disciplinaryEveryoneMentionToggle"/);
-  assert.match(html, /saveDisciplinaryMentionPreference\('disciplinaryTargetMentionEnabled'/);
-  assert.match(html, /saveDisciplinaryMentionPreference\('disciplinaryEveryoneMentionEnabled'/);
+  assert.doesNotMatch(html, /disciplinaryEveryoneMentionToggle|disciplinaryEveryoneMentionEnabled|@everyone/);
+  assert.match(html, /saveDisciplinaryTargetMentionPreference\(this\.checked\)/);
 });
 
 test("disciplinary embeds display the Discord member avatar and fallback avatar", async () => {
