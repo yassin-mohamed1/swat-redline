@@ -157,49 +157,111 @@ function assignmentCallsign(value) {
   if(!match)throw Object.assign(new Error("كود النداء يجب أن يكون Alpha متبوعًا برقم صحيح يبدأ من 0."),{status:400});
   return "Alpha "+match[1];
 }
+let assignmentGuildContextCache = { key: "", expiresAt: 0, value: null, pending: null };
 async function assignmentGuildContext(token,guildId) {
-  const [roles,botUser]=await Promise.all([
-    assignmentDiscord(token,"/guilds/"+guildId+"/roles"),
-    assignmentDiscord(token,"/users/@me")
-  ]);
-  const botMember=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+botUser.id);
-  const byId=new Map(roles.map(role=>[role.id,role]));
-  const botTop=(botMember.roles||[]).map(id=>byId.get(id)).filter(Boolean)
-    .reduce((top,role)=>!top||Number(role.position)>Number(top.position)?role:top,null);
-  if(!botTop)throw Object.assign(new Error("تعذّر تحديد أعلى رتبة للبوت في السيرفر."),{status:503});
-  const permissions=(botMember.roles||[]).map(id=>byId.get(id)).filter(Boolean)
-    .reduce((value,role)=>value|BigInt(role.permissions||"0"),0n);
-  return {roles,byId,botTop,canManageRoles:(permissions&(1n<<28n))!==0n||(permissions&(1n<<3n))!==0n};
-}
-async function assignmentMember(token,guildId,id) {
+  const cacheKey=String(guildId);
+  if(assignmentGuildContextCache.key===cacheKey&&assignmentGuildContextCache.value&&assignmentGuildContextCache.expiresAt>Date.now())
+    return assignmentGuildContextCache.value;
+  if(assignmentGuildContextCache.key===cacheKey&&assignmentGuildContextCache.pending)
+    return assignmentGuildContextCache.pending;
+  const pending=(async()=>{
+    const [roles,botUser]=await Promise.all([
+      assignmentDiscord(token,"/guilds/"+guildId+"/roles"),
+      assignmentDiscord(token,"/users/@me")
+    ]);
+    const botMember=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+botUser.id);
+    const byId=new Map(roles.map(role=>[role.id,role]));
+    const botTop=(botMember.roles||[]).map(id=>byId.get(id)).filter(Boolean)
+      .reduce((top,role)=>!top||Number(role.position)>Number(top.position)?role:top,null);
+    if(!botTop)throw Object.assign(new Error("تعذّر تحديد أعلى رتبة للبوت في السيرفر."),{status:503});
+    const permissions=(botMember.roles||[]).map(id=>byId.get(id)).filter(Boolean)
+      .reduce((value,role)=>value|BigInt(role.permissions||"0"),0n);
+    return {roles,byId,botTop,canManageRoles:(permissions&(1n<<28n))!==0n||(permissions&(1n<<3n))!==0n};
+  })();
+  assignmentGuildContextCache={key:cacheKey,expiresAt:0,value:null,pending};
   try {
-    const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+id);
-    return {inGuild:true,roles:member.roles||[],name:assignmentMemberName(member),avatar:assignmentAvatar(member,guildId)};
+    const value=await pending;
+    assignmentGuildContextCache={key:cacheKey,expiresAt:Date.now()+30000,value,pending:null};
+    return value;
   } catch(error) {
-    if(error.status===404)return {inGuild:false,roles:[],name:null,avatar:null};
+    assignmentGuildContextCache={key:"",expiresAt:0,value:null,pending:null};
     throw error;
   }
 }
+async function assignmentGuildMembers(token,guildId,profiles) {
+  const targetIds=new Set(profiles.map(profile=>String(profile.discord_user_id)).filter(id=>/^\\d{15,22}$/.test(id)));
+  const found=new Map();
+  if(!targetIds.size)return {found,complete:true,scannedThrough:null};
+  let after=null,scannedThrough=null,complete=false,pages=0;
+  while(pages<50) {
+    const query=new URLSearchParams({limit:"1000"});
+    if(after)query.set("after",after);
+    const batch=await assignmentDiscord(token,"/guilds/"+guildId+"/members?"+query.toString());
+    if(!Array.isArray(batch))throw Object.assign(new Error("أعاد Discord قائمة أعضاء غير صالحة."),{status:502});
+    if(!batch.length){complete=true;break;}
+    for(const member of batch) {
+      const id=String(member?.user?.id||"");
+      if(targetIds.has(id))found.set(id,member);
+    }
+    scannedThrough=String(batch[batch.length-1]?.user?.id||"");
+    if(batch.length<1000){complete=true;break;}
+    const pendingAboveCursor=Array.from(targetIds).some(id=>!found.has(id)&&BigInt(id)>BigInt(scannedThrough||"0"));
+    if(!pendingAboveCursor)break;
+    if(!/^\\d{15,22}$/.test(scannedThrough))break;
+    after=scannedThrough;
+    pages++;
+  }
+  return {found,complete,scannedThrough};
+}
 async function listAssignments(url,key,token,guildId) {
-  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
-  const [profileResponse,assignmentResponse,guild]=await Promise.all([
-    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned,created_at&order=display_name.asc"),
-    supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,callsign,status,assigned_by_name,updated_at"),
-    assignmentGuildContext(token,guildId)
+  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
+  const [profileResponse,assignmentResponse]=await Promise.all([
+    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,created_at&order=display_name.asc"),
+    supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,callsign,status,assigned_by_name,updated_at")
   ]);
   if(!profileResponse.ok)throw new Error("تعذّر تحميل أعضاء الموقع المسجلين.");
   if(!assignmentResponse.ok)throw new Error("تعذّر تحميل سجل التعيينات.");
   const profiles=await profileResponse.json(),assignments=await assignmentResponse.json();
   const byAssignment=new Map(assignments.map(item=>[String(item.discord_user_id),item]));
-  const roles=assignmentRankList(guild.roles,Number(guild.botTop.position));
-  const members=await assignmentMapLimit(profiles,2,async profile=>{
-    const live=await assignmentMember(token,guildId,profile.discord_user_id);
-    return {...profile,assignment:byAssignment.get(String(profile.discord_user_id))||null,
-      live_name:live.name,avatar_url:live.avatar||profile.avatar_url||null,in_guild:live.inGuild,
-      current_roles:live.roles,current_rank_roles:roles.filter(role=>live.roles.includes(role.id)),
+  let guild=null,guildWarning="";
+  try { guild=await assignmentGuildContext(token,guildId); }
+  catch(error) {
+    guildWarning=error?.status===429
+      ?"تعذر تحديث رتب Discord اللحظية مؤقتًا بسبب حد الطلبات. تظهر بيانات آخر تسجيل دخول، وسيتم التحقق المباشر عند تنفيذ التعيين."
+      :"تعذر تحديث اتصال Discord اللحظي. تظهر بيانات آخر تسجيل دخول، وسيتم التحقق المباشر عند تنفيذ التعيين.";
+    console.error("Assignment guild context unavailable:",JSON.stringify({status:error?.status,code:error?.code,path:error?.path||null}));
+  }
+  let liveScan=null;
+  if(guild) {
+    try { liveScan=await assignmentGuildMembers(token,guildId,profiles); }
+    catch(error) {
+      guildWarning=error?.status===429
+        ?"Discord حدّ مؤقتًا من تحديث قائمة الأعضاء. تظهر بيانات آخر تسجيل دخول، وسيتم التحقق المباشر عند تنفيذ التعيين."
+        :error?.status===403
+          ?"صلاحية قراءة قائمة أعضاء Discord غير مفعّلة للبوت. بيانات الأعضاء المسجلة ظاهرة، وسيتم التحقق المباشر عند تنفيذ التعيين."
+          :"تعذر تحديث قائمة أعضاء Discord. تظهر بيانات آخر تسجيل دخول، وسيتم التحقق المباشر عند تنفيذ التعيين.";
+      console.warn("Assignment bulk member sync unavailable:",JSON.stringify({status:error?.status,code:error?.code,path:error?.path||null}));
+    }
+  }
+  const roles=guild?assignmentRankList(guild.roles,Number(guild.botTop.position)):[];
+  const members=profiles.map(profile=>{
+    const id=String(profile.discord_user_id);
+    const live=liveScan?.found.get(id)||null;
+    const hasSnapshot=Array.isArray(profile.discord_roles)&&Boolean(profile.discord_roles_synced_at);
+    let inGuild=null,roleIds=hasSnapshot?profile.discord_roles:[],liveName=null,liveAvatar=null,roleDataSource=hasSnapshot?"last_login":"unknown";
+    if(live) {
+      inGuild=true;roleIds=Array.isArray(live.roles)?live.roles:[];liveName=assignmentMemberName(live);liveAvatar=assignmentAvatar(live,guildId);roleDataSource="live";
+    } else if(liveScan&&(liveScan.complete||(liveScan.scannedThrough&&BigInt(id)<=BigInt(liveScan.scannedThrough)))) {
+      inGuild=false;roleDataSource="live";
+    }
+    const currentRoles=Array.isArray(roleIds)?roleIds:[];
+    const currentRankRoles=roles.filter(role=>currentRoles.includes(role.id));
+    return {...profile,assignment:byAssignment.get(id)||null,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
+      in_guild:inGuild,current_roles:currentRoles,current_rank_roles:currentRankRoles,role_data_source:roleDataSource,
       account_status:profile.is_banned?"banned":profile.is_active===false?"inactive":"active"};
   });
-  return {members,roles,bot:{can_manage_roles:guild.canManageRoles,top_role:guild.botTop.name},callsign_presets:Array.from({length:16},(_,i)=>"Alpha "+i)};
+  return {members,roles,bot:{can_manage_roles:Boolean(guild?.canManageRoles),top_role:guild?.botTop?.name||""},
+    member_sync_warning:guildWarning,callsign_presets:Array.from({length:16},(_,i)=>"Alpha "+i)};
 }
 async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   if (!token || !/^\d{15,22}$/.test(String(guildId || ""))) return send(res,503,{error:"لم يتم إعداد اتصال بوت Discord والسيرفر."});
