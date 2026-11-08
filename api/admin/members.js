@@ -111,7 +111,7 @@ async function assignmentMapLimit(items, limit, worker) {
 }
 function assignmentPortalComponents() {
   const host=process.env.VERCEL_PROJECT_PRODUCTION_URL||process.env.SITE_URL||"swat-redline.vercel.app";
-  const url=/^https?:\\/\\//i.test(host)?host:"https://"+host;
+  const url=/^https?:\/\//i.test(host)?host:"https://"+host;
   return [{type:1,components:[{type:2,style:5,label:"فتح بوابة S.W.A.T. REDLINE",url}]}];
 }
 function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor,reference}) {
