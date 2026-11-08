@@ -191,6 +191,16 @@ async function loadGuildRoleData(cfg) {
   if (cfg.botRoleId && (!byId.has(cfg.botRoleId) || !(botMember.roles || []).includes(cfg.botRoleId))) {
     throw Object.assign(new Error("The configured Discord bot role is missing or is not assigned to the bot account. Check DISCORD_BOT_ROLE_ID."), { status: 503 });
   }
+  const guildPermissions = unionPermissions(
+    roles.filter(role => role.id === cfg.guildId || (botMember.roles || []).includes(role.id))
+  );
+  const hasManageRoles = (guildPermissions & (1n << 28n)) !== 0n ||
+    (guildPermissions & (1n << 3n)) !== 0n;
+  if (!hasManageRoles) {
+    throw Object.assign(new Error(
+      "The Discord bot is missing the Manage Roles permission. Open Server Settings > Roles, select the bot role, enable Manage Roles, and save. Keep the bot role above Warning 1 and Warning 2."
+    ), { status: 409 });
+  }
   return { roles, byId, botTop };
 }
 function cronAuthorized(req) {
