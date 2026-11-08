@@ -112,7 +112,7 @@ test("assignment list keeps working when Discord member list is rate limited or 
   assert.match(api, /assignmentGuildMembers/);
   assert.match(html, /assignmentSyncNotice/);
   assert.match(html, /member\.in_guild===false/);
-  assert.match(html, /سيتم التحقق من العضوية عند التعيين/);
+  assert.match(html, /سيتم التحقق من العضوية عند الحفظ/);
 });
 
 test("manual additions, callsigns and multi-rank assignment have auditable writes", async () => {
