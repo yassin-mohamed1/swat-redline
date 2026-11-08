@@ -128,9 +128,13 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
   const warningIds = Object.values(cfg.warningRoles);
   if (!dismiss) {
     const targetRole = cfg.warningRoles[level], role = guild.byId.get(targetRole);
+    const unmanageableWarningRoles = warningIds.filter(id => {
+      const configuredRole = guild.byId.get(id);
+      return !configuredRole || configuredRole.managed || configuredRole.position >= guild.botTop.position;
+    });
     if (!role) throw Object.assign(new Error("A configured warning role does not exist in this Discord server."), { status: 503 });
-    if (role.managed || role.position >= guild.botTop.position) {
-      throw Object.assign(new Error("Move the bot role above all three warning roles in Discord Server Settings > Roles."), { status: 409 });
+    if (unmanageableWarningRoles.length) {
+      throw Object.assign(new Error("Move the bot role above Warning 1, Warning 2, and Warning 3 in Discord Server Settings > Roles."), { status: 409 });
     }
     for (const id of warningIds) current.delete(id);
     current.add(targetRole);
