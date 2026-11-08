@@ -96,7 +96,7 @@ test("assignments page exposes manager controls, registered member table, rank m
 test("owner can add a Discord guild member manually without portal OAuth", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../supabase/migrations/20261108152000_staff_manual_members.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261108153000_staff_manual_members.sql", import.meta.url), "utf8");
   assert.match(api, /handleAddManualMember/);
   assert.match(api, /action==="add_manual_member"/);
   assert.match(api, /\/guilds\/\+guildId\+\/members\/\+targetId/);
