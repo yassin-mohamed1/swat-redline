@@ -35,6 +35,12 @@ test("disciplinary ladder permits Warning 1, Warning 2, then Dismissal only", as
   assert.match(html, /Dismissed Members/);
 });
 
+test("existing Discord announcement forwarder has its required text helper", async () => {
+  const forwarder = await readFile(new URL("../lib/announcement-forwarder.js", import.meta.url), "utf8");
+  assert.match(forwarder, /function truncate\(value, max = 900\)/);
+  assert.match(forwarder, /function buildForwardParts\(/);
+});
+
 test("warning DM and announcement delivery are mandatory and expiry is scheduled", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261108084856_warning_expiry_and_required_dm.sql", import.meta.url), "utf8");
