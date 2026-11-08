@@ -30,9 +30,9 @@ test("disciplinary ladder permits Warning 1, Warning 2, then Dismissal only", as
   assert.match(source, /actionType === "dismissal" && level === 3/);
 
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /<option value="3">Dismissal<\/option>/);
+  assert.match(html, /<option value="3">الفصل<\/option>/);
   assert.doesNotMatch(html, /<option value="3">Warning 3<\/option>/);
-  assert.match(html, /Dismissed Members/);
+  assert.match(html, /الأعضاء المفصولون/);
 });
 
 test("existing Discord announcement forwarder has its required text helper", async () => {
@@ -49,7 +49,7 @@ test("warning DM and announcement delivery are mandatory and expiry is scheduled
 
   assert.match(api, /await sendDirectNotice/);
   assert.match(api, /await sendAnnouncement/);
-  assert.match(api, /The member's private message could not be delivered/);
+  assert.match(api, /تعذّر إرسال الرسالة الخاصة إلى العضو/);
   assert.match(api, /restoreMemberRoles/);
   assert.match(api, /CRON_SECRET/);
   assert.match(api, /processExpiredWarningRoles/);
@@ -64,7 +64,7 @@ test("warning DM and announcement delivery are mandatory and expiry is scheduled
   assert.match(schedule, /\* \* \* \* \*/);
   assert.match(schedule, /swat-warning-role-expiry/);
   assert.match(schedule, /api\/warnings\?task=expire/);
-  assert.match(html, /automatically/);
-  assert.match(html, /Private Message/);
-  assert.match(html, /30 days/);
+  assert.match(html, /تلقائيًا/);
+  assert.match(html, /الرسالة الخاصة/);
+  assert.match(html, /30 يومًا/);
 });
