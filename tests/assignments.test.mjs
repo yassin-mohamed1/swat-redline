@@ -25,11 +25,12 @@ test("assignment role picker exposes every Discord role and respects bot hierarc
   assert.match(api, /roles\.map\(role =>/);
   assert.match(api, /unavailableReason/);
   assert.match(api, /position >= Number\(botPosition\)/);
-  assert.match(api, /!role\.assignable/);
+  assert.match(api, /!targetRole\.assignable/);
   assert.match(api, /replaceableRoleIds/);
   assert.match(api, /previousAssignment\?\.rank_role_id/);
   assert.doesNotMatch(api, /rankIds=rankRoles\.map/);
-  assert.match(api, /assignmentRoleUnavailableReason/);
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /assignmentRoleUnavailableReason/);
   assert.doesNotMatch(api, /guilds\/.*\/roles["']?,\s*\{\s*method:\s*["']POST/);
 });
 
