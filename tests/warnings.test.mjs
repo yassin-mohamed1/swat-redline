@@ -16,7 +16,7 @@ test("warnings API separates editor authorization from bot role execution", asyn
 });
 
 test("disciplinary ladder permits Warning 1, Warning 2, then Dismissal only", async () => {
-  const migration = await readFile(new URL("../supabase/migrations/20261108084000_two_warnings_then_dismissal.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261108083809_two_warnings_then_dismissal.sql", import.meta.url), "utf8");
   assert.match(migration, /action_type = 'warning' AND warning_level IN \(1, 2\)/);
   assert.match(migration, /action_type = 'dismissal' AND warning_level = 3/);
   assert.match(migration, /v_subject\.warning_level <> 2/);
