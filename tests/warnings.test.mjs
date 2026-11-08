@@ -168,3 +168,42 @@ test("every website notification chunk includes the portal link button", async (
   assert.match(api, /notificationBodyChunks\.slice\(1\)\.forEach/);
   assert.match(api, /images: \[\],\s*components: siteComponents,\s*content: ""/);
 });
+
+
+test("disciplinary status changes synchronize warning roles and save an immutable audit trail", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261108093000_manage_disciplinary_records.sql", import.meta.url), "utf8");
+  assert.match(api, /body\.action === "adjust_state"/);
+  assert.match(api, /async function syncWarningLevel/);
+  assert.match(api, /await restoreMemberRoles\(cfg, targetId, roleResult\.originalRoles\)/);
+  assert.match(api, /rpc\(cfg, "set_disciplinary_subject_state"/);
+  assert.match(migration, /INSERT INTO public\.audit_logs/);
+  assert.match(migration, /'before', v_before/);
+  assert.match(migration, /'after', v_after/);
+});
+
+test("disciplinary record editing updates both original Discord messages and audits the edit", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261108093000_manage_disciplinary_records.sql", import.meta.url), "utf8");
+  assert.match(api, /body\.action === "edit_action"/);
+  assert.match(api, /method: "PATCH", body: JSON\.stringify\(\{ embeds: \[revisedEmbed\] \}\)/);
+  assert.match(api, /record\.dm_channel_id/);
+  assert.match(api, /record\.channel_message_id/);
+  assert.match(api, /rpc\(cfg, "edit_disciplinary_action_record"/);
+  assert.match(migration, /'تعديل سجل\/رسالة تأديبية'/);
+  assert.match(migration, /'before', v_before/);
+});
+
+test("warning page groups member states, new actions, and message history into separate views", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /id="warningViewMembers"/);
+  assert.match(html, /id="warningViewCreate"/);
+  assert.match(html, /id="warningViewHistory"/);
+  assert.match(html, /data-warning-filter="first"/);
+  assert.match(html, /data-warning-filter="second"/);
+  assert.match(html, /data-warning-filter="dismissed"/);
+  assert.match(html, /data-warning-filter="clear"/);
+  assert.match(html, /function submitWarningAdjustment\(\)/);
+  assert.match(html, /function submitWarningEdit\(\)/);
+  assert.match(html, /function showWarningView\(view\)/);
+});
