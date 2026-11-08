@@ -50,6 +50,7 @@ test("Alpha callsigns support presets and open-ended numeric additions", async (
   assert.ok(html.includes('Array.from({length:16}'));
   assert.match(html, /Add a new Alpha \(16 or higher\)|إضافة Alpha جديد/);
   assert.match(html, /selectedAssignmentCallsign\(\)/);
+  assert.ok(html.includes("match(/^Alpha (\\d+)$/i)"), "saved Alpha callsigns should parse as digits when reopening an appointment");
   assert.match(migration, /callsign ~ '\^Alpha \(0\|\[1-9\]\[0-9\]\*\)\$'/);
   assert.match(initialMigration, /staff_assignments_callsign_unique_idx/);
 });
