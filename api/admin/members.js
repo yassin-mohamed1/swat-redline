@@ -66,9 +66,9 @@ async function supabase(url, key, path, init = {}) {
 async function requireAssignmentManager(url,key,token,guildId,user) {
   if(user?.isOwner)return;
   const managerRoleId=String(process.env.DISCORD_WARNING_MANAGER_ROLE_ID||"");
-  if(!/^\\d{15,22}$/.test(managerRoleId))
+  if(!/^\d{15,22}$/.test(managerRoleId))
     throw Object.assign(new Error("لم يتم إعداد رتبة إدارة التحذيرات والتعيينات في إعدادات الخادم."),{status:503});
-  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))
+  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))
     throw Object.assign(new Error("لم يتم إعداد اتصال بوت Discord والسيرفر."),{status:503});
   const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(user.id)+"&select=is_active,is_banned&limit=1");
   if(!profileResponse.ok)throw Object.assign(new Error("تعذّر التحقق من صلاحية حساب المدير."),{status:503});
@@ -261,7 +261,8 @@ async function listAssignments(url,key,token,guildId) {
   ]);
   if(!profileResponse.ok)throw new Error("تعذّر تحميل أعضاء الموقع المسجلين.");
   if(!assignmentResponse.ok)throw new Error("تعذّر تحميل سجل التعيينات.");
-  const profiles=await profileResponse.json(),assignments=await assignmentResponse.json();
+  if(!callsignResponse.ok)throw new Error("تعذّر تحميل قائمة أكواد النداء.");
+  const profiles=await profileResponse.json(),assignments=await assignmentResponse.json(),callsignRows=await callsignResponse.json();
   const byAssignment=new Map(assignments.map(item=>[String(item.discord_user_id),item]));
   let guild=null,guildWarning="";
   try { guild=await assignmentGuildContext(token,guildId); }
@@ -375,10 +376,10 @@ async function handleAddManualMember(url,key,token,guildId,user,body,res) {
   return send(res,201,{ok:true,member:rows[0],message:"تمت إضافة العضو إلى الدليل دون الحاجة إلى تسجيل دخوله للموقع."});
 }
 async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
-  if (!token || !/^\\d{15,22}$/.test(String(guildId || ""))) return send(res,503,{error:"لم يتم إعداد اتصال بوت Discord والسيرفر."});
+  if (!token || !/^\d{15,22}$/.test(String(guildId || ""))) return send(res,503,{error:"لم يتم إعداد اتصال بوت Discord والسيرفر."});
   const targetId=String(body.discord_user_id||"");
   const action=body.action==="remove"?"remove":body.action==="assign"?"assign":"";
-  if(!action||!/^\\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
+  if(!action||!/^\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
   const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&limit=1");
   if(!profileResponse.ok)return send(res,503,{error:"تعذّر التحقق من وجود العضو في دليل الأفراد."});
   const profile=(await profileResponse.json())[0];
