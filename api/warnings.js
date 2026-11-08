@@ -140,7 +140,7 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
     }
     for (const id of current) {
       const role = guild.byId.get(id);
-      if (!role || role.managed || id === cfg.managerRoleId) continue;
+      if (!role || role.managed) continue;
       if (role.position < guild.botTop.position) current.delete(id);
     }
   }
