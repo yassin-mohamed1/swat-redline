@@ -418,7 +418,7 @@ async function sendDirectNotice(cfg, targetId, embed) {
   if (!dm?.id) throw Object.assign(new Error("لم يتمكن ديسكورد من إنشاء محادثة خاصة مع هذا العضو."), { code: "dm_channel_missing" });
   const sent = await discord(cfg, "/channels/" + dm.id + "/messages", {
     method: "POST",
-    body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } })
+    body: JSON.stringify({ embeds: [embed], components: portalLinkComponents(), allowed_mentions: { parse: [] } })
   });
   if (!sent?.id) throw Object.assign(new Error("لم يؤكد ديسكورد إرسال الرسالة الخاصة."), { code: "dm_message_missing" });
   return { channelId: dm.id, messageId: sent.id };
@@ -429,6 +429,19 @@ async function deleteDirectNotice(cfg, dm) {
 }
 function announcementEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
   return buildDisciplinaryEmbed(action, level, target, reason, details, actor, actionId, expiresAt);
+}
+function portalLinkComponents() {
+  const configuredHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.SITE_URL || "swat-redline.vercel.app";
+  const url = /^https?:\/\//i.test(configuredHost) ? configuredHost : "https://" + configuredHost;
+  return [{
+    type: 1,
+    components: [{
+      type: 2,
+      style: 5,
+      label: "فتح بوابة S.W.A.T. REDLINE",
+      url
+    }]
+  }];
 }
 async function loadDisciplinaryMentionSettings(cfg) {
   const query = new URLSearchParams({
@@ -456,6 +469,7 @@ async function sendAnnouncement(cfg, embed, targetId) {
     body: JSON.stringify({
       ...(content ? { content } : {}),
       embeds: [embed],
+      components: portalLinkComponents(),
       allowed_mentions: {
         parse: [],
         roles: mentionSettings.swatRoleMentionEnabled ? [cfg.notificationRoleId] : [],
