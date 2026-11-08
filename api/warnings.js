@@ -44,7 +44,7 @@ function config() {
   };
   if (!base || !key || !token || !guildId || !channelId || !managerRoleId ||
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
-    return { error: "Warnings integration is not fully configured." };
+    return { error: "لم يتم إعداد نظام التحذيرات بالكامل." };
   }
   return { base, key, token, guildId, channelId, managerRoleId, botRoleId, warningRoles };
 }
@@ -58,7 +58,7 @@ async function rpc(cfg, name, body) {
   const r = await db(cfg, "rpc/" + name, { method: "POST", body: JSON.stringify(body) });
   if (!r.ok) {
     const detail = (await r.text()).slice(0, 500);
-    const error = new Error("Database operation failed.");
+    const error = new Error("فشل تنفيذ عملية قاعدة البيانات.");
     error.detail = detail;
     throw error;
   }
@@ -74,7 +74,7 @@ async function discord(cfg, path, init = {}) {
   let data = {};
   try { data = raw ? JSON.parse(raw) : {}; } catch {}
   if (!r.ok) {
-    const e = new Error("discord_api_error");
+    const e = new Error("فشل طلب ديسكورد (رمز الخطأ: " + String(data.code || r.status) + ").");
     e.status = r.status;
     e.code = String(data.code || r.status);
     throw e;
@@ -88,10 +88,10 @@ async function requireActiveStaff(cfg, user) {
   if (user.isOwner) return;
   const q = new URLSearchParams({ discord_user_id: "eq." + user.id, select: "is_active,is_banned", limit: "1" });
   const profile = await db(cfg, "staff_profiles?" + q);
-  if (!profile.ok) throw Object.assign(new Error("Could not verify staff account."), { status: 503 });
+  if (!profile.ok) throw Object.assign(new Error("تعذّر التحقق من حساب الموظف."), { status: 503 });
   const rows = await profile.json();
   if (!rows[0] || rows[0].is_active === false || rows[0].is_banned) {
-    throw Object.assign(new Error("Active staff profile required."), { status: 403 });
+    throw Object.assign(new Error("يجب أن يكون حساب الموظف نشطًا."), { status: 403 });
   }
 }
 async function requireManager(cfg, user) {
@@ -99,7 +99,7 @@ async function requireManager(cfg, user) {
   if (user.isOwner) return;
   const member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + user.id);
   if (!Array.isArray(member.roles) || !member.roles.includes(cfg.managerRoleId)) {
-    throw Object.assign(new Error("Your Discord account does not have the Warnings management role (ID: " + cfg.managerRoleId + "). Assign this role to your account to issue warnings."), { status: 403 });
+    throw Object.assign(new Error("حسابك لا يمتلك رتبة إدارة التحذيرات (المعرّف: " + cfg.managerRoleId + "). أضف هذه الرتبة إلى حسابك لإصدار التحذيرات."), { status: 403 });
   }
 }
 function unionPermissions(roleList) {
@@ -175,7 +175,7 @@ async function listData(cfg) {
     db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,created_at,updated_at&order=updated_at.desc"),
     db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,created_at&order=created_at.desc&limit=500")
   ]);
-  if (!staffResponse.ok || !subjectResponse.ok || !actionResponse.ok) throw new Error("Could not load warning records.");
+  if (!staffResponse.ok || !subjectResponse.ok || !actionResponse.ok) throw new Error("تعذّر تحميل سجلات التحذيرات.");
   return { members: await staffResponse.json(), subjects: await subjectResponse.json(), actions: await actionResponse.json() };
 }
 async function loadGuildRoleData(cfg) {
@@ -187,9 +187,9 @@ async function loadGuildRoleData(cfg) {
   const byId = new Map(roles.map(role => [role.id, role]));
   const botTop = (botMember.roles || []).map(id => byId.get(id)).filter(Boolean)
     .reduce((top, role) => !top || role.position > top.position ? role : top, null);
-  if (!botTop) throw Object.assign(new Error("Bot role could not be identified in this server."), { status: 503 });
+  if (!botTop) throw Object.assign(new Error("تعذّر تحديد رتبة البوت في هذا السيرفر."), { status: 503 });
   if (cfg.botRoleId && (!byId.has(cfg.botRoleId) || !(botMember.roles || []).includes(cfg.botRoleId))) {
-    throw Object.assign(new Error("The configured Discord bot role is missing or is not assigned to the bot account. Check DISCORD_BOT_ROLE_ID."), { status: 503 });
+    throw Object.assign(new Error("رتبة البوت المحددة غير موجودة أو غير مُسندة إلى حساب البوت. راجع إعداد معرّف رتبة البوت."), { status: 503 });
   }
   const guildPermissions = unionPermissions(
     roles.filter(role => role.id === cfg.guildId || (botMember.roles || []).includes(role.id))
@@ -198,7 +198,7 @@ async function loadGuildRoleData(cfg) {
     (guildPermissions & (1n << 3n)) !== 0n;
   if (!hasManageRoles) {
     throw Object.assign(new Error(
-      "The Discord bot is missing the Manage Roles permission. Open Server Settings > Roles, select the bot role, enable Manage Roles, and save. Keep the bot role above Warning 1 and Warning 2."
+      "البوت لا يمتلك صلاحية إدارة الرتب. افتح إعدادات السيرفر ثم الرتب، واختر رتبة البوت وفعّل صلاحية إدارة الرتب ثم احفظ. اترك رتبة البوت أعلى من رتبتي الإنذار الأول والإنذار الثاني."
     ), { status: 409 });
   }
   return { roles, byId, botTop };
@@ -229,7 +229,7 @@ async function processExpiredWarningRoles(cfg) {
         p_error_code: String(error.code || error.message || "bot_hierarchy_failed").slice(0, 120)
       });
     }
-    return { ok: false, processed: due.length, removed: 0, failed: due.length, error: "Bot role hierarchy check failed." };
+    return { ok: false, processed: due.length, removed: 0, failed: due.length, error: "تعذّر التحقق من ترتيب رتب البوت." };
   }
 
   let removed = 0, failed = 0;
@@ -257,7 +257,7 @@ async function processExpiredWarningRoles(cfg) {
       const roleId = cfg.warningRoles[Number(item.warning_level)];
       const role = hierarchy.byId.get(roleId);
       if (!role || role.managed || role.position >= hierarchy.botTop.position) {
-        throw new Error("The bot cannot manage the expired Warning " + item.warning_level + " role.");
+        throw new Error("لا يستطيع البوت إدارة رتبة الإنذار المنتهي رقم " + item.warning_level + " role.");
       }
 
       const roles = new Set(member.roles || []);
@@ -308,15 +308,15 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
       const configuredRole = guild.byId.get(id);
       return !configuredRole || configuredRole.managed || configuredRole.position >= guild.botTop.position;
     });
-    if (!role) throw Object.assign(new Error("The selected Warning role does not exist in this Discord server."), { status: 503 });
+    if (!role) throw Object.assign(new Error("رتبة الإنذار المحددة غير موجودة في سيرفر ديسكورد."), { status: 503 });
     if (unmanageableWarningRoles.length) {
-      throw Object.assign(new Error("Move the bot role above Warning 1 and Warning 2 in Discord Server Settings > Roles."), { status: 409 });
+      throw Object.assign(new Error("ارفع رتبة البوت في إعدادات السيرفر لتكون أعلى من رتبتي الإنذار الأول والإنذار الثاني."), { status: 409 });
     }
     for (const id of warningIds) current.delete(id);
     current.add(targetRole);
   } else {
     if (targetId === process.env.DISCORD_OWNER_ID) {
-      throw Object.assign(new Error("The protected server owner cannot be dismissed."), { status: 403 });
+      throw Object.assign(new Error("لا يمكن فصل مالك السيرفر المحمي."), { status: 403 });
     }
     const unmanageable = originalRoles.map(id => guild.byId.get(id)).filter(role =>
       !role || role.managed || role.position >= guild.botTop.position
@@ -384,12 +384,12 @@ async function sendDirectNotice(cfg, targetId, embed) {
   const dm = await discord(cfg, "/users/@me/channels", {
     method: "POST", body: JSON.stringify({ recipient_id: targetId })
   });
-  if (!dm?.id) throw Object.assign(new Error("Discord did not create a private channel for this member."), { code: "dm_channel_missing" });
+  if (!dm?.id) throw Object.assign(new Error("لم يتمكن ديسكورد من إنشاء محادثة خاصة مع هذا العضو."), { code: "dm_channel_missing" });
   const sent = await discord(cfg, "/channels/" + dm.id + "/messages", {
     method: "POST",
     body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } })
   });
-  if (!sent?.id) throw Object.assign(new Error("Discord did not confirm the private message."), { code: "dm_message_missing" });
+  if (!sent?.id) throw Object.assign(new Error("لم يؤكد ديسكورد إرسال الرسالة الخاصة."), { code: "dm_message_missing" });
   return { channelId: dm.id, messageId: sent.id };
 }
 async function deleteDirectNotice(cfg, dm) {
@@ -451,20 +451,20 @@ export default async function handler(req, res) {
   if (requestUrl.searchParams.get("task") === "expire") {
     if (req.method !== "POST") {
       res.setHeader("Allow", "POST");
-      return json(res, 405, { error: "Method not allowed." });
+      return json(res, 405, { error: "طريقة الطلب غير مسموح بها." });
     }
-    if (!cronAuthorized(req)) return json(res, 401, { error: "Cron authorization required." });
+    if (!cronAuthorized(req)) return json(res, 401, { error: "يلزم التحقق من صلاحية مهمة الجدولة." });
     const cronCfg = config();
     if (cronCfg.error) return json(res, 503, { error: cronCfg.error });
     try {
       return json(res, 200, await processExpiredWarningRoles(cronCfg));
     } catch (error) {
       console.error("Warning expiry cron failed:", error?.detail || error?.message || "unknown");
-      return json(res, 502, { error: "Warning expiry processing failed." });
+      return json(res, 502, { error: "فشلت معالجة انتهاء صلاحية الإنذارات." });
     }
   }
   const user = readSession(req);
-  if (!user) return json(res, 401, { error: "Authentication required." });
+  if (!user) return json(res, 401, { error: "يجب تسجيل الدخول أولًا." });
   const cfg = config();
   if (cfg.error) return json(res, 503, { error: cfg.error });
   try {
@@ -483,7 +483,7 @@ export default async function handler(req, res) {
     }
     if (req.method !== "POST") {
       res.setHeader("Allow", "GET, POST");
-      return json(res, 405, { error: "Method not allowed." });
+      return json(res, 405, { error: "طريقة الطلب غير مسموح بها." });
     }
     if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
@@ -499,11 +499,11 @@ export default async function handler(req, res) {
     if (!actionType || !validActionLevel || !/^\d{15,22}$/.test(targetId) ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId) ||
         !reason || reason.length > 1000 || details.length > 3000) {
-      return json(res, 400, { error: "Check the member ID, action, reason, and request ID." });
+      return json(res, 400, { error: "راجع معرّف العضو والإجراء والسبب ومعرّف الطلب." });
     }
     const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
     const targetName = discordName(target);
-    if (targetId === process.env.DISCORD_OWNER_ID) return json(res, 403, { error: "The protected owner cannot be disciplined through this tool." });
+    if (targetId === process.env.DISCORD_OWNER_ID) return json(res, 403, { error: "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي من خلال هذه الأداة." });
 
     const start = await rpc(cfg, "begin_disciplinary_action", {
       p_request_id: requestId,
@@ -562,8 +562,8 @@ export default async function handler(req, res) {
       return json(res, 502, {
         ok: false, status: "failed",
         error: rollbackFailed
-          ? "The private message failed and role rollback also failed. Manual Discord recovery is required."
-          : "The member's private message could not be delivered. The role change was rolled back and the warning/dismissal was not recorded.",
+          ? "فشل إرسال الرسالة الخاصة كما فشل التراجع عن تغيير الرتبة. يلزم إصلاح الرتبة يدويًا من ديسكورد."
+          : "تعذّر إرسال الرسالة الخاصة إلى العضو. تم التراجع عن تغيير الرتبة ولم يتم تسجيل الإنذار أو قرار الفصل.",
         code: errorCode
       });
     }
@@ -589,7 +589,7 @@ export default async function handler(req, res) {
       });
       return json(res, 502, {
         ok: false, status: "failed",
-        error: "The warnings channel could not receive the notice. The role change was rolled back and the private message was withdrawn where possible.",
+        error: "تعذّر نشر الإشعار في قناة التحذيرات. تم التراجع عن تغيير الرتبة ومحاولة حذف الرسالة الخاصة.",
         code: errorCode
       });
     }
