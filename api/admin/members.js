@@ -433,6 +433,19 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     if(!(await catalog.json()).length)return send(res,409,{error:"كود النداء غير موجود في القائمة. أضفه من زر إضافة كود نداء جديد أولًا."});
   }
   const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId);
+  const displayName=assignmentMemberName(member,profile.display_name||"Discord member");
+  const avatar=assignmentAvatar(member,guildId)||profile.avatar_url||null;
+  const reference=crypto.randomUUID();
+  const embed=assignmentEmbed({
+    assigned:action==="assign",
+    name:displayName,
+    discordId:targetId,
+    avatar,
+    rankName:rankNames.join("، "),
+    callsign,
+    actor:user.displayName||user.username||"Portal manager",
+    reference
+  });
   const originalRoles=[...(member.roles||[])];
   const previousResponse=await supabase(url,key,"staff_assignments?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=rank_role_id,rank_role_ids,status&limit=1");
   if(!previousResponse.ok)return send(res,503,{error:"تعذّر قراءة التعيين السابق قبل تحديث الرتب."});
@@ -456,8 +469,8 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     let saved;
     try{
       saved=await supabase(url,key,"rpc/save_staff_assignment_v2",{method:"POST",body:JSON.stringify({
-        p_discord_user_id:targetId,p_display_name:name,p_username:member.user?.username||profile.username||"",
-        p_avatar_url:assignmentAvatar(member,guildId)||profile.avatar_url||"",
+        p_discord_user_id:targetId,p_display_name:displayName,p_username:member.user?.username||profile.username||"",
+        p_avatar_url:avatar||"", 
         p_rank_role_ids:action==="assign"?requestedRoleIds:[],p_rank_role_names:action==="assign"?rankNames:[],
         p_callsign:callsign,p_status:action==="assign"?"assigned":"unassigned",
         p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal manager"
@@ -532,7 +545,7 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     await forwardAuditToDiscord(user,{action:action==="remove"?"delete":previousAssignment?"update":"create",
       entity_type:"staff_assignment",entity_id:targetId,
       details:{type:action==="remove"?"إنهاء تعيين فرد":previousAssignment?"تعديل تعيين فرد":"تعيين فرد",
-        detail:action==="remove"?"تم إنهاء تعيين "+name:"تم تعيين "+name+" بالرتب "+rankNames.join("، ")+(callsign?" • "+callsign:""),
+        detail:action==="remove"?"تم إنهاء تعيين "+displayName:"تم تعيين "+displayName+" بالرتب "+rankNames.join("، ")+(callsign?" • "+callsign:""),
         target_discord_id:targetId}});
   }catch(auditError){
     console.error("Assignment audit forward failed:",auditError?.code||auditError?.message||"unknown");
