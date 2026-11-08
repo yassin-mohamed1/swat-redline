@@ -756,7 +756,7 @@ export default async function handler(req, res) {
           timestamp: new Date().toISOString()
         }],
         images: [],
-        components: [],
+        components: siteComponents,
         content: "",
         allowedMentions: { parse: [] }
       });
