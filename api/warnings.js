@@ -84,6 +84,26 @@ async function discord(cfg, path, init = {}) {
 function discordName(member) {
   return member.nick || member.user?.global_name || member.user?.username || "Discord user";
 }
+function discordAvatarUrl(member, guildId) {
+  const user = member?.user || {};
+  const userId = String(user.id || "");
+  const guildHash = member?.avatar;
+  const userHash = user.avatar;
+  const validHash = value => typeof value === "string" && /^[a-zA-Z0-9_]+$/.test(value);
+  if (validHash(guildHash) && /^\d{15,22}$/.test(userId)) {
+    const ext = guildHash.startsWith("a_") ? "gif" : "png";
+    return "https://cdn.discordapp.com/guilds/" + guildId + "/users/" + userId + "/avatars/" + guildHash + "." + ext + "?size=256";
+  }
+  if (validHash(userHash) && /^\d{15,22}$/.test(userId)) {
+    const ext = userHash.startsWith("a_") ? "gif" : "png";
+    return "https://cdn.discordapp.com/avatars/" + userId + "/" + userHash + "." + ext + "?size=256";
+  }
+  if (/^\d{15,22}$/.test(userId)) {
+    const defaultIndex = Number((BigInt(userId) >> 22n) % 6n);
+    return "https://cdn.discordapp.com/embed/avatars/" + defaultIndex + ".png";
+  }
+  return null;
+}
 async function requireActiveStaff(cfg, user) {
   if (user.isOwner) return;
   const q = new URLSearchParams({ discord_user_id: "eq." + user.id, select: "is_active,is_banned", limit: "1" });
@@ -372,6 +392,7 @@ function buildDisciplinaryEmbed(action, level, target, reason, details, actor, a
     fields.push({ name: "تاريخ الانتهاء", value: formatRiyadhDate(expiresAt), inline: true });
   }
   return {
+    ...(target.avatarUrl ? { thumbnail: { url: target.avatarUrl } } : {}),
     author: { name: "S.W.A.T. REDLINE • OFFICIAL DISCIPLINARY RECORD" },
     title: dismissed ? "⛔ MEMBER DISMISSED" : "⚠️ OFFICIAL " + actionLabel,
     description: dismissed
@@ -405,10 +426,38 @@ async function deleteDirectNotice(cfg, dm) {
 function announcementEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
   return buildDisciplinaryEmbed(action, level, target, reason, details, actor, actionId, expiresAt);
 }
-async function sendAnnouncement(cfg, embed) {
+async function loadDisciplinaryMentionSettings(cfg) {
+  const query = new URLSearchParams({
+    select: "key,value",
+    key: "in.(disciplinaryTargetMentionEnabled,disciplinaryEveryoneMentionEnabled)"
+  });
+  const response = await db(cfg, "site_settings?" + query.toString());
+  if (!response.ok) {
+    throw Object.assign(new Error("Could not load disciplinary mention settings."), { status: 503 });
+  }
+  const rows = await response.json();
+  const values = Object.fromEntries(rows.map(row => [row.key, row.value]));
+  return {
+    targetMentionEnabled: values.disciplinaryTargetMentionEnabled !== false,
+    everyoneMentionEnabled: values.disciplinaryEveryoneMentionEnabled === true
+  };
+}
+async function sendAnnouncement(cfg, embed, targetId) {
+  const mentionSettings = await loadDisciplinaryMentionSettings(cfg);
+  const content = [
+    mentionSettings.targetMentionEnabled ? "<@" + targetId + ">" : null,
+    mentionSettings.everyoneMentionEnabled ? "@everyone" : null
+  ].filter(Boolean).join(" ");
   return discord(cfg, "/channels/" + cfg.channelId + "/messages", {
     method: "POST",
-    body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } })
+    body: JSON.stringify({
+      ...(content ? { content } : {}),
+      embeds: [embed],
+      allowed_mentions: {
+        parse: mentionSettings.everyoneMentionEnabled ? ["everyone"] : [],
+        users: mentionSettings.targetMentionEnabled ? [targetId] : []
+      }
+    })
   });
 }
 async function appendAudit(cfg, user, action, subjectId, actionId, extra) {
@@ -482,6 +531,7 @@ export default async function handler(req, res) {
     }
     const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
     const targetName = discordName(target);
+    const targetProfile = { id: targetId, name: targetName, avatarUrl: discordAvatarUrl(target, cfg.guildId) };
     if (targetId === process.env.DISCORD_OWNER_ID) return json(res, 403, { error: "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي من خلال هذه الأداة." });
 
     const start = await rpc(cfg, "begin_disciplinary_action", {
@@ -489,7 +539,7 @@ export default async function handler(req, res) {
       p_discord_user_id: targetId,
       p_target_name: targetName,
       p_username: target.user?.username || "",
-      p_avatar_url: target.user?.avatar ? "https://cdn.discordapp.com/avatars/" + targetId + "/" + target.user.avatar + ".png" : null,
+      p_avatar_url: targetProfile.avatarUrl,
       p_action_type: actionType,
       p_warning_level: level,
       p_reason: reason,
@@ -523,7 +573,7 @@ export default async function handler(req, res) {
 
     try {
       dmResult = await sendDirectNotice(cfg, targetId,
-        disciplinaryNoticeEmbed(actionType, level, { id: targetId, name: targetName }, reason, details, user.displayName, start.action_id, expiresAt));
+        disciplinaryNoticeEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt));
     } catch (error) {
       let rollbackFailed = false;
       try { await restoreMemberRoles(cfg, targetId, roleResult.originalRoles); }
@@ -549,7 +599,7 @@ export default async function handler(req, res) {
 
     try {
       channelMessage = await sendAnnouncement(cfg,
-        announcementEmbed(actionType, level, { id: targetId, name: targetName }, reason, details, user.displayName, start.action_id, expiresAt));
+        announcementEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt), targetId);
     } catch (error) {
       const errorCode = String(error.code || error.message || "channel_delivery_failed").slice(0, 100);
       let rollbackFailed = false;
