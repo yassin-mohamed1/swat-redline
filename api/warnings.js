@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { requireSameOrigin } from "../lib/request-security.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
-const WARNING_LEVELS = [1, 2, 3];
+const WARNING_LEVELS = [1, 2];
 
 function cookies(header = "") {
   const out = {};
@@ -40,8 +40,7 @@ function config() {
   const botRoleId = process.env.DISCORD_BOT_ROLE_ID;
   const warningRoles = {
     1: process.env.DISCORD_WARNING_ROLE_1_ID,
-    2: process.env.DISCORD_WARNING_ROLE_2_ID,
-    3: process.env.DISCORD_WARNING_ROLE_3_ID
+    2: process.env.DISCORD_WARNING_ROLE_2_ID
   };
   if (!base || !key || !token || !guildId || !channelId || !managerRoleId ||
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
@@ -209,7 +208,7 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
     });
     if (!role) throw Object.assign(new Error("A configured warning role does not exist in this Discord server."), { status: 503 });
     if (unmanageableWarningRoles.length) {
-      throw Object.assign(new Error("Move the bot role above Warning 1, Warning 2, and Warning 3 in Discord Server Settings > Roles."), { status: 409 });
+      throw Object.assign(new Error("Move the bot role above Warning 1 and Warning 2 in Discord Server Settings > Roles."), { status: 409 });
     }
     for (const id of warningIds) current.delete(id);
     current.add(targetRole);
@@ -241,7 +240,7 @@ function announcementEmbed(action, level, target, reason, details, actor, action
     fields: [
       { name: "Member", value: String(target.name || "Discord user").slice(0, 200), inline: true },
       { name: "Discord ID", value: target.id, inline: true },
-      { name: "Warning Level", value: dismissed ? "Warning 3 • Dismissal" : "Warning " + level, inline: true },
+      { name: "Disciplinary Action", value: dismissed ? "DISMISSAL" : "WARNING " + level, inline: true },
       { name: "Reason", value: String(reason).slice(0, 1000), inline: false },
       ...(details ? [{ name: "Details", value: String(details).slice(0, 1000), inline: false }] : []),
       { name: "Issued By", value: String(actor).slice(0, 150), inline: true },
@@ -302,12 +301,14 @@ export default async function handler(req, res) {
     const details = typeof body.details === "string" ? body.details.trim() : "";
     const level = Number(body.warning_level);
     const requestId = String(body.request_id || "");
-    if (!actionType || !/^\d{15,22}$/.test(targetId) || !WARNING_LEVELS.includes(level) ||
+    const validActionLevel = actionType === "warning"
+      ? WARNING_LEVELS.includes(level)
+      : actionType === "dismissal" && level === 3;
+    if (!actionType || !validActionLevel || !/^\d{15,22}$/.test(targetId) ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId) ||
         !reason || reason.length > 1000 || details.length > 3000) {
-      return json(res, 400, { error: "Check the member ID, warning level, reason, and request ID." });
+      return json(res, 400, { error: "Check the member ID, action, reason, and request ID." });
     }
-    if (actionType === "dismissal" && level !== 3) return json(res, 400, { error: "Dismissal is only available with Warning 3." });
     const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
     const targetName = discordName(target);
     if (targetId === process.env.DISCORD_OWNER_ID) return json(res, 403, { error: "The protected owner cannot be disciplined through this tool." });
