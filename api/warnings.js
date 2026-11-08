@@ -820,12 +820,6 @@ export default async function handler(req, res) {
       p_warning_expires_at: expiresAt,
       p_error_code: null
     });
-    await appendAudit(cfg, user, actionType, targetId, start.action_id, {
-      warning_level: level, reason, details,
-      dm_status: "sent", dm_channel_id: dmResult.channelId, dm_message_id: dmResult.messageId,
-      discord_channel_status: "sent", channel_message_id: channelMessage.id || null,
-      removed_role_count: roleResult?.removedRoleCount || 0, warning_expires_at: expiresAt
-    });
     return json(res, 200, {
       ok: true, status: completion.status, action_id: start.action_id,
       dm_status: "sent", dm_message_id: dmResult.messageId,
