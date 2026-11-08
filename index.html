@@ -2165,7 +2165,7 @@ async function renderAssignments(){
  if(!currentIsOwner)return;
  const body=document.getElementById('assignmentRows');if(body)body.innerHTML='<tr><td colspan="7">جارٍ تحميل أعضاء الموقع ورتب Discord...</td></tr>';
  try{
-  const response=await fetch('/api/assignments',{credentials:'same-origin',cache:'no-store'});
+  const response=await fetch('/api/admin/members?assignments=1',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل قائمة التعيينات.');
   assignmentData={members:Array.isArray(data.members)?data.members:[],roles:Array.isArray(data.roles)?data.roles:[],bot:data.bot||{can_manage_roles:false,top_role:''}};
@@ -2252,7 +2252,7 @@ async function submitStaffAssignment(action){
  if(save)save.disabled=true;if(remove)remove.disabled=true;
  const status=document.getElementById('assignmentActionStatus');if(status)status.textContent='جارٍ تحديث رتبة Discord وإرسال رسالة التعيين وحفظ السجل...';
  try{
-  const response=await fetch('/api/assignments',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+  const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    action,discord_user_id:assignmentTargetId,rank_role_id:rankRoleId,callsign
   })});
   const data=await response.json().catch(()=>({}));
