@@ -16,17 +16,21 @@ test("assignment API is owner-only and reads registered profiles plus live Disco
   assert.match(api, /requireSameOrigin/);
 });
 
-test("assignment role picker maps the screenshot rank names to existing Discord roles only", async () => {
+test("assignment role picker exposes every Discord role and respects bot hierarchy", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   for (const role of [
     "swatcommander", "deputyswatcommander", "swatteamleader",
     "swatsupervisor", "swatsenioroperator", "swatoperator", "swatrecruit"
   ]) assert.ok(api.includes(role), "missing screenshot rank " + role);
-  assert.match(api, /aliases: \["swatcommender"\]/);
-  assert.match(api, /role\.managed/);
-  assert.match(api, /role\.position.*botPosition/);
-  assert.ok(api.includes("ASSIGNMENT_RANKS.find"));
+  assert.match(api, /roles\.map\(role =>/);
+  assert.match(api, /unavailableReason/);
+  assert.match(api, /position >= Number\(botPosition\)/);
   assert.match(api, /!targetRole\.assignable/);
+  assert.match(api, /replaceableRoleIds/);
+  assert.match(api, /previousAssignment\?\.rank_role_id/);
+  assert.doesNotMatch(api, /rankIds=rankRoles\.map/);
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /assignmentRoleUnavailableReason/);
   assert.doesNotMatch(api, /guilds\/.*\/roles["']?,\s*\{\s*method:\s*["']POST/);
 });
 
@@ -87,4 +91,19 @@ test("assignments page exposes manager controls, registered member table, rank m
   assert.match(migration, /INSERT INTO public\.audit_logs/);
   assert.match(migration, /'before',v_before/);
   assert.match(migration, /'after',v_after/);
+});
+
+test("owner can add a Discord guild member manually without portal OAuth", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261108153000_staff_manual_members.sql", import.meta.url), "utf8");
+  assert.match(api, /handleAddManualMember/);
+  assert.match(api, /action==="add_manual_member"/);
+  assert.ok(api.includes('assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId)'));
+  assert.match(api, /is_manual:true/);
+  assert.match(api, /manual_created_by_discord_id:user\.id/);
+  assert.match(html, /إضافة عضو بدون تسجيل/);
+  assert.match(html, /manualDiscordUserId/);
+  assert.match(html, /submitManualMember/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS is_manual boolean/);
 });
