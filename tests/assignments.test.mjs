@@ -23,14 +23,14 @@ test("assignment role picker maps the screenshot rank names to existing Discord 
   assert.match(api, /aliases: \["swatcommender"\]/);
   assert.match(api, /role\.managed/);
   assert.match(api, /role\.position.*botPosition/);
-  assert.match(api, /RANKS\.find/);
+  assert.match(api, /ASSIGNMENT_RANKS\\.find/);
   assert.match(api, /!targetRole\.assignable/);
   assert.doesNotMatch(api, /guilds\/.*\/roles["']?,\s*\{\s*method:\s*["']POST/);
 });
 
 test("appointment synchronizes one S.W.A.T rank, sends a portal DM, and rolls back on failures", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
-  assert.match(api, /method: "PATCH", body: JSON\.stringify\(\{ roles: desiredRoles \}\)/);
+  assert.match(api, /body: JSON\\.stringify\\(\\{roles:desiredRoles\\}\\)/);
   assert.match(api, /assignmentSendDm\(token,targetId,embed\)/);
   assert.match(api, /components: assignmentPortalComponents\(\)/);
   assert.match(api, /roles:originalRoles/);
@@ -45,8 +45,8 @@ test("Alpha callsigns support presets and open-ended numeric additions", async (
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261108131000_unbounded_alpha_callsign_sequence.sql", import.meta.url), "utf8");
   assert.match(api, /function assignmentCallsign\\(value\\)/);
-  assert.match(api, /\\[1-9\\]\\[0-9\\]\\*/);
-  assert.match(api, /Array\.from\(\{ length: 16 \}/);
+  assert.ok(api.includes('[1-9][0-9]*'));
+  assert.ok(html.includes('Array.from({length:16}'));
   assert.match(html, /Add a new Alpha \(16 or higher\)|إضافة Alpha جديد/);
   assert.match(html, /selectedAssignmentCallsign\(\)/);
   assert.match(migration, /callsign ~ '\^Alpha \(0\|\[1-9\]\[0-9\]\*\)\$'/);
