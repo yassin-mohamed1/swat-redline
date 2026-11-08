@@ -97,7 +97,6 @@ async function forwardAuditToDiscord(user, event) {
   if (!token) return { ok: false, reason: "bot_token_missing" };
   try {
     const createdAt = new Date().toISOString();
-    const safeDetails = sanitizeAuditDetails(event.details);
     const embed = {
       title: "S.W.A.T. REDLINE • Administrative Activity",
       color: 0x24c77a,
@@ -234,7 +233,16 @@ export default async function handler(req, res) {
       console.error("Audit event write failed:", response.status, (await response.text()).slice(0, 400));
       return send(res, 502, { error: "Could not save audit event" });
     }
-    return send(res, 201, { ok: true });
+
+    // The durable database record is written first. Discord is best-effort so
+    // a Discord outage never loses or blocks the administration audit record.
+    const discordDelivery = await forwardAuditToDiscord(user, {
+      action, entityType, entityId, details
+    });
+    return send(res, 201, {
+      ok: true,
+      discord: discordDelivery.ok ? "sent" : "pending"
+    });
   } catch {
     return send(res, 502, { error: "Audit service unavailable" });
   }
