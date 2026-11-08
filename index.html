@@ -1106,57 +1106,16 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="sectionhead"><div><h2>الإعلانات</h2><div class="sub">إدارة الاجتماعات والإعلانات والتعاميم وطلبات الحضور والتدريب والسيناريوهات</div></div><button class="btn primary" type="button" onclick="openAnnouncementTypeModal()">＋ إضافة إعلان</button></div>
 <div class="panel"><div class="panelhead"><h3>سجل الإعلانات</h3><span class="sub">الإعلانات المحفوظة تظهر لجميع أعضاء البوابة</span></div><div class="tablewrap"><table><thead><tr><th>الرقم</th><th>النوع</th><th>اسم الإعلان والتفاصيل</th><th>المرسل</th><th>التاريخ والوقت</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="announcementRows"></tbody></table></div></div>
 </section>
-<section class="page" id="page-personnel"><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">حسابات Discord التي سجّلت الدخول إلى بوابة S.W.A.T. REDLINE</div></div><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجّلت الدخول إلى الموقع مرة واحدة على الأقل، وليس كل أعضاء سيرفر Discord تلقائيًا.</div><div class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div></section>
-<section class="page" id="page-assignments">
+<section class="page" id="page-personnel">
 <style>
-#page-assignments .assignment-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}
-#page-assignments .assignment-summary .panel{padding:15px}
-#page-assignments .assignment-summary strong{font-size:27px;display:block}
-#page-assignments .assignment-toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
-#page-assignments .assignment-input{display:block;box-sizing:border-box;background:#101216;color:#e8e9ec;border:1px solid #353a43;border-radius:8px;padding:11px 12px;font:inherit;min-height:42px}
-#page-assignments .assignment-input:focus{outline:2px solid rgba(217,39,53,.35);border-color:#d92735}
-#page-assignments .assignment-modal{position:fixed;inset:0;z-index:10030;background:rgba(0,0,0,.76);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
-#page-assignments .assignment-modal[hidden]{display:none!important}
-#page-assignments .assignment-modal-card{width:min(700px,100%);max-height:min(92vh,940px);overflow:auto;background:#111318;border:1px solid #3b414b;border-radius:15px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
-#page-assignments .assignment-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 19px;border-bottom:1px solid #2b3038}
-#page-assignments .assignment-modal-body{padding:19px;display:grid;gap:15px}
-#page-assignments .assignment-field{display:grid;gap:7px}
-#page-assignments .assignment-actions{display:flex;gap:9px;flex-wrap:wrap}
-#page-assignments .assignment-role-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-#page-assignments .assignment-role-card{padding:11px;border:1px solid #343a44;background:#15181d;border-radius:9px}
-#page-assignments .assignment-role-card.unavailable{opacity:.55}
-@media(max-width:760px){#page-assignments .assignment-summary{grid-template-columns:repeat(2,minmax(0,1fr))}#page-assignments .assignment-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-</style>
-<div class="sectionhead">
- <div><h2>التعيينات والنداءات</h2><div class="sub">إدارة الرتب الرسمية وأكواد النداء للأعضاء المسجلين في بوابة S.W.A.T. REDLINE</div></div>
- <div class="assignment-toolbar"><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" type="button" onclick="renderAssignments()">↻ تحديث القائمة</button></div>
-</div>
-<div class="assignment-summary">
- <div class="panel"><div class="muted">أفراد في الدليل</div><strong id="assignmentTotal">0</strong></div>
- <div class="panel"><div class="muted">تعيينات مسجلة</div><strong id="assignmentAssigned">0</strong></div>
- <div class="panel"><div class="muted">بدون تعيين</div><strong id="assignmentUnassigned">0</strong></div>
- <div class="panel"><div class="muted">متصلون بسيرفر Discord</div><strong id="assignmentInGuild">0</strong></div>
-</div>
-<div id="assignmentBotNotice" class="notice" style="display:none;margin:0 0 14px"></div>
-<div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
-<div class="panel" style="margin-bottom:15px">
- <div class="panelhead"><div><h3>الرتب المتاحة من سيرفر Discord</h3><span class="sub">القائمة تُقرأ مباشرةً من الرتب الموجودة في السيرفر، ولا تنشئ رتبًا جديدة</span></div><span class="tag gray" id="assignmentRoleCount">0 رتبة</span></div>
- <div class="panelbody"><div id="assignmentBotRoleInfo" class="muted" style="margin-bottom:10px"></div><div class="assignment-role-grid" id="assignmentRoleCards"><div class="muted">جارٍ تحميل رتب Discord...</div></div></div>
-</div>
-<div class="panel">
- <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو مضاف إلى الدليل يظهر هنا مع رتبته في Discord وكود النداء، حتى دون تسجيل دخول للموقع</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
- <div class="panelbody">
-  <div class="assignment-toolbar" style="margin-bottom:12px">
-   <input id="assignmentSearch" class="assignment-input" style="flex:1;min-width:220px" placeholder="ابحث باسم العضو أو Discord ID أو كود النداء..." oninput="renderAssignmentRows()">
-   <select id="assignmentFilter" class="assignment-input" style="min-width:170px" onchange="renderAssignmentRows()">
-    <option value="all">كل الأعضاء</option><option value="assigned">لديهم تعيين</option><option value="unassigned">بدون تعيين</option><option value="outside">ليسوا في السيرفر</option><option value="inactive">حسابات موقوفة</option>
-   </select>
-  </div>
-  <div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>رتبته الحالية في Discord</th><th>التعيين المسجل بالموقع</th><th>كود النداء</th><th>حالة الحساب</th><th>إدارة</th></tr></thead><tbody id="assignmentRows"><tr><td colspan="7">جارٍ تحميل الأعضاء...</td></tr></tbody></table></div>
-  <div class="muted" style="margin-top:10px;line-height:1.8">يمكن إضافة عضو يدويًا باستخدام Discord ID دون تسجيل دخوله للموقع. يجب أن يكون العضو موجودًا بالفعل في سيرفر Discord حتى يستطيع البوت جلب اسمه وصورته وإدارة رتبته. لا يتم تعيين رتبة أو كود نداء دون اختيارك وحفظك.</div>
- </div>
-</div>
-<div id="assignmentManualModal" class="assignment-modal" hidden>
+#page-personnel .assignment-modal{position:fixed;inset:0;z-index:10030;background:rgba(0,0,0,.76);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#page-personnel .assignment-modal[hidden]{display:none!important}
+#page-personnel .assignment-modal-card{width:min(560px,100%);max-height:min(92vh,940px);overflow:auto;background:#111318;border:1px solid #3b414b;border-radius:15px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+#page-personnel .assignment-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 19px;border-bottom:1px solid #2b3038}
+#page-personnel .assignment-modal-body{padding:19px;display:grid;gap:15px}
+#page-personnel .assignment-field{display:grid;gap:7px}
+#page-personnel .assignment-actions{display:flex;gap:9px;flex-wrap:wrap}
+</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضافتهم القيادة يدويًا باستخدام Discord ID</div></div><div class="assignment-toolbar"><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجّلت الدخول إلى الموقع مرة واحدة على الأقل، وليس كل أعضاء سيرفر Discord تلقائيًا.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
  <div class="assignment-modal-card" style="width:min(560px,100%)">
   <div class="assignment-modal-head">
    <div><h3 style="margin:0">إضافة عضو بدون تسجيل دخول</h3><div class="muted">إضافته إلى دليل الأفراد باستخدام Discord ID فقط</div></div>
@@ -1180,6 +1139,77 @@ html[dir="ltr"] .field label{text-align:left}
   </div>
  </div>
 </div>
+</section>
+<section class="page" id="page-assignments">
+<style>
+#page-assignments .assignment-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}
+#page-assignments .assignment-summary .panel{padding:15px}
+#page-assignments .assignment-summary strong{font-size:27px;display:block}
+#page-assignments .assignment-toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+#page-assignments .assignment-input{display:block;box-sizing:border-box;background:#101216;color:#e8e9ec;border:1px solid #353a43;border-radius:8px;padding:11px 12px;font:inherit;min-height:42px}
+#page-assignments .assignment-input:focus{outline:2px solid rgba(217,39,53,.35);border-color:#d92735}
+#page-assignments .assignment-modal{position:fixed;inset:0;z-index:10030;background:rgba(0,0,0,.76);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#page-assignments .assignment-modal[hidden]{display:none!important}
+#page-assignments .assignment-modal-card{width:min(700px,100%);max-height:min(92vh,940px);overflow:auto;background:#111318;border:1px solid #3b414b;border-radius:15px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+#page-assignments .assignment-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 19px;border-bottom:1px solid #2b3038}
+#page-assignments .assignment-modal-body{padding:19px;display:grid;gap:15px}
+#page-assignments .assignment-field{display:grid;gap:7px}
+#page-assignments .assignment-actions{display:flex;gap:9px;flex-wrap:wrap}
+#page-assignments .assignment-role-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#page-assignments .assignment-role-card{padding:11px;border:1px solid #343a44;background:#15181d;border-radius:9px}
+#page-assignments .assignment-role-card.unavailable{opacity:.55}
+@media(max-width:760px){#page-assignments .assignment-summary{grid-template-columns:repeat(2,minmax(0,1fr))}#page-assignments .assignment-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<div class="sectionhead">
+ <div><h2>التعيينات والنداءات</h2><div class="sub">إدارة الرتب الرسمية وأكواد النداء للأعضاء المسجلين في بوابة S.W.A.T. REDLINE</div></div>
+ <button class="btn" type="button" onclick="renderAssignments()">↻ تحديث القائمة</button>
+</div>
+<div class="assignment-summary">
+ <div class="panel"><div class="muted">أفراد في الدليل</div><strong id="assignmentTotal">0</strong></div>
+ <div class="panel"><div class="muted">تعيينات مسجلة</div><strong id="assignmentAssigned">0</strong></div>
+ <div class="panel"><div class="muted">بدون تعيين</div><strong id="assignmentUnassigned">0</strong></div>
+ <div class="panel"><div class="muted">متصلون بسيرفر Discord</div><strong id="assignmentInGuild">0</strong></div>
+</div>
+<div id="assignmentBotNotice" class="notice" style="display:none;margin:0 0 14px"></div>
+<div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
+<div class="panel">
+ <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو مضاف إلى الدليل يظهر هنا مع رتبته في Discord وكود النداء، حتى دون تسجيل دخول للموقع</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
+ <div class="panelbody">
+  <div class="assignment-toolbar" style="margin-bottom:12px">
+   <input id="assignmentSearch" class="assignment-input" style="flex:1;min-width:220px" placeholder="ابحث باسم العضو أو Discord ID أو كود النداء..." oninput="renderAssignmentRows()">
+   <select id="assignmentFilter" class="assignment-input" style="min-width:170px" onchange="renderAssignmentRows()">
+    <option value="all">كل الأعضاء</option><option value="assigned">لديهم تعيين</option><option value="unassigned">بدون تعيين</option><option value="outside">ليسوا في السيرفر</option><option value="inactive">حسابات موقوفة</option>
+   </select>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>رتبته الحالية في Discord</th><th>التعيين المسجل بالموقع</th><th>كود النداء</th><th>حالة الحساب</th><th>إدارة</th></tr></thead><tbody id="assignmentRows"><tr><td colspan="7">جارٍ تحميل الأعضاء...</td></tr></tbody></table></div>
+  <div class="muted" style="margin-top:10px;line-height:1.8">يمكن إضافة عضو يدويًا باستخدام Discord ID دون تسجيل دخوله للموقع. يجب أن يكون العضو موجودًا بالفعل في سيرفر Discord حتى يستطيع البوت جلب اسمه وصورته وإدارة رتبته. لا يتم تعيين رتبة أو كود نداء دون اختيارك وحفظك.</div>
+ </div>
+</div>
+<div class="panel" style="margin-bottom:15px">
+ <div class="panelhead"><div><h3>الرتب المتاحة من سيرفر Discord</h3><span class="sub">القائمة تُقرأ مباشرةً من الرتب الموجودة في السيرفر، ولا تنشئ رتبًا جديدة</span></div><span class="tag gray" id="assignmentRoleCount">0 رتبة</span></div>
+ <div class="panelbody"><div id="assignmentBotRoleInfo" class="muted" style="margin-bottom:10px"></div><div class="assignment-role-grid" id="assignmentRoleCards"><div class="muted">جارٍ تحميل رتب Discord...</div></div></div>
+</div>
+
+<div id="assignmentCallsignModal" class="assignment-modal" hidden>
+ <div class="assignment-modal-card" style="width:min(520px,100%)">
+  <div class="assignment-modal-head">
+   <div><h3 style="margin:0">إضافة كود نداء جديد</h3><div class="muted">إنشاء Alpha جديد ليظهر في قائمة أكواد النداء لجميع المديرين</div></div>
+   <button class="btn" type="button" onclick="closeCallsignModal()">إغلاق</button>
+  </div>
+  <div class="assignment-modal-body">
+   <div class="assignment-field">
+    <label for="newCallsignNumber">رقم Alpha</label>
+    <input id="newCallsignNumber" class="assignment-input" type="text" inputmode="numeric" placeholder="مثال: 16" maxlength="30">
+    <div class="muted">سيتم إنشاء Alpha مع الرقم الذي تدخله وإضافته إلى القائمة الدائمة.</div>
+   </div>
+   <div id="newCallsignStatus" class="muted" aria-live="polite"></div>
+   <div class="assignment-actions">
+    <button class="btn primary" id="newCallsignSaveButton" type="button" onclick="submitNewCallsign()">إضافة الكود</button>
+    <button class="btn" type="button" onclick="closeCallsignModal()">إلغاء</button>
+   </div>
+  </div>
+ </div>
+</div>
 <div id="assignmentModal" class="assignment-modal" hidden>
  <div class="assignment-modal-card">
   <div class="assignment-modal-head">
@@ -1189,18 +1219,16 @@ html[dir="ltr"] .field label{text-align:left}
   <div class="assignment-modal-body">
    <div id="assignmentLiveSummary" class="notice" style="margin:0"></div>
    <div class="assignment-field">
-    <label for="assignmentRankSelect">الرتبة التي تريد تعيينها</label>
-    <select id="assignmentRankSelect" class="assignment-input" style="width:100%"></select>
-    <div class="muted">الاختيارات تُجلب من رتب Discord الفعلية الظاهرة في قائمة الرتب بالأعلى.</div>
+    <label>الرتب التي تريد تعيينها</label>
+    <div id="assignmentRankOptions" class="assignment-role-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))"></div>
+    <div class="muted">يمكن اختيار أكثر من رتبة للشخص نفسه. الرتب غير المتاحة للبوت ستظهر مع سبب تعطيلها.</div>
    </div>
    <div class="assignment-field">
-    <label for="assignmentCallsignSelect">كود النداء</label>
-    <select id="assignmentCallsignSelect" class="assignment-input" style="width:100%" onchange="toggleCustomCallsign()"></select>
-    <div id="assignmentCustomCallsignWrap" style="display:none">
-     <label for="assignmentCustomCallsign" class="muted">اكتب رقم Alpha الجديد</label>
-     <input id="assignmentCustomCallsign" class="assignment-input" type="text" inputmode="numeric" placeholder="مثال: 16 أو 17 أو 25" style="width:100%;margin-top:6px">
-     <div class="muted" style="margin-top:5px">تقدر تضيف Alpha 16 وAlpha 17 وأي رقم أكبر من غير حد ثابت للقائمة.</div>
+    <div class="assignment-toolbar" style="justify-content:space-between">
+     <label for="assignmentCallsignSelect">كود النداء</label>
+     <button class="btn" type="button" onclick="openCallsignModal()">＋ إضافة كود نداء جديد</button>
     </div>
+    <select id="assignmentCallsignSelect" class="assignment-input" style="width:100%"></select>
    </div>
    <div id="assignmentActionStatus" class="muted" aria-live="polite"></div>
    <div class="assignment-actions">
@@ -1208,7 +1236,7 @@ html[dir="ltr"] .field label{text-align:left}
     <button class="btn danger" id="assignmentRemoveButton" type="button" onclick="submitStaffAssignment('remove')">إنهاء التعيين وإزالة الرتبة</button>
     <button class="btn" type="button" onclick="closeAssignmentModal()">إلغاء</button>
    </div>
-   <div class="muted" style="line-height:1.8">عند الحفظ، سيضيف البوت رتبة Discord المختارة، ويحدّث كود النداء في سجل الموقع، ويرسل للعضو رسالة خاصة رسمية. لن يتغير أي شخص قبل ضغطك على زر الحفظ.</div>
+   <div class="muted" style="line-height:1.8">عند الحفظ، سيضيف البوت كل الرتب التي اخترتها، ويحدّث كود النداء في سجل الموقع، ويرسل للعضو رسالة خاصة رسمية. لن يتغير أي شخص قبل ضغطك على زر الحفظ.</div>
   </div>
  </div>
 </div>
