@@ -1695,13 +1695,14 @@ function refreshWarningForm(){
  const info=document.getElementById('warningCurrentMember'),dismiss=document.getElementById('warningDismissButton'),issue=document.getElementById('warningIssueButton'),notice=document.getElementById('warningDismissNotice');
  const selected=warningData.members.find(item=>String(item.discord_user_id)===id);
  const name=subject?.display_name||selected?.display_name||selected?.username||'عضو ديسكورد';
- if(info)info.textContent=!id?'اختر عضوًا للمتابعة.':(subject?'المستوى الحالي: '+warningLevelLabel(subject.warning_level)+' • الحالة: '+warningStatusLabel(subject.status):'العضو: '+name+' • لا يوجد له سجل إنذارات سابق')+' • معرّف ديسكورد: '+id;
+ const restartingDismissed=Boolean(subject?.status==='dismissed'&&level===1);
+ if(info)info.textContent=!id?'اختر عضوًا للمتابعة.':(restartingDismissed?'سجل سابق: العضو مفصول. يمكنك بدء دورة إنذارات جديدة بإصدار الإنذار الأول.':subject?'المستوى الحالي: '+warningLevelLabel(subject.warning_level)+' • الحالة: '+warningStatusLabel(subject.status):'العضو: '+name+' • لا يوجد له سجل إنذارات سابق')+' • معرّف ديسكورد: '+id;
  if(notice)notice.style.display=level===3?'inline-flex':'none';
  if(dismiss)dismiss.style.display=level===3?'inline-flex':'none';
  if(issue){issue.style.display=level===3?'none':'inline-flex';issue.textContent='إصدار '+warningLevelLabel(level);}
  const current=Number(subject?.warning_level||0),isDismissed=subject?.status==='dismissed';
- const canIssue=Boolean(id)&&!isDismissed&&level<=2&&level===current+1;
- if(issue)issue.disabled=!canIssue;
+ const canIssue=Boolean(id)&&(!isDismissed||restartingDismissed)&&level<=2&&(restartingDismissed||level===current+1);
+ if(issue){issue.disabled=!canIssue;issue.textContent=restartingDismissed?'بدء دورة جديدة • إصدار الإنذار الأول':'إصدار '+warningLevelLabel(level);}
  if(dismiss)dismiss.disabled=!id||isDismissed||level!==3||current!==2;
 }
 async function renderWarnings(){
@@ -1739,10 +1740,11 @@ async function submitWarningAction(action){
  const details=String(document.getElementById('warningDetails')?.value||'').trim();
  if(!/^\d{15,22}$/.test(id)){toast('أدخل معرّف مستخدم ديسكورد صحيحًا أو اختر عضوًا من القائمة.');return}
  if(!reason){toast('سبب الإجراء التأديبي مطلوب.');document.getElementById('warningReason')?.focus();return}
- const currentLevel=Number(warningSubjectFor(id)?.warning_level||0);
+ const subject=warningSubjectFor(id),currentLevel=Number(subject?.warning_level||0);
+ const restartingDismissed=Boolean(subject?.status==='dismissed'&&action==='issue'&&level===1);
  if(action==='dismiss'&&(level!==3||currentLevel!==2)){toast('لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.');return}
- if(action==='issue'&&(level>2||currentLevel!==level-1)){toast('يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني.');return}
- const label=action==='dismiss'?'فصل هذا العضو':'إصدار '+warningLevelLabel(level);
+ if(action==='issue'&&(level>2||(!restartingDismissed&&currentLevel!==level-1))){toast('يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني. وبعد الفصل يمكن بدء دورة جديدة بالإنذار الأول.');return}
+ const label=action==='dismiss'?'فصل هذا العضو':restartingDismissed?'بدء دورة إنذارات جديدة بإصدار الإنذار الأول':'إصدار '+warningLevelLabel(level);
  if(!confirm('هل أنت متأكد من '+label+'؟\n\nالسبب: '+reason))return;
  const buttons=['warningIssueButton','warningDismissButton'].map(id=>document.getElementById(id)).filter(Boolean);
  buttons.forEach(b=>b.disabled=true);
