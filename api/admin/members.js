@@ -171,13 +171,35 @@ function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor
   };
 }
 async function assignmentSendDm(token,targetId,embed) {
-  const dm=await assignmentDiscord(token,"/users/@me/channels",{method:"POST",body:JSON.stringify({recipient_id:targetId})});
-  if(!dm?.id)throw new Error("تعذّر فتح محادثة خاصة مع العضو.");
-  const message=await assignmentDiscord(token,"/channels/"+dm.id+"/messages",{
-    method:"POST",body:JSON.stringify({embeds:[embed],components:assignmentPortalComponents(),allowed_mentions:{parse:[]}})
-  });
-  if(!message?.id)throw new Error("لم يؤكد Discord إرسال رسالة التعيين.");
+  let dm;
+  try {
+    dm=await assignmentDiscord(token,"/users/@me/channels",{method:"POST",body:JSON.stringify({recipient_id:targetId})});
+  } catch(error) {
+    error.dmStage="open_dm";
+    throw error;
+  }
+  if(!dm?.id)throw Object.assign(new Error("تعذّر فتح محادثة خاصة مع العضو."),{dmStage:"open_dm"});
+  let message;
+  try {
+    message=await assignmentDiscord(token,"/channels/"+dm.id+"/messages",{
+      method:"POST",body:JSON.stringify({embeds:[embed],components:assignmentPortalComponents(),allowed_mentions:{parse:[]}})
+    });
+  } catch(error) {
+    error.dmStage="send_message";
+    throw error;
+  }
+  if(!message?.id)throw Object.assign(new Error("لم يؤكد Discord إرسال رسالة التعيين."),{dmStage:"send_message"});
   return {channelId:dm.id,messageId:message.id};
+}
+function assignmentDmFailureMessage(error) {
+  const code=String(error?.code||"");
+  if(code==="50278")
+    return "تم حفظ التعيين وتحديث رتب Discord، لكن Discord رفض الرسالة الخاصة (50278) لأنه لا يرى سيرفرًا مشتركًا يسمح بمراسلة هذا العضو. راجع عضوية العضو وإعدادات الخصوصية في Discord.";
+  if(code==="50007")
+    return "تم حفظ التعيين وتحديث رتب Discord، لكن Discord منع الرسالة الخاصة (50007). قد يكون العضو حاظرًا التطبيق أو لا يسمح باستقبال رسائله.";
+  if(Number(error?.status)===429)
+    return "تم حفظ التعيين وتحديث رتب Discord، لكن Discord حدّ إرسال الرسالة الخاصة مؤقتًا. يمكن إعادة المحاولة لاحقًا.";
+  return "تم حفظ التعيين وتحديث رتب Discord، لكن تعذّر إرسال الرسالة الخاصة من Discord (رمز الخطأ: "+(code||"غير معروف")+").";
 }
 async function assignmentDeleteDm(token,dm) {
   if(dm?.channelId&&dm?.messageId)await assignmentDiscord(token,"/channels/"+dm.channelId+"/messages/"+dm.messageId,{method:"DELETE"});
@@ -416,15 +438,10 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   for(const role of targetRoles)next.add(role.id);
   const desiredRoles=[...next],roleChanged=originalRoles.join(",")!==desiredRoles.join(",");
   if(roleChanged)await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:desiredRoles})});
-  const reference=crypto.randomUUID(),name=assignmentMemberName(member,profile.display_name||"Discord user");
-  const embed=assignmentEmbed({assigned:action==="assign",name,discordId:targetId,avatar:assignmentAvatar(member,guildId)||profile.avatar_url||null,rankName:action==="assign"?rankNames.join(" • "):null,callsign,actor:user.displayName||user.username,reference});
-  let dm=null;
-  try{dm=await assignmentSendDm(token,targetId,embed);}
-  catch(error){
-    if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
-    catch(rollback){console.error("Assignment rollback after DM failure:",rollback.code||rollback.message);return send(res,502,{error:"فشل إرسال الخاص وفشل التراجع عن الرتب. راجع رتب العضو يدويًا."});}
-    return send(res,502,{error:error.message||"تعذّر إرسال رسالة التعيين الخاصة. تم التراجع عن تعديل الرتب."});
-  }
+
+  // Persist the appointment before attempting a DM. A recipient's privacy settings
+  // must never undo a valid role change or leave Discord and the portal out of sync.
+  let savedResult;
   try{
     const saved=await supabase(url,key,"rpc/save_staff_assignment_v2",{method:"POST",body:JSON.stringify({
       p_discord_user_id:targetId,p_display_name:name,p_username:member.user?.username||profile.username||"",
@@ -434,20 +451,42 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
       p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal manager"
     })});
     if(!saved.ok)throw Object.assign(new Error((await saved.text()).slice(0,400)),{code:"assignment_database_write_failed"});
-    const savedResult=await saved.json();
+    savedResult=(await saved.json()).after;
+    if(!savedResult)throw Object.assign(new Error("لم يؤكد سجل قاعدة البيانات حفظ التعيين."),{code:"assignment_database_confirmation_missing"});
+  }catch(error){
+    let rollbackFailed=false;
+    if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
+    catch(rollback){rollbackFailed=true;console.error("Assignment rollback after database failure:",rollback.code||rollback.message);}
+    return send(res,502,{error:rollbackFailed?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا.":"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord.",rollback_failed:rollbackFailed});
+  }
+
+  try{
     await forwardAuditToDiscord(user,{action:action==="remove"?"delete":previousAssignment?"update":"create",
       entity_type:"staff_assignment",entity_id:targetId,
       details:{type:action==="remove"?"إنهاء تعيين فرد":previousAssignment?"تعديل تعيين فرد":"تعيين فرد",
         detail:action==="remove"?"تم إنهاء تعيين "+name:"تم تعيين "+name+" بالرتب "+rankNames.join("، ")+(callsign?" • "+callsign:""),
         target_discord_id:targetId}});
-    return send(res,200,{ok:true,action,assignment:savedResult.after,dm_status:"sent",reference});
-  }catch(error){
-    let rollbackFailed=false;
-    if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
-    catch(rollback){rollbackFailed=true;console.error("Assignment rollback after database failure:",rollback.code||rollback.message);}
-    try{await assignmentDeleteDm(token,dm);}catch(removeError){console.error("Could not withdraw assignment DM:",removeError.code||removeError.message);}
-    return send(res,502,{error:rollbackFailed?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا.":"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord ومحاولة حذف الرسالة الخاصة.",rollback_failed:rollbackFailed});
+  }catch(auditError){
+    console.error("Assignment audit forward failed:",auditError?.code||auditError?.message||"unknown");
   }
+
+  let dmStatus="sent",dmFailure=null;
+  try{
+    await assignmentSendDm(token,targetId,embed);
+  }catch(error){
+    dmStatus="failed";
+    dmFailure={
+      code:String(error?.code||error?.status||"unknown"),
+      stage:error?.dmStage||"unknown",
+      message:assignmentDmFailureMessage(error)
+    };
+    console.warn("Assignment DM delivery failed:",JSON.stringify({code:dmFailure.code,stage:dmFailure.stage,status:Number(error?.status||0)}));
+  }
+  return send(res,200,{
+    ok:true,action,assignment:savedResult,dm_status:dmStatus,
+    ...(dmFailure?{dm_error_code:dmFailure.code,dm_error_stage:dmFailure.stage,dm_message:dmFailure.message}:{}),
+    reference
+  });
 }
 
 async function handleAddNextCallsign(url,key,user,res){
