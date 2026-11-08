@@ -193,6 +193,97 @@ async function loadGuildRoleData(cfg) {
   }
   return { roles, byId, botTop };
 }
+function cronAuthorized(req) {
+  const expected = process.env.CRON_SECRET;
+  const header = String(req.headers.authorization || "");
+  if (!expected || !header.startsWith("Bearer ")) return false;
+  const supplied = header.slice(7);
+  const a = Buffer.from(expected), b = Buffer.from(supplied);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+async function processExpiredWarningRoles(cfg) {
+  const due = await rpc(cfg, "claim_expired_warning_roles", { p_limit: 25 });
+  if (!Array.isArray(due) || due.length === 0) {
+    return { ok: true, processed: 0, removed: 0, failed: 0 };
+  }
+  let hierarchy;
+  try {
+    hierarchy = await loadGuildRoleData(cfg);
+  } catch (error) {
+    for (const item of due) {
+      await rpc(cfg, "complete_expired_warning_role", {
+        p_discord_user_id: item.discord_user_id,
+        p_warning_level: item.warning_level,
+        p_warning_expires_at: item.warning_expires_at,
+        p_success: false,
+        p_error_code: String(error.code || error.message || "bot_hierarchy_failed").slice(0, 120)
+      });
+    }
+    return { ok: false, processed: due.length, removed: 0, failed: due.length, error: "Bot role hierarchy check failed." };
+  }
+
+  let removed = 0, failed = 0;
+  const results = [];
+  for (const item of due) {
+    try {
+      let member;
+      try {
+        member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + item.discord_user_id);
+      } catch (error) {
+        if (error.status === 404) {
+          await rpc(cfg, "complete_expired_warning_role", {
+            p_discord_user_id: item.discord_user_id,
+            p_warning_level: item.warning_level,
+            p_warning_expires_at: item.warning_expires_at,
+            p_success: true,
+            p_error_code: null
+          });
+          results.push({ discord_user_id: item.discord_user_id, status: "member_left_server" });
+          continue;
+        }
+        throw error;
+      }
+
+      const roleId = cfg.warningRoles[Number(item.warning_level)];
+      const role = hierarchy.byId.get(roleId);
+      if (!role || role.managed || role.position >= hierarchy.botTop.position) {
+        throw new Error("The bot cannot manage the expired Warning " + item.warning_level + " role.");
+      }
+
+      const roles = new Set(member.roles || []);
+      const hadRole = roles.has(roleId);
+      if (hadRole) {
+        roles.delete(roleId);
+        await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + item.discord_user_id, {
+          method: "PATCH",
+          body: JSON.stringify({ roles: [...roles] })
+        });
+        removed++;
+      }
+
+      await rpc(cfg, "complete_expired_warning_role", {
+        p_discord_user_id: item.discord_user_id,
+        p_warning_level: item.warning_level,
+        p_warning_expires_at: item.warning_expires_at,
+        p_success: true,
+        p_error_code: null
+      });
+      results.push({ discord_user_id: item.discord_user_id, status: hadRole ? "role_removed" : "role_already_absent" });
+    } catch (error) {
+      failed++;
+      const code = String(error.code || error.message || "warning_expiry_failed").slice(0, 120);
+      await rpc(cfg, "complete_expired_warning_role", {
+        p_discord_user_id: item.discord_user_id,
+        p_warning_level: item.warning_level,
+        p_warning_expires_at: item.warning_expires_at,
+        p_success: false,
+        p_error_code: code
+      });
+      results.push({ discord_user_id: item.discord_user_id, status: "retry_scheduled", error: code });
+    }
+  }
+  return { ok: failed === 0, processed: due.length, removed, failed, results };
+}
 async function updateMemberRoles(cfg, targetId, level, dismiss) {
   const [member, guild] = await Promise.all([
     discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId),
@@ -332,6 +423,22 @@ async function appendAudit(cfg, user, action, subjectId, actionId, extra) {
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
+  const requestUrl = new URL(req.url, "https://portal.invalid");
+  if (requestUrl.searchParams.get("task") === "expire") {
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return json(res, 405, { error: "Method not allowed." });
+    }
+    if (!cronAuthorized(req)) return json(res, 401, { error: "Cron authorization required." });
+    const cronCfg = config();
+    if (cronCfg.error) return json(res, 503, { error: cronCfg.error });
+    try {
+      return json(res, 200, await processExpiredWarningRoles(cronCfg));
+    } catch (error) {
+      console.error("Warning expiry cron failed:", error?.detail || error?.message || "unknown");
+      return json(res, 502, { error: "Warning expiry processing failed." });
+    }
+  }
   const user = readSession(req);
   if (!user) return json(res, 401, { error: "Authentication required." });
   const cfg = config();
