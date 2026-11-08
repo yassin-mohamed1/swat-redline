@@ -77,12 +77,11 @@ test("warning DM and announcement delivery are mandatory and expiry is scheduled
 
 test("disciplinary embeds use English branding and warning titles with Arabic field labels", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
-  assert.match(api, /S\\.W\\.A\\.T\\. REDLINE • OFFICIAL DISCIPLINARY RECORD/);
-  assert.match(api, /"⚠️ OFFICIAL " \+ actionLabel/);
-  assert.match(api, /"⛔ MEMBER DISMISSED"/);
-  assert.match(api, /value: actionLabel/);
-  assert.match(api, /name: "العضو"/);
-  assert.match(api, /name: "سبب الإجراء"/);
-  assert.match(api, /name: "الإجراء التأديبي"/);
-  assert.match(api, /S\\.W\\.A\\.T\\. REDLINE • DISCIPLINARY & COMPLIANCE/);
+  assert.ok(api.includes('author: { name: "S.W.A.T. REDLINE • OFFICIAL DISCIPLINARY RECORD" }'));
+  assert.ok(api.includes('title: dismissed ? "⛔ MEMBER DISMISSED" : "⚠️ OFFICIAL " + actionLabel'));
+  assert.ok(api.includes('value: actionLabel'));
+  assert.ok(api.includes('name: "العضو"'));
+  assert.ok(api.includes('name: "سبب الإجراء"'));
+  assert.ok(api.includes('name: "الإجراء التأديبي"'));
+  assert.ok(api.includes('footer: { text: "S.W.A.T. REDLINE • DISCIPLINARY & COMPLIANCE" }'));
 });
