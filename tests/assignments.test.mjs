@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 test("assignment API is owner-only and reads registered profiles plus live Discord ranks", async () => {
-  const api = await readFile(new URL("../api/assignments.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   assert.match(api, /if \(!user\.isOwner\) return send\(res, 403/);
   assert.match(api, /staff_profiles\?select=discord_user_id/);
   assert.match(api, /staff_assignments\?select=discord_user_id/);
@@ -15,33 +15,33 @@ test("assignment API is owner-only and reads registered profiles plus live Disco
 });
 
 test("assignment role picker maps the screenshot rank names to existing Discord roles only", async () => {
-  const api = await readFile(new URL("../api/assignments.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   for (const role of [
     "swatcommander", "deputyswatcommander", "swatteamleader",
     "swatsupervisor", "swatsenioroperator", "swatoperator", "swatrecruit"
   ]) assert.ok(api.includes(role), "missing screenshot rank " + role);
   assert.match(api, /aliases: \["swatcommender"\]/);
   assert.match(api, /role\.managed/);
-  assert.match(api, /role\.position.*botTopPosition/);
+  assert.match(api, /role\.position.*botPosition/);
   assert.match(api, /RANKS\.find/);
   assert.match(api, /!targetRole\.assignable/);
   assert.doesNotMatch(api, /guilds\/.*\/roles["']?,\s*\{\s*method:\s*["']POST/);
 });
 
 test("appointment synchronizes one S.W.A.T rank, sends a portal DM, and rolls back on failures", async () => {
-  const api = await readFile(new URL("../api/assignments.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   assert.match(api, /method: "PATCH", body: JSON\.stringify\(\{ roles: desiredRoles \}\)/);
-  assert.match(api, /sendAppointmentDm\(cfg, targetId, embed\)/);
-  assert.match(api, /components: portalComponents\(\)/);
-  assert.match(api, /restoreMemberRoles|body: JSON\.stringify\(\{ roles: originalRoles \}\)/);
-  assert.match(api, /deleteDm\(cfg, dm\)/);
-  assert.match(api, /rpc\(cfg, "save_staff_assignment"/);
+  assert.match(api, /assignmentSendDm\(token,targetId,embed\)/);
+  assert.match(api, /components: assignmentPortalComponents\(\)/);
+  assert.match(api, /roles:originalRoles/);
+  assert.match(api, /assignmentDeleteDm\(token,dm\)/);
+  assert.match(api, /rpc\/save_staff_assignment/);
   assert.match(api, /Manage Roles/);
   assert.match(api, /botTop\.position/);
 });
 
 test("Alpha callsigns support presets and open-ended numeric additions", async () => {
-  const api = await readFile(new URL("../api/assignments.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261108131000_unbounded_alpha_callsign_sequence.sql", import.meta.url), "utf8");
   assert.match(api, /function validateCallsign\\(value\\)/);
