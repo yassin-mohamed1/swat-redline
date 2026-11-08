@@ -287,10 +287,10 @@ async function listAssignments(url,key,token,guildId) {
     member_sync_warning:guildWarning,callsign_presets:Array.from({length:16},(_,i)=>"Alpha "+i)};
 }
 async function handleAddManualMember(url,key,token,guildId,user,body,res) {
-  if (!token || !/^\\d{15,22}$/.test(String(guildId || "")))
+  if (!token || !/^\d{15,22}$/.test(String(guildId || "")))
     return send(res,503,{error:"لم يتم إعداد اتصال بوت Discord والسيرفر."});
   const targetId=String(body.discord_user_id||"").trim();
-  if(!/^\\d{15,22}$/.test(targetId))
+  if(!/^\d{15,22}$/.test(targetId))
     return send(res,400,{error:"أدخل Discord ID صحيحًا مكوّنًا من 15 إلى 22 رقمًا."});
 
   const lookup=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,is_manual,display_name&limit=1");
