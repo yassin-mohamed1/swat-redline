@@ -52,6 +52,207 @@ async function supabase(url, key, path, init = {}) {
     ...(init.headers || {})
   }});
 }
+const ASSIGNMENT_DISCORD_API = "https://discord.com/api/v10";
+const ASSIGNMENT_RANKS = [
+  { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
+  { key: "deputyswatcommander", label: "DEPUTY S.W.A.T COMMANDER" },
+  { key: "swatteamleader", label: "S.W.A.T TEAM LEADER" },
+  { key: "swatsupervisor", label: "S.W.A.T SUPERVISOR" },
+  { key: "swatsenioroperator", label: "S.W.A.T SENIOR OPERATOR" },
+  { key: "swatoperator", label: "S.W.A.T OPERATOR" },
+  { key: "swatrecruit", label: "S.W.A.T RECRUIT" }
+];
+async function assignmentDiscord(token, path, init = {}) {
+  const response = await fetch(ASSIGNMENT_DISCORD_API + path, { ...init, headers: {
+    Authorization: "Bot " + token, "Content-Type": "application/json", ...(init.headers || {})
+  }});
+  const raw = await response.text();
+  let data = {};
+  try { data = raw ? JSON.parse(raw) : {}; } catch {}
+  if (!response.ok) {
+    const error = new Error("فشل طلب Discord (رمز الخطأ: " + String(data.code || response.status) + ").");
+    error.status = response.status;
+    error.code = String(data.code || response.status);
+    throw error;
+  }
+  return data;
+}
+function assignmentRankKey(name) {
+  const normalized = String(name || "").normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g,"").replace(/^\\d+/,"");
+  const rank = ASSIGNMENT_RANKS.find(item => item.key === normalized || (item.aliases || []).includes(normalized));
+  return rank?.key || null;
+}
+function assignmentRankList(roles, botPosition) {
+  return roles.map(role => {
+    const key = assignmentRankKey(role.name);
+    if (!key) return null;
+    const def = ASSIGNMENT_RANKS.find(item => item.key === key);
+    return { id: role.id, name: role.name, label: def.label, position: Number(role.position || 0),
+      managed: Boolean(role.managed), assignable: !role.managed && Number(role.position || 0) < botPosition };
+  }).filter(Boolean).sort((a,b)=>b.position-a.position);
+}
+function assignmentMemberName(member, fallback = "Discord user") {
+  return member?.nick || member?.user?.global_name || member?.user?.username || fallback;
+}
+function assignmentAvatar(member, guildId) {
+  const user = member?.user || {}, id = String(user.id || "");
+  const valid = value => typeof value === "string" && /^[a-zA-Z0-9_]+$/.test(value);
+  if (valid(member?.avatar) && /^\\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/guilds/"+guildId+"/users/"+id+"/avatars/"+member.avatar+"."+(member.avatar.startsWith("a_")?"gif":"png")+"?size=128";
+  if (valid(user.avatar) && /^\\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/avatars/"+id+"/"+user.avatar+"."+(user.avatar.startsWith("a_")?"gif":"png")+"?size=128";
+  if (/^\\d{15,22}$/.test(id)) return "https://cdn.discordapp.com/embed/avatars/"+Number((BigInt(id)>>22n)%6n)+".png";
+  return null;
+}
+async function assignmentMapLimit(items, limit, worker) {
+  const output = new Array(items.length); let cursor = 0;
+  await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{
+    while(true){const index=cursor++;if(index>=items.length)return;output[index]=await worker(items[index],index);}
+  }));
+  return output;
+}
+function assignmentPortalComponents() {
+  const host=process.env.VERCEL_PROJECT_PRODUCTION_URL||process.env.SITE_URL||"swat-redline.vercel.app";
+  const url=/^https?:\\/\\//i.test(host)?host:"https://"+host;
+  return [{type:1,components:[{type:2,style:5,label:"فتح بوابة S.W.A.T. REDLINE",url}]}];
+}
+function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor,reference}) {
+  return {
+    color:assigned?0xD92735:0x737B87,
+    author:{name:"S.W.A.T. REDLINE • PERSONNEL COMMAND"},
+    title:assigned?"🎖️ OFFICIAL APPOINTMENT":"📋 APPOINTMENT ENDED",
+    description:assigned
+      ?"تم اعتماد تعيينك الجديد في S.W.A.T. REDLINE من خلال بوابة القيادة."
+      :"تم إنهاء تعيينك الحالي في S.W.A.T. REDLINE وإزالة رتبة التعيين من حسابك.",
+    ...(avatar?{thumbnail:{url:avatar}}:{}),
+    fields:[
+      {name:"العضو",value:String(name||"Discord member").slice(0,180),inline:true},
+      {name:"Discord ID",value:discordId,inline:true},
+      {name:"الرتبة",value:assigned?String(rankName).slice(0,100):"تم إنهاء التعيين",inline:true},
+      {name:"كود النداء",value:assigned?(callsign||"لم يتم تعيين كود نداء"):"تم إلغاء كود النداء السابق",inline:true},
+      {name:"صدر بواسطة",value:String(actor||"S.W.A.T. REDLINE Command").slice(0,120),inline:true},
+      {name:"الرقم المرجعي",value:reference,inline:false}
+    ],
+    footer:{text:"S.W.A.T. REDLINE • PERSONNEL & APPOINTMENTS"},
+    timestamp:new Date().toISOString()
+  };
+}
+async function assignmentSendDm(token,targetId,embed) {
+  const dm=await assignmentDiscord(token,"/users/@me/channels",{method:"POST",body:JSON.stringify({recipient_id:targetId})});
+  if(!dm?.id)throw new Error("تعذّر فتح محادثة خاصة مع العضو.");
+  const message=await assignmentDiscord(token,"/channels/"+dm.id+"/messages",{
+    method:"POST",body:JSON.stringify({embeds:[embed],components:assignmentPortalComponents(),allowed_mentions:{parse:[]}})
+  });
+  if(!message?.id)throw new Error("لم يؤكد Discord إرسال رسالة التعيين.");
+  return {channelId:dm.id,messageId:message.id};
+}
+async function assignmentDeleteDm(token,dm) {
+  if(dm?.channelId&&dm?.messageId)await assignmentDiscord(token,"/channels/"+dm.channelId+"/messages/"+dm.messageId,{method:"DELETE"});
+}
+function assignmentCallsign(value) {
+  if(value==null||value==="")return null;
+  const match=String(value).trim().match(/^(?:Alpha\\s*)?(0|[1-9][0-9]*)$/i);
+  if(!match)throw Object.assign(new Error("كود النداء يجب أن يكون Alpha متبوعًا برقم صحيح يبدأ من 0."),{status:400});
+  return "Alpha "+match[1];
+}
+async function assignmentGuildContext(token,guildId) {
+  const [roles,botUser]=await Promise.all([
+    assignmentDiscord(token,"/guilds/"+guildId+"/roles"),
+    assignmentDiscord(token,"/users/@me")
+  ]);
+  const botMember=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+botUser.id);
+  const byId=new Map(roles.map(role=>[role.id,role]));
+  const botTop=(botMember.roles||[]).map(id=>byId.get(id)).filter(Boolean)
+    .reduce((top,role)=>!top||Number(role.position)>Number(top.position)?role:top,null);
+  if(!botTop)throw Object.assign(new Error("تعذّر تحديد أعلى رتبة للبوت في السيرفر."),{status:503});
+  const permissions=(botMember.roles||[]).map(id=>byId.get(id)).filter(Boolean)
+    .reduce((value,role)=>value|BigInt(role.permissions||"0"),0n);
+  return {roles,byId,botTop,canManageRoles:(permissions&(1n<<28n))!==0n||(permissions&(1n<<3n))!==0n};
+}
+async function assignmentMember(token,guildId,id) {
+  try {
+    const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+id);
+    return {inGuild:true,roles:member.roles||[],name:assignmentMemberName(member),avatar:assignmentAvatar(member,guildId)};
+  } catch(error) {
+    if(error.status===404)return {inGuild:false,roles:[],name:null,avatar:null};
+    throw error;
+  }
+}
+async function listAssignments(url,key,token,guildId) {
+  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
+  const [profileResponse,assignmentResponse,guild]=await Promise.all([
+    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned,created_at&order=display_name.asc"),
+    supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,callsign,status,assigned_by_name,updated_at"),
+    assignmentGuildContext(token,guildId)
+  ]);
+  if(!profileResponse.ok)throw new Error("تعذّر تحميل أعضاء الموقع المسجلين.");
+  if(!assignmentResponse.ok)throw new Error("تعذّر تحميل سجل التعيينات.");
+  const profiles=await profileResponse.json(),assignments=await assignmentResponse.json();
+  const byAssignment=new Map(assignments.map(item=>[String(item.discord_user_id),item]));
+  const roles=assignmentRankList(guild.roles,Number(guild.botTop.position));
+  const members=await assignmentMapLimit(profiles,5,async profile=>{
+    const live=await assignmentMember(token,guildId,profile.discord_user_id);
+    return {...profile,assignment:byAssignment.get(String(profile.discord_user_id))||null,
+      live_name:live.name,avatar_url:live.avatar||profile.avatar_url||null,in_guild:live.inGuild,
+      current_roles:live.roles,current_rank_roles:roles.filter(role=>live.roles.includes(role.id)),
+      account_status:profile.is_banned?"banned":profile.is_active===false?"inactive":"active"};
+  });
+  return {members,roles,bot:{can_manage_roles:guild.canManageRoles,top_role:guild.botTop.name},callsign_presets:Array.from({length:16},(_,i)=>"Alpha "+i)};
+}
+async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
+  const targetId=String(body.discord_user_id||"");
+  const action=body.action==="remove"?"remove":body.action==="assign"?"assign":"";
+  if(!action||!/^\\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
+  const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&limit=1");
+  if(!profileResponse.ok)return send(res,503,{error:"تعذّر التحقق من تسجيل العضو في الموقع."});
+  const profile=(await profileResponse.json())[0];
+  if(!profile)return send(res,404,{error:"هذا الحساب غير مسجل في الموقع."});
+  if(profile.is_active===false||profile.is_banned)return send(res,409,{error:"لا يمكن تعيين حساب موقوف أو محظور من الموقع."});
+  const guild=await assignmentGuildContext(token,guildId);
+  if(!guild.canManageRoles)return send(res,409,{error:"البوت لا يمتلك صلاحية Manage Roles في سيرفر Discord."});
+  const rankRoles=assignmentRankList(guild.roles,Number(guild.botTop.position));
+  const roleId=action==="assign"?String(body.rank_role_id||""):"";
+  const targetRole=roleId?rankRoles.find(role=>role.id===roleId):null;
+  if(action==="assign"&&(!targetRole||!targetRole.assignable))
+    return send(res,409,{error:"الرتبة المختارة غير موجودة ضمن رتب S.W.A.T المعتمدة أو أعلى من رتبة البوت."});
+  const callsign=action==="assign"?assignmentCallsign(body.callsign):null;
+  const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId);
+  const originalRoles=[...(member.roles||[])],rankIds=rankRoles.map(role=>role.id);
+  const blocking=rankRoles.find(role=>originalRoles.includes(role.id)&&!role.assignable);
+  if(blocking)return send(res,409,{error:"رتبة العضو الحالية «"+blocking.name+"» أعلى من رتبة البوت أو مُدارة، ولا يمكن استبدالها."});
+  const next=new Set(originalRoles);for(const id of rankIds)next.delete(id);
+  if(action==="assign")next.add(targetRole.id);
+  const desiredRoles=[...next];
+  const roleChanged=originalRoles.join(",")!==desiredRoles.join(",");
+  if(roleChanged)await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:desiredRoles})});
+  const reference=crypto.randomUUID(),name=assignmentMemberName(member,profile.display_name||"Discord user");
+  const rankName=action==="assign"?targetRole.label:null;
+  const embed=assignmentEmbed({assigned:action==="assign",name,discordId:targetId,avatar:assignmentAvatar(member,guildId)||profile.avatar_url||null,rankName,callsign,actor:user.displayName||user.username,reference});
+  let dm=null;
+  try { dm=await assignmentSendDm(token,targetId,embed); }
+  catch(error) {
+    if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
+    catch(rollback){console.error("Assignment rollback after DM failure:",rollback.code||rollback.message);return send(res,502,{error:"فشل إرسال الخاص وفشل التراجع عن الرتب. راجع رتب العضو يدويًا."});}
+    return send(res,502,{error:error.message||"تعذّر إرسال رسالة التعيين الخاصة. تم التراجع عن تعديل الرتبة."});
+  }
+  try {
+    const saved=await supabase(url,key,"rpc/save_staff_assignment",{method:"POST",body:JSON.stringify({
+      p_discord_user_id:targetId,p_display_name:name,p_username:member.user?.username||profile.username||"",
+      p_avatar_url:assignmentAvatar(member,guildId)||profile.avatar_url||"",
+      p_rank_role_id:action==="assign"?targetRole.id:null,p_rank_role_name:action==="assign"?targetRole.label:null,
+      p_callsign:callsign,p_status:action==="assign"?"assigned":"unassigned",
+      p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal owner"
+    })});
+    if(!saved.ok){const detail=(await saved.text()).slice(0,400);throw Object.assign(new Error(detail),{code:"assignment_database_write_failed"});}
+    const result=await saved.json();
+    return send(res,200,{ok:true,action,assignment:result.after,dm_status:"sent",reference});
+  } catch(error) {
+    let rollbackFailed=false;
+    if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
+    catch(rollback){rollbackFailed=true;console.error("Assignment rollback after database failure:",rollback.code||rollback.message);}
+    try{await assignmentDeleteDm(token,dm);}catch(removeError){console.error("Could not withdraw assignment DM:",removeError.code||removeError.message);}
+    return send(res,502,{error:rollbackFailed?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا.":"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord ومحاولة حذف الرسالة الخاصة.",rollback_failed:rollbackFailed});
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -62,6 +263,12 @@ export default async function handler(req, res) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return send(res, 503, { error: "Database is not configured" });
   try {
+    const searchParams = new URL(req.url, "https://portal.invalid").searchParams;
+    if (req.method === "GET" && searchParams.get("assignments") === "1") {
+      const token = process.env.DISCORD_BOT_TOKEN, guildId = process.env.DISCORD_GUILD_ID;
+      try { return send(res, 200, await listAssignments(url,key,token,guildId)); }
+      catch (error) { console.error("Assignment list failed:",error?.message||"unknown"); return send(res,error.status||502,{error:error.message||"Could not load assignments."}); }
+    }
     if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("activity") === "1") {
       const query = new URLSearchParams({
         select: "id,discord_user_id,display_name,event_type,session_issued_at,occurred_at",
@@ -130,8 +337,13 @@ export default async function handler(req, res) {
         warning: "Directory loaded without activity tracking. Apply the admin controls migration to enable login counts, last activity, bans, and site settings.",
       });
     }
+    if (req.method === "POST") {
+      if (!requireSameOrigin(req,res)) return;
+      const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+      return await handleAssignmentPost(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
+    }
     if (req.method !== "PATCH") {
-      res.setHeader("Allow", "GET, PATCH");
+      res.setHeader("Allow", "GET, POST, PATCH");
       return send(res, 405, { error: "Method not allowed" });
     }
     if (!requireSameOrigin(req, res)) return;
