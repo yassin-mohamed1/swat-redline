@@ -2,6 +2,16 @@ import crypto from "node:crypto";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
 
+const ASSIGNMENT_RANKS = [
+  { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
+  { key: "deputyswatcommander", label: "DEPUTY S.W.A.T COMMANDER" },
+  { key: "swatteamleader", label: "S.W.A.T TEAM LEADER" },
+  { key: "swatsupervisor", label: "S.W.A.T SUPERVISOR" },
+  { key: "swatsenioroperator", label: "S.W.A.T SENIOR OPERATOR" },
+  { key: "swatoperator", label: "S.W.A.T OPERATOR" },
+  { key: "swatrecruit", label: "S.W.A.T RECRUIT" }
+];
+
 function parseCookies(header = "") {
   const out = {};
   for (const part of header.split(";")) {
