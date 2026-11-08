@@ -16,7 +16,8 @@ test("warnings API separates editor authorization from bot role execution", asyn
   assert.match(source, /sendDirectNotice/);
   assert.match(source, /complete_disciplinary_action_v2/);
   assert.match(source, /restoreMemberRoles/);
-  assert.match(source, /30 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(source, /function warningValidityDays\(level\)/);
+  assert.match(source, /warningValidityDays\(level\) \* 24 \* 60 \* 60 \* 1000/);
 });
 
 test("disciplinary ladder permits Warning 1, Warning 2, then Dismissal only", async () => {
