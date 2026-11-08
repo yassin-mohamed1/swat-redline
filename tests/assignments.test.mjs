@@ -99,7 +99,7 @@ test("owner can add a Discord guild member manually without portal OAuth", async
   const migration = await readFile(new URL("../supabase/migrations/20261108153000_staff_manual_members.sql", import.meta.url), "utf8");
   assert.match(api, /handleAddManualMember/);
   assert.match(api, /action==="add_manual_member"/);
-  assert.match(api, /\/guilds\/\+guildId\+\/members\/\+targetId/);
+  assert.ok(api.includes('assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId)'));
   assert.match(api, /is_manual:true/);
   assert.match(api, /manual_created_by_discord_id:user\.id/);
   assert.match(html, /إضافة عضو بدون تسجيل/);
