@@ -37,9 +37,9 @@ test("disciplinary ladder permits Warning 1, Warning 2, then Dismissal only", as
 
 test("warning DM and announcement delivery are mandatory and expiry is scheduled", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
-  const worker = await readFile(new URL("../api/warnings/expire.js", import.meta.url), "utf8");
+  const worker = api;
   const migration = await readFile(new URL("../supabase/migrations/20261108084856_warning_expiry_and_required_dm.sql", import.meta.url), "utf8");
-  const schedule = await readFile(new URL("../supabase/migrations/20261108085103_schedule_warning_role_expiry.sql", import.meta.url), "utf8");
+  const schedule = await readFile(new URL("../supabase/migrations/20261108085251_warning_expiry_endpoint_consolidation.sql", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
   assert.match(api, /await sendDirectNotice/);
@@ -50,12 +50,12 @@ test("warning DM and announcement delivery are mandatory and expiry is scheduled
   assert.match(migration, /dm_status text NOT NULL DEFAULT 'pending'/);
   assert.match(migration, /claim_expired_warning_roles/);
   assert.match(migration, /complete_expired_warning_role/);
-  assert.match(worker, /CRON_SECRET/);
+  assert.match(worker, /CRON_SECRET/);\n  assert.match(worker, /processExpiredWarningRoles/);\n  assert.match(worker, /task\\\"\\) === \\\"expire/);
   assert.match(worker, /DISCORD_WARNING_ROLE_1_ID/);
   assert.match(worker, /DISCORD_WARNING_ROLE_2_ID/);
   assert.match(worker, /complete_expired_warning_role/);
   assert.match(schedule, /\* \* \* \* \*/);
-  assert.match(schedule, /swat-warning-role-expiry/);
+  assert.match(schedule, /swat-warning-role-expiry/);\n  assert.match(schedule, /api\\/warnings\\?task=expire/);
   assert.match(html, /automatically/);
   assert.match(html, /Private Message/);
   assert.match(html, /30 days/);
