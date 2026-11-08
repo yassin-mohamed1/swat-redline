@@ -40,6 +40,17 @@ test("appointment synchronizes one S.W.A.T rank, sends a portal DM, and rolls ba
   assert.match(api, /botTop\.position/);
 });
 
+test("assignment list keeps working when Discord member list is rate limited or unavailable", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(api, /member_sync_warning/);
+  assert.match(api, /profile\.discord_roles/);
+  assert.match(api, /assignmentGuildMembers/);
+  assert.match(html, /assignmentSyncNotice/);
+  assert.match(html, /member\.in_guild===false/);
+  assert.match(html, /سيتم التحقق من العضوية عند الحفظ/);
+});
+
 test("Alpha callsigns support presets and open-ended numeric additions", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
