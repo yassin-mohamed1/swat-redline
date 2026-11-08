@@ -271,7 +271,7 @@ async function listAssignments(url,key,token,guildId) {
     const id=String(profile.discord_user_id);
     const live=liveScan?.found.get(id)||null;
     const hasSnapshot=Array.isArray(profile.discord_roles)&&Boolean(profile.discord_roles_synced_at);
-    let inGuild=null,roleIds=hasSnapshot?profile.discord_roles:[],liveName=null,liveAvatar=null,roleDataSource=hasSnapshot?"last_login":"unknown";
+    let inGuild=null,roleIds=hasSnapshot?profile.discord_roles:[],liveName=null,liveAvatar=null,roleDataSource=hasSnapshot?(profile.is_manual?"manual_snapshot":"last_login"):"unknown";
     if(live) {
       inGuild=true;roleIds=Array.isArray(live.roles)?live.roles:[];liveName=assignmentMemberName(live);liveAvatar=assignmentAvatar(live,guildId);roleDataSource="live";
     } else if(liveScan&&(liveScan.complete||(liveScan.scannedThrough&&BigInt(id)<=BigInt(liveScan.scannedThrough)))) {
