@@ -1107,40 +1107,40 @@ html[dir="ltr"] .field label{text-align:left}
 </section>
 <section class="page" id="page-personnel"><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">حسابات Discord التي سجّلت الدخول إلى بوابة S.W.A.T. REDLINE</div></div><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجّلت الدخول إلى الموقع مرة واحدة على الأقل، وليس كل أعضاء سيرفر Discord تلقائيًا.</div><div class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div></section>
 <section class="page" id="page-warnings"><style>.warning-input{display:block;box-sizing:border-box;background:#101216;color:#e8e9ec;border:1px solid #353a43;border-radius:8px;padding:11px 12px;font:inherit;min-height:42px}.warning-input:focus{outline:2px solid rgba(217,39,53,.35);border-color:#d92735}.warning-input:disabled{opacity:.55;cursor:not-allowed}#page-warnings .btn:disabled{opacity:.45;cursor:not-allowed}#page-warnings .tag.yellow{color:#e6b94e;border-color:rgba(230,185,78,.35)}</style>
-<div class="sectionhead"><div><h2>Warnings</h2><div class="sub">Official disciplinary records and member warning management</div></div><button class="btn" type="button" onclick="renderWarnings()">↻ Refresh</button></div>
+<div class="sectionhead"><div><h2>التحذيرات</h2><div class="sub">السجلات التأديبية الرسمية وإدارة تحذيرات الأعضاء</div></div><button class="btn" type="button" onclick="renderWarnings()">↻ تحديث</button></div>
 <div class="stats" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px">
- <div class="panel" style="padding:16px"><div class="muted">Warning 1</div><strong id="warningCount1" style="font-size:28px">0</strong></div>
- <div class="panel" style="padding:16px"><div class="muted">Warning 2</div><strong id="warningCount2" style="font-size:28px">0</strong></div>
- <div class="panel" style="padding:16px"><div class="muted">Dismissed Members</div><strong id="warningCount3" style="font-size:28px">0</strong></div>
+ <div class="panel" style="padding:16px"><div class="muted">الإنذار الأول</div><strong id="warningCount1" style="font-size:28px">0</strong></div>
+ <div class="panel" style="padding:16px"><div class="muted">الإنذار الثاني</div><strong id="warningCount2" style="font-size:28px">0</strong></div>
+ <div class="panel" style="padding:16px"><div class="muted">الأعضاء المفصولون</div><strong id="warningCount3" style="font-size:28px">0</strong></div>
 </div>
 <div class="panel" style="margin-bottom:18px">
- <div class="panelhead"><h3>＋ Add Warning</h3><span class="tag red">Warning Manager</span></div>
+ <div class="panelhead"><h3>＋ إضافة تحذير</h3><span class="tag red">مدير التحذيرات</span></div>
  <div class="panelbody" style="display:grid;gap:13px">
   <div style="display:flex;gap:8px;flex-wrap:wrap">
-   <button class="btn primary" id="warningRegisteredMode" type="button" onclick="setWarningSource('registered')">Add Registered Member</button>
-   <button class="btn" id="warningManualMode" type="button" onclick="setWarningSource('manual')">Enter Discord ID</button>
+   <button class="btn primary" id="warningRegisteredMode" type="button" onclick="setWarningSource('registered')">اختيار عضو مسجل</button>
+   <button class="btn" id="warningManualMode" type="button" onclick="setWarningSource('manual')">إدخال معرّف ديسكورد يدويًا</button>
   </div>
-  <div id="warningRegisteredPicker"><label for="warningMemberSelect">Select a member registered on the website</label><select id="warningMemberSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="">Choose a member...</option></select></div>
-  <div id="warningManualPicker" style="display:none"><label for="warningManualId">Discord User ID</label><input id="warningManualId" class="warning-input" inputmode="numeric" maxlength="22" placeholder="Paste the Discord ID here" style="width:100%;margin-top:6px" oninput="refreshWarningForm()"></div>
-  <div id="warningCurrentMember" class="muted">Choose a member to continue.</div>
-  <div><label for="warningLevelSelect">Disciplinary Action</label><select id="warningLevelSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="1">Warning 1</option><option value="2">Warning 2</option><option value="3">Dismissal</option></select><div class="muted" style="margin-top:6px;font-size:12px">Warning 1 and Warning 2 each remain active for 30 days, then their Discord role is removed automatically.</div></div>
-  <div><label for="warningReason">Reason <span style="color:var(--red)">*</span></label><textarea id="warningReason" class="warning-input" rows="3" maxlength="1000" placeholder="Required: explain the violation..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
-  <div><label for="warningDetails">Additional Details (optional)</label><textarea id="warningDetails" class="warning-input" rows="2" maxlength="3000" placeholder="Evidence summary or additional context..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
-  <div id="warningDismissNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">Dismissal: this action removes the member's removable Discord roles and records the reason.</div>
+  <div id="warningRegisteredPicker"><label for="warningMemberSelect">اختر عضوًا مسجلًا في الموقع</label><select id="warningMemberSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="">اختر عضوًا...</option></select></div>
+  <div id="warningManualPicker" style="display:none"><label for="warningManualId">معرّف مستخدم ديسكورد</label><input id="warningManualId" class="warning-input" inputmode="numeric" maxlength="22" placeholder="الصق معرّف ديسكورد هنا" style="width:100%;margin-top:6px" oninput="refreshWarningForm()"></div>
+  <div id="warningCurrentMember" class="muted">اختر عضوًا للمتابعة.</div>
+  <div><label for="warningLevelSelect">الإجراء التأديبي</label><select id="warningLevelSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="1">الإنذار الأول</option><option value="2">الإنذار الثاني</option><option value="3">الفصل</option></select><div class="muted" style="margin-top:6px;font-size:12px">يظل كل إنذار ساريًا لمدة 30 يومًا، ثم تُزال رتبته من ديسكورد تلقائيًا.</div></div>
+  <div><label for="warningReason">سبب الإجراء <span style="color:var(--red)">*</span></label><textarea id="warningReason" class="warning-input" rows="3" maxlength="1000" placeholder="اكتب سبب المخالفة..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
+  <div><label for="warningDetails">تفاصيل إضافية (اختياري)</label><textarea id="warningDetails" class="warning-input" rows="2" maxlength="3000" placeholder="ملخص الأدلة أو أي معلومات إضافية..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
+  <div id="warningDismissNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">الفصل: يؤدي هذا الإجراء إلى إزالة جميع رتب ديسكورد التي يستطيع البوت إزالتها، مع تسجيل السبب.</div>
   <div style="display:flex;gap:9px;flex-wrap:wrap">
-   <button class="btn primary" id="warningIssueButton" type="button" onclick="submitWarningAction('issue')">Issue Warning</button>
-   <button class="btn danger" id="warningDismissButton" type="button" style="display:none" onclick="submitWarningAction('dismiss')">Dismiss Member</button>
+   <button class="btn primary" id="warningIssueButton" type="button" onclick="submitWarningAction('issue')">إصدار الإنذار</button>
+   <button class="btn danger" id="warningDismissButton" type="button" style="display:none" onclick="submitWarningAction('dismiss')">تنفيذ قرار الفصل</button>
   </div>
   <div id="warningActionStatus" class="muted" aria-live="polite"></div>
  </div>
 </div>
 <div class="panel" style="margin-bottom:18px">
- <div class="panelhead"><h3>Warning Records</h3><span class="sub" id="warningRecordCount">0 members</span></div>
- <div class="panelbody"><input id="warningSearch" class="warning-input" placeholder="Search by name or Discord ID..." style="width:100%;margin-bottom:12px" oninput="renderWarningRecords()"><div class="tablewrap"><table><thead><tr><th>Member</th><th>Discord ID</th><th>Level</th><th>Status</th><th>Last Reason</th><th>Last Updated</th><th>Expires</th></tr></thead><tbody id="warningRecordRows"><tr><td colspan="7">Loading warning records...</td></tr></tbody></table></div></div>
+ <div class="panelhead"><h3>سجل الإنذارات</h3><span class="sub" id="warningRecordCount">0 عضو</span></div>
+ <div class="panelbody"><input id="warningSearch" class="warning-input" placeholder="ابحث بالاسم أو معرّف ديسكورد..." style="width:100%;margin-bottom:12px" oninput="renderWarningRecords()"><div class="tablewrap"><table><thead><tr><th>العضو</th><th>معرّف ديسكورد</th><th>مستوى الإنذار</th><th>الحالة</th><th>سبب آخر إجراء</th><th>آخر تحديث</th><th>تاريخ الانتهاء</th></tr></thead><tbody id="warningRecordRows"><tr><td colspan="7">جارٍ تحميل سجل الإنذارات...</td></tr></tbody></table></div></div>
 </div>
 <div class="panel">
- <div class="panelhead"><h3>Recent Disciplinary Actions</h3><span class="sub">Latest 50 actions</span></div>
- <div class="panelbody"><div class="tablewrap"><table><thead><tr><th>Date</th><th>Member</th><th>Action</th><th>Reason</th><th>Issued By</th><th>Private Message</th><th>Warning Room</th><th>Expires</th></tr></thead><tbody id="warningHistoryRows"><tr><td colspan="8">Loading action history...</td></tr></tbody></table></div></div>
+ <div class="panelhead"><h3>أحدث الإجراءات التأديبية</h3><span class="sub">آخر 50 إجراء</span></div>
+ <div class="panelbody"><div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>العضو</th><th>الإجراء</th><th>السبب</th><th>صدر بواسطة</th><th>الرسالة الخاصة</th><th>قناة التحذيرات</th><th>تاريخ الانتهاء</th></tr></thead><tbody id="warningHistoryRows"><tr><td colspan="8">جارٍ تحميل سجل الإجراءات...</td></tr></tbody></table></div></div>
 </div>
 </section>
 <section class="page" id="page-gallery"><div class="sectionhead"><div><h2>صور الموقع</h2><div class="sub">معرض الصور التي يضيفها مالك البوابة</div></div></div><div class="panel"><div class="panelhead"><h3>معرض الصور</h3><span class="sub" id="siteGalleryCount">0 صورة</span></div><div class="panelbody"><div id="siteGalleryPublic" class="site-gallery-grid"></div></div></div></section><section class="page" id="page-settings"><div class="sectionhead"><div><h2>إعدادات الحساب</h2><div class="sub">إدارة إشعاراتك وتفضيلات حسابك، وإعدادات النظام للمالك فقط</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>إشعارات Discord</h3><span class="tag gray">إعداد شخصي</span></div><div class="panelbody"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>استقبال التنبيهات الخاصة</b><p class="muted" style="line-height:1.8;margin:6px 0 0">رسائل التنبيه الخاصة مفعّلة تلقائيًا بعد دخولك إلى البوابة. لو مش حابب تستقبل رسائل من البوت، شيل علامة الصح من خيار استقبال رسائل التنبيه هنا. تقدر ترجع تفعّلها في أي وقت.</p></div><label for="discordNotificationsToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="discordNotificationsToggle" type="checkbox" disabled onchange="saveDiscordNotificationPreference(this.checked)" style="accent-color:var(--red);width:18px;height:18px"> استقبال رسائل التنبيه</label></div><div id="discordNotificationsStatus" class="muted" style="margin-top:12px">جاري تحميل تفضيلات الإشعارات...</div></div></div><div id="ownerSettingsPanels" style="display:none"><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>حالة اتصال بوت Discord</h3><span id="discordBotStatusBadge" class="tag gray">لم يتم الفحص</span></div><div class="panelbody"><p class="muted">افحص أن البوت مثبت في نفس سيرفر Discord المستخدم لتسجيل الدخول إلى البوابة. هذا الفحص لا يعرض التوكن.</p><button class="btn primary" type="button" onclick="checkDiscordBotStatus(this)">فحص اتصال البوت بالسيرفر</button><div id="discordBotStatusMessage" class="muted" style="margin-top:10px">لم يتم إجراء الفحص بعد.</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>التحكم في منشن SWAT</h3><span class="tag gray">خاص بالمالك</span></div><div class="panelbody"><div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>إيقاف منشن رتبة SWAT مؤقتًا</b><p class="muted" style="margin:6px 0 0;line-height:1.8">عند تفعيل هذا الخيار، ينزل التنبيه في روم الإشعارات بدون منشن لأي عضو. عند إيقافه، يظهر منشن رتبة SWAT مع التنبيه. الرسائل الخاصة لا تتأثر بهذا الخيار.</p></div><label for="notificationMentionDisabledToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="notificationMentionDisabledToggle" type="checkbox" checked disabled onchange="saveNotificationMentionPreference(this.checked)" style="accent-color:var(--red);width:18px;height:18px"> إيقاف المنشن مؤقتًا</label></div><div id="notificationMentionStatus" class="muted" style="margin-top:12px">جاري تحميل إعداد المنشن...</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>التحكم في قنوات إرسال التنبيهات</h3><span class="tag gray">خاص بالمالك</span></div><div class="panelbody" style="display:grid;gap:16px">
@@ -1664,6 +1664,23 @@ function warningTargetId(){
  if(warningSourceMode==='manual')return String(document.getElementById('warningManualId')?.value||'').trim();
  return String(document.getElementById('warningMemberSelect')?.value||'').trim();
 }
+function warningLevelLabel(level){
+ return Number(level)===1?'الإنذار الأول':Number(level)===2?'الإنذار الثاني':'بدون إنذار';
+}
+function warningActionLabel(action,level){
+ return action==='dismissal'?'فصل العضو':warningLevelLabel(level);
+}
+function warningStatusLabel(status){
+ return status==='dismissed'?'مفصول':status==='active'?'نشط':status||'غير معروف';
+}
+function warningDeliveryLabel(status){
+ return status==='sent'?'تم الإرسال':status==='failed'?'فشل الإرسال':status==='pending'?'قيد الانتظار':status||'غير معروف';
+}
+function fmtWarningDate(value){
+ if(!value)return '—';
+ try{return new Date(value).toLocaleString('ar-SA',{timeZone:'Asia/Riyadh',calendar:'gregory',numberingSystem:'latn',dateStyle:'medium',timeStyle:'short'})}
+ catch{return '—'}
+}
 function setWarningSource(mode){
  warningSourceMode=mode==='manual'?'manual':'registered';
  const registered=document.getElementById('warningRegisteredPicker'),manual=document.getElementById('warningManualPicker');
@@ -1677,11 +1694,11 @@ function refreshWarningForm(){
  const id=warningTargetId(),subject=warningSubjectFor(id),level=Number(document.getElementById('warningLevelSelect')?.value||1);
  const info=document.getElementById('warningCurrentMember'),dismiss=document.getElementById('warningDismissButton'),issue=document.getElementById('warningIssueButton'),notice=document.getElementById('warningDismissNotice');
  const selected=warningData.members.find(item=>String(item.discord_user_id)===id);
- const name=subject?.display_name||selected?.display_name||selected?.username||'Discord member';
- if(info)info.textContent=!id?'Choose a member to continue.':(subject?'Current level: Warning '+subject.warning_level+' • '+subject.status:'Member: '+name+' • No warning record yet')+' • Discord ID: '+id;
+ const name=subject?.display_name||selected?.display_name||selected?.username||'عضو ديسكورد';
+ if(info)info.textContent=!id?'اختر عضوًا للمتابعة.':(subject?'المستوى الحالي: '+warningLevelLabel(subject.warning_level)+' • الحالة: '+warningStatusLabel(subject.status):'العضو: '+name+' • لا يوجد له سجل إنذارات سابق')+' • معرّف ديسكورد: '+id;
  if(notice)notice.style.display=level===3?'inline-flex':'none';
  if(dismiss)dismiss.style.display=level===3?'inline-flex':'none';
- if(issue){issue.style.display=level===3?'none':'inline-flex';issue.textContent='Issue Warning '+level;}
+ if(issue){issue.style.display=level===3?'none':'inline-flex';issue.textContent='إصدار '+warningLevelLabel(level);}
  const current=Number(subject?.warning_level||0),isDismissed=subject?.status==='dismissed';
  const canIssue=Boolean(id)&&!isDismissed&&level<=2&&level===current+1;
  if(issue)issue.disabled=!canIssue;
@@ -1691,55 +1708,55 @@ async function renderWarnings(){
  if(!currentCanManageWarnings||warningLoadBusy)return;
  warningLoadBusy=true;
  const rows=document.getElementById('warningRecordRows'),history=document.getElementById('warningHistoryRows');
- if(rows)rows.innerHTML='<tr><td colspan="7">Loading warning records...</td></tr>';
+ if(rows)rows.innerHTML='<tr><td colspan="7">جارٍ تحميل سجل الإنذارات...</td></tr>';
  try{
   const response=await fetch('/api/warnings',{credentials:'same-origin',cache:'no-store'}),data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'Could not load warnings.');
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل سجل التحذيرات.');
   warningData={members:Array.isArray(data.members)?data.members:[],subjects:Array.isArray(data.subjects)?data.subjects:[],actions:Array.isArray(data.actions)?data.actions:[]};
   const select=document.getElementById('warningMemberSelect'),previous=select?.value||'';
-  if(select){select.innerHTML='<option value="">Choose a member...</option>'+warningData.members.map(m=>'<option value="'+adminEscape(m.discord_user_id)+'">'+adminEscape(m.display_name||m.username||'Discord user')+' — '+adminEscape(m.discord_user_id)+'</option>').join('');if(warningData.members.some(m=>String(m.discord_user_id)===previous))select.value=previous;}
+  if(select){select.innerHTML='<option value="">اختر عضوًا...</option>'+warningData.members.map(m=>'<option value="'+adminEscape(m.discord_user_id)+'">'+adminEscape(m.display_name||m.username||'عضو ديسكورد')+' — '+adminEscape(m.discord_user_id)+'</option>').join('');if(warningData.members.some(m=>String(m.discord_user_id)===previous))select.value=previous;}
   [1,2].forEach(level=>{const node=document.getElementById('warningCount'+level);if(node)node.textContent=warningData.subjects.filter(s=>s.status!=='dismissed'&&Number(s.warning_level)===level).length});
   const dismissedCount=document.getElementById('warningCount3');if(dismissedCount)dismissedCount.textContent=warningData.subjects.filter(s=>s.status==='dismissed').length;
   renderWarningRecords();
-  if(history)history.innerHTML=warningData.actions.slice(0,50).map(a=>'<tr><td>'+adminEscape(fmtAdminDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+(a.action_type==='dismissal'?'red':'gray')+'">'+adminEscape(a.action_type==='dismissal'?'Dismissal':'Warning '+a.warning_level)+'</span></td><td>'+adminEscape(a.reason)+'</td><td>'+adminEscape(a.actor_name)+'</td><td><span class="tag '+(a.dm_status==='sent'?'green':a.dm_status==='failed'?'red':'gray')+'">'+adminEscape(a.dm_status||'pending')+'</span></td><td><span class="tag '+(a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(a.channel_status||'pending')+'</span></td><td>'+adminEscape(a.expired_at?'Expired':a.warning_expires_at?fmtAdminDate(a.warning_expires_at):'—')+'</td></tr>').join('')||'<tr><td colspan="8"><div class="empty">No disciplinary actions recorded.</div></td></tr>';
+  if(history)history.innerHTML=warningData.actions.slice(0,50).map(a=>'<tr><td>'+adminEscape(fmtWarningDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+(a.action_type==='dismissal'?'red':'gray')+'">'+adminEscape(warningActionLabel(a.action_type,a.warning_level))+'</span></td><td>'+adminEscape(a.reason)+'</td><td>'+adminEscape(a.actor_name)+'</td><td><span class="tag '+(a.dm_status==='sent'?'green':a.dm_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.dm_status))+'</span></td><td><span class="tag '+(a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.channel_status))+'</span></td><td>'+adminEscape(a.expired_at?'منتهي':a.warning_expires_at?fmtWarningDate(a.warning_expires_at):'—')+'</td></tr>').join('')||'<tr><td colspan="8"><div class="empty">لا توجد إجراءات تأديبية مسجلة.</div></td></tr>';
   refreshWarningForm();
  }catch(error){
-  if(rows)rows.innerHTML='<tr><td colspan="7">'+adminEscape(error.message||'Could not load warnings.')+'</td></tr>';
-  if(history)history.innerHTML='<tr><td colspan="8">Action history unavailable.</td></tr>';
+  if(rows)rows.innerHTML='<tr><td colspan="7">'+adminEscape(error.message||'تعذّر تحميل سجل التحذيرات.')+'</td></tr>';
+  if(history)history.innerHTML='<tr><td colspan="8">تعذّر تحميل سجل الإجراءات.</td></tr>';
  }finally{warningLoadBusy=false;}
 }
 function renderWarningRecords(){
  const body=document.getElementById('warningRecordRows');if(!body)return;
  const query=String(document.getElementById('warningSearch')?.value||'').trim().toLowerCase();
  const records=warningData.subjects.filter(s=>(String(s.display_name||'')+' '+String(s.discord_user_id||'')).toLowerCase().includes(query));
- const count=document.getElementById('warningRecordCount');if(count)count.textContent=records.length+' members';
- body.innerHTML=records.map(s=>'<tr><td><b>'+adminEscape(s.display_name)+'</b></td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+(s.status==='dismissed'?'red':s.warning_level===2?'yellow':'gray')+'">'+(s.status==='dismissed'?'Dismissal':s.warning_level?'Warning '+s.warning_level:'No warning')+'</span></td><td><span class="tag '+(s.status==='dismissed'?'red':'green')+'">'+adminEscape(s.status)+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtAdminDate(s.last_action_at||s.updated_at))+'</td><td>'+adminEscape(s.warning_expires_at?fmtAdminDate(s.warning_expires_at):'—')+'</td></tr>').join('')||'<tr><td colspan="7"><div class="empty">No warning records found.</div></td></tr>';
+ const count=document.getElementById('warningRecordCount');if(count)count.textContent=records.length+' عضو';
+ body.innerHTML=records.map(s=>'<tr><td><b>'+adminEscape(s.display_name)+'</b></td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+(s.status==='dismissed'?'red':s.warning_level===2?'yellow':'gray')+'">'+adminEscape(s.status==='dismissed'?'فصل':s.warning_level?warningLevelLabel(s.warning_level):'بدون إنذار')+'</span></td><td><span class="tag '+(s.status==='dismissed'?'red':'green')+'">'+adminEscape(warningStatusLabel(s.status))+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtWarningDate(s.last_action_at||s.updated_at))+'</td><td>'+adminEscape(s.warning_expires_at?fmtWarningDate(s.warning_expires_at):'—')+'</td></tr>').join('')||'<tr><td colspan="7"><div class="empty">لا توجد سجلات تحذيرات حتى الآن.</div></td></tr>';
 }
 async function submitWarningAction(action){
  if(!currentCanManageWarnings)return;
  const id=warningTargetId(),level=Number(document.getElementById('warningLevelSelect')?.value||1);
  const reason=String(document.getElementById('warningReason')?.value||'').trim();
  const details=String(document.getElementById('warningDetails')?.value||'').trim();
- if(!/^\d{15,22}$/.test(id)){toast('Enter or select a valid Discord User ID.');return}
- if(!reason){toast('A warning reason is required.');document.getElementById('warningReason')?.focus();return}
+ if(!/^\d{15,22}$/.test(id)){toast('أدخل معرّف مستخدم ديسكورد صحيحًا أو اختر عضوًا من القائمة.');return}
+ if(!reason){toast('سبب الإجراء التأديبي مطلوب.');document.getElementById('warningReason')?.focus();return}
  const currentLevel=Number(warningSubjectFor(id)?.warning_level||0);
- if(action==='dismiss'&&(level!==3||currentLevel!==2)){toast('Dismissal is available only after Warning 2.');return}
- if(action==='issue'&&(level>2||currentLevel!==level-1)){toast('Warnings must be issued in order: Warning 1, then Warning 2.');return}
- const label=action==='dismiss'?'dismiss this member':'issue Warning '+level;
- if(!confirm('Are you sure you want to '+label+'?\n\nReason: '+reason))return;
+ if(action==='dismiss'&&(level!==3||currentLevel!==2)){toast('لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.');return}
+ if(action==='issue'&&(level>2||currentLevel!==level-1)){toast('يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني.');return}
+ const label=action==='dismiss'?'فصل هذا العضو':'إصدار '+warningLevelLabel(level);
+ if(!confirm('هل أنت متأكد من '+label+'؟\n\nالسبب: '+reason))return;
  const buttons=['warningIssueButton','warningDismissButton'].map(id=>document.getElementById(id)).filter(Boolean);
  buttons.forEach(b=>b.disabled=true);
- const status=document.getElementById('warningActionStatus');if(status)status.textContent='Applying Discord roles, sending the required private notice, and publishing the official warning...';
+ const status=document.getElementById('warningActionStatus');if(status)status.textContent='جارٍ تحديث رتب ديسكورد وإرسال الإشعار الخاص ونشر السجل الرسمي...';
  try{
   const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,discord_user_id:id,warning_level:level,reason,details,request_id:crypto.randomUUID()})});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok)throw new Error(data.error||'The disciplinary action failed.');
-  if(status)status.textContent=action==='dismiss'?'Member dismissed. Private notice and warnings-room announcement sent.':'Warning '+level+' issued. Private notice and warnings-room announcement sent. It expires in 30 days.';
-  if(data.channel_status==='failed')toast('Roles updated, but the Discord announcement failed. Check the bot channel permissions.');
-  else toast(action==='dismiss'?'Member dismissed successfully.':'Warning issued successfully.');
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تنفيذ الإجراء التأديبي.');
+  if(status)status.textContent=action==='dismiss'?'تم فصل العضو وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات.':'تم إصدار '+warningLevelLabel(level)+' وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.';
+  if(data.channel_status==='failed')toast('تم تحديث الرتب، لكن تعذّر نشر الإعلان في ديسكورد. راجع صلاحيات البوت في القناة.');
+  else toast(action==='dismiss'?'تم تنفيذ قرار الفصل بنجاح.':'تم إصدار الإنذار بنجاح.');
   document.getElementById('warningReason').value='';document.getElementById('warningDetails').value='';
   await renderWarnings();
- }catch(error){if(status)status.textContent=error.message||'The action could not be completed.';toast(error.message||'The action failed.');}
+ }catch(error){if(status)status.textContent=error.message||'تعذّر إتمام الإجراء.';toast(error.message||'فشل تنفيذ الإجراء.');}
  finally{refreshWarningForm();}
 }
 
