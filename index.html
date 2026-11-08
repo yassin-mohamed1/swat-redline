@@ -1804,7 +1804,7 @@ async function renderWarnings(){
  if(!currentCanManageWarnings||warningLoadBusy)return;
  warningLoadBusy=true;
  const rows=document.getElementById('warningRecordRows'),history=document.getElementById('warningHistoryRows');
- if(rows)rows.innerHTML='<tr><td colspan="7">جارٍ تحميل سجل الإنذارات...</td></tr>';
+ if(rows)rows.innerHTML='<tr><td colspan="7">جارٍ تحميل السجلات...</td></tr>';
  try{
   const response=await fetch('/api/warnings',{credentials:'same-origin',cache:'no-store'}),data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل سجل التحذيرات.');
@@ -1814,20 +1814,168 @@ async function renderWarnings(){
   [1,2].forEach(level=>{const node=document.getElementById('warningCount'+level);if(node)node.textContent=warningData.subjects.filter(s=>s.status!=='dismissed'&&Number(s.warning_level)===level).length});
   const dismissedCount=document.getElementById('warningCount3');if(dismissedCount)dismissedCount.textContent=warningData.subjects.filter(s=>s.status==='dismissed').length;
   renderWarningRecords();
-  if(history)history.innerHTML=warningData.actions.slice(0,50).map(a=>'<tr><td>'+adminEscape(fmtWarningDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+(a.action_type==='dismissal'?'red':'gray')+'">'+adminEscape(warningActionLabel(a.action_type,a.warning_level))+'</span></td><td>'+adminEscape(a.reason)+'</td><td>'+adminEscape(a.actor_name)+'</td><td><span class="tag '+(a.dm_status==='sent'?'green':a.dm_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.dm_status))+'</span></td><td><span class="tag '+(a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.channel_status))+'</span></td><td>'+adminEscape(a.expired_at?'منتهي':a.warning_expires_at?fmtWarningDate(a.warning_expires_at):'—')+'</td></tr>').join('')||'<tr><td colspan="8"><div class="empty">لا توجد إجراءات تأديبية مسجلة.</div></td></tr>';
+  renderWarningHistory()
   refreshWarningForm();
  }catch(error){
   if(rows)rows.innerHTML='<tr><td colspan="7">'+adminEscape(error.message||'تعذّر تحميل سجل التحذيرات.')+'</td></tr>';
   if(history)history.innerHTML='<tr><td colspan="8">تعذّر تحميل سجل الإجراءات.</td></tr>';
  }finally{warningLoadBusy=false;}
 }
+function showWarningView(view){
+ const selected=['members','create','history'].includes(view)?view:'members';
+ ['members','create','history'].forEach(key=>{
+  const panel=document.getElementById('warningView'+key[0].toUpperCase()+key.slice(1));
+  const tab=document.getElementById('warningTab'+key[0].toUpperCase()+key.slice(1));
+  if(panel)panel.style.display=selected===key?'block':'none';
+  if(tab)tab.classList.toggle('active',selected===key);
+ });
+ if(selected==='create')refreshWarningForm();
+ if(selected==='history')renderWarningHistory();
+}
+function setWarningFilter(filter){
+ warningRecordFilter=['all','first','second','dismissed','clear'].includes(filter)?filter:'all';
+ document.querySelectorAll('[data-warning-filter]').forEach(button=>button.classList.toggle('active',button.dataset.warningFilter===warningRecordFilter));
+ renderWarningRecords();
+}
+function closeWarningModal(id){
+ const modal=document.getElementById(id);if(modal)modal.hidden=true;
+}
 function renderWarningRecords(){
  const body=document.getElementById('warningRecordRows');if(!body)return;
  const query=String(document.getElementById('warningSearch')?.value||'').trim().toLowerCase();
- const records=warningData.subjects.filter(s=>(String(s.display_name||'')+' '+String(s.discord_user_id||'')).toLowerCase().includes(query));
+ const records=warningData.subjects.filter(s=>{
+  const search=(String(s.display_name||'')+' '+String(s.discord_user_id||'')).toLowerCase().includes(query);
+  if(!search)return false;
+  if(warningRecordFilter==='first')return s.status!=='dismissed'&&Number(s.warning_level)===1;
+  if(warningRecordFilter==='second')return s.status!=='dismissed'&&Number(s.warning_level)===2;
+  if(warningRecordFilter==='dismissed')return s.status==='dismissed';
+  if(warningRecordFilter==='clear')return s.status!=='dismissed'&&Number(s.warning_level)===0;
+  return true;
+ });
  const count=document.getElementById('warningRecordCount');if(count)count.textContent=records.length+' عضو';
- body.innerHTML=records.map(s=>'<tr><td><b>'+adminEscape(s.display_name)+'</b></td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+(s.status==='dismissed'?'red':s.warning_level===2?'yellow':'gray')+'">'+adminEscape(s.status==='dismissed'?'فصل':s.warning_level?warningLevelLabel(s.warning_level):'بدون إنذار')+'</span></td><td><span class="tag '+(s.status==='dismissed'?'red':'green')+'">'+adminEscape(warningStatusLabel(s.status))+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtWarningDate(s.last_action_at||s.updated_at))+'</td><td>'+adminEscape(s.warning_expires_at?fmtWarningDate(s.warning_expires_at):'—')+'</td></tr>').join('')||'<tr><td colspan="7"><div class="empty">لا توجد سجلات تحذيرات حتى الآن.</div></td></tr>';
+ body.innerHTML=records.map(s=>{
+  const level=Number(s.warning_level||0);
+  const label=s.status==='dismissed'?'مفصول':level?warningLevelLabel(level):'بدون إنذار';
+  const tag=s.status==='dismissed'?'red':level===2?'yellow':level===1?'gray':'green';
+  return '<tr><td><b>'+adminEscape(s.display_name)+'</b></td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+tag+'">'+adminEscape(label)+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtWarningDate(s.last_action_at||s.updated_at))+'</td><td>'+adminEscape(s.warning_expires_at?fmtWarningDate(s.warning_expires_at):'—')+'</td><td><button class="btn" type="button" onclick="openWarningManage(\''+adminEscape(s.discord_user_id)+'\')">إدارة الحالة</button></td></tr>';
+ }).join('')||'<tr><td colspan="7"><div class="empty">لا توجد سجلات مطابقة لهذا الاختيار.</div></td></tr>';
 }
+function renderWarningHistory(){
+ const body=document.getElementById('warningHistoryRows');if(!body)return;
+ const filter=document.getElementById('warningHistoryFilter')?.value||'all';
+ const query=String(document.getElementById('warningHistorySearch')?.value||'').trim().toLowerCase();
+ const actions=warningData.actions.filter(a=>{
+  if(filter==='warning'&&a.action_type!=='warning')return false;
+  if(filter==='dismissal'&&a.action_type!=='dismissal')return false;
+  if(filter==='expired'&&!a.expired_at)return false;
+  return (String(a.target_name||'')+' '+String(a.discord_user_id||'')+' '+String(a.reason||'')+' '+String(a.actor_name||'')).toLowerCase().includes(query);
+ }).slice(0,500);
+ body.innerHTML=actions.map(a=>{
+  const editable=a.status==='completed'&&a.dm_channel_id&&a.dm_message_id&&a.channel_message_id;
+  const typeClass=a.action_type==='dismissal'?'red':'gray';
+  return '<tr><td>'+adminEscape(fmtWarningDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+typeClass+'">'+adminEscape(warningActionLabel(a.action_type,a.warning_level))+'</span></td><td>'+adminEscape(a.reason)+'</td><td>'+adminEscape(a.actor_name)+'</td><td><span class="tag '+(a.dm_status==='sent'?'green':a.dm_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.dm_status))+'</span></td><td><span class="tag '+(a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.channel_status))+'</span></td><td>'+adminEscape(a.expired_at?'منتهي':a.warning_expires_at?fmtWarningDate(a.warning_expires_at):'—')+'</td><td><button class="btn" type="button" '+(editable?'':'disabled title="لا تتوفر معرّفات الرسائل المكتملة"')+' onclick="openWarningEdit(\''+adminEscape(a.id)+'\')">تعديل الرسالة</button></td></tr>';
+ }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد إجراءات مطابقة لهذا البحث.</div></td></tr>';
+}
+function openWarningManage(id){
+ const subject=warningSubjectFor(id);if(!subject)return;
+ warningManageTargetId=String(id);
+ const title=document.getElementById('warningManageTitle');
+ const member=document.getElementById('warningManageMember');
+ if(title)title.textContent='إدارة حالة العضو';
+ if(member)member.textContent=(subject.display_name||'عضو ديسكورد')+' • '+id+' • الحالة الحالية: '+(subject.status==='dismissed'?'مفصول':warningLevelLabel(subject.warning_level||0));
+ const level=document.getElementById('warningManageLevel');
+ if(level)level.value=subject.status==='dismissed'?'0':String(Number(subject.warning_level||0));
+ const reason=document.getElementById('warningManageReason');if(reason)reason.value='';
+ const status=document.getElementById('warningManageStatus');if(status)status.textContent='';
+ const modal=document.getElementById('warningManageModal');if(modal)modal.hidden=false;
+ refreshWarningManageModal();
+}
+function refreshWarningManageModal(){
+ const subject=warningSubjectFor(warningManageTargetId);if(!subject)return;
+ const level=Number(document.getElementById('warningManageLevel')?.value||0);
+ const current=Number(subject.warning_level||0);
+ const hint=document.getElementById('warningManageHint');
+ const save=document.getElementById('warningManageSave');
+ let message='',disabled=false;
+ if(level===0){
+  message='سيتم حذف رتبة التحذير الحالية فقط مع الحفاظ على بقية رتب العضو.';
+  if(subject.status==='dismissed')message='إعادة تفعيل السجل لا تعيد الرتب العادية التي أزيلت من Discord عند الفصل؛ أعد توزيعها من إدارة الرتب إذا لزم.';
+ }else if(level===1||level===2){
+  message='سيتم تحديث رتبة التحذير في Discord وإعادة احتساب مدة الصلاحية من الآن ('+warningDurationDays(level)+' يومًا).';
+  if(subject.status==='dismissed')message+=' إعادة التفعيل لا تستعيد الرتب العادية التي أزيلت وقت الفصل.';
+ }else{
+  message='الفصل متاح بعد الإنذار الثاني فقط. سيتم إزالة جميع الرتب التي يستطيع البوت إدارتها.';
+  disabled=current!==2||subject.status==='dismissed';
+ }
+ if(hint)hint.textContent=message;
+ if(save){save.disabled=disabled;save.textContent=level===0?'إزالة الإنذار / حفظ':level===3?'فصل العضو':'تحديث الحالة';}
+}
+async function submitWarningAdjustment(){
+ if(!currentCanManageWarnings)return;
+ const subject=warningSubjectFor(warningManageTargetId);
+ const desired=Number(document.getElementById('warningManageLevel')?.value||0);
+ const reason=String(document.getElementById('warningManageReason')?.value||'').trim();
+ const status=document.getElementById('warningManageStatus');
+ const save=document.getElementById('warningManageSave');
+ if(!subject){toast('العضو غير موجود في السجل.');return;}
+ if(!reason){toast('سبب التعديل مطلوب.');document.getElementById('warningManageReason')?.focus();return;}
+ if(desired===3&&(Number(subject.warning_level)!==2||subject.status==='dismissed')){toast('الفصل متاح بعد تسجيل الإنذار الثاني فقط.');return;}
+ const label=desired===3?'فصل العضو':desired===0?(subject.status==='dismissed'?'إعادة تفعيل العضو بدون إنذار':'إزالة الإنذار الحالي'): 'تغيير الحالة إلى '+warningLevelLabel(desired);
+ if(!confirm('هل تريد '+label+'؟\n\nالسبب: '+reason+'\n\nسيتم تسجيل التغيير في سجل الموقع.'))return;
+ if(save)save.disabled=true;
+ if(status)status.textContent='جارٍ مزامنة رتب Discord وحفظ سجل التعديل...';
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'adjust_state',discord_user_id:warningManageTargetId,warning_level:desired,reason})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تعديل الحالة التأديبية.');
+  if(status)status.textContent='تم تحديث الحالة التأديبية ومزامنة رتب Discord.';
+  toast('تم حفظ الحالة الجديدة وتسجيلها في سجل النشاط.');
+  closeWarningModal('warningManageModal');
+  await renderWarnings();
+  if(typeof loadAuditLog==='function')loadAuditLog();
+ }catch(error){
+  if(status)status.textContent=error.message||'تعذّر تعديل الحالة التأديبية.';
+  toast(error.message||'تعذّر تعديل الحالة التأديبية.');
+ }finally{
+  if(save)save.disabled=false;
+ }
+}
+function openWarningEdit(actionId){
+ const action=warningData.actions.find(item=>String(item.id)===String(actionId));
+ if(!action)return;
+ if(action.status!=='completed'||!action.dm_channel_id||!action.dm_message_id||!action.channel_message_id){toast('لا تتوفر كل معرّفات الرسائل لتعديل هذا السجل.');return;}
+ warningEditingActionId=String(actionId);
+ const member=document.getElementById('warningEditMember');if(member)member.textContent=(action.target_name||'عضو ديسكورد')+' • '+warningActionLabel(action.action_type,action.warning_level);
+ const reason=document.getElementById('warningEditReason');if(reason)reason.value=action.reason||'';
+ const details=document.getElementById('warningEditDetails');if(details)details.value=action.details||'';
+ const status=document.getElementById('warningEditStatus');if(status)status.textContent='';
+ const modal=document.getElementById('warningEditModal');if(modal)modal.hidden=false;
+}
+async function submitWarningEdit(){
+ if(!currentCanManageWarnings||!warningEditingActionId)return;
+ const reason=String(document.getElementById('warningEditReason')?.value||'').trim();
+ const details=String(document.getElementById('warningEditDetails')?.value||'').trim();
+ const status=document.getElementById('warningEditStatus');
+ const save=document.getElementById('warningEditSave');
+ if(!reason){toast('سبب الإجراء مطلوب.');return;}
+ if(!confirm('سيتم تعديل الرسالة الأصلية في Discord والاحتفاظ بالتغيير في سجل الموقع. هل تريد المتابعة؟'))return;
+ if(save)save.disabled=true;
+ if(status)status.textContent='جارٍ تحديث رسالة القناة والرسالة الخاصة...';
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit_action',action_id:warningEditingActionId,reason,details})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تعديل الرسالة التأديبية.');
+  if(status)status.textContent='تم تعديل الرسالة التأديبية الأصلية في Discord.';
+  toast('تم تعديل الرسالة الأصلية وتسجيل العملية في سجل النشاط.');
+  closeWarningModal('warningEditModal');
+  await renderWarnings();
+  if(typeof loadAuditLog==='function')loadAuditLog();
+ }catch(error){
+  if(status)status.textContent=error.message||'تعذّر تعديل الرسالة التأديبية.';
+  toast(error.message||'تعذّر تعديل الرسالة التأديبية.');
+ }finally{if(save)save.disabled=false;}
+}
+
 async function submitWarningAction(action){
  if(!currentCanManageWarnings)return;
  const id=warningTargetId(),level=Number(document.getElementById('warningLevelSelect')?.value||1);
