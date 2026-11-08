@@ -63,7 +63,7 @@ The site notification route posts announcements to the owner-selected Announceme
 - The Warnings portal is protected by the signed portal session, active staff profile, and `DISCORD_WARNING_MANAGER_ROLE_ID` role.
 - The ladder is strictly `Warning 1` → `Warning 2` → `Dismissal`; there is no Warning 3 Discord role.
 - Warning 1 and Warning 2 replace one another as the member progresses.
-- Dismissal is available only after Warning 2, removes all non-managed member roles that are below the bot's highest role, and records a dismissal action.
+- Dismissal is available only after Warning 2, removes all non-managed member roles below the bot's highest role, and records a dismissal action.
 - `DISCORD_BOT_ROLE_ID` identifies the bot's own Discord role. The bot needs Manage Roles and must be above Warning 1, Warning 2, and every role it is expected to remove.
 - The bot also needs View Channel, Send Messages, and Embed Links in `DISCORD_WARNINGS_CHANNEL_ID`.
 - Disciplinary records are stored in `disciplinary_subjects` and `disciplinary_actions`; RLS is enabled and browser-role access is revoked.
