@@ -1749,7 +1749,11 @@ async function submitWarningAction(action){
  if(action==='dismiss'&&(level!==3||currentLevel!==2)){toast('لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.');return}
  if(action==='issue'&&(level>2||(!restartingDismissed&&currentLevel!==level-1))){toast('يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني. وبعد الفصل يمكن بدء دورة جديدة بالإنذار الأول.');return}
  const label=action==='dismiss'?'فصل هذا العضو':restartingDismissed?'بدء دورة إنذارات جديدة بإصدار الإنذار الأول':'إصدار '+warningLevelLabel(level);
- if(!confirm('هل أنت متأكد من '+label+'؟\n\nالسبب: '+reason))return;
+ const labelEnglish=action==='dismiss'?'dismiss this member':restartingDismissed?'start a new warning cycle by issuing Warning 1':'issue Warning '+level;
+ const confirmation=currentPortalLanguage()==='ar'
+  ?'هل أنت متأكد من '+label+'؟\n\nالسبب: '+reason
+  :'Are you sure you want to '+labelEnglish+'?\n\nReason: '+reason;
+ if(!confirm(confirmation))return;
  const buttons=['warningIssueButton','warningDismissButton'].map(id=>document.getElementById(id)).filter(Boolean);
  buttons.forEach(b=>b.disabled=true);
  const status=document.getElementById('warningActionStatus');if(status)status.textContent='جارٍ تحديث رتب ديسكورد وإرسال الإشعار الخاص ونشر السجل الرسمي...';
@@ -2440,8 +2444,8 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "جارٍ تحميل سجل الإجراءات...":"Loading action history...",
   "لا توجد إجراءات تأديبية مسجلة.":"No disciplinary actions recorded.",
   "لا توجد سجلات تحذيرات حتى الآن.":"No warning records found.",
-  "المستوى الحالي: ":"Current level: ",
-  "الحالة: ":"Status: ",
+  "المستوى الحالي:":"Current level:",
+  "• الحالة:":"• Status:",
   "نشط":"Active",
   "مفصول":"Dismissed",
   "فصل":"Dismissal",
@@ -2452,13 +2456,16 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "قيد الانتظار":"Pending",
   "منتهي":"Expired",
   "سجل سابق: العضو مفصول. يمكنك بدء دورة إنذارات جديدة بإصدار الإنذار الأول.":"Previous record: The member was dismissed. You can start a new warning cycle by issuing Warning 1.",
-  "العضو: ":"Member: ",
+  "العضو:":"Member:",
   "لا يوجد له سجل إنذارات سابق":"No previous warning record",
   "أدخل معرّف مستخدم ديسكورد صحيحًا أو اختر عضوًا من القائمة.":"Enter a valid Discord user ID or choose a member from the list.",
   "سبب الإجراء التأديبي مطلوب.":"A disciplinary reason is required.",
   "لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.":"Dismissal is only available after Warning 2.",
   "يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني. وبعد الفصل يمكن بدء دورة جديدة بالإنذار الأول.":"Warnings must be issued in order: Warning 1, then Warning 2. After dismissal, a new cycle can start with Warning 1.",
   "تم فصل العضو وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات.":"The member was dismissed. The private notice was sent and the warnings-channel announcement was published.",
+  "تم إصدار الإنذار الأول وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.":"Warning 1 issued. The private notice was sent and the warnings-channel announcement was published. Expires after 30 days.",
+  "تم إصدار الإنذار الثاني وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.":"Warning 2 issued. The private notice was sent and the warnings-channel announcement was published. Expires after 30 days.",
+  "بدء دورة إنذارات جديدة بإصدار الإنذار الأول":"start a new warning cycle by issuing Warning 1",
   " وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.":". The private notice was sent and the warnings-channel announcement was published. Expires after 30 days.",
   "تم تحديث الرتب، لكن تعذّر نشر الإعلان في ديسكورد. راجع صلاحيات البوت في القناة.":"Roles were updated, but the Discord announcement could not be published. Check the bot's channel permissions.",
   "تم تنفيذ قرار الفصل بنجاح.":"Dismissal completed successfully.",
@@ -2478,7 +2485,7 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "رتبة البوت المحددة غير موجودة أو غير مُسندة إلى حساب البوت. راجع إعداد معرّف رتبة البوت.":"The configured bot role is missing or is not assigned to the bot account. Check the bot role ID setting.",
   "البوت لا يمتلك صلاحية إدارة الرتب. افتح إعدادات السيرفر ثم الرتب، واختر رتبة البوت وفعّل صلاحية إدارة الرتب ثم احفظ. اترك رتبة البوت أعلى من رتبتي الإنذار الأول والإنذار الثاني.":"The bot is missing the Manage Roles permission. Open Server Settings → Roles, select the bot role, enable Manage Roles, and save. Keep the bot role above Warning 1 and Warning 2.",
   "تعذّر التحقق من ترتيب رتب البوت.":"Could not verify the bot's role hierarchy.",
-  "لا يستطيع البوت إدارة رتبة الإنذار المنتهي رقم ":"The bot cannot manage expired Warning role ",
+  "لا يستطيع البوت إدارة رتبة الإنذار المنتهي رقم ":"The bot cannot manage expired Warning ",
   "رتبة الإنذار المحددة غير موجودة في سيرفر ديسكورد.":"The selected warning role does not exist in this Discord server.",
   "ارفع رتبة البوت في إعدادات السيرفر لتكون أعلى من رتبتي الإنذار الأول والإنذار الثاني.":"Move the bot role above Warning 1 and Warning 2 in Server Settings → Roles.",
   "لا يمكن فصل مالك السيرفر المحمي.":"The protected server owner cannot be dismissed.",
