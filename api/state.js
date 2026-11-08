@@ -140,22 +140,27 @@ function buildStateAuditEvents(beforeData,afterData,user) {
 }
 async function appendStateAuditEvents(supabaseUrl,serviceKey,events) {
   if(!events.length)return {count:0,ok:true};
-  const response=await fetch(supabaseUrl+"/rest/v1/audit_logs",{
-    method:"POST",
-    headers:{
-      apikey:serviceKey,
-      Authorization:"Bearer "+serviceKey,
-      "Content-Type":"application/json",
-      Prefer:"return=minimal"
-    },
-    body:JSON.stringify(events)
-  });
-  if(!response.ok) {
-    const detail=(await response.text()).slice(0,500);
-    console.error("Automatic app-state audit write failed:",response.status,detail);
-    return {count:0,ok:false};
+  let count=0;
+  for(let offset=0;offset<events.length;offset+=50){
+    const batch=events.slice(offset,offset+50);
+    const response=await fetch(supabaseUrl+"/rest/v1/audit_logs",{
+      method:"POST",
+      headers:{
+        apikey:serviceKey,
+        Authorization:"Bearer "+serviceKey,
+        "Content-Type":"application/json",
+        Prefer:"return=minimal"
+      },
+      body:JSON.stringify(batch)
+    });
+    if(!response.ok) {
+      const detail=(await response.text()).slice(0,500);
+      console.error("Automatic app-state audit write failed:",response.status,detail);
+      return {count,ok:false};
+    }
+    count+=batch.length;
   }
-  return {count:events.length,ok:true};
+  return {count,ok:true};
 }
 
 export default async function handler(req, res) {
