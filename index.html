@@ -2184,7 +2184,7 @@ function renderAssignmentRows(){
  body.innerHTML=rows.map(member=>{
   const saved=member.assignment?.status==='assigned'?member.assignment:null;
   const live=member.current_rank_roles||[];
-  const liveNames=live.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='last_login'?'رتب من آخر تسجيل دخول':member.in_guild===false?'خارج السيرفر':'لم يتم التحقق من الرتبة بعد');
+  const liveNames=live.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='manual_snapshot'?'رتب من وقت الإضافة اليدوية':member.role_data_source==='last_login'?'رتب من آخر تسجيل دخول':member.in_guild===false?'خارج السيرفر':'لم يتم التحقق من الرتبة بعد');
   const savedName=saved?.rank_role_name||'لا يوجد تعيين مسجل';
   const mismatch=Boolean(saved&&member.role_data_source!=='unknown'&&!live.some(role=>role.id===saved.rank_role_id));
   const accountLabel=member.account_status==='banned'?'محظور':member.account_status==='inactive'?'موقوف':member.in_guild===false?'خارج السيرفر':member.in_guild===null?'التحقق عند التعيين':'نشط';
@@ -2268,7 +2268,7 @@ function openAssignmentModal(id){
  const name=document.getElementById('assignmentModalMember');
  if(name)name.textContent=(member.live_name||member.display_name||'عضو')+' • '+assignmentTargetId;
  const live=document.getElementById('assignmentLiveSummary');
- if(live)live.textContent='رتبته الحالية: '+(current.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='last_login'?'آخر رتبة محفوظة من تسجيل الدخول':'لم يتم التحقق مباشرةً'))+' • التعيين المسجل: '+(saved?.rank_role_name||'لا يوجد')+' • كود النداء: '+(saved?.callsign||'—')+(member.in_guild===null?' • سيتم التحقق من العضوية عند الحفظ':'');
+ if(live)live.textContent='رتبته الحالية: '+(current.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='manual_snapshot'?'الرتب المحفوظة وقت الإضافة اليدوية':member.role_data_source==='last_login'?'آخر رتبة محفوظة من تسجيل الدخول':'لم يتم التحقق مباشرةً'))+' • التعيين المسجل: '+(saved?.rank_role_name||'لا يوجد')+' • كود النداء: '+(saved?.callsign||'—')+(member.in_guild===null?' • سيتم التحقق من العضوية عند الحفظ':'');
  const rank=document.getElementById('assignmentRankSelect');
  if(rank){
   rank.innerHTML='<option value="">اختر رتبة من سيرفر Discord...</option>'+assignmentData.roles.map(role=>'<option value="'+assignmentEscape(role.id)+'" '+(!role.assignable?'disabled':'')+'>'+assignmentEscape(role.label||role.name)+' — '+assignmentEscape(role.name)+(role.assignable?'':' ('+assignmentEscape(assignmentRoleUnavailableReason(role))+')')+'</option>').join('');
