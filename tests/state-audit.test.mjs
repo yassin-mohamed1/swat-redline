@@ -50,7 +50,7 @@ test("shared audit forwarder redacts risky content and targets the LUX audit roo
   const audit = await readFile(new URL("../api/audit/log.js", import.meta.url), "utf8");
   assert.match(helper, /forwardAuditEventsToDiscord/);
   assert.match(helper, /1569047013402738829/);
-  assert.match(helper, /allowed_mentions: \{ parse: \[\] \}/);
+  assert.ok(helper.includes("allowed_mentions:{parse:[]}"));
   assert.match(helper, /SENSITIVE_VALUE/);
   assert.match(audit, /forwardAuditToDiscord/);
 });
