@@ -2180,7 +2180,7 @@ async function renderAssignments(){
   const notice=document.getElementById('assignmentBotNotice');
   if(notice){
    const noRoles=!assignmentData.roles.length;
-   notice.style.display=!assignmentData.bot.can_manage_roles||noRoles?'block':'none';
+   notice.style.display=!data.member_sync_warning&&(!assignmentData.bot.can_manage_roles||noRoles)?'block':'none';
    notice.textContent=!assignmentData.bot.can_manage_roles
     ?'البوت لا يمتلك صلاحية Manage Roles. فعّلها في رتبة البوت حتى يستطيع تنفيذ التعيينات.'
     :'لم يتم التعرف على رتب S.W.A.T من الصورة في قائمة Discord. تأكد من أسماء الرتب الفعلية في السيرفر.';
