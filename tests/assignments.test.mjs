@@ -85,6 +85,22 @@ test("assignment persistence failures return a safe database diagnostic and pars
   assert.match(html, /Database diagnostic:/);
 });
 
+test("assignment handler defines its display name, reference and DM embed before mutations", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const start = api.indexOf("async function handleAssignmentPost(");
+  const end = api.indexOf("\nasync function handleAddNextCallsign", start);
+  assert.ok(start >= 0 && end > start, "assignment handler is present");
+  const handler = api.slice(start, end);
+  assert.match(handler, /const displayName=assignmentMemberName\(member,profile\.display_name\|\|"Discord member"\)/);
+  assert.match(handler, /const reference=crypto\.randomUUID\(\)/);
+  assert.match(handler, /const embed=assignmentEmbed\(/);
+  assert.match(handler, /p_display_name:displayName/);
+  assert.match(handler, /"تم تعيين "\+displayName/);
+  assert.match(handler, /assignmentSendDm\(token,targetId,embed\)/);
+  assert.doesNotMatch(handler, /p_display_name:name/);
+  assert.doesNotMatch(handler, /\+"\+name\+/);
+});
+
 test("one click adds the next Alpha without a manually entered number", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
