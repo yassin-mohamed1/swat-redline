@@ -57,6 +57,22 @@ test("one appointment can apply multiple Discord roles and persists both role ID
   assert.match(html, /rank_role_ids:rankRoleIds/);
 });
 
+test("a failed Discord DM never rolls back a saved appointment or role update", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const roleWrite = api.indexOf("if(roleChanged)await assignmentDiscord");
+  const databaseSave = api.indexOf('rpc/save_staff_assignment_v2', roleWrite);
+  const dmAttempt = api.indexOf("await assignmentSendDm(token,targetId,embed)", databaseSave);
+  assert.ok(roleWrite >= 0 && databaseSave > roleWrite && dmAttempt > databaseSave,
+    "Discord roles must be updated, then the appointment saved, before the optional DM");
+  assert.match(api, /dmStatus="failed",dmFailure=null/);
+  assert.match(api, /dm_status:dmStatus/);
+  assert.match(api, /code==="50278"/);
+  assert.match(api, /The appointment and Discord roles were saved/);
+  assert.match(html, /data\.dm_status==='failed'/);
+  assert.match(html, /DM delivery failure will not undo the appointment/);
+});
+
 test("one click adds the next Alpha without a manually entered number", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
