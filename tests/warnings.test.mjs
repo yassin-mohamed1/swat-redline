@@ -85,3 +85,20 @@ test("disciplinary embeds use English branding and warning titles with Arabic fi
   assert.ok(api.includes('name: "الإجراء التأديبي"'));
   assert.ok(api.includes('footer: { text: "S.W.A.T. REDLINE • DISCIPLINARY & COMPLIANCE" }'));
 });
+
+test("warnings page follows the existing Arabic and English portal switch", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /"التحذيرات":"Warnings"/);
+  assert.match(html, /"الإنذار الأول":"Warning 1"/);
+  assert.match(html, /"الإنذار الثاني":"Warning 2"/);
+  assert.match(html, /"سبب الإجراء":"Reason"/);
+  assert.match(html, /"الإجراء التأديبي":"Disciplinary Action"/);
+  assert.match(html, /"قناة التحذيرات":"Warnings Channel"/);
+  assert.match(html, /"تم إصدار الإنذار الأول وإرسال الإشعار الخاص/);
+  assert.match(html, /function fmtWarningDate\(value\)/);
+  assert.match(html, /currentPortalLanguage\(\)==='en'/);
+  assert.match(html, /Are you sure you want to /);
+  assert.match(html, /function togglePortalLanguage\(\)/);
+  assert.match(html, /page-warnings.*classList\.contains\('active'\).*renderWarnings\(\)/s);
+  assert.match(html, /Object\.assign\(PORTAL_ATTRIBUTE_TRANSLATIONS/);
+});
