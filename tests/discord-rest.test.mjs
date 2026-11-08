@@ -63,7 +63,7 @@ test("returns a 429 without waiting when Discord asks for a wait beyond the conf
   let calls = 0;
   const waits = [];
   await assert.rejects(
-    discordApiRequest("test-token", "/guilds/123/roles", {}, {
+    discordApiRequest("test-token", "/channels/123/messages", {}, {
       fetchImpl: async () => {
         calls += 1;
         return fakeResponse(429, JSON.stringify({ retry_after: 30, global: false }));
