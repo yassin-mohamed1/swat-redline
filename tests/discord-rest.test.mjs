@@ -66,7 +66,7 @@ test("returns a 429 without waiting when Discord asks for a wait beyond the conf
     discordApiRequest("test-token", "/guilds/123/roles", {}, {
       fetchImpl: async () => {
         calls += 1;
-        return fakeResponse(429, JSON.stringify({ retry_after: 30, global: true }));
+        return fakeResponse(429, JSON.stringify({ retry_after: 30, global: false }));
       },
       sleep: async ms => waits.push(ms),
       maxRetries: 3,
