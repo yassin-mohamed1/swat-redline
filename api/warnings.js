@@ -172,8 +172,8 @@ async function warningDiagnostics(cfg, user) {
 async function listData(cfg) {
   const [staffResponse, subjectResponse, actionResponse] = await Promise.all([
     db(cfg, "staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&order=display_name.asc"),
-    db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,created_at,updated_at&order=updated_at.desc"),
-    db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,channel_status,channel_message_id,created_at&order=created_at.desc&limit=500")
+    db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,created_at,updated_at&order=updated_at.desc"),
+    db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,created_at&order=created_at.desc&limit=500")
   ]);
   if (!staffResponse.ok || !subjectResponse.ok || !actionResponse.ok) throw new Error("Could not load warning records.");
   return { members: await staffResponse.json(), subjects: await subjectResponse.json(), actions: await actionResponse.json() };
