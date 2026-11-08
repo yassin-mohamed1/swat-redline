@@ -197,7 +197,7 @@ async function listData(cfg) {
   const [staffResponse, subjectResponse, actionResponse] = await Promise.all([
     db(cfg, "staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&order=display_name.asc"),
     db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,created_at,updated_at&order=updated_at.desc"),
-    db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,created_at&order=created_at.desc&limit=500")
+    db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_channel_id,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,created_at&order=created_at.desc&limit=500")
   ]);
   if (!staffResponse.ok || !subjectResponse.ok || !actionResponse.ok) throw new Error("تعذّر تحميل سجلات التحذيرات.");
   return { members: await staffResponse.json(), subjects: await subjectResponse.json(), actions: await actionResponse.json() };
@@ -364,6 +364,34 @@ async function restoreMemberRoles(cfg, targetId, originalRoles) {
   await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId, {
     method: "PATCH", body: JSON.stringify({ roles: originalRoles })
   });
+}
+async function syncWarningLevel(cfg, targetId, desiredLevel) {
+  if (![0,1,2].includes(Number(desiredLevel))) {
+    throw Object.assign(new Error("مستوى الإنذار المطلوب غير صالح."), { status: 400 });
+  }
+  const [member, guild] = await Promise.all([
+    discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId),
+    loadGuildRoleData(cfg)
+  ]);
+  const originalRoles = [...(member.roles || [])];
+  const current = new Set(originalRoles);
+  const warningIds = [...new Set(Object.values(cfg.warningRoles))];
+  for (const id of warningIds) {
+    const role = guild.byId.get(id);
+    if (!role || role.managed || role.position >= guild.botTop.position) {
+      throw Object.assign(new Error("لا يستطيع البوت إدارة رتب التحذيرات الحالية. راجع ترتيب الرتب وصلاحيات البوت."), { status: 409 });
+    }
+    current.delete(id);
+  }
+  if (Number(desiredLevel) > 0) current.add(cfg.warningRoles[Number(desiredLevel)]);
+  const roles = [...current];
+  await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId, {
+    method: "PATCH", body: JSON.stringify({ roles })
+  });
+  return {
+    member, originalRoles, appliedRoles: roles,
+    removedWarningRoleCount: originalRoles.filter(id => warningIds.includes(id)).length
+  };
 }
 function warningValidityDays(level) {
   return Number(level) === 2 ? 60 : 30;
@@ -533,6 +561,146 @@ export default async function handler(req, res) {
     }
     if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+
+    if (body.action === "adjust_state") {
+      const targetId = String(body.discord_user_id || "");
+      const desiredLevel = Number(body.warning_level);
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      if (!/^\\d{15,22}$/.test(targetId) || ![0,1,2,3].includes(desiredLevel) ||
+          !reason || reason.length > 1000) {
+        return json(res, 400, { error: "راجع معرّف العضو والحالة وسبب التعديل." });
+      }
+      if (targetId === process.env.DISCORD_OWNER_ID) {
+        return json(res, 403, { error: "لا يمكن تعديل الحالة التأديبية للمالك المحمي." });
+      }
+      const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
+      const targetName = discordName(target);
+      const targetAvatar = discordAvatarUrl(target, cfg.guildId);
+      const desiredStatus = desiredLevel === 3 ? "dismissed" : "active";
+      const expiresAt = desiredLevel === 1 || desiredLevel === 2
+        ? new Date(Date.now() + warningValidityDays(desiredLevel) * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+      let roleResult;
+      try {
+        roleResult = desiredLevel === 3
+          ? await updateMemberRoles(cfg, targetId, 3, true)
+          : await syncWarningLevel(cfg, targetId, desiredLevel);
+      } catch (error) {
+        return json(res, error.status || 502, { error: error.message || "تعذّر تعديل رتب العضو في Discord." });
+      }
+      try {
+        const result = await rpc(cfg, "set_disciplinary_subject_state", {
+          p_discord_user_id: targetId,
+          p_display_name: targetName,
+          p_username: target.user?.username || "",
+          p_avatar_url: targetAvatar,
+          p_warning_level: desiredLevel,
+          p_status: desiredStatus,
+          p_reason: reason,
+          p_warning_expires_at: expiresAt,
+          p_actor_discord_id: user.id,
+          p_actor_name: user.displayName
+        });
+        return json(res, 200, {
+          ok: true,
+          discord_roles_updated: true,
+          state: { warning_level: desiredLevel, status: desiredStatus, warning_expires_at: expiresAt },
+          before: result.before,
+          removed_warning_role_count: roleResult.removedWarningRoleCount ?? roleResult.removedRoleCount ?? 0
+        });
+      } catch (error) {
+        let rollbackFailed = false;
+        try { await restoreMemberRoles(cfg, targetId, roleResult.originalRoles); }
+        catch (rollbackError) {
+          rollbackFailed = true;
+          console.error("Role rollback failed after disciplinary state save failure:", rollbackError.code || rollbackError.message);
+        }
+        return json(res, 502, {
+          error: rollbackFailed
+            ? "فشل حفظ الحالة وفشل التراجع عن رتب Discord. يلزم فحص العضو يدويًا."
+            : "تعذّر حفظ التعديل في سجل الموقع. تم التراجع عن تغيير رتب Discord.",
+          rollback_failed: rollbackFailed
+        });
+      }
+    }
+
+    if (body.action === "edit_action") {
+      const actionId = String(body.action_id || "");
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const details = typeof body.details === "string" ? body.details.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(actionId) ||
+          !reason || reason.length > 1000 || details.length > 3000) {
+        return json(res, 400, { error: "راجع رقم السجل وسبب الإجراء والتفاصيل." });
+      }
+      const actionResponse = await db(cfg, "disciplinary_actions?id=eq." + encodeURIComponent(actionId) + "&select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,dm_channel_id,dm_message_id,channel_message_id,warning_expires_at&limit=1");
+      if (!actionResponse.ok) return json(res, 503, { error: "تعذّر تحميل السجل المطلوب تعديله." });
+      const actionRows = await actionResponse.json();
+      const record = actionRows[0];
+      if (!record || record.status !== "completed") {
+        return json(res, 404, { error: "السجل غير موجود أو لم يكتمل إرساله." });
+      }
+      if (!record.dm_channel_id || !record.dm_message_id || !record.channel_message_id) {
+        return json(res, 409, { error: "لا يمكن تعديل الرسالة لأن معرّفات رسائل Discord غير مكتملة." });
+      }
+      const subjectResponse = await db(cfg, "disciplinary_subjects?discord_user_id=eq." + encodeURIComponent(record.discord_user_id) + "&select=avatar_url,display_name&limit=1");
+      if (!subjectResponse.ok) return json(res, 503, { error: "تعذّر تحميل بيانات العضو." });
+      const subjectRows = await subjectResponse.json();
+      const subject = subjectRows[0] || {};
+      const targetProfile = { id: record.discord_user_id, name: subject.display_name || record.target_name, avatarUrl: subject.avatar_url || null };
+      const level = Number(record.warning_level);
+      const expiresAt = record.warning_expires_at || null;
+      const revisedEmbed = disciplinaryNoticeEmbed(record.action_type, level, targetProfile, reason, details, record.actor_name, record.id, expiresAt);
+      const previousEmbed = disciplinaryNoticeEmbed(record.action_type, level, targetProfile, record.reason, record.details, record.actor_name, record.id, expiresAt);
+      const channelPath = "/channels/" + cfg.channelId + "/messages/" + record.channel_message_id;
+      const dmPath = "/channels/" + record.dm_channel_id + "/messages/" + record.dm_message_id;
+      let channelChanged = false;
+      let dmChanged = false;
+      try {
+        await discord(cfg, channelPath, { method: "PATCH", body: JSON.stringify({ embeds: [revisedEmbed] }) });
+        channelChanged = true;
+        await discord(cfg, dmPath, { method: "PATCH", body: JSON.stringify({ embeds: [revisedEmbed] }) });
+        dmChanged = true;
+      } catch (error) {
+        const rollbackErrors = [];
+        if (dmChanged) {
+          try { await discord(cfg, dmPath, { method: "PATCH", body: JSON.stringify({ embeds: [previousEmbed] }) }); }
+          catch (e) { rollbackErrors.push("dm"); }
+        }
+        if (channelChanged) {
+          try { await discord(cfg, channelPath, { method: "PATCH", body: JSON.stringify({ embeds: [previousEmbed] }) }); }
+          catch (e) { rollbackErrors.push("channel"); }
+        }
+        return json(res, 502, {
+          error: rollbackErrors.length
+            ? "فشل تعديل إحدى رسائل Discord وتعذّر استعادة كل الرسائل القديمة. راجع الرسائل يدويًا."
+            : "تعذّر تعديل رسائل Discord. لم يتم تغيير سجل الموقع.",
+          rollback_failed: rollbackErrors.length > 0
+        });
+      }
+      try {
+        await rpc(cfg, "edit_disciplinary_action_record", {
+          p_action_id: actionId,
+          p_reason: reason,
+          p_details: details,
+          p_actor_discord_id: user.id,
+          p_actor_name: user.displayName
+        });
+      } catch (error) {
+        let rollbackFailed = false;
+        for (const path of [dmPath, channelPath]) {
+          try { await discord(cfg, path, { method: "PATCH", body: JSON.stringify({ embeds: [previousEmbed] }) }); }
+          catch { rollbackFailed = true; }
+        }
+        return json(res, 502, {
+          error: rollbackFailed
+            ? "فشل حفظ السجل وتعذّر استعادة رسالة Discord. راجع العضو يدويًا."
+            : "تعذّر حفظ التعديل في سجل الموقع، وتمت استعادة رسائل Discord كما كانت.",
+          rollback_failed: rollbackFailed
+        });
+      }
+      return json(res, 200, { ok: true, action_id: actionId, discord_messages_updated: true });
+    }
+
     const actionType = body.action === "dismiss" ? "dismissal" : body.action === "issue" ? "warning" : "";
     const targetId = String(body.discord_user_id || "");
     const reason = typeof body.reason === "string" ? body.reason.trim() : "";
