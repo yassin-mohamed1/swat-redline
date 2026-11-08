@@ -16,7 +16,7 @@ test("assignment API is owner-only and reads registered profiles plus live Disco
   assert.match(api, /requireSameOrigin/);
 });
 
-test("assignment role picker maps the screenshot rank names to existing Discord roles only", async () => {
+test("assignment role picker exposes every Discord role and respects bot hierarchy", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   for (const role of [
     "swatcommander", "deputyswatcommander", "swatteamleader",
@@ -87,4 +87,19 @@ test("assignments page exposes manager controls, registered member table, rank m
   assert.match(migration, /INSERT INTO public\.audit_logs/);
   assert.match(migration, /'before',v_before/);
   assert.match(migration, /'after',v_after/);
+});
+
+test("owner can add a Discord guild member manually without portal OAuth", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261108152000_staff_manual_members.sql", import.meta.url), "utf8");
+  assert.match(api, /handleAddManualMember/);
+  assert.match(api, /action==="add_manual_member"/);
+  assert.match(api, /\/guilds\/\+guildId\+\/members\/\+targetId/);
+  assert.match(api, /is_manual:true/);
+  assert.match(api, /manual_created_by_discord_id:user\.id/);
+  assert.match(html, /إضافة عضو بدون تسجيل/);
+  assert.match(html, /manualDiscordUserId/);
+  assert.match(html, /submitManualMember/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS is_manual boolean/);
 });
