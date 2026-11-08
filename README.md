@@ -47,7 +47,7 @@ Set these for the **Production** environment. Use the same Supabase project for 
 - `DISCORD_EVIDENCE_CHANNEL_ID` — optional override; defaults in code to the owner-selected Evidence Room ID
 - `DISCORD_WARNING_MANAGER_ROLE_ID` — Discord role allowed to issue, review, and dismiss members through the Warnings page
 - `DISCORD_WARNING_ROLE_1_ID`, `DISCORD_WARNING_ROLE_2_ID` — the only Discord warning roles; the third action is dismissal and has no third-warning role
-- `DISCORD_WARNINGS_CHANNEL_ID` — channel where official warning and dismissal notices are posted
+- `DISCORD_WARNINGS_CHANNEL_ID` — channel where official warning and dismissal notices are posted\n- `CRON_SECRET` — production-only secret used by Supabase Cron to authenticate the warning-expiry worker
 
 The site notification route posts announcements to the owner-selected Announcement Room ID and routes people/cases/investigations to the Evidence Room. Other record families retain `DISCORD_NOTIFICATION_CHANNEL_ID`. Keep `DISCORD_ANNOUNCEMENT_CHANNEL_ID` aligned with the source announcement room so the forwarder reads the same room.
 
@@ -60,12 +60,14 @@ The site notification route posts announcements to the owner-selected Announceme
 
 ## Disciplinary warnings
 
-- The Warnings portal is protected by the signed portal session, active staff profile, and `DISCORD_WARNING_MANAGER_ROLE_ID` role.
+- The Warnings portal is visible only to an active staff account with `DISCORD_WARNING_MANAGER_ROLE_ID`; the site role controls who may manage warning records, while `DISCORD_BOT_ROLE_ID` identifies the separate bot role used to execute Discord actions.
 - The ladder is strictly `Warning 1` → `Warning 2` → `Dismissal`; there is no Warning 3 Discord role.
-- Warning 1 and Warning 2 replace one another as the member progresses.
-- Dismissal is available only after Warning 2, removes all non-managed member roles below the bot's highest role, and records a dismissal action.
+- Warning 1 and Warning 2 replace one another as the member progresses. Each warning expires 30 days after the fully delivered action; the role is removed by the Supabase `swat-warning-role-expiry` cron job, which runs every minute and retries temporary failures.
+- Both the recipient's private DM and the official warnings-room announcement are required. If either delivery fails, the API attempts to restore the member's prior Discord roles and marks the action failed instead of claiming success.
+- Dismissal is available only after Warning 2. The bot removes all removable member roles only when its role hierarchy allows every role to be removed; otherwise dismissal is blocked and the unmanageable roles are reported.
 - `DISCORD_BOT_ROLE_ID` identifies the bot's own Discord role. The bot needs Manage Roles and must be above Warning 1, Warning 2, and every role it is expected to remove.
 - The bot also needs View Channel, Send Messages, and Embed Links in `DISCORD_WARNINGS_CHANNEL_ID`.
+- The expiry worker uses the production-only `CRON_SECRET` and a matching secret held in Supabase Vault; keep both server-side.
 - Disciplinary records are stored in `disciplinary_subjects` and `disciplinary_actions`; RLS is enabled and browser-role access is revoked.
 
 ## Database and storage
