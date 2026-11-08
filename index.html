@@ -1111,7 +1111,7 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="stats" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px">
  <div class="panel" style="padding:16px"><div class="muted">Warning 1</div><strong id="warningCount1" style="font-size:28px">0</strong></div>
  <div class="panel" style="padding:16px"><div class="muted">Warning 2</div><strong id="warningCount2" style="font-size:28px">0</strong></div>
- <div class="panel" style="padding:16px"><div class="muted">Warning 3 / Dismissed</div><strong id="warningCount3" style="font-size:28px">0</strong></div>
+ <div class="panel" style="padding:16px"><div class="muted">Dismissed Members</div><strong id="warningCount3" style="font-size:28px">0</strong></div>
 </div>
 <div class="panel" style="margin-bottom:18px">
  <div class="panelhead"><h3>＋ Add Warning</h3><span class="tag red">Warning Manager</span></div>
@@ -1123,10 +1123,10 @@ html[dir="ltr"] .field label{text-align:left}
   <div id="warningRegisteredPicker"><label for="warningMemberSelect">Select a member registered on the website</label><select id="warningMemberSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="">Choose a member...</option></select></div>
   <div id="warningManualPicker" style="display:none"><label for="warningManualId">Discord User ID</label><input id="warningManualId" class="warning-input" inputmode="numeric" maxlength="22" placeholder="Paste the Discord ID here" style="width:100%;margin-top:6px" oninput="refreshWarningForm()"></div>
   <div id="warningCurrentMember" class="muted">Choose a member to continue.</div>
-  <div><label for="warningLevelSelect">Warning Level</label><select id="warningLevelSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="1">Warning 1</option><option value="2">Warning 2</option><option value="3">Warning 3</option></select></div>
+  <div><label for="warningLevelSelect">Disciplinary Action</label><select id="warningLevelSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="1">Warning 1</option><option value="2">Warning 2</option><option value="3">Dismissal</option></select></div>
   <div><label for="warningReason">Reason <span style="color:var(--red)">*</span></label><textarea id="warningReason" class="warning-input" rows="3" maxlength="1000" placeholder="Required: explain the violation..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
   <div><label for="warningDetails">Additional Details (optional)</label><textarea id="warningDetails" class="warning-input" rows="2" maxlength="3000" placeholder="Evidence summary or additional context..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
-  <div id="warningThirdNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">Warning 3: choose whether to issue the third warning or dismiss the member.</div>
+  <div id="warningThirdNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">Dismissal: this action removes the member's removable Discord roles and records the reason.</div>
   <div style="display:flex;gap:9px;flex-wrap:wrap">
    <button class="btn primary" id="warningIssueButton" type="button" onclick="submitWarningAction('issue')">Issue Warning</button>
    <button class="btn danger" id="warningDismissButton" type="button" style="display:none" onclick="submitWarningAction('dismiss')">Dismiss Member</button>
@@ -1681,11 +1681,11 @@ function refreshWarningForm(){
  if(info)info.textContent=!id?'Choose a member to continue.':(subject?'Current level: Warning '+subject.warning_level+' • '+subject.status:'Member: '+name+' • No warning record yet')+' • Discord ID: '+id;
  if(notice)notice.style.display=level===3?'inline-flex':'none';
  if(dismiss)dismiss.style.display=level===3?'inline-flex':'none';
- if(issue)issue.textContent=level===3?'Issue Third Warning':'Issue Warning '+level;
+ if(issue){issue.style.display=level===3?'none':'inline-flex';issue.textContent='Issue Warning '+level;}
  const current=Number(subject?.warning_level||0),isDismissed=subject?.status==='dismissed';
- const canIssue=Boolean(id)&&!isDismissed&&level===current+1;
+ const canIssue=Boolean(id)&&!isDismissed&&level<=2&&level===current+1;
  if(issue)issue.disabled=!canIssue;
- if(dismiss)dismiss.disabled=!id||isDismissed||!(current===2||current===3);
+ if(dismiss)dismiss.disabled=!id||isDismissed||level!==3||current!==2;
 }
 async function renderWarnings(){
  if(!currentCanManageWarnings||warningLoadBusy)return;
@@ -1698,7 +1698,8 @@ async function renderWarnings(){
   warningData={members:Array.isArray(data.members)?data.members:[],subjects:Array.isArray(data.subjects)?data.subjects:[],actions:Array.isArray(data.actions)?data.actions:[]};
   const select=document.getElementById('warningMemberSelect'),previous=select?.value||'';
   if(select){select.innerHTML='<option value="">Choose a member...</option>'+warningData.members.map(m=>'<option value="'+adminEscape(m.discord_user_id)+'">'+adminEscape(m.display_name||m.username||'Discord user')+' — '+adminEscape(m.discord_user_id)+'</option>').join('');if(warningData.members.some(m=>String(m.discord_user_id)===previous))select.value=previous;}
-  [1,2,3].forEach(level=>{const node=document.getElementById('warningCount'+level);if(node)node.textContent=warningData.subjects.filter(s=>Number(s.warning_level)===level).length});
+  [1,2].forEach(level=>{const node=document.getElementById('warningCount'+level);if(node)node.textContent=warningData.subjects.filter(s=>s.status!=='dismissed'&&Number(s.warning_level)===level).length});
+  const dismissedCount=document.getElementById('warningCount3');if(dismissedCount)dismissedCount.textContent=warningData.subjects.filter(s=>s.status==='dismissed').length;
   renderWarningRecords();
   if(history)history.innerHTML=warningData.actions.slice(0,50).map(a=>'<tr><td>'+adminEscape(fmtAdminDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+(a.action_type==='dismissal'?'red':'gray')+'">'+adminEscape(a.action_type==='dismissal'?'Dismissal':'Warning '+a.warning_level)+'</span></td><td>'+adminEscape(a.reason)+'</td><td>'+adminEscape(a.actor_name)+'</td><td><span class="tag '+(a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(a.channel_status||'pending')+'</span></td></tr>').join('')||'<tr><td colspan="6"><div class="empty">No disciplinary actions recorded.</div></td></tr>';
   refreshWarningForm();
@@ -1712,7 +1713,7 @@ function renderWarningRecords(){
  const query=String(document.getElementById('warningSearch')?.value||'').trim().toLowerCase();
  const records=warningData.subjects.filter(s=>(String(s.display_name||'')+' '+String(s.discord_user_id||'')).toLowerCase().includes(query));
  const count=document.getElementById('warningRecordCount');if(count)count.textContent=records.length+' members';
- body.innerHTML=records.map(s=>'<tr><td><b>'+adminEscape(s.display_name)+'</b></td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+(s.warning_level===3?'red':s.warning_level===2?'yellow':'gray')+'">'+(s.warning_level?'Warning '+s.warning_level:'No warning')+'</span></td><td><span class="tag '+(s.status==='dismissed'?'red':'green')+'">'+adminEscape(s.status)+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtAdminDate(s.last_action_at||s.updated_at))+'</td></tr>').join('')||'<tr><td colspan="6"><div class="empty">No warning records found.</div></td></tr>';
+ body.innerHTML=records.map(s=>'<tr><td><b>'+adminEscape(s.display_name)+'</b></td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+(s.status==='dismissed'?'red':s.warning_level===2?'yellow':'gray')+'">'+(s.status==='dismissed'?'Dismissal':s.warning_level?'Warning '+s.warning_level:'No warning')+'</span></td><td><span class="tag '+(s.status==='dismissed'?'red':'green')+'">'+adminEscape(s.status)+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtAdminDate(s.last_action_at||s.updated_at))+'</td></tr>').join('')||'<tr><td colspan="6"><div class="empty">No warning records found.</div></td></tr>';
 }
 async function submitWarningAction(action){
  if(!currentCanManageWarnings)return;
@@ -1721,7 +1722,9 @@ async function submitWarningAction(action){
  const details=String(document.getElementById('warningDetails')?.value||'').trim();
  if(!/^\d{15,22}$/.test(id)){toast('Enter or select a valid Discord User ID.');return}
  if(!reason){toast('A warning reason is required.');document.getElementById('warningReason')?.focus();return}
- if(action==='dismiss'&&(level!==3||Number(warningSubjectFor(id)?.warning_level||0)!==2)){toast('Dismissal requires the member to have Warning 2 and Warning 3 selected.');return}
+ const currentLevel=Number(warningSubjectFor(id)?.warning_level||0);
+ if(action==='dismiss'&&(level!==3||currentLevel!==2)){toast('Dismissal is available only after Warning 2.');return}
+ if(action==='issue'&&(level>2||currentLevel!==level-1)){toast('Warnings must be issued in order: Warning 1, then Warning 2.');return}
  const label=action==='dismiss'?'dismiss this member':'issue Warning '+level;
  if(!confirm('Are you sure you want to '+label+'?\n\nReason: '+reason))return;
  const buttons=['warningIssueButton','warningDismissButton'].map(id=>document.getElementById(id)).filter(Boolean);
