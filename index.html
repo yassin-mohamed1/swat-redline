@@ -1760,7 +1760,7 @@ async function renderLoginActivity(){
  const body=document.getElementById('loginActivityRows');if(!body||!currentIsOwner)return;
  body.innerHTML='<tr><td colspan="5">جاري تحميل السجل...</td></tr>';
  try{
-  const r=await fetch('/api/admin/activity',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
+  const r=await fetch('/api/admin/members?activity=1',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
   if(!r.ok){const err=new Error(d.error||'تعذر تحميل سجل الدخول والخروج');err.diagnostics=d.diagnostics;throw err;}
   const events=d.events||[];
   body.innerHTML=events.map(e=>`<tr><td>${adminEscape(fmtAdminDate(e.occurred_at))}</td><td>${adminEscape(e.display_name||'Discord user')}</td><td><code>${adminEscape(e.discord_user_id)}</code></td><td><span class="tag ${e.event_type==='login'?'green':'gray'}">${e.event_type==='login'?'تسجيل الدخول':'تسجيل الخروج'}</span></td><td><code>${adminEscape(e.session_issued_at||'—')}</code></td></tr>`).join('')||'<tr><td colspan="5"><div class="empty">لا توجد أحداث دخول أو خروج مسجلة حتى الآن.</div></td></tr>';
