@@ -394,45 +394,97 @@ export default async function handler(req, res) {
       });
     }
 
-    let roleSyncStatus = "failed", channelStatus = "failed", messageId = null, errorCode = null, roleResult = null;
+    const expiresAt = actionType === "warning" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+    let roleResult = null;
+    let dmResult = null;
+    let channelMessage = null;
+
     try {
       roleResult = await updateMemberRoles(cfg, targetId, level, actionType === "dismissal");
-      roleSyncStatus = "succeeded";
     } catch (error) {
-      errorCode = String(error.code || error.message || "role_sync_failed").slice(0, 120);
+      const errorCode = String(error.code || error.message || "role_sync_failed").slice(0, 120);
+      await rpc(cfg, "complete_disciplinary_action_v2", {
+        p_action_id: start.action_id, p_role_sync_status: "failed", p_dm_status: "failed",
+        p_dm_channel_id: null, p_dm_message_id: null, p_channel_status: "failed",
+        p_channel_message_id: null, p_warning_expires_at: null, p_error_code: errorCode
+      });
+      return json(res, error.status || 502, { ok: false, status: "failed", error: error.message || "Discord roles could not be updated." });
     }
-    if (roleSyncStatus === "succeeded") {
-      try {
-        const sent = await sendAnnouncement(cfg, announcementEmbed(actionType, level,
-          { id: targetId, name: targetName }, reason, details, user.displayName, start.action_id));
-        channelStatus = "sent";
-        messageId = sent.id || null;
-      } catch (error) {
-        channelStatus = "failed";
-        errorCode = String(error.code || error.message || "channel_send_failed").slice(0, 120);
+
+    try {
+      dmResult = await sendDirectNotice(cfg, targetId,
+        disciplinaryNoticeEmbed(actionType, level, { id: targetId, name: targetName }, reason, details, user.displayName, start.action_id, expiresAt));
+    } catch (error) {
+      let rollbackFailed = false;
+      try { await restoreMemberRoles(cfg, targetId, roleResult.originalRoles); }
+      catch (rollbackError) {
+        rollbackFailed = true;
+        console.error("Role rollback failed after private message delivery failure:", rollbackError.code || rollbackError.message);
       }
-    }
-    const completion = await rpc(cfg, "complete_disciplinary_action", {
-      p_action_id: start.action_id,
-      p_role_sync_status: roleSyncStatus,
-      p_channel_status: channelStatus,
-      p_channel_message_id: messageId,
-      p_error_code: errorCode
-    });
-    if (roleSyncStatus === "succeeded") {
-      await appendAudit(cfg, user, actionType, targetId, start.action_id, {
-        warning_level: level, reason, discord_channel_status: channelStatus,
-        removed_role_count: roleResult?.removedRoleCount || 0
+      const errorCode = String(error.code || error.message || "dm_delivery_failed").slice(0, 100);
+      await rpc(cfg, "complete_disciplinary_action_v2", {
+        p_action_id: start.action_id, p_role_sync_status: rollbackFailed ? "succeeded" : "failed",
+        p_dm_status: "failed", p_dm_channel_id: null, p_dm_message_id: null,
+        p_channel_status: "failed", p_channel_message_id: null, p_warning_expires_at: null,
+        p_error_code: (rollbackFailed ? "dm_failed_rollback_failed:" : "dm_failed:") + errorCode
+      });
+      return json(res, 502, {
+        ok: false, status: "failed",
+        error: rollbackFailed
+          ? "The private message failed and role rollback also failed. Manual Discord recovery is required."
+          : "The member's private message could not be delivered. The role change was rolled back and the warning/dismissal was not recorded.",
+        code: errorCode
       });
     }
-    if (roleSyncStatus !== "succeeded") {
-      return json(res, 502, { ok: false, status: "failed", error: "Discord roles could not be updated. No success announcement was sent.", code: errorCode });
+
+    try {
+      channelMessage = await sendAnnouncement(cfg,
+        announcementEmbed(actionType, level, { id: targetId, name: targetName }, reason, details, user.displayName, start.action_id, expiresAt));
+    } catch (error) {
+      const errorCode = String(error.code || error.message || "channel_delivery_failed").slice(0, 100);
+      let rollbackFailed = false;
+      try { await restoreMemberRoles(cfg, targetId, roleResult.originalRoles); }
+      catch (rollbackError) {
+        rollbackFailed = true;
+        console.error("Role rollback failed after announcement delivery failure:", rollbackError.code || rollbackError.message);
+      }
+      try { await deleteDirectNotice(cfg, dmResult); }
+      catch (deleteError) { console.error("Could not withdraw private notice after channel failure:", deleteError.code || deleteError.message); }
+      await rpc(cfg, "complete_disciplinary_action_v2", {
+        p_action_id: start.action_id, p_role_sync_status: rollbackFailed ? "succeeded" : "failed",
+        p_dm_status: "failed", p_dm_channel_id: dmResult.channelId, p_dm_message_id: dmResult.messageId,
+        p_channel_status: "failed", p_channel_message_id: null, p_warning_expires_at: null,
+        p_error_code: (rollbackFailed ? "channel_failed_rollback_failed:" : "channel_failed:") + errorCode
+      });
+      return json(res, 502, {
+        ok: false, status: "failed",
+        error: "The warnings channel could not receive the notice. The role change was rolled back and the private message was withdrawn where possible.",
+        code: errorCode
+      });
     }
+
+    const completion = await rpc(cfg, "complete_disciplinary_action_v2", {
+      p_action_id: start.action_id,
+      p_role_sync_status: "succeeded",
+      p_dm_status: "sent",
+      p_dm_channel_id: dmResult.channelId,
+      p_dm_message_id: dmResult.messageId,
+      p_channel_status: "sent",
+      p_channel_message_id: channelMessage.id || null,
+      p_warning_expires_at: expiresAt,
+      p_error_code: null
+    });
+    await appendAudit(cfg, user, actionType, targetId, start.action_id, {
+      warning_level: level, reason, details,
+      dm_status: "sent", dm_channel_id: dmResult.channelId, dm_message_id: dmResult.messageId,
+      discord_channel_status: "sent", channel_message_id: channelMessage.id || null,
+      removed_role_count: roleResult?.removedRoleCount || 0, warning_expires_at: expiresAt
+    });
     return json(res, 200, {
       ok: true, status: completion.status, action_id: start.action_id,
-      channel_status: channelStatus, channel_message_id: messageId,
-      warning_level: level, action_type: actionType,
-      warning: channelStatus === "failed" ? "The Discord role change succeeded, but the announcement could not be sent. Check bot channel permissions." : null
+      dm_status: "sent", dm_message_id: dmResult.messageId,
+      channel_status: "sent", channel_message_id: channelMessage.id || null,
+      warning_level: level, action_type: actionType, expires_at: expiresAt
     });
   } catch (error) {
     console.error("Warnings API failed:", error?.detail || error?.message || "unknown");
