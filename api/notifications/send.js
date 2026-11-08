@@ -388,7 +388,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           ok: true, tokenValid: true, botInGuild: false,
           botUsername: botData.username || null,
-          errorCode: String(guildData.code || guildResponse.status),
+          errorCode: String(guildData.code || error?.status || "unknown"),
           message: "The bot is not installed in the server configured for portal login, or it cannot access that server."
         });
       }
