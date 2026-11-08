@@ -74,3 +74,15 @@ test("warning DM and announcement delivery are mandatory and expiry is scheduled
   assert.match(html, /الرسالة الخاصة/);
   assert.match(html, /30 يومًا/);
 });
+
+test("disciplinary embeds use English branding and warning titles with Arabic field labels", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  assert.match(api, /S\\.W\\.A\\.T\\. REDLINE • OFFICIAL DISCIPLINARY RECORD/);
+  assert.match(api, /"⚠️ OFFICIAL " \+ actionLabel/);
+  assert.match(api, /"⛔ MEMBER DISMISSED"/);
+  assert.match(api, /value: actionLabel/);
+  assert.match(api, /name: "العضو"/);
+  assert.match(api, /name: "سبب الإجراء"/);
+  assert.match(api, /name: "الإجراء التأديبي"/);
+  assert.match(api, /S\\.W\\.A\\.T\\. REDLINE • DISCIPLINARY & COMPLIANCE/);
+});
