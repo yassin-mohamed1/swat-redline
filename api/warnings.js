@@ -341,6 +341,9 @@ async function restoreMemberRoles(cfg, targetId, originalRoles) {
     method: "PATCH", body: JSON.stringify({ roles: originalRoles })
   });
 }
+function warningValidityDays(level) {
+  return Number(level) === 2 ? 60 : 30;
+}
 function formatRiyadhDate(value) {
   return new Intl.DateTimeFormat("ar-SA", {
     timeZone: "Asia/Riyadh",
@@ -365,7 +368,7 @@ function buildDisciplinaryEmbed(action, level, target, reason, details, actor, a
   if (dismissed) {
     fields.push({ name: "الحالة", value: "تم فصل العضو وإزالة الرتب التي يستطيع البوت إزالتها.", inline: false });
   } else {
-    fields.push({ name: "مدة الإنذار", value: "30 يومًا", inline: true });
+    fields.push({ name: "مدة الإنذار", value: warningValidityDays(level) + " يومًا", inline: true });
     fields.push({ name: "تاريخ الانتهاء", value: formatRiyadhDate(expiresAt), inline: true });
   }
   return {
@@ -501,7 +504,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const expiresAt = actionType === "warning" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+    const expiresAt = actionType === "warning" ? new Date(Date.now() + warningValidityDays(level) * 24 * 60 * 60 * 1000).toISOString() : null;
     let roleResult = null;
     let dmResult = null;
     let channelMessage = null;
