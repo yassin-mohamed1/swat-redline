@@ -37,6 +37,7 @@ function config() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const channelId = process.env.DISCORD_WARNINGS_CHANNEL_ID;
   const managerRoleId = process.env.DISCORD_WARNING_MANAGER_ROLE_ID;
+  const botRoleId = process.env.DISCORD_BOT_ROLE_ID;
   const warningRoles = {
     1: process.env.DISCORD_WARNING_ROLE_1_ID,
     2: process.env.DISCORD_WARNING_ROLE_2_ID,
@@ -46,7 +47,7 @@ function config() {
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
     return { error: "Warnings integration is not fully configured." };
   }
-  return { base, key, token, guildId, channelId, managerRoleId, warningRoles };
+  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, warningRoles };
 }
 async function db(cfg, path, init = {}) {
   return fetch(cfg.base + "/rest/v1/" + path, { ...init, headers: {
@@ -84,7 +85,7 @@ async function discord(cfg, path, init = {}) {
 function discordName(member) {
   return member.nick || member.user?.global_name || member.user?.username || "Discord user";
 }
-async function requireManager(cfg, user) {
+async function requireActiveStaff(cfg, user) {
   if (user.isOwner) return;
   const q = new URLSearchParams({ discord_user_id: "eq." + user.id, select: "is_active,is_banned", limit: "1" });
   const profile = await db(cfg, "staff_profiles?" + q);
@@ -93,10 +94,81 @@ async function requireManager(cfg, user) {
   if (!rows[0] || rows[0].is_active === false || rows[0].is_banned) {
     throw Object.assign(new Error("Active staff profile required."), { status: 403 });
   }
+}
+async function requireManager(cfg, user) {
+  await requireActiveStaff(cfg, user);
+  if (user.isOwner) return;
   const member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + user.id);
   if (!Array.isArray(member.roles) || !member.roles.includes(cfg.managerRoleId)) {
-    throw Object.assign(new Error("Warning Manager role required."), { status: 403 });
+    throw Object.assign(new Error("Your Discord account does not have the Warnings management role (ID: " + cfg.managerRoleId + "). Assign this role to your account to issue warnings."), { status: 403 });
   }
+}
+function unionPermissions(roleList) {
+  return roleList.reduce((value, role) => value | BigInt(role?.permissions || "0"), 0n);
+}
+function channelPermissions(base, overwrites, memberId, memberRoles) {
+  const administrator = (base & (1n << 3n)) !== 0n;
+  if (administrator) return (1n << 60n) - 1n;
+  let value = base;
+  const everyone = overwrites.find(item => item.type === 0 && item.id === memberRoles.guildId);
+  if (everyone) value = (value & ~BigInt(everyone.deny || "0")) | BigInt(everyone.allow || "0");
+  const roleOverwrites = overwrites.filter(item => item.type === 0 && memberRoles.ids.includes(item.id));
+  const deny = roleOverwrites.reduce((sum, item) => sum | BigInt(item.deny || "0"), 0n);
+  const allow = roleOverwrites.reduce((sum, item) => sum | BigInt(item.allow || "0"), 0n);
+  value = (value & ~deny) | allow;
+  const memberOverwrite = overwrites.find(item => item.type === 1 && item.id === memberId);
+  if (memberOverwrite) value = (value & ~BigInt(memberOverwrite.deny || "0")) | BigInt(memberOverwrite.allow || "0");
+  return value;
+}
+async function warningDiagnostics(cfg, user) {
+  await requireActiveStaff(cfg, user);
+  const [roles, accountMember, botUser] = await Promise.all([
+    discord(cfg, "/guilds/" + cfg.guildId + "/roles"),
+    discord(cfg, "/guilds/" + cfg.guildId + "/members/" + user.id),
+    discord(cfg, "/users/@me")
+  ]);
+  const botMember = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + botUser.id);
+  const byId = new Map(roles.map(role => [role.id, role]));
+  const memberRoles = (accountMember.roles || []).map(id => byId.get(id)).filter(Boolean);
+  const botRoles = (botMember.roles || []).map(id => byId.get(id)).filter(Boolean);
+  const botTop = botRoles.reduce((top, role) => !top || role.position > top.position ? role : top, null);
+  const managerRole = byId.get(cfg.managerRoleId);
+  const botRole = cfg.botRoleId ? byId.get(cfg.botRoleId) : null;
+  const warningRoles = Object.entries(cfg.warningRoles).map(([level,id]) => {
+    const role = byId.get(id);
+    return { level: Number(level), id, exists: Boolean(role), name: role?.name || null,
+      position: role?.position ?? null, manageableByBot: Boolean(role && !role.managed && botTop && role.position < botTop.position) };
+  });
+  const guildBase = unionPermissions(roles.filter(role => role.id === cfg.guildId || (botMember.roles || []).includes(role.id)));
+  const botPerms = channelPermissions(guildBase, [], botUser.id, { guildId: cfg.guildId, ids: botMember.roles || [] });
+  let channel = null, channelError = null, channelPerms = 0n;
+  try {
+    channel = await discord(cfg, "/channels/" + cfg.channelId);
+    channelPerms = channelPermissions(guildBase, channel.permission_overwrites || [], botUser.id,
+      { guildId: cfg.guildId, ids: botMember.roles || [] });
+  } catch (error) {
+    channelError = error.code || error.message || "channel_unavailable";
+  }
+  const bit = (flag) => (channelPerms & (1n << BigInt(flag))) !== 0n;
+  return {
+    account: { id: user.id, isConfiguredOwner: user.isOwner,
+      assignedRoles: memberRoles.map(role => ({ id: role.id, name: role.name })) },
+    managerAuthorization: { requiredRoleId: cfg.managerRoleId,
+      roleExists: Boolean(managerRole), roleName: managerRole?.name || null,
+      accountHasRole: (accountMember.roles || []).includes(cfg.managerRoleId) },
+    bot: { id: botUser.id, username: botUser.username,
+      configuredRoleId: cfg.botRoleId || null,
+      configuredRoleExists: Boolean(botRole),
+      configuredRoleAssigned: Boolean(cfg.botRoleId && (botMember.roles || []).includes(cfg.botRoleId)),
+      configuredRoleName: botRole?.name || null, configuredRolePosition: botRole?.position ?? null,
+      topRoleId: botTop?.id || null, topRoleName: botTop?.name || null,
+      topRolePosition: botTop?.position ?? null,
+      hasManageRoles: (botPerms & (1n << 28n)) !== 0n || (botPerms & (1n << 3n)) !== 0n },
+    warningRoles,
+    announcements: { channelId: cfg.channelId, channelName: channel?.name || null,
+      channelAccessible: Boolean(channel), channelError,
+      canViewChannel: bit(10), canSendMessages: bit(11), canEmbedLinks: bit(14) }
+  };
 }
 async function listData(cfg) {
   const [staffResponse, subjectResponse, actionResponse] = await Promise.all([
@@ -117,6 +189,9 @@ async function loadGuildRoleData(cfg) {
   const botTop = (botMember.roles || []).map(id => byId.get(id)).filter(Boolean)
     .reduce((top, role) => !top || role.position > top.position ? role : top, null);
   if (!botTop) throw Object.assign(new Error("Bot role could not be identified in this server."), { status: 503 });
+  if (cfg.botRoleId && (!byId.has(cfg.botRoleId) || !(botMember.roles || []).includes(cfg.botRoleId))) {
+    throw Object.assign(new Error("The configured Discord bot role is missing or is not assigned to the bot account. Check DISCORD_BOT_ROLE_ID."), { status: 503 });
+  }
   return { roles, byId, botTop };
 }
 async function updateMemberRoles(cfg, targetId, level, dismiss) {
@@ -202,6 +277,11 @@ export default async function handler(req, res) {
   const cfg = config();
   if (cfg.error) return json(res, 503, { error: cfg.error });
   try {
+    const params = new URL(req.url, "https://portal.invalid").searchParams;
+    if (req.method === "GET" && params.get("diagnostics") === "1") {
+      const diagnostics = await warningDiagnostics(cfg, user);
+      return json(res, 200, diagnostics);
+    }
     await requireManager(cfg, user);
     if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("access") === "1") {
       return json(res, 200, { authorized: true });
