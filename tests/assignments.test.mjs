@@ -74,6 +74,17 @@ test("a failed Discord DM never rolls back a saved appointment or role update", 
   assert.match(html, /DM delivery failure will not undo the appointment/);
 });
 
+test("assignment persistence failures return a safe database diagnostic and parse wrapped RPC results", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(api, /assignment_rpc_network_error/);
+  assert.match(api, /database_diagnostic:diagnostic/);
+  assert.match(api, /rpcResult=Array\.isArray\(payload\)/);
+  assert.match(api, /Assignment database save failed:/);
+  assert.match(html, /data\.database_diagnostic/);
+  assert.match(html, /Database diagnostic:/);
+});
+
 test("one click adds the next Alpha without a manually entered number", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
