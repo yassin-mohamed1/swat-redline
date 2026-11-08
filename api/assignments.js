@@ -3,7 +3,7 @@ import { requireSameOrigin } from "../lib/request-security.js";
 
 const DISCORD_API = "https://discord.com/api/v10";
 const RANKS = [
-  { key: "swatcommander", label: "S.W.A.T COMMANDER" },
+  { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
   { key: "deputyswatcommander", label: "DEPUTY S.W.A.T COMMANDER" },
   { key: "swatteamleader", label: "S.W.A.T TEAM LEADER" },
   { key: "swatsupervisor", label: "S.W.A.T SUPERVISOR" },
@@ -85,7 +85,8 @@ async function discord(cfg, path, init = {}) {
 function rankKey(roleName) {
   const normalized = String(roleName || "").normalize("NFKC").toLowerCase()
     .replace(/[^a-z0-9]/g, "").replace(/^\d+/, "");
-  return RANKS.some(rank => rank.key === normalized) ? normalized : null;
+  const match = RANKS.find(rank => rank.key === normalized || (rank.aliases || []).includes(normalized));
+  return match?.key || null;
 }
 function rankList(roles, botTopPosition) {
   return roles
@@ -145,7 +146,7 @@ function portalComponents() {
     type: 2, style: 5, label: "فتح بوابة S.W.A.T. REDLINE", url
   }] }];
 }
-function appointmentEmbed({ assigned, name, discordId, rankName, callsign, actor, reference }) {
+function appointmentEmbed({ assigned, name, discordId, avatar, rankName, callsign, actor, reference }) {
   return {
     color: assigned ? 0xD92735 : 0x737B87,
     author: { name: "S.W.A.T. REDLINE • PERSONNEL COMMAND" },
@@ -153,7 +154,7 @@ function appointmentEmbed({ assigned, name, discordId, rankName, callsign, actor
     description: assigned
       ? "تم اعتماد تعيينك الجديد في S.W.A.T. REDLINE من خلال بوابة القيادة."
       : "تم إنهاء تعيينك الحالي في S.W.A.T. REDLINE وإزالة رتبة التعيين من حسابك.",
-    thumbnail: { url: "https://cdn.discordapp.com/embed/avatars/0.png" },
+    ...(avatar ? { thumbnail: { url: avatar } } : {}),
     fields: [
       { name: "العضو", value: String(name || "Discord member").slice(0, 180), inline: true },
       { name: "Discord ID", value: discordId, inline: true },
@@ -317,6 +318,7 @@ export default async function handler(req, res) {
       assigned: action === "assign",
       name: displayName,
       discordId: targetId,
+      avatar: avatarUrl(member, cfg.guildId) || profile.avatar_url || null,
       rankName,
       callsign,
       actor: user.displayName,
