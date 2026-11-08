@@ -1813,8 +1813,9 @@ async function renderWarnings(){
   if(select){select.innerHTML='<option value="">اختر عضوًا...</option>'+warningData.members.map(m=>'<option value="'+adminEscape(m.discord_user_id)+'">'+adminEscape(m.display_name||m.username||'عضو ديسكورد')+' — '+adminEscape(m.discord_user_id)+'</option>').join('');if(warningData.members.some(m=>String(m.discord_user_id)===previous))select.value=previous;}
   [1,2].forEach(level=>{const node=document.getElementById('warningCount'+level);if(node)node.textContent=warningData.subjects.filter(s=>s.status!=='dismissed'&&Number(s.warning_level)===level).length});
   const dismissedCount=document.getElementById('warningCount3');if(dismissedCount)dismissedCount.textContent=warningData.subjects.filter(s=>s.status==='dismissed').length;
+  const allCount=document.getElementById('warningCountAll');if(allCount)allCount.textContent=warningData.subjects.length;
   renderWarningRecords();
-  renderWarningHistory()
+  renderWarningHistory();
   refreshWarningForm();
  }catch(error){
   if(rows)rows.innerHTML='<tr><td colspan="7">'+adminEscape(error.message||'تعذّر تحميل سجل التحذيرات.')+'</td></tr>';
