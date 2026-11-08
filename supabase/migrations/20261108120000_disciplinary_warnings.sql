@@ -1,7 +1,4 @@
 -- Disciplinary warnings: durable subject state and append-only action history.
-create schema if not exists private;
-revoke all on schema private from public, anon, authenticated;
-grant usage on schema private to service_role;
 
 create table if not exists public.disciplinary_subjects (
   discord_user_id text primary key check (discord_user_id ~ '^[0-9]{15,22}$'),
@@ -48,7 +45,7 @@ revoke all privileges on table public.disciplinary_subjects, public.disciplinary
 grant select, insert, update on table public.disciplinary_subjects to service_role;
 grant select, insert, update on table public.disciplinary_actions to service_role;
 
-create or replace function private.begin_disciplinary_action(
+create or replace function public.begin_disciplinary_action(
   p_request_id uuid,
   p_discord_user_id text,
   p_target_name text,
@@ -114,7 +111,7 @@ begin
 end;
 $$;
 
-create or replace function private.complete_disciplinary_action(
+create or replace function public.complete_disciplinary_action(
   p_action_id uuid,
   p_role_sync_status text,
   p_channel_status text,
@@ -162,7 +159,7 @@ begin
 end;
 $$;
 
-revoke all on function private.begin_disciplinary_action(uuid,text,text,text,text,text,integer,text,text,text,text) from public, anon, authenticated;
-revoke all on function private.complete_disciplinary_action(uuid,text,text,text,text) from public, anon, authenticated;
-grant execute on function private.begin_disciplinary_action(uuid,text,text,text,text,text,integer,text,text,text,text) to service_role;
-grant execute on function private.complete_disciplinary_action(uuid,text,text,text,text) to service_role;
+revoke all on function public.begin_disciplinary_action(uuid,text,text,text,text,text,integer,text,text,text,text) from public, anon, authenticated;
+revoke all on function public.complete_disciplinary_action(uuid,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.begin_disciplinary_action(uuid,text,text,text,text,text,integer,text,text,text,text) to service_role;
+grant execute on function public.complete_disciplinary_action(uuid,text,text,text,text) to service_role;
