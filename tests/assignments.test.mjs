@@ -22,11 +22,14 @@ test("assignment role picker exposes every Discord role and respects bot hierarc
     "swatcommander", "deputyswatcommander", "swatteamleader",
     "swatsupervisor", "swatsenioroperator", "swatoperator", "swatrecruit"
   ]) assert.ok(api.includes(role), "missing screenshot rank " + role);
-  assert.match(api, /aliases: \["swatcommender"\]/);
-  assert.match(api, /role\.managed/);
-  assert.match(api, /role\.position.*botPosition/);
-  assert.ok(api.includes("ASSIGNMENT_RANKS.find"));
-  assert.match(api, /!targetRole\.assignable/);
+  assert.match(api, /roles\.map\(role =>/);
+  assert.match(api, /unavailableReason/);
+  assert.match(api, /position >= Number\(botPosition\)/);
+  assert.match(api, /!role\.assignable/);
+  assert.match(api, /replaceableRoleIds/);
+  assert.match(api, /previousAssignment\?\.rank_role_id/);
+  assert.doesNotMatch(api, /rankIds=rankRoles\.map/);
+  assert.match(api, /assignmentRoleUnavailableReason/);
   assert.doesNotMatch(api, /guilds\/.*\/roles["']?,\s*\{\s*method:\s*["']POST/);
 });
 
