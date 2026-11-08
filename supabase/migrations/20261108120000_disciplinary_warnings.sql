@@ -42,8 +42,8 @@ create index if not exists disciplinary_actions_created_idx
 alter table public.disciplinary_subjects enable row level security;
 alter table public.disciplinary_actions enable row level security;
 revoke all privileges on table public.disciplinary_subjects, public.disciplinary_actions from anon, authenticated, public;
-grant select, insert, update on table public.disciplinary_subjects to service_role;
-grant select, insert, update on table public.disciplinary_actions to service_role;
+grant select on table public.disciplinary_subjects to service_role;
+grant select on table public.disciplinary_actions to service_role;
 
 create or replace function public.begin_disciplinary_action(
   p_request_id uuid,
@@ -60,7 +60,7 @@ create or replace function public.begin_disciplinary_action(
 ) returns jsonb
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = pg_catalog, public
 as $$
 declare
   v_subject public.disciplinary_subjects%rowtype;
