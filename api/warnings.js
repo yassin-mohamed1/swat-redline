@@ -350,13 +350,13 @@ function formatRiyadhDate(value) {
     timeStyle: "short"
   }).format(new Date(value)) + " بتوقيت الرياض";
 }
-function disciplinaryNoticeEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
+function buildDisciplinaryEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
   const dismissed = action === "dismissal";
-  const warningLabel = level === 1 ? "الإنذار الأول" : "الإنذار الثاني";
+  const actionLabel = dismissed ? "DISMISSAL" : "WARNING " + level;
   const fields = [
-    { name: "العضو", value: String(target.name || "عضو ديسكورد").slice(0, 200), inline: true },
-    { name: "معرّف ديسكورد", value: target.id, inline: true },
-    { name: "الإجراء التأديبي", value: dismissed ? "فصل العضو" : warningLabel, inline: true },
+    { name: "العضو", value: String(target.name || "Discord member").slice(0, 200), inline: true },
+    { name: "Discord ID", value: target.id, inline: true },
+    { name: "الإجراء التأديبي", value: actionLabel, inline: true },
     { name: "سبب الإجراء", value: String(reason).slice(0, 1000), inline: false },
     ...(details ? [{ name: "تفاصيل إضافية", value: String(details).slice(0, 1000), inline: false }] : []),
     { name: "صدر بواسطة", value: String(actor).slice(0, 150), inline: true },
@@ -365,20 +365,23 @@ function disciplinaryNoticeEmbed(action, level, target, reason, details, actor, 
   if (dismissed) {
     fields.push({ name: "الحالة", value: "تم فصل العضو وإزالة الرتب التي يستطيع البوت إزالتها.", inline: false });
   } else {
-    fields.push({ name: "مدة سريان الإنذار", value: "30 يومًا", inline: true });
-    fields.push({ name: "تاريخ انتهاء الإنذار", value: formatRiyadhDate(expiresAt), inline: true });
+    fields.push({ name: "مدة الإنذار", value: "30 يومًا", inline: true });
+    fields.push({ name: "تاريخ الانتهاء", value: formatRiyadhDate(expiresAt), inline: true });
   }
   return {
-    author: { name: "سوات ريدلاين • السجل التأديبي الرسمي" },
-    title: dismissed ? "⛔ قرار فصل العضو" : "⚠️ إنذار رسمي • " + warningLabel,
+    author: { name: "S.W.A.T. REDLINE • OFFICIAL DISCIPLINARY RECORD" },
+    title: dismissed ? "⛔ MEMBER DISMISSED" : "⚠️ OFFICIAL " + actionLabel,
     description: dismissed
-      ? "تم تسجيل قرار فصل العضو من إدارة سوات ريدلاين."
-      : "تم إصدار وتسجيل إنذار تأديبي رسمي من إدارة سوات ريدلاين.",
+      ? "تم تسجيل قرار فصل العضو من إدارة S.W.A.T. REDLINE."
+      : "تم إصدار وتسجيل إنذار رسمي وفقًا للوائح S.W.A.T. REDLINE.",
     color: dismissed ? 0xB4232D : 0xD99A24,
     fields,
-    footer: { text: "سوات ريدلاين • الانضباط والالتزام" },
+    footer: { text: "S.W.A.T. REDLINE • DISCIPLINARY & COMPLIANCE" },
     timestamp: new Date().toISOString()
   };
+}
+function disciplinaryNoticeEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
+  return buildDisciplinaryEmbed(action, level, target, reason, details, actor, actionId, expiresAt);
 }
 async function sendDirectNotice(cfg, targetId, embed) {
   const dm = await discord(cfg, "/users/@me/channels", {
@@ -397,34 +400,7 @@ async function deleteDirectNotice(cfg, dm) {
   await discord(cfg, "/channels/" + dm.channelId + "/messages/" + dm.messageId, { method: "DELETE" });
 }
 function announcementEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
-  const dismissed = action === "dismissal";
-  const warningLabel = level === 1 ? "الإنذار الأول" : "الإنذار الثاني";
-  const fields = [
-    { name: "العضو", value: String(target.name || "عضو ديسكورد").slice(0, 200), inline: true },
-    { name: "معرّف ديسكورد", value: target.id, inline: true },
-    { name: "الإجراء التأديبي", value: dismissed ? "فصل العضو" : warningLabel, inline: true },
-    { name: "سبب الإجراء", value: String(reason).slice(0, 1000), inline: false },
-    ...(details ? [{ name: "تفاصيل إضافية", value: String(details).slice(0, 1000), inline: false }] : []),
-    { name: "صدر بواسطة", value: String(actor).slice(0, 150), inline: true },
-    { name: "الرقم المرجعي", value: String(actionId), inline: true }
-  ];
-  if (!dismissed) {
-    fields.push({ name: "مدة سريان الإنذار", value: "30 يومًا", inline: true });
-    fields.push({ name: "تاريخ انتهاء الإنذار", value: formatRiyadhDate(expiresAt), inline: true });
-  } else {
-    fields.push({ name: "الحالة", value: "تم فصل العضو وإزالة الرتب التي يستطيع البوت إزالتها.", inline: false });
-  }
-  return {
-    author: { name: "سوات ريدلاين • السجل التأديبي الرسمي" },
-    title: dismissed ? "⛔ قرار فصل العضو" : "⚠️ إنذار رسمي • " + warningLabel,
-    description: dismissed
-      ? "تم تسجيل قرار فصل العضو من إدارة سوات ريدلاين."
-      : "تم إصدار وتسجيل إنذار تأديبي رسمي من إدارة سوات ريدلاين.",
-    color: dismissed ? 0xB4232D : 0xD99A24,
-    fields,
-    footer: { text: "سوات ريدلاين • الانضباط والالتزام" },
-    timestamp: new Date().toISOString()
-  };
+  return buildDisciplinaryEmbed(action, level, target, reason, details, actor, actionId, expiresAt);
 }
 async function sendAnnouncement(cfg, embed) {
   return discord(cfg, "/channels/" + cfg.channelId + "/messages", {
