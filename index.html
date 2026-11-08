@@ -2153,7 +2153,7 @@ function callsignFromRecord(value){
 function assignmentRoleUnavailableReason(role){
  if(role.unavailable_reason==='hierarchy')return 'أعلى من رتبة البوت — ارفع رتبة البوت فوقها';
  if(role.unavailable_reason==='managed')return 'رتبة مُدارة من Discord أو تكامل';
- if(role.unavailable_reason==='everyone')return 'رتبة @everyone لا يمكن تعيينها';
+ if(role.unavailable_reason==='everyone')return 'الرتبة العامة لا يمكن تعيينها';
  if(role.unavailable_reason==='permission')return 'البوت يحتاج صلاحية Manage Roles';
  return '';
 }
