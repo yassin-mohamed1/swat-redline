@@ -1126,7 +1126,7 @@ html[dir="ltr"] .field label{text-align:left}
   <div><label for="warningLevelSelect">Disciplinary Action</label><select id="warningLevelSelect" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningForm()"><option value="1">Warning 1</option><option value="2">Warning 2</option><option value="3">Dismissal</option></select></div>
   <div><label for="warningReason">Reason <span style="color:var(--red)">*</span></label><textarea id="warningReason" class="warning-input" rows="3" maxlength="1000" placeholder="Required: explain the violation..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
   <div><label for="warningDetails">Additional Details (optional)</label><textarea id="warningDetails" class="warning-input" rows="2" maxlength="3000" placeholder="Evidence summary or additional context..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
-  <div id="warningThirdNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">Dismissal: this action removes the member's removable Discord roles and records the reason.</div>
+  <div id="warningDismissNotice" class="tag red" style="display:none;white-space:normal;line-height:1.7">Dismissal: this action removes the member's removable Discord roles and records the reason.</div>
   <div style="display:flex;gap:9px;flex-wrap:wrap">
    <button class="btn primary" id="warningIssueButton" type="button" onclick="submitWarningAction('issue')">Issue Warning</button>
    <button class="btn danger" id="warningDismissButton" type="button" style="display:none" onclick="submitWarningAction('dismiss')">Dismiss Member</button>
@@ -1675,7 +1675,7 @@ function setWarningSource(mode){
 }
 function refreshWarningForm(){
  const id=warningTargetId(),subject=warningSubjectFor(id),level=Number(document.getElementById('warningLevelSelect')?.value||1);
- const info=document.getElementById('warningCurrentMember'),dismiss=document.getElementById('warningDismissButton'),issue=document.getElementById('warningIssueButton'),notice=document.getElementById('warningThirdNotice');
+ const info=document.getElementById('warningCurrentMember'),dismiss=document.getElementById('warningDismissButton'),issue=document.getElementById('warningIssueButton'),notice=document.getElementById('warningDismissNotice');
  const selected=warningData.members.find(item=>String(item.discord_user_id)===id);
  const name=subject?.display_name||selected?.display_name||selected?.username||'Discord member';
  if(info)info.textContent=!id?'Choose a member to continue.':(subject?'Current level: Warning '+subject.warning_level+' • '+subject.status:'Member: '+name+' • No warning record yet')+' • Discord ID: '+id;
