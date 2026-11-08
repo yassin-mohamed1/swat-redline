@@ -1819,7 +1819,7 @@ async function renderWarnings(){
   refreshWarningForm();
  }catch(error){
   if(rows)rows.innerHTML='<tr><td colspan="7">'+adminEscape(error.message||'تعذّر تحميل سجل التحذيرات.')+'</td></tr>';
-  if(history)history.innerHTML='<tr><td colspan="8">تعذّر تحميل سجل الإجراءات.</td></tr>';
+  if(history)history.innerHTML='<tr><td colspan="9">تعذّر تحميل سجل الإجراءات.</td></tr>';
  }finally{warningLoadBusy=false;}
 }
 function showWarningView(view){
@@ -1920,8 +1920,20 @@ async function submitWarningAdjustment(){
  const save=document.getElementById('warningManageSave');
  if(!subject){toast('العضو غير موجود في السجل.');return;}
  if(!reason){toast('سبب التعديل مطلوب.');document.getElementById('warningManageReason')?.focus();return;}
- if(desired===3&&(Number(subject.warning_level)!==2||subject.status==='dismissed')){toast('الفصل متاح بعد تسجيل الإنذار الثاني فقط.');return;}
- const label=desired===3?'فصل العضو':desired===0?(subject.status==='dismissed'?'إعادة تفعيل العضو بدون إنذار':'إزالة الإنذار الحالي'): 'تغيير الحالة إلى '+warningLevelLabel(desired);
+ if(desired===3){
+  if(Number(subject.warning_level)!==2||subject.status==='dismissed'){toast('الفصل متاح بعد تسجيل الإنذار الثاني فقط.');return;}
+  closeWarningModal('warningManageModal');
+  showWarningView('create');
+  setWarningSource('manual');
+  document.getElementById('warningManualId').value=warningManageTargetId;
+  document.getElementById('warningLevelSelect').value='3';
+  document.getElementById('warningReason').value=reason;
+  document.getElementById('warningDetails').value='';
+  refreshWarningForm();
+  submitWarningAction('dismiss');
+  return;
+ }
+ const label=desired===0?(subject.status==='dismissed'?'إعادة تفعيل العضو بدون إنذار':'إزالة الإنذار الحالي'): 'تغيير الحالة إلى '+warningLevelLabel(desired);
  if(!confirm('هل تريد '+label+'؟\n\nالسبب: '+reason+'\n\nسيتم تسجيل التغيير في سجل الموقع.'))return;
  if(save)save.disabled=true;
  if(status)status.textContent='جارٍ مزامنة رتب Discord وحفظ سجل التعديل...';
