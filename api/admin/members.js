@@ -453,21 +453,79 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   // must never undo a valid role change or leave Discord and the portal out of sync.
   let savedResult;
   try{
-    const saved=await supabase(url,key,"rpc/save_staff_assignment_v2",{method:"POST",body:JSON.stringify({
-      p_discord_user_id:targetId,p_display_name:name,p_username:member.user?.username||profile.username||"",
-      p_avatar_url:assignmentAvatar(member,guildId)||profile.avatar_url||"",
-      p_rank_role_ids:action==="assign"?requestedRoleIds:[],p_rank_role_names:action==="assign"?rankNames:[],
-      p_callsign:callsign,p_status:action==="assign"?"assigned":"unassigned",
-      p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal manager"
-    })});
-    if(!saved.ok)throw Object.assign(new Error((await saved.text()).slice(0,400)),{code:"assignment_database_write_failed"});
-    savedResult=(await saved.json()).after;
-    if(!savedResult)throw Object.assign(new Error("لم يؤكد سجل قاعدة البيانات حفظ التعيين."),{code:"assignment_database_confirmation_missing"});
+    let saved;
+    try{
+      saved=await supabase(url,key,"rpc/save_staff_assignment_v2",{method:"POST",body:JSON.stringify({
+        p_discord_user_id:targetId,p_display_name:name,p_username:member.user?.username||profile.username||"",
+        p_avatar_url:assignmentAvatar(member,guildId)||profile.avatar_url||"",
+        p_rank_role_ids:action==="assign"?requestedRoleIds:[],p_rank_role_names:action==="assign"?rankNames:[],
+        p_callsign:callsign,p_status:action==="assign"?"assigned":"unassigned",
+        p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal manager"
+      })});
+    }catch(fetchError){
+      throw Object.assign(new Error("تعذّر الاتصال بطلب حفظ التعيين في Supabase: "+String(fetchError?.message||fetchError)),{
+        code:"assignment_rpc_network_error",stage:"rpc_request"
+      });
+    }
+    if(!saved.ok){
+      const raw=await saved.text();
+      let detail={};
+      try{detail=raw?JSON.parse(raw):{};}catch{detail={message:raw};}
+      const diagnostic={
+        status:Number(saved.status||0),
+        code:String(detail.code||detail.error||"supabase_http_"+saved.status),
+        message:String(detail.message||detail.details||detail.hint||"Supabase rejected the assignment save.").slice(0,240)
+      };
+      console.error("Assignment database RPC rejected:",JSON.stringify(diagnostic));
+      throw Object.assign(new Error(diagnostic.message),{
+        code:diagnostic.code,status:diagnostic.status,stage:"rpc_response",diagnostic
+      });
+    }
+    let payload;
+    try{payload=await saved.json();}catch(parseError){
+      throw Object.assign(new Error("استلم الموقع ردًا غير مفهوم من قاعدة البيانات."),{
+        code:"assignment_rpc_invalid_json",stage:"rpc_parse"
+      });
+    }
+    const rpcResult=Array.isArray(payload)?(payload[0]?.save_staff_assignment_v2||payload[0]):(payload?.save_staff_assignment_v2||payload);
+    savedResult=rpcResult?.after||null;
+    if(!savedResult){
+      // Confirm persistence in case the RPC response was wrapped by the REST gateway.
+      const verify=await supabase(url,key,"staff_assignments?discord_user_id=eq."+encodeURIComponent(targetId)+
+        "&select=discord_user_id,display_name,rank_role_id,rank_role_name,rank_role_ids,rank_role_names,callsign,status&limit=1");
+      if(verify.ok){
+        const rows=await verify.json();
+        const row=Array.isArray(rows)?rows[0]:null;
+        const expectedStatus=action==="assign"?"assigned":"unassigned";
+        const sameStatus=row?.status===expectedStatus;
+        const sameRoles=action==="remove"||
+          (Array.isArray(row?.rank_role_ids)&&row.rank_role_ids.length===requestedRoleIds.length&&
+           requestedRoleIds.every(id=>row.rank_role_ids.includes(id)));
+        const sameCallsign=action==="remove"||row?.callsign===(callsign||null);
+        if(row&&sameStatus&&sameRoles&&sameCallsign)savedResult=row;
+      }
+    }
+    if(!savedResult)throw Object.assign(new Error("قاعدة البيانات لم تؤكد حفظ التعيين. راجع كود التشخيص قبل إعادة المحاولة."),{
+      code:"assignment_database_confirmation_missing",stage:"rpc_confirmation"
+    });
   }catch(error){
     let rollbackFailed=false;
     if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
     catch(rollback){rollbackFailed=true;console.error("Assignment rollback after database failure:",rollback.code||rollback.message);}
-    return send(res,502,{error:rollbackFailed?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا.":"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord.",rollback_failed:rollbackFailed});
+    const diagnostic={
+      code:String(error?.code||"assignment_database_write_failed"),
+      status:Number(error?.status||0)||null,
+      stage:String(error?.stage||"rpc_unknown"),
+      message:String(error?.message||"Unknown database error").slice(0,240)
+    };
+    console.error("Assignment database save failed:",JSON.stringify({...diagnostic,rollback_failed:rollbackFailed}));
+    const errorText=rollbackFailed
+      ?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا."
+      :"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord.";
+    return send(res,502,{
+      error:errorText,rollback_failed:rollbackFailed,
+      database_diagnostic:diagnostic
+    });
   }
 
   try{
