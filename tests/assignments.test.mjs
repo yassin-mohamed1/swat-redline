@@ -65,7 +65,8 @@ test("a failed Discord DM never rolls back a saved appointment or role update", 
   const dmAttempt = api.indexOf("await assignmentSendDm(token,targetId,embed)", databaseSave);
   assert.ok(roleWrite >= 0 && databaseSave > roleWrite && dmAttempt > databaseSave,
     "Discord roles must be updated, then the appointment saved, before the optional DM");
-  assert.match(api, /dmStatus="failed",dmFailure=null/);
+  assert.match(api, /let dmStatus="sent",dmFailure=null/);
+  assert.match(api, /dmStatus="failed"/);
   assert.match(api, /dm_status:dmStatus/);
   assert.match(api, /code==="50278"/);
   assert.match(api, /The appointment and Discord roles were saved/);
