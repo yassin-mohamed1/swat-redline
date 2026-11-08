@@ -32,7 +32,7 @@ test("appointment synchronizes one S.W.A.T rank, sends a portal DM, and rolls ba
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   assert.ok(api.includes("body:JSON.stringify({roles:desiredRoles})"));
   assert.match(api, /assignmentSendDm\(token,targetId,embed\)/);
-  assert.match(api, /components: assignmentPortalComponents\(\)/);
+  assert.ok(api.includes("components:assignmentPortalComponents()"));
   assert.match(api, /roles:originalRoles/);
   assert.match(api, /assignmentDeleteDm\(token,dm\)/);
   assert.match(api, /rpc\/save_staff_assignment/);
