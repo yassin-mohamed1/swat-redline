@@ -8,9 +8,9 @@ test("assignment API is owner-only and reads registered profiles plus live Disco
   assert.match(api, /staff_profiles\?select=discord_user_id/);
   assert.match(api, /staff_assignments\?select=discord_user_id/);
   assert.match(api, /\/guilds\/.*\/roles/);
-  assert.match(api, /\/guilds\/.*\/members\//);
+  assert.match(api, /\/guilds\/.*\/members\\?limit/);
   assert.match(api, /current_rank_roles/);
-  assert.match(api, /in_guild/);
+  assert.match(api, /discord_roles/);\n  assert.match(api, /member_sync_warning/);\n  assert.match(api, /in_guild/);
   assert.match(api, /requireSameOrigin/);
 });
 
