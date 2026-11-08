@@ -2210,7 +2210,7 @@ async function submitManualMember(){
  const displayName=String(document.getElementById('manualDisplayName')?.value||'').trim();
  const status=document.getElementById('manualMemberStatus');
  const button=document.getElementById('manualMemberSaveButton');
- if(!/^\\d{15,22}$/.test(id)){if(status)status.textContent='أدخل Discord ID صحيحًا من 15 إلى 22 رقمًا.';return;}
+ if(!/^\d{15,22}$/.test(id)){if(status)status.textContent='أدخل Discord ID صحيحًا من 15 إلى 22 رقمًا.';return;}
  if(button)button.disabled=true;
  if(status)status.textContent='جارٍ التحقق من العضو وجلب اسمه وصورته من Discord...';
  try{
@@ -2477,7 +2477,7 @@ function applySiteSettings(){
   app.style.minHeight='100vh';
  }
  for(const [key,value] of Object.entries(siteSettings.textOverrides||{})){
-  const match=key.match(/^(.*)\\|text\\|(\\d+)$/);if(!match)continue;
+  const match=key.match(/^(.*)\\|text\\|(\d+)$/);if(!match)continue;
   try{const el=document.querySelector(match[1]),node=el?.childNodes[Number(match[2])];if(node&&node.nodeType===3)node.nodeValue=value}catch{}
  }
  for(const [selector,styles] of Object.entries(siteSettings.styleOverrides||{})){
