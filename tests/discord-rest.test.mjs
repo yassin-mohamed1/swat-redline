@@ -63,10 +63,10 @@ test("returns a 429 without waiting when Discord asks for a wait beyond the conf
   let calls = 0;
   const waits = [];
   await assert.rejects(
-    discordApiRequest("test-token", "/guilds/123/roles", {}, {
+    discordApiRequest("test-token", "/channels/123/messages", {}, {
       fetchImpl: async () => {
         calls += 1;
-        return fakeResponse(429, JSON.stringify({ retry_after: 30, global: true }));
+        return fakeResponse(429, JSON.stringify({ retry_after: 30, global: false }));
       },
       sleep: async ms => waits.push(ms),
       maxRetries: 3,
@@ -76,4 +76,38 @@ test("returns a 429 without waiting when Discord asks for a wait beyond the conf
   );
   assert.equal(calls, 1);
   assert.equal(waits.length, 0);
+});
+
+test("serializes concurrent requests to the same Discord client instance", async () => {
+  const order = [];
+  let active = 0;
+  let peak = 0;
+  const fakeFetch = async (_url, init) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    order.push("start:" + init.method);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    order.push("end:" + init.method);
+    active -= 1;
+    return fakeResponse(200, JSON.stringify({ ok: true }), { "X-RateLimit-Remaining": "4" });
+  };
+  await Promise.all([
+    discordApiRequest("test-token", "/guilds/123/roles", { method: "GET" }, { fetchImpl: fakeFetch }),
+    discordApiRequest("test-token", "/guilds/123/members/456", { method: "GET" }, { fetchImpl: fakeFetch })
+  ]);
+  assert.equal(peak, 1);
+  assert.deepEqual(order.filter(value=>value.startsWith("start:")).length, 2);
+});
+
+test("does not set a JSON content type on multipart requests", async () => {
+  let sentHeaders;
+  const body = new FormData();
+  body.append("payload_json", JSON.stringify({ content: "test" }));
+  await discordApiRequest("test-token", "/channels/123/messages", { method: "POST", body }, {
+    fetchImpl: async (_url, init) => {
+      sentHeaders = init.headers;
+      return fakeResponse(200, JSON.stringify({ id: "message-1" }));
+    }
+  });
+  assert.equal(Object.hasOwn(sentHeaders, "Content-Type"), false);
 });

@@ -92,6 +92,8 @@ export default async function handler(req, res) {
             display_name: displayName,
             username: user.username,
             avatar_url: avatar,
+            discord_roles: Array.isArray(member.roles) ? member.roles : [],
+            discord_roles_synced_at: now,
             updated_at: now,
             last_seen: now,
             last_login: now,

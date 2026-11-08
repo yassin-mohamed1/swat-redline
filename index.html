@@ -1137,6 +1137,7 @@ html[dir="ltr"] .field label{text-align:left}
  <div class="panel"><div class="muted">متصلون بسيرفر Discord</div><strong id="assignmentInGuild">0</strong></div>
 </div>
 <div id="assignmentBotNotice" class="notice" style="display:none;margin:0 0 14px"></div>
+<div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div class="panel" style="margin-bottom:15px">
  <div class="panelhead"><div><h3>الرتب المتاحة من سيرفر Discord</h3><span class="sub">القائمة تُقرأ مباشرةً من الرتب الموجودة في السيرفر، ولا تنشئ رتبًا جديدة</span></div><span class="tag gray" id="assignmentRoleCount">0 رتبة</span></div>
  <div class="panelbody"><div class="assignment-role-grid" id="assignmentRoleCards"><div class="muted">جارٍ تحميل رتب Discord...</div></div></div>
@@ -2142,7 +2143,7 @@ function renderAssignmentRows(){
   if(!search)return false;
   if(filter==='assigned')return saved?.status==='assigned';
   if(filter==='unassigned')return !saved||saved.status!=='assigned';
-  if(filter==='outside')return !member.in_guild;
+  if(filter==='outside')return member.in_guild===false;
   if(filter==='inactive')return member.account_status!=='active';
   return true;
  });
@@ -2150,12 +2151,12 @@ function renderAssignmentRows(){
  body.innerHTML=rows.map(member=>{
   const saved=member.assignment?.status==='assigned'?member.assignment:null;
   const live=member.current_rank_roles||[];
-  const liveNames=live.map(role=>role.label||role.name).join('، ')||'بدون رتبة من قائمة S.W.A.T';
+  const liveNames=live.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='last_login'?'رتب من آخر تسجيل دخول':member.in_guild===false?'خارج السيرفر':'لم يتم التحقق من الرتبة بعد');
   const savedName=saved?.rank_role_name||'لا يوجد تعيين مسجل';
-  const mismatch=Boolean(saved&&!live.some(role=>role.id===saved.rank_role_id));
-  const accountLabel=member.account_status==='banned'?'محظور':member.account_status==='inactive'?'موقوف':!member.in_guild?'خارج السيرفر':'نشط';
-  const accountColor=member.account_status==='banned'?'red':member.account_status==='inactive'?'gray':!member.in_guild?'orange':'green';
-  const canEdit=member.in_guild&&member.account_status==='active';
+  const mismatch=Boolean(saved&&member.role_data_source!=='unknown'&&!live.some(role=>role.id===saved.rank_role_id));
+  const accountLabel=member.account_status==='banned'?'محظور':member.account_status==='inactive'?'موقوف':member.in_guild===false?'خارج السيرفر':member.in_guild===null?'التحقق عند التعيين':'نشط';
+  const accountColor=member.account_status==='banned'?'red':member.account_status==='inactive'?'gray':member.in_guild!==true?'orange':'green';
+  const canEdit=member.in_guild!==false&&member.account_status==='active';
   const avatar=member.avatar_url?'<img src="'+assignmentEscape(member.avatar_url)+'" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">':'';
   const action=canEdit?'<button class="btn" type="button" onclick="openAssignmentModal(\''+assignmentEscape(member.discord_user_id)+'\')">إدارة التعيين</button>':'<span class="muted">غير متاح</span>';
   return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.live_name||member.display_name||'Discord user')+'</b>'+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(member.discord_user_id)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+action+'</td></tr>';
@@ -2171,13 +2172,15 @@ async function renderAssignments(){
   assignmentData={members:Array.isArray(data.members)?data.members:[],roles:Array.isArray(data.roles)?data.roles:[],bot:data.bot||{can_manage_roles:false,top_role:''}};
   const total=assignmentData.members.length;
   const assigned=assignmentData.members.filter(member=>member.assignment?.status==='assigned').length;
-  const online=assignmentData.members.filter(member=>member.in_guild).length;
+  const online=assignmentData.members.filter(member=>member.in_guild===true).length;
   const vals={assignmentTotal:total,assignmentAssigned:assigned,assignmentUnassigned:total-assigned,assignmentInGuild:online};
   for(const [id,value] of Object.entries(vals)){const node=document.getElementById(id);if(node)node.textContent=value;}
+  const syncNotice=document.getElementById('assignmentSyncNotice');
+  if(syncNotice){syncNotice.style.display=data.member_sync_warning?'block':'none';syncNotice.textContent=data.member_sync_warning||'';}
   const notice=document.getElementById('assignmentBotNotice');
   if(notice){
    const noRoles=!assignmentData.roles.length;
-   notice.style.display=!assignmentData.bot.can_manage_roles||noRoles?'block':'none';
+   notice.style.display=!data.member_sync_warning&&(!assignmentData.bot.can_manage_roles||noRoles)?'block':'none';
    notice.textContent=!assignmentData.bot.can_manage_roles
     ?'البوت لا يمتلك صلاحية Manage Roles. فعّلها في رتبة البوت حتى يستطيع تنفيذ التعيينات.'
     :'لم يتم التعرف على رتب S.W.A.T من الصورة في قائمة Discord. تأكد من أسماء الرتب الفعلية في السيرفر.';
@@ -2190,14 +2193,14 @@ async function renderAssignments(){
 }
 function openAssignmentModal(id){
  const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
- if(!member||!member.in_guild||member.account_status!=='active'){toast('هذا الحساب غير متاح للتعيين حاليًا.');return;}
+ if(!member||member.in_guild===false||member.account_status!=='active'){toast('هذا الحساب غير متاح للتعيين حاليًا.');return;}
  assignmentTargetId=String(id);
  const current=member.current_rank_roles||[];
  const saved=member.assignment?.status==='assigned'?member.assignment:null;
  const name=document.getElementById('assignmentModalMember');
  if(name)name.textContent=(member.live_name||member.display_name||'عضو')+' • '+assignmentTargetId;
  const live=document.getElementById('assignmentLiveSummary');
- if(live)live.textContent='رتبته الحالية في Discord: '+(current.map(role=>role.label||role.name).join('، ')||'لا توجد رتبة من قائمة S.W.A.T')+' • التعيين المسجل بالموقع: '+(saved?.rank_role_name||'لا يوجد')+' • كود النداء: '+(saved?.callsign||'—');
+ if(live)live.textContent='رتبته الحالية: '+(current.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='last_login'?'آخر رتبة محفوظة من تسجيل الدخول':'لم يتم التحقق مباشرةً'))+' • التعيين المسجل: '+(saved?.rank_role_name||'لا يوجد')+' • كود النداء: '+(saved?.callsign||'—')+(member.in_guild===null?' • سيتم التحقق من العضوية عند الحفظ':'');
  const rank=document.getElementById('assignmentRankSelect');
  if(rank){
   rank.innerHTML='<option value="">اختر رتبة S.W.A.T...</option>'+assignmentData.roles.map(role=>'<option value="'+assignmentEscape(role.id)+'" '+(!role.assignable?'disabled':'')+'>'+assignmentEscape(role.label)+' — '+assignmentEscape(role.name)+(role.assignable?'':' (غير متاحة للبوت)')+'</option>').join('');
