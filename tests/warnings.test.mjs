@@ -152,3 +152,19 @@ test("disciplinary embeds display the Discord member avatar and fallback avatar"
   assert.match(api, /avatarUrl: discordAvatarUrl\(target, cfg\.guildId\)/);
   assert.match(api, /p_avatar_url: targetProfile\.avatarUrl/);
 });
+
+test("every disciplinary Discord message includes the portal link button", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  assert.match(api, /function portalLinkComponents\(\)/);
+  assert.match(api, /label: "فتح بوابة S\\.W\\.A\\.T\\. REDLINE"/);
+  assert.match(api, /components: portalLinkComponents\(\)/);
+  assert.match(api, /embeds: \[embed\], components: portalLinkComponents\(\)/);
+});
+
+test("every website notification chunk includes the portal link button", async () => {
+  const api = await readFile(new URL("../api/notifications/send.js", import.meta.url), "utf8");
+  assert.match(api, /const siteComponents = siteUrl \? \[\{/);
+  assert.match(api, /components: siteComponents/);
+  assert.match(api, /notificationBodyChunks\.slice\(1\)\.forEach/);
+  assert.match(api, /images: \[\],\s*components: siteComponents,\s*content: ""/);
+});
