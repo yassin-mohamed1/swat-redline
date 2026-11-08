@@ -77,7 +77,15 @@ export default async function handler(req, res) {
       console.error("Site media upload after bucket setup failed:", upload.status, detail);
       return res.status(502).json({ error: "تم تجهيز مساحة الصور لكن فشل الرفع (HTTP " + upload.status + "). " + detail.slice(0, 180) });
     }
-    return res.status(200).json({ ok: true, url: base + "/storage/v1/object/public/site-media/" + objectPath });
+    const publicUrl=base + "/storage/v1/object/public/site-media/" + objectPath;
+    const audit=await fetch(base+"/rest/v1/audit_logs",{
+      method:"POST",headers:{...headers,Prefer:"return=minimal"},
+      body:JSON.stringify({actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"create",
+        entity_type:"site_media",entity_id:objectPath,
+        details:{type:"رفع صورة للموقع",detail:"تم رفع صورة جديدة إلى معرض أو ملفات الموقع.",object_path:objectPath,mime_type:mime,size_bytes:bytes.length}})
+    });
+    if(!audit.ok)console.error("Site media audit write failed:",audit.status,(await audit.text()).slice(0,300));
+    return res.status(200).json({ ok: true, url: publicUrl,audit_log_ok:audit.ok });
   } catch (e) {
     console.error("Site media API failed:", e?.message || "unknown");
     return res.status(400).json({ error: "تعذر قراءة الصورة المرسلة." });

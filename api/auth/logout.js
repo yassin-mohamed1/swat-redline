@@ -45,6 +45,15 @@ export default async function handler(req, res) {
         })
       });
       if (!response.ok) console.error("Staff logout event failed:", response.status, (await response.text()).slice(0, 250));
+      const auditKey="logout:"+user.id+":"+user.issuedAt;
+      const auditResponse=await fetch(base+"/rest/v1/audit_logs?on_conflict=event_key",{
+        method:"POST",
+        headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},
+        body:JSON.stringify({event_key:auditKey,actor_discord_id:user.id,actor_name:user.displayName||user.username||"Discord user",action:"logout",
+          entity_type:"authentication",entity_id:user.id,
+          details:{type:"تسجيل خروج",detail:"سجل "+(user.displayName||user.username||"Discord user")+" الخروج من بوابة S.W.A.T. REDLINE."}})
+      });
+      if(!auditResponse.ok)console.error("Logout audit event failed:",auditResponse.status,(await auditResponse.text()).slice(0,250));
     } catch (error) {
       console.error("Staff logout event failed:", error instanceof Error ? error.message : "unknown");
     }

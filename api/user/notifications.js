@@ -118,9 +118,19 @@ export default async function handler(req, res) {
     const rows = await update.json();
     if (!rows.length) return res.status(409).json({ error: "Your staff profile changed. Please sign in again." });
 
+    const newValue=rows[0].notifications_enabled !== false;
+    const audit=await fetch(`${config.base}/rest/v1/audit_logs`,{
+      method:"POST",
+      headers:{apikey:config.key,Authorization:`Bearer ${config.key}`,"Content-Type":"application/json",Prefer:"return=minimal"},
+      body:JSON.stringify({actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"update",
+        entity_type:"staff_notification_preference",entity_id:user.id,
+        details:{type:"تغيير تفضيلات الإشعارات",detail:"تم "+(newValue?"تفعيل":"إيقاف")+" الإشعارات الخاصة بالحساب.",before:profile.notifications_enabled!==false,after:newValue}})
+    });
+    if(!audit.ok)console.error("Notification preference audit failed:",audit.status,(await audit.text()).slice(0,300));
     return res.status(200).json({
       ok: true,
-      notifications_enabled: rows[0].notifications_enabled !== false
+      notifications_enabled: newValue,
+      audit_log_ok:audit.ok
     });
   } catch (error) {
     console.error("Notification preferences request failed:", error instanceof Error ? error.message : "unknown");

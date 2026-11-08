@@ -63,6 +63,22 @@ async function supabase(url, key, path, init = {}) {
     ...(init.headers || {})
   }});
 }
+async function requireAssignmentManager(url,key,token,guildId,user) {
+  if(user?.isOwner)return;
+  const managerRoleId=String(process.env.DISCORD_WARNING_MANAGER_ROLE_ID||"");
+  if(!/^\d{15,22}$/.test(managerRoleId))
+    throw Object.assign(new Error("لم يتم إعداد رتبة إدارة التحذيرات والتعيينات في إعدادات الخادم."),{status:503});
+  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))
+    throw Object.assign(new Error("لم يتم إعداد اتصال بوت Discord والسيرفر."),{status:503});
+  const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(user.id)+"&select=is_active,is_banned&limit=1");
+  if(!profileResponse.ok)throw Object.assign(new Error("تعذّر التحقق من صلاحية حساب المدير."),{status:503});
+  const profile=(await profileResponse.json())[0];
+  if(!profile||profile.is_active===false||profile.is_banned)
+    throw Object.assign(new Error("حسابك غير نشط أو غير مصرح له بإدارة التعيينات."),{status:403});
+  const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+user.id);
+  if(!Array.isArray(member.roles)||!member.roles.includes(managerRoleId))
+    throw Object.assign(new Error("ليس لديك رتبة إدارة التحذيرات المصرح لها بإدارة التعيينات والنداءات."),{status:403});
+}
 async function assignmentDiscord(token, path, init = {}) {
   try {
     return await discordApiRequest(token, path, init, {
@@ -238,13 +254,15 @@ async function assignmentMember(token,guildId,id) {
 }
 async function listAssignments(url,key,token,guildId) {
   if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
-  const [profileResponse,assignmentResponse]=await Promise.all([
+  const [profileResponse,assignmentResponse,callsignResponse]=await Promise.all([
     supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,created_at&order=display_name.asc"),
-    supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,callsign,status,assigned_by_name,updated_at")
+    supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,rank_role_ids,rank_role_names,callsign,status,assigned_by_name,updated_at"),
+    supabase(url,key,"staff_callsigns?select=callsign&is_active=eq.true&order=callsign.asc")
   ]);
   if(!profileResponse.ok)throw new Error("تعذّر تحميل أعضاء الموقع المسجلين.");
   if(!assignmentResponse.ok)throw new Error("تعذّر تحميل سجل التعيينات.");
-  const profiles=await profileResponse.json(),assignments=await assignmentResponse.json();
+  if(!callsignResponse.ok)throw new Error("تعذّر تحميل قائمة أكواد النداء.");
+  const profiles=await profileResponse.json(),assignments=await assignmentResponse.json(),callsignRows=await callsignResponse.json();
   const byAssignment=new Map(assignments.map(item=>[String(item.discord_user_id),item]));
   let guild=null,guildWarning="";
   try { guild=await assignmentGuildContext(token,guildId); }
@@ -279,12 +297,17 @@ async function listAssignments(url,key,token,guildId) {
     }
     const currentRoles=Array.isArray(roleIds)?roleIds:[];
     const currentRankRoles=roles.filter(role=>currentRoles.includes(role.id));
-    return {...profile,assignment:byAssignment.get(id)||null,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
+    const rawAssignment=byAssignment.get(id)||null;
+    const assignment=rawAssignment?{...rawAssignment,rank_role_ids:Array.isArray(rawAssignment.rank_role_ids)&&rawAssignment.rank_role_ids.length?rawAssignment.rank_role_ids:(rawAssignment.rank_role_id?[rawAssignment.rank_role_id]:[]),rank_role_names:Array.isArray(rawAssignment.rank_role_names)&&rawAssignment.rank_role_names.length?rawAssignment.rank_role_names:(rawAssignment.rank_role_name?[rawAssignment.rank_role_name]:[])}:null;
+    return {...profile,assignment,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
       in_guild:inGuild,current_roles:currentRoles,current_rank_roles:currentRankRoles,role_data_source:roleDataSource,
       account_status:profile.is_banned?"banned":profile.is_active===false?"inactive":"active"};
   });
-  return {members,roles,bot:{can_manage_roles:Boolean(guild?.canManageRoles),top_role:guild?.botTop?.name||"",top_role_position:Number(guild?.botTop?.position||0)},
-    member_sync_warning:guildWarning,callsign_presets:Array.from({length:16},(_,i)=>"Alpha "+i)};
+  const callsigns=[...new Set(callsignRows.filter(row=>row?.is_active!==false).map(row=>String(row.callsign||"")).filter(value=>/^Alpha (0|[1-9][0-9]*)$/.test(value)))].sort((a,b)=>Number(a.slice(6))-Number(b.slice(6)));
+  for(const item of assignments)if(item.status==="assigned"&&item.callsign&&!callsigns.includes(item.callsign))callsigns.push(item.callsign);
+  callsigns.sort((a,b)=>Number(a.slice(6))-Number(b.slice(6)));
+  return {members,roles,callsigns,bot:{can_manage_roles:Boolean(guild?.canManageRoles),top_role:guild?.botTop?.name||"",top_role_position:Number(guild?.botTop?.position||0)},
+    member_sync_warning:guildWarning};
 }
 async function handleAddManualMember(url,key,token,guildId,user,body,res) {
   if (!token || !/^\d{15,22}$/.test(String(guildId || "")))
@@ -358,61 +381,62 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   const action=body.action==="remove"?"remove":body.action==="assign"?"assign":"";
   if(!action||!/^\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
   const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&limit=1");
-  if(!profileResponse.ok)return send(res,503,{error:"تعذّر التحقق من تسجيل العضو في الموقع."});
+  if(!profileResponse.ok)return send(res,503,{error:"تعذّر التحقق من وجود العضو في دليل الأفراد."});
   const profile=(await profileResponse.json())[0];
-  if(!profile)return send(res,404,{error:"هذا الحساب غير مسجل في الموقع."});
+  if(!profile)return send(res,404,{error:"هذا العضو غير موجود في دليل الأفراد. أضفه أولًا من صفحة الأفراد."});
   if(profile.is_active===false||profile.is_banned)return send(res,409,{error:"لا يمكن تعيين حساب موقوف أو محظور من الموقع."});
   const guild=await assignmentGuildContext(token,guildId);
   if(!guild.canManageRoles)return send(res,409,{error:"البوت لا يمتلك صلاحية Manage Roles في سيرفر Discord."});
   const rankRoles=assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles);
-  const roleId=action==="assign"?String(body.rank_role_id||""):"";
-  const targetRole=roleId?rankRoles.find(role=>role.id===roleId):null;
-  if(action==="assign"&&(!targetRole||!targetRole.assignable))
-    return send(res,409,{error:"الرتبة المختارة غير قابلة للتعيين. تأكد أن رتبة البوت أعلى منها وأنها ليست رتبة مُدارة أو @everyone."});
+  const requestedRoleIds=action==="assign"?(Array.isArray(body.rank_role_ids)?body.rank_role_ids.map(String):body.rank_role_id?[String(body.rank_role_id)]:[]):[];
+  if(action==="assign"&&(!requestedRoleIds.length||requestedRoleIds.length>20||new Set(requestedRoleIds).size!==requestedRoleIds.length))
+    return send(res,400,{error:"اختر رتبة واحدة على الأقل، وبحد أقصى 20 رتبة مختلفة."});
+  const targetRoles=requestedRoleIds.map(id=>rankRoles.find(role=>role.id===id));
+  if(action==="assign"&&targetRoles.some(role=>!role||!role.assignable))
+    return send(res,409,{error:"إحدى الرتب المختارة غير قابلة للتعيين. راجع ترتيب رتبة البوت أو صلاحياتها."});
+  const rankNames=targetRoles.map(role=>role.name);
   const callsign=action==="assign"?assignmentCallsign(body.callsign):null;
+  if(action==="assign"&&callsign){
+    const catalog=await supabase(url,key,"staff_callsigns?callsign=eq."+encodeURIComponent(callsign)+"&is_active=eq.true&select=callsign&limit=1");
+    if(!catalog.ok)return send(res,503,{error:"تعذّر التحقق من قائمة أكواد النداء."});
+    if(!(await catalog.json()).length)return send(res,409,{error:"كود النداء غير موجود في القائمة. أضفه من زر إضافة كود نداء جديد أولًا."});
+  }
   const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId);
   const originalRoles=[...(member.roles||[])];
-  const previousResponse=await supabase(url,key,"staff_assignments?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=rank_role_id,status&limit=1");
-  if(!previousResponse.ok)return send(res,503,{error:"تعذّر قراءة التعيين السابق قبل تحديث الرتبة."});
+  const previousResponse=await supabase(url,key,"staff_assignments?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=rank_role_id,rank_role_ids,status&limit=1");
+  if(!previousResponse.ok)return send(res,503,{error:"تعذّر قراءة التعيين السابق قبل تحديث الرتب."});
   const previousAssignment=(await previousResponse.json())[0]||null;
-  const replaceableRoleIds=new Set(
-    guild.roles.filter(role=>assignmentRankKey(role.name)).map(role=>String(role.id))
-  );
-  if(previousAssignment?.rank_role_id)replaceableRoleIds.add(String(previousAssignment.rank_role_id));
+  const previousRoleIds=Array.isArray(previousAssignment?.rank_role_ids)&&previousAssignment.rank_role_ids.length?previousAssignment.rank_role_ids.map(String):(previousAssignment?.rank_role_id?[String(previousAssignment.rank_role_id)]:[]);
+  const replaceableRoleIds=new Set(guild.roles.filter(role=>assignmentRankKey(role.name)).map(role=>String(role.id)));
+  for(const id of previousRoleIds)replaceableRoleIds.add(id);
   const rolesToReplace=guild.roles.filter(role=>replaceableRoleIds.has(String(role.id))&&originalRoles.includes(String(role.id)));
-  const blocking=rolesToReplace.find(role=>{
-    const available=rankRoles.find(item=>item.id===role.id);
-    return !available?.assignable;
-  });
+  const blocking=rolesToReplace.find(role=>!rankRoles.find(item=>item.id===role.id)?.assignable);
   if(blocking)return send(res,409,{error:"لا يستطيع البوت إزالة رتبة التعيين الحالية «"+blocking.name+"». ارفع رتبة البوت فوقها أولًا أو أزلها يدويًا."});
   const next=new Set(originalRoles);
   for(const role of rolesToReplace)next.delete(String(role.id));
-  if(action==="assign")next.add(targetRole.id);
-  const desiredRoles=[...next];
-  const roleChanged=originalRoles.join(",")!==desiredRoles.join(",");
+  for(const role of targetRoles)next.add(role.id);
+  const desiredRoles=[...next],roleChanged=originalRoles.join(",")!==desiredRoles.join(",");
   if(roleChanged)await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:desiredRoles})});
   const reference=crypto.randomUUID(),name=assignmentMemberName(member,profile.display_name||"Discord user");
-  const rankName=action==="assign"?targetRole.name:null;
-  const embed=assignmentEmbed({assigned:action==="assign",name,discordId:targetId,avatar:assignmentAvatar(member,guildId)||profile.avatar_url||null,rankName,callsign,actor:user.displayName||user.username,reference});
+  const embed=assignmentEmbed({assigned:action==="assign",name,discordId:targetId,avatar:assignmentAvatar(member,guildId)||profile.avatar_url||null,rankName:action==="assign"?rankNames.join(" • "):null,callsign,actor:user.displayName||user.username,reference});
   let dm=null;
-  try { dm=await assignmentSendDm(token,targetId,embed); }
-  catch(error) {
+  try{dm=await assignmentSendDm(token,targetId,embed);}
+  catch(error){
     if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
     catch(rollback){console.error("Assignment rollback after DM failure:",rollback.code||rollback.message);return send(res,502,{error:"فشل إرسال الخاص وفشل التراجع عن الرتب. راجع رتب العضو يدويًا."});}
-    return send(res,502,{error:error.message||"تعذّر إرسال رسالة التعيين الخاصة. تم التراجع عن تعديل الرتبة."});
+    return send(res,502,{error:error.message||"تعذّر إرسال رسالة التعيين الخاصة. تم التراجع عن تعديل الرتب."});
   }
-  try {
-    const saved=await supabase(url,key,"rpc/save_staff_assignment",{method:"POST",body:JSON.stringify({
+  try{
+    const saved=await supabase(url,key,"rpc/save_staff_assignment_v2",{method:"POST",body:JSON.stringify({
       p_discord_user_id:targetId,p_display_name:name,p_username:member.user?.username||profile.username||"",
       p_avatar_url:assignmentAvatar(member,guildId)||profile.avatar_url||"",
-      p_rank_role_id:action==="assign"?targetRole.id:null,p_rank_role_name:action==="assign"?targetRole.name:null,
+      p_rank_role_ids:action==="assign"?requestedRoleIds:[],p_rank_role_names:action==="assign"?rankNames:[],
       p_callsign:callsign,p_status:action==="assign"?"assigned":"unassigned",
-      p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal owner"
+      p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal manager"
     })});
-    if(!saved.ok){const detail=(await saved.text()).slice(0,400);throw Object.assign(new Error(detail),{code:"assignment_database_write_failed"});}
-    const result=await saved.json();
-    return send(res,200,{ok:true,action,assignment:result.after,dm_status:"sent",reference});
-  } catch(error) {
+    if(!saved.ok)throw Object.assign(new Error((await saved.text()).slice(0,400)),{code:"assignment_database_write_failed"});
+    return send(res,200,{ok:true,action,assignment:(await saved.json()).after,dm_status:"sent",reference});
+  }catch(error){
     let rollbackFailed=false;
     if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
     catch(rollback){rollbackFailed=true;console.error("Assignment rollback after database failure:",rollback.code||rollback.message);}
@@ -421,17 +445,38 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   }
 }
 
+async function handleAddCallsign(url,key,user,body,res){
+  let callsign;
+  try{callsign=assignmentCallsign(body.callsign);}catch(error){return send(res,400,{error:error.message});}
+  const existing=await supabase(url,key,"staff_callsigns?callsign=eq."+encodeURIComponent(callsign)+"&select=callsign&limit=1");
+  if(!existing.ok)return send(res,503,{error:"تعذّر التحقق من أكواد النداء."});
+  if((await existing.json()).length)return send(res,409,{error:"كود النداء موجود بالفعل في القائمة."});
+  const response=await supabase(url,key,"staff_callsigns",{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify({callsign,created_by_discord_id:user.id})});
+  if(!response.ok)return send(res,response.status===409?409:502,{error:response.status===409?"كود النداء موجود بالفعل في القائمة.":"تعذّر حفظ كود النداء الجديد."});
+  await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({
+    actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"create",entity_type:"staff_callsign",entity_id:callsign,
+    details:{type:"إضافة كود نداء جديد",detail:"تمت إضافة "+callsign+" إلى قائمة أكواد النداء.",callsign}
+  })});
+  return send(res,201,{ok:true,callsign});
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   const user = session(req);
   if (!user) return send(res, 401, { error: "Authentication required" });
-  if (!user.isOwner) return send(res, 403, { error: "Owner permission required" });
   const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return send(res, 503, { error: "Database is not configured" });
   try {
     const searchParams = new URL(req.url, "https://portal.invalid").searchParams;
+    if(req.method==="PATCH"&&!user.isOwner)return send(res,403,{error:"Owner permission required"});
+    if(req.method==="GET"&&searchParams.get("activity")==="1"&&!user.isOwner)return send(res,403,{error:"Owner permission required"});
+    const needsAssignmentManager=req.method==="POST"||(req.method==="GET"&&searchParams.get("activity")!=="1");
+    if(needsAssignmentManager){
+      try{await requireAssignmentManager(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user);}
+      catch(error){return send(res,error.status||403,{error:error.message||"ليس لديك صلاحية إدارة الأفراد والتعيينات."});}
+    }
     if (req.method === "GET" && searchParams.get("assignments") === "1") {
       const token = process.env.DISCORD_BOT_TOKEN, guildId = process.env.DISCORD_GUILD_ID;
       try { return send(res, 200, await listAssignments(url,key,token,guildId)); }
@@ -510,6 +555,8 @@ export default async function handler(req, res) {
       const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
       if(body.action==="add_manual_member")
         return await handleAddManualMember(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
+      if(body.action==="add_callsign")
+        return await handleAddCallsign(url,key,user,body,res);
       return await handleAssignmentPost(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
     }
     if (req.method !== "PATCH") {

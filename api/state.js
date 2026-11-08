@@ -72,6 +72,97 @@ async function readCurrentState(endpoint, serviceKey) {
   return rows[0] || null;
 }
 
+
+const STATE_COLLECTION_LABELS = {
+  people: "دليل الأفراد",
+  cases: "القضايا",
+  investigations: "التحقيقات",
+  tasks: "المهام",
+  operations: "العمليات",
+  reports: "التقارير",
+  announcements: "الإعلانات والاجتماعات",
+  rules: "القوانين والأوامر",
+  dailyCommands: "الأوامر اليومية"
+};
+function stateItemId(item,index) {
+  const value=item?.id??item?.uuid??item?.reference??item?.ref??item?.code??item?.slug??item?.number;
+  return value===undefined||value===null||value===""?"row-"+index:String(value).slice(0,180);
+}
+function stateItemLabel(item,id) {
+  for(const key of ["title","name","displayName","fullName","subject","code","number","plate","caseNumber","reportName"]) {
+    const value=item?.[key];
+    if(typeof value==="string"&&value.trim())return value.trim().slice(0,120);
+    if(typeof value==="number")return String(value);
+  }
+  return "عنصر "+String(id).slice(0,40);
+}
+function buildStateAuditEvents(beforeData,afterData,user) {
+  const events=[];
+  const collectionKeys=Object.keys(STATE_COLLECTION_LABELS);
+  for(const collection of collectionKeys) {
+    const before=Array.isArray(beforeData?.[collection])?beforeData[collection]:[];
+    const after=Array.isArray(afterData?.[collection])?afterData[collection]:[];
+    const beforeMap=new Map(before.map((item,index)=>[stateItemId(item,index),item]));
+    const afterMap=new Map(after.map((item,index)=>[stateItemId(item,index),item]));
+    const ids=new Set([...beforeMap.keys(),...afterMap.keys()]);
+    for(const id of ids) {
+      const oldItem=beforeMap.get(id),newItem=afterMap.get(id);
+      if(oldItem&&newItem&&JSON.stringify(oldItem)===JSON.stringify(newItem))continue;
+      const action=!oldItem?"create":!newItem?"delete":"update";
+      const type=action==="create"?"إضافة":action==="delete"?"حذف":"تعديل";
+      const label=stateItemLabel(newItem||oldItem,id);
+      const collectionLabel=STATE_COLLECTION_LABELS[collection];
+      const detail=action==="create"
+        ?"إضافة «"+label+"» إلى "+collectionLabel
+        :action==="delete"
+          ?"حذف «"+label+"» من "+collectionLabel
+          :"تعديل «"+label+"» في "+collectionLabel;
+      events.push({
+        actor_discord_id:user.id,
+        actor_name:user.displayName||user.username||"Discord user",
+        action,
+        entity_type:"portal_"+collection,
+        entity_id:id,
+        details:{
+          type,
+          detail,
+          ref:id,
+          collection,
+          collection_label:collectionLabel,
+          target_name:label,
+          before_summary:oldItem?stateItemLabel(oldItem,id):null,
+          after_summary:newItem?stateItemLabel(newItem,id):null
+        }
+      });
+    }
+  }
+  return events;
+}
+async function appendStateAuditEvents(supabaseUrl,serviceKey,events) {
+  if(!events.length)return {count:0,ok:true};
+  let count=0;
+  for(let offset=0;offset<events.length;offset+=50){
+    const batch=events.slice(offset,offset+50);
+    const response=await fetch(supabaseUrl+"/rest/v1/audit_logs",{
+      method:"POST",
+      headers:{
+        apikey:serviceKey,
+        Authorization:"Bearer "+serviceKey,
+        "Content-Type":"application/json",
+        Prefer:"return=minimal"
+      },
+      body:JSON.stringify(batch)
+    });
+    if(!response.ok) {
+      const detail=(await response.text()).slice(0,500);
+      console.error("Automatic app-state audit write failed:",response.status,detail);
+      return {count,ok:false};
+    }
+    count+=batch.length;
+  }
+  return {count,ok:true};
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -180,10 +271,14 @@ export default async function handler(req, res) {
           current_updated_at: latest?.updated_at || null
         });
       }
+      const auditEvents=buildStateAuditEvents(current.data,safeData,user);
+      const auditResult=await appendStateAuditEvents(supabaseUrl,serviceKey,auditEvents);
       return res.status(200).json({
         ok: true,
         updated_by: user.displayName || user.username,
-        updated_at: rows[0].updated_at
+        updated_at: rows[0].updated_at,
+        audit_logged_count:auditResult.count,
+        audit_log_ok:auditResult.ok
       });
     }
 
