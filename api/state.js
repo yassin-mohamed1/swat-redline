@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../lib/request-security.js";
+import { forwardAuditEventsToDiscord } from "../lib/audit-log.js";
 
 function cookies(header = "") {
   const out = {};
@@ -159,6 +160,7 @@ async function appendStateAuditEvents(supabaseUrl,serviceKey,events) {
       return {count,ok:false};
     }
     count+=batch.length;
+    await forwardAuditEventsToDiscord(batch);
   }
   return {count,ok:true};
 }

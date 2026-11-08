@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
+import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 
 const ASSIGNMENT_RANKS = [
   { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
@@ -363,16 +364,14 @@ async function handleAddManualMember(url,key,token,guildId,user,body,res) {
   }
   const rows=await created.json();
   if(!rows.length)return send(res,502,{error:"لم يتم تأكيد حفظ العضو في دليل الأفراد."});
-  try {
-    await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({
-      actor_discord_id:user.id,
-      actor_name:user.displayName||user.username,
-      action:"create",
-      entity_type:"staff_profile",
-      entity_id:targetId,
-      details:{type:"إضافة عضو يدويًا دون تسجيل دخول للموقع",target_name:displayName,target_discord_id:targetId}
-    })});
-  } catch {}
+  const manualAuditEvent={actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"create",
+    entity_type:"staff_profile",entity_id:targetId,
+    details:{type:"إضافة عضو يدويًا دون تسجيل دخول للموقع",detail:"تمت إضافة "+displayName+" إلى دليل الأفراد دون تسجيل دخول.",target_name:displayName,target_discord_id:targetId}};
+  try{
+    const auditResponse=await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(manualAuditEvent)});
+    if(auditResponse.ok)await forwardAuditToDiscord(user,manualAuditEvent);
+    else console.error("Manual member audit write failed:",auditResponse.status,(await auditResponse.text()).slice(0,250));
+  }catch(error){console.error("Manual member audit failed:",error?.message||"unknown");}
   return send(res,201,{ok:true,member:rows[0],message:"تمت إضافة العضو إلى الدليل دون الحاجة إلى تسجيل دخوله للموقع."});
 }
 async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
@@ -435,7 +434,13 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
       p_actor_discord_id:user.id,p_actor_name:user.displayName||user.username||"Portal manager"
     })});
     if(!saved.ok)throw Object.assign(new Error((await saved.text()).slice(0,400)),{code:"assignment_database_write_failed"});
-    return send(res,200,{ok:true,action,assignment:(await saved.json()).after,dm_status:"sent",reference});
+    const savedResult=await saved.json();
+    await forwardAuditToDiscord(user,{action:action==="remove"?"delete":previousAssignment?"update":"create",
+      entity_type:"staff_assignment",entity_id:targetId,
+      details:{type:action==="remove"?"إنهاء تعيين فرد":previousAssignment?"تعديل تعيين فرد":"تعيين فرد",
+        detail:action==="remove"?"تم إنهاء تعيين "+name:"تم تعيين "+name+" بالرتب "+rankNames.join("، ")+(callsign?" • "+callsign:""),
+        target_discord_id:targetId}});
+    return send(res,200,{ok:true,action,assignment:savedResult.after,dm_status:"sent",reference});
   }catch(error){
     let rollbackFailed=false;
     if(roleChanged)try{await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId,{method:"PATCH",body:JSON.stringify({roles:originalRoles})});}
@@ -445,18 +450,29 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   }
 }
 
-async function handleAddCallsign(url,key,user,body,res){
-  let callsign;
-  try{callsign=assignmentCallsign(body.callsign);}catch(error){return send(res,400,{error:error.message});}
-  const existing=await supabase(url,key,"staff_callsigns?callsign=eq."+encodeURIComponent(callsign)+"&select=callsign&limit=1");
-  if(!existing.ok)return send(res,503,{error:"تعذّر التحقق من أكواد النداء."});
-  if((await existing.json()).length)return send(res,409,{error:"كود النداء موجود بالفعل في القائمة."});
-  const response=await supabase(url,key,"staff_callsigns",{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify({callsign,created_by_discord_id:user.id})});
-  if(!response.ok)return send(res,response.status===409?409:502,{error:response.status===409?"كود النداء موجود بالفعل في القائمة.":"تعذّر حفظ كود النداء الجديد."});
-  await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify({
-    actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"create",entity_type:"staff_callsign",entity_id:callsign,
-    details:{type:"إضافة كود نداء جديد",detail:"تمت إضافة "+callsign+" إلى قائمة أكواد النداء.",callsign}
-  })});
+async function handleAddNextCallsign(url,key,user,res){
+  const [catalogResponse,assignmentResponse]=await Promise.all([
+    supabase(url,key,"staff_callsigns?select=callsign,is_active"),
+    supabase(url,key,"staff_assignments?select=callsign&status=eq.assigned&callsign=not.is.null")
+  ]);
+  if(!catalogResponse.ok||!assignmentResponse.ok)return send(res,503,{error:"تعذّر قراءة أكواد النداء الحالية."});
+  const catalog=await catalogResponse.json(),assignments=await assignmentResponse.json(),used=new Set();
+  for(const row of [...catalog,...assignments]){
+    const match=String(row?.callsign||"").match(/^Alpha (0|[1-9][0-9]*)$/);
+    if(match)used.add(Number(match[1]));
+  }
+  const number=used.size?Math.max(...used)+1:0,callsign="Alpha "+number;
+  const response=await supabase(url,key,"staff_callsigns",{method:"POST",headers:{Prefer:"return=representation"},
+    body:JSON.stringify({callsign,created_by_discord_id:user.id})});
+  if(!response.ok){
+    const detail=(await response.text()).slice(0,300);
+    return send(res,response.status===409?409:502,{error:response.status===409?"تم إنشاء كود نداء آخر في نفس اللحظة. حدّث القائمة ثم حاول مرة أخرى.":"تعذّر حفظ كود النداء الجديد.",detail:response.status===409?undefined:detail});
+  }
+  const auditEvent={actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"create",entity_type:"staff_callsign",entity_id:callsign,
+    details:{type:"إضافة كود نداء جديد",detail:"تمت إضافة "+callsign+" إلى قائمة أكواد النداء.",callsign}};
+  const audit=await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(auditEvent)});
+  if(audit.ok)await forwardAuditToDiscord(user,auditEvent);
+  else console.error("Callsign audit write failed:",audit.status,(await audit.text()).slice(0,250));
   return send(res,201,{ok:true,callsign});
 }
 
@@ -555,8 +571,8 @@ export default async function handler(req, res) {
       const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
       if(body.action==="add_manual_member")
         return await handleAddManualMember(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
-      if(body.action==="add_callsign")
-        return await handleAddCallsign(url,key,user,body,res);
+      if(body.action==="add_next_callsign")
+        return await handleAddNextCallsign(url,key,user,res);
       return await handleAssignmentPost(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
     }
     if (req.method !== "PATCH") {
@@ -603,13 +619,15 @@ export default async function handler(req, res) {
       rows = await created.json();
       if (!rows.length) return send(res, 502, { error: "The staff profile was not returned after creation." });
     }
-    try {
-      await supabase(url, key, "audit_logs", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({
-        actor_discord_id: user.id, actor_name: user.displayName || user.username, action: "permission_change",
-        entity_type: "staff_profile", entity_id: targetId, details: { change: action, target_name: rows[0].display_name || targetId }
-      })});
-    } catch {}
-    return send(res, 200, { ok: true, member: rows[0] });
+    const memberAuditEvent={actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"permission_change",
+      entity_type:"staff_profile",entity_id:targetId,
+      details:{type:"تغيير صلاحية فرد",detail:"تم تنفيذ "+action+" على "+(rows[0].display_name||targetId),change:action,target_name:rows[0].display_name||targetId}};
+    try{
+      const auditResponse=await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(memberAuditEvent)});
+      if(auditResponse.ok)await forwardAuditToDiscord(user,memberAuditEvent);
+      else console.error("Staff permission audit failed:",auditResponse.status,(await auditResponse.text()).slice(0,250));
+    }catch(error){console.error("Staff permission audit failed:",error?.message||"unknown");}
+    return send(res,200,{ok:true,member:rows[0]});
   } catch (e) {
     console.error("Admin members API failed:", e?.message || "unknown");
     return send(res, 500, { error: "Personnel service failed." });

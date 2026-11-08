@@ -1195,26 +1195,6 @@ html[dir="ltr"] .field label{text-align:left}
  <div class="panelhead"><div><h3>الرتب المتاحة من سيرفر Discord</h3><span class="sub">القائمة تُقرأ مباشرةً من الرتب الموجودة في السيرفر، ولا تنشئ رتبًا جديدة</span></div><span class="tag gray" id="assignmentRoleCount">0 رتبة</span></div>
  <div class="panelbody"><div id="assignmentBotRoleInfo" class="muted" style="margin-bottom:10px"></div><div class="assignment-role-grid" id="assignmentRoleCards"><div class="muted">جارٍ تحميل رتب Discord...</div></div></div>
 </div>
-<div id="assignmentCallsignModal" class="assignment-modal" hidden>
- <div class="assignment-modal-card" style="width:min(520px,100%)">
-  <div class="assignment-modal-head">
-   <div><h3 style="margin:0">إضافة كود نداء جديد</h3><div class="muted">إنشاء Alpha جديد ليظهر في قائمة أكواد النداء لجميع المديرين</div></div>
-   <button class="btn" type="button" onclick="closeCallsignModal()">إغلاق</button>
-  </div>
-  <div class="assignment-modal-body">
-   <div class="assignment-field">
-    <label for="newCallsignNumber">رقم Alpha</label>
-    <input id="newCallsignNumber" class="assignment-input" type="text" inputmode="numeric" placeholder="مثال: 16" maxlength="30">
-    <div class="muted">أدخل الرقم الجديد وسيتم حفظه في قائمة أكواد النداء.</div>
-   </div>
-   <div id="newCallsignStatus" class="muted" aria-live="polite"></div>
-   <div class="assignment-actions">
-    <button class="btn primary" id="newCallsignSaveButton" type="button" onclick="submitNewCallsign()">إضافة الكود</button>
-    <button class="btn" type="button" onclick="closeCallsignModal()">إلغاء</button>
-   </div>
-  </div>
- </div>
-</div>
 <div id="assignmentModal" class="assignment-modal" hidden>
  <div class="assignment-modal-card">
   <div class="assignment-modal-head">
@@ -1231,7 +1211,7 @@ html[dir="ltr"] .field label{text-align:left}
    <div class="assignment-field">
     <div class="assignment-toolbar" style="justify-content:space-between">
      <label for="assignmentCallsignSelect">كود النداء</label>
-     <button class="btn" type="button" onclick="openCallsignModal()">＋ إضافة كود نداء جديد</button>
+     <button class="btn" type="button" id="addCallsignButton" onclick="addNextCallsign()">＋ إضافة كود نداء جديد</button>
     </div>
     <select id="assignmentCallsignSelect" class="assignment-input" style="width:100%"></select>
    </div>
@@ -2348,34 +2328,19 @@ function selectedAssignmentCallsign(){
  const value=document.getElementById('assignmentCallsignSelect')?.value||'';
  return value||null;
 }
-function openCallsignModal(){
+async function addNextCallsign(){
  if(!currentIsOwner&&!currentCanManageAssignments){toast('ليس لديك صلاحية إضافة أكواد النداء.');return;}
- const input=document.getElementById('newCallsignNumber');if(input)input.value='';
- const status=document.getElementById('newCallsignStatus');if(status)status.textContent='';
- const save=document.getElementById('newCallsignSaveButton');if(save)save.disabled=false;
- const modal=document.getElementById('assignmentCallsignModal');if(modal)modal.hidden=false;
-}
-function closeCallsignModal(){const modal=document.getElementById('assignmentCallsignModal');if(modal)modal.hidden=true;}
-async function submitNewCallsign(){
- const number=String(document.getElementById('newCallsignNumber')?.value||'').trim();
- const status=document.getElementById('newCallsignStatus'),button=document.getElementById('newCallsignSaveButton');
- if(!/^(0|[1-9][0-9]*)$/.test(number)){if(status)status.textContent='اكتب رقمًا صحيحًا يبدأ من 0.';return;}
- if(button)button.disabled=true;
- if(status)status.textContent='جارٍ حفظ كود النداء الجديد...';
- const callsign='Alpha '+number;
+ const button=document.getElementById('addCallsignButton');if(button)button.disabled=true;
  try{
-  const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add_callsign',callsign})});
+  const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add_next_callsign'})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّرت إضافة كود النداء.');
-  closeCallsignModal();
   await renderAssignments();
-  const select=document.getElementById('assignmentCallsignSelect');if(select)select.value=callsign;
-  toast('تمت إضافة '+callsign+' إلى قائمة أكواد النداء.');
+  const select=document.getElementById('assignmentCallsignSelect');if(select)select.value=data.callsign;
+  toast('تمت إضافة '+data.callsign+' إلى قائمة أكواد النداء.');
   if(typeof loadAuditLog==='function')loadAuditLog();
- }catch(error){
-  if(status)status.textContent=error.message||'تعذّرت إضافة كود النداء.';
-  if(button)button.disabled=false;
- }
+ }catch(error){toast(error.message||'تعذّرت إضافة كود النداء.');}
+ finally{if(button)button.disabled=false;}
 }
 async function submitStaffAssignment(action){
  if((!currentIsOwner&&!currentCanManageAssignments)||!assignmentTargetId)return;

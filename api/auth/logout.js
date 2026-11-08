@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
+import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 
 function readSession(req) {
   const secret = process.env.SESSION_SECRET;
@@ -48,12 +49,17 @@ export default async function handler(req, res) {
       const auditKey="logout:"+user.id+":"+user.issuedAt;
       const auditResponse=await fetch(base+"/rest/v1/audit_logs?on_conflict=event_key",{
         method:"POST",
-        headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},
+        headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=representation"},
         body:JSON.stringify({event_key:auditKey,actor_discord_id:user.id,actor_name:user.displayName||user.username||"Discord user",action:"logout",
           entity_type:"authentication",entity_id:user.id,
           details:{type:"تسجيل خروج",detail:"سجل "+(user.displayName||user.username||"Discord user")+" الخروج من بوابة S.W.A.T. REDLINE."}})
       });
       if(!auditResponse.ok)console.error("Logout audit event failed:",auditResponse.status,(await auditResponse.text()).slice(0,250));
+      else {
+        const inserted=await auditResponse.json().catch(()=>[]);
+        if(inserted.length)await forwardAuditToDiscord(user,{action:"logout",entity_type:"authentication",entity_id:user.id,
+          details:{type:"تسجيل خروج",detail:"سجل "+(user.displayName||user.username||"المستخدم")+" الخروج من بوابة S.W.A.T. REDLINE."}});
+      }
     } catch (error) {
       console.error("Staff logout event failed:", error instanceof Error ? error.message : "unknown");
     }

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
-import { discordApiRequest } from "../../lib/discord-rest.js";
+import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 
 function parseCookies(header = "") {
   const result = {};
@@ -57,71 +57,6 @@ async function isActiveStaff(user) {
   }
 }
 
-const AUDIT_CHANNEL_ID = "1569047013402738829";
-const SECRET_FIELD_NAMES = /password|passwd|token|secret|authorization|cookie|session|api[_-]?key|client[_-]?secret/i;
-const SENSITIVE_VALUE = /(?:Bearer\s+[A-Za-z0-9._~+\/-]+=*|mfa\.[A-Za-z0-9_-]{20,}|(?:password|passwd|token|secret|api[_-]?key|client[_-]?secret)\s*[:=]\s*[^\s,;]{4,})/i;
-
-function safeAuditText(value, max = 700) {
-  let text = String(value ?? "");
-  text = text.replace(/<@!?\d{15,22}>/g, "[Discord user]")
-    .replace(/<@&\d{15,22}>/g, "[Discord role]")
-    .replace(/https?:\/\/\S+/gi, "[link]");
-  if (SENSITIVE_VALUE.test(text)) return "[content omitted: possible secret]";
-  text = text.replace(/\s+/g, " ").trim();
-  return text.length > max ? text.slice(0, max - 1) + "…" : text;
-}
-
-function sanitizeAuditDetails(value, depth = 0) {
-  if (depth > 3) return "[nested data omitted]";
-  if (Array.isArray(value)) return value.slice(0, 10).map(item => sanitizeAuditDetails(item, depth + 1));
-  if (!value || typeof value !== "object") {
-    return typeof value === "string" ? safeAuditText(value, 180) : value;
-  }
-  const output = {};
-  for (const [key, item] of Object.entries(value).slice(0, 18)) {
-    if (SECRET_FIELD_NAMES.test(key)) {
-      output[key] = "[redacted]";
-      continue;
-    }
-    if (typeof item === "string" && /^(?:content|text|message|description|details|body|notes|reason)$/i.test(key)) {
-      output[key] = safeAuditText(item, 180);
-    } else {
-      output[key] = sanitizeAuditDetails(item, depth + 1);
-    }
-  }
-  return output;
-}
-
-async function forwardAuditToDiscord(user, event) {
-  const token = process.env.DISCORD_BOT_TOKEN;
-  if (!token) return { ok: false, reason: "bot_token_missing" };
-  try {
-    const createdAt = new Date().toISOString();
-    const embed = {
-      title: "S.W.A.T. REDLINE • Administrative Activity",
-      color: 0x24c77a,
-      description: "A verified portal activity was recorded.",
-      fields: [
-        { name: "Actor", value: safeAuditText(user.displayName || user.username, 100), inline: true },
-        { name: "Discord ID", value: String(user.id).slice(0, 24), inline: true },
-        { name: "Action", value: safeAuditText(event.action, 40), inline: true },
-        { name: "Category", value: safeAuditText(event.entityType, 80), inline: true },
-        { name: "Reference", value: safeAuditText(event.entityId || "—", 100), inline: true },
-        { name: "Summary", value: safeAuditText(event.details?.detail || event.details?.type || event.entityType, 500), inline: false }
-      ],
-      footer: { text: "REDLINE Audit • Event saved to the Administration Log" },
-      timestamp: createdAt
-    };
-    await discordApiRequest(token, `/channels/${AUDIT_CHANNEL_ID}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } })
-    }, { maxRetries: 2, maxRetryWaitMs: 2500 });
-    return { ok: true };
-  } catch (error) {
-    console.error("Discord audit forward failed:", error?.status || "unknown", error?.message || "unknown");
-    return { ok: false, reason: error?.status === 429 ? "rate_limited" : "discord_delivery_failed" };
-  }
-}
 
 function send(res, status, body) {
   return res.status(status).json(body);

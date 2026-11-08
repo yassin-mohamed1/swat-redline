@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 function parseCookies(header = "") {
   const result = {};
   for (const part of header.split(";")) {
@@ -71,12 +72,17 @@ export default async function handler(req, res) {
       const auditKey="login:"+user.id+":"+user.issuedAt;
       const auditResponse=await fetch(base+"/rest/v1/audit_logs?on_conflict=event_key",{
         method:"POST",
-        headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},
+        headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=representation"},
         body:JSON.stringify({event_key:auditKey,actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"login",
           entity_type:"authentication",entity_id:user.id,
           details:{type:"تسجيل دخول",detail:"سجل "+(user.displayName||user.username)+" الدخول إلى بوابة S.W.A.T. REDLINE."}})
       });
       if(!auditResponse.ok)console.error("Login audit event failed:",auditResponse.status,(await auditResponse.text()).slice(0,250));
+      else {
+        const inserted=await auditResponse.json().catch(()=>[]);
+        if(inserted.length)await forwardAuditToDiscord(user,{action:"login",entity_type:"authentication",entity_id:user.id,
+          details:{type:"تسجيل دخول",detail:"سجل "+(user.displayName||user.username)+" الدخول إلى بوابة S.W.A.T. REDLINE."}});
+      }
     } catch (eventError) {
       console.error("Staff login event failed:", eventError instanceof Error ? eventError.message : "unknown");
     }

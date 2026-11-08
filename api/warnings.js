@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../lib/request-security.js";
 import { discordApiRequest } from "../lib/discord-rest.js";
+import { forwardAuditToDiscord } from "../lib/audit-log.js";
 
 const WARNING_LEVELS = [1, 2];
 
@@ -585,6 +586,8 @@ export default async function handler(req, res) {
           p_actor_discord_id: user.id,
           p_actor_name: user.displayName
         });
+        await forwardAuditToDiscord(user,{action:"update",entity_type:"disciplinary_subject",entity_id:targetId,
+          details:{type:"تعديل حالة التحذيرات",detail:"تم تعديل حالة التحذيرات للفرد "+targetName+" إلى المستوى "+desiredLevel+".",target_discord_id:targetId}});
         return json(res, 200, {
           ok: true,
           discord_roles_updated: true,
@@ -682,6 +685,8 @@ export default async function handler(req, res) {
           rollback_failed: rollbackFailed
         });
       }
+      await forwardAuditToDiscord(user,{action:"update",entity_type:"disciplinary_action",entity_id:actionId,
+        details:{type:"تعديل سجل تحذير",detail:"تم تعديل سجل الإجراء التأديبي للفرد "+(record.target_name||record.discord_user_id)+".",target_discord_id:record.discord_user_id}});
       return json(res, 200, { ok: true, action_id: actionId, discord_messages_updated: true });
     }
 
@@ -804,6 +809,10 @@ export default async function handler(req, res) {
       p_warning_expires_at: expiresAt,
       p_error_code: null
     });
+    await forwardAuditToDiscord(user,{action:"create",entity_type:"disciplinary_action",entity_id:start.action_id,
+      details:{type:actionType==="dismissal"?"فصل عضو":"إصدار تحذير",
+        detail:(actionType==="dismissal"?"تم فصل ":"تم إصدار إنذار للمستخدم ")+targetName+(actionType==="warning"?" • المستوى "+level:"")+".",
+        target_discord_id:targetId}});
     return json(res, 200, {
       ok: true, status: completion.status, action_id: start.action_id,
       dm_status: "sent", dm_message_id: dmResult.messageId,

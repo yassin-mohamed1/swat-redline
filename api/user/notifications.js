@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
+import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 
 function parseCookies(header = "") {
   const out = {};
@@ -127,7 +128,9 @@ export default async function handler(req, res) {
         details:{type:"تغيير تفضيلات الإشعارات",detail:"تم "+(newValue?"تفعيل":"إيقاف")+" الإشعارات الخاصة بالحساب.",before:profile.notifications_enabled!==false,after:newValue}})
     });
     if(!audit.ok)console.error("Notification preference audit failed:",audit.status,(await audit.text()).slice(0,300));
-    return res.status(200).json({
+    else await forwardAuditToDiscord(user,{action:"update",entity_type:"staff_notification_preference",entity_id:user.id,
+      details:{type:"تغيير تفضيلات الإشعارات",detail:"تم "+(newValue?"تفعيل":"إيقاف")+" الإشعارات الخاصة بالحساب."}});
+    return res.status(200).json({}
       ok: true,
       notifications_enabled: newValue,
       audit_log_ok:audit.ok

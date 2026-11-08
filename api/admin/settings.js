@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
+import { forwardAuditEventsToDiscord } from "../../lib/audit-log.js";
 function cookies(header = "") {
   const out = {};
   for (const part of header.split(";")) { const i = part.indexOf("="); if (i < 0) continue; try { out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch {} }
@@ -70,6 +71,7 @@ export default async function handler(req, res) {
     if(auditRows.length){
       const auditResponse=await fetch(base+"/rest/v1/audit_logs",{method:"POST",headers:{...headers,Prefer:"return=minimal"},body:JSON.stringify(auditRows)});
       if(!auditResponse.ok){auditLogOk=false;console.error("Settings audit write failed:",auditResponse.status,(await auditResponse.text()).slice(0,300));}
+      else await forwardAuditEventsToDiscord(auditRows);
     }
     return res.status(200).json({ ok: true,audit_logged_count:auditRows.length,audit_log_ok:auditLogOk });
   } catch (e) { console.error("Settings API failed:", e?.message || "unknown"); return res.status(500).json({ error: "Settings service failed" }); }

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { handleAnnouncementForwarder } from "../../lib/announcement-forwarder.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
+import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 
 const MAX_RECIPIENTS_PER_BATCH = 200;
@@ -337,6 +338,7 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
       return { id: null, details };
     }
     const rows = await response.json();
+    if(rows[0])await forwardAuditToDiscord(user,{action:"create",entity_type:"discord_notification",entity_id:entityId,details});
     return { id: rows[0]?.id || null, details };
   } catch (error) {
     console.error("Discord notification audit insert failed:", error?.message || "unknown");

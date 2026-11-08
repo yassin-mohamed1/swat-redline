@@ -57,19 +57,17 @@ test("one appointment can apply multiple Discord roles and persists both role ID
   assert.match(html, /rank_role_ids:rankRoleIds/);
 });
 
-test("callsign creation is a separate persistent action, not an inline custom select option", async () => {
+test("one click adds the next Alpha without a manually entered number", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../supabase/migrations/20261108203000_multi_rank_assignments_and_callsign_catalog.sql", import.meta.url), "utf8");
-  assert.match(api, /async function handleAddCallsign/);
-  assert.match(api, /body\.action==="add_callsign"/);
-  assert.match(api, /staff_callsigns/);
+  assert.match(api, /async function handleAddNextCallsign/);
+  assert.match(api, /body\.action==="add_next_callsign"/);
+  assert.match(api, /staff_callsigns\?select=callsign,is_active/);
+  assert.match(api, /Math\.max\(\.\.\.used\)\+1/);
   assert.match(api, /entity_type:"staff_callsign"/);
-  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.staff_callsigns/);
-  assert.match(migration, /generate_series\(0,15\)/);
-  assert.match(html, /＋ إضافة كود نداء جديد/);
-  assert.match(html, /submitNewCallsign\(\)/);
-  assert.doesNotMatch(html, /assignmentCustomCallsignWrap|id="assignmentCustomCallsign"/);
+  assert.match(html, /id="addCallsignButton" onclick="addNextCallsign\(\)"/);
+  assert.match(html, /action:'add_next_callsign'/);
+  assert.doesNotMatch(html, /newCallsignNumber|submitNewCallsign|إضافة Alpha جديد \(16 أو أكثر\)/);
 });
 
 test("manual personnel creation lives under Personnel and does not require member OAuth", async () => {

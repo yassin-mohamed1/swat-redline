@@ -10,6 +10,7 @@ test("shared portal data writes append automatic create, update and delete audit
   assert.match(state, /buildStateAuditEvents\(beforeData,afterData,user\)/);
   assert.match(state, /const action=!oldItem\?"create":!newItem\?"delete":"update"/);
   assert.match(state, /appendStateAuditEvents\(supabaseUrl,serviceKey,auditEvents\)/);
+  assert.match(state, /forwardAuditEventsToDiscord\(batch\)/);
   assert.match(state, /audit_logged_count/);
   assert.match(state, /for\(let offset=0;offset<events\.length;offset\+=50\)/);
 });
@@ -29,8 +30,10 @@ test("site settings, image uploads, notification preferences and authentication 
   assert.match(notifications, /entity_type:"staff_notification_preference"/);
   assert.match(login, /event_key:auditKey/);
   assert.match(login, /action:"login"/);
+  assert.match(login, /forwardAuditToDiscord/);
   assert.match(logout, /event_key:auditKey/);
   assert.match(logout, /action:"logout"/);
+  assert.match(logout, /forwardAuditToDiscord/);
 });
 
 test("login and logout audit idempotency migration adds a unique event key", async () => {
@@ -40,4 +43,14 @@ test("login and logout audit idempotency migration adds a unique event key", asy
   assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS audit_logs_event_key_uidx/);
   assert.match(fix, /DROP INDEX IF EXISTS public\.audit_logs_event_key_uidx/);
   assert.match(fix, /ON public\.audit_logs\(event_key\)/);
+});
+
+test("shared audit forwarder redacts risky content and targets the LUX audit room", async () => {
+  const helper = await readFile(new URL("../lib/audit-log.js", import.meta.url), "utf8");
+  const audit = await readFile(new URL("../api/audit/log.js", import.meta.url), "utf8");
+  assert.match(helper, /forwardAuditEventsToDiscord/);
+  assert.match(helper, /1569047013402738829/);
+  assert.match(helper, /allowed_mentions: \{ parse: \[\] \}/);
+  assert.match(helper, /SENSITIVE_VALUE/);
+  assert.match(audit, /forwardAuditToDiscord/);
 });

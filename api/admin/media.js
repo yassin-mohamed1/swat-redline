@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
+import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 
 function cookies(header = "") {
   const out = {};
@@ -85,6 +86,8 @@ export default async function handler(req, res) {
         details:{type:"رفع صورة للموقع",detail:"تم رفع صورة جديدة إلى معرض أو ملفات الموقع.",object_path:objectPath,mime_type:mime,size_bytes:bytes.length}})
     });
     if(!audit.ok)console.error("Site media audit write failed:",audit.status,(await audit.text()).slice(0,300));
+    else await forwardAuditToDiscord(user,{action:"create",entity_type:"site_media",entity_id:objectPath,
+      details:{type:"رفع صورة للموقع",detail:"تم رفع صورة جديدة إلى معرض أو ملفات الموقع.",object_path:objectPath,mime_type:mime,size_bytes:bytes.length}});
     return res.status(200).json({ ok: true, url: publicUrl,audit_log_ok:audit.ok });
   } catch (e) {
     console.error("Site media API failed:", e?.message || "unknown");
