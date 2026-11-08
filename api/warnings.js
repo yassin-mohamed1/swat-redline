@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../lib/request-security.js";
+import { discordApiRequest } from "../lib/discord-rest.js";
 
-const DISCORD_API = "https://discord.com/api/v10";
 const WARNING_LEVELS = [1, 2];
 
 function cookies(header = "") {
@@ -69,21 +69,7 @@ async function rpc(cfg, name, body) {
   return r.json();
 }
 async function discord(cfg, path, init = {}) {
-  const r = await fetch(DISCORD_API + path, { ...init, headers: {
-    Authorization: "Bot " + cfg.token,
-    "Content-Type": "application/json",
-    ...(init.headers || {})
-  }});
-  const raw = await r.text();
-  let data = {};
-  try { data = raw ? JSON.parse(raw) : {}; } catch {}
-  if (!r.ok) {
-    const e = new Error("فشل طلب ديسكورد (رمز الخطأ: " + String(data.code || r.status) + ").");
-    e.status = r.status;
-    e.code = String(data.code || r.status);
-    throw e;
-  }
-  return data;
+  return discordApiRequest(cfg.token,path,init,{maxRetries:3,maxRetryWaitMs:8000});
 }
 function discordName(member) {
   return member.nick || member.user?.global_name || member.user?.username || "Discord user";
