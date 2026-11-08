@@ -12,9 +12,11 @@ test("warnings API uses manager role checks and server-only secrets", async () =
 });
 
 test("warnings workflow supports warning progression and dismissal", async () => {
-  const migration = await readFile(new URL("../supabase/migrations/20261108120000_disciplinary_warnings.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261108075846_disciplinary_warnings.sql", import.meta.url), "utf8");
   assert.match(migration, /warning_level = v_subject\.warning_level \+ 1/);
   assert.match(migration, /dismissal_requires_second_warning/);
+  const followup = await readFile(new URL("../supabase/migrations/20261108075958_allow_dismissal_after_warning3.sql", import.meta.url), "utf8");
+  assert.match(followup, /warning_level not in \(2,3\)/);
   assert.match(migration, /enable row level security/i);
   assert.match(migration, /revoke all on function private\.begin_disciplinary_action/i);
 });
