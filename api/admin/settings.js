@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditEventsToDiscord } from "../../lib/audit-log.js";
+import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 function cookies(header = "") {
   const out = {};
   for (const part of header.split(";")) { const i = part.indexOf("="); if (i < 0) continue; try { out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch {} }
@@ -20,7 +21,16 @@ function session(req) {
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store"); res.setHeader("Content-Type", "application/json; charset=utf-8");
   const user = session(req); if (!user) return res.status(401).json({ error: "Authentication required" });
-  if (req.method !== "GET" && !user.isOwner) return res.status(403).json({ error: "Owner permission required" });
+  if (req.method !== "GET") {
+    let websiteAdmin = false;
+    try {
+      websiteAdmin = await isWebsiteAdmin(user);
+      if (websiteAdmin && !user.isOwner) await requireActivePortalStaff(user);
+    } catch (error) {
+      return res.status(error.status || 503).json({ error: error.message || "Could not verify Website Admin access." });
+    }
+    if (!user.isOwner && !websiteAdmin) return res.status(403).json({ error: "Website Admin permission required" });
+  }
   if (req.method === "PUT" && !requireSameOrigin(req, res)) return;
   const base = process.env.SUPABASE_URL?.replace(/\/+$/, ""), key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) return res.status(503).json({ error: "Database is not configured" });
