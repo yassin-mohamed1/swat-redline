@@ -705,10 +705,32 @@ export default async function handler(req, res) {
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     const targetId = String(body.discord_user_id || "");
     const action = String(body.action || "");
-    if (!/^\d{15,22}$/.test(targetId) || !["ban", "unban", "deactivate", "activate"].includes(action))
+    if (!/^\\d{15,22}$/.test(targetId) || !["ban", "unban", "deactivate", "activate", "delete"].includes(action))
       return send(res, 400, { error: "Invalid member action" });
     if (targetId === process.env.DISCORD_OWNER_ID)
       return send(res, 403, { error: "The protected owner cannot be modified." });
+
+    if (action === "delete") {
+      const actorName = user.displayName || user.username || "Portal owner";
+      const deleted = await supabase(url,key,"rpc/forget_staff_member_data",{
+        method:"POST",
+        body:JSON.stringify({p_discord_user_id:targetId,p_actor_discord_id:user.id,p_actor_name:actorName})
+      });
+      if(!deleted.ok) {
+        console.error("Permanent member deletion failed:",deleted.status,(await deleted.text()).slice(0,500));
+        return send(res,502,{error:"تعذّر حذف بيانات العضو بالكامل. لم يتم تأكيد اكتمال العملية."});
+      }
+      const result=await deleted.json().catch(()=>null);
+      if(!result?.ok||!result?.deleted)
+        return send(res,502,{error:"لم تؤكد قاعدة البيانات اكتمال حذف العضو."});
+      try {
+        await forwardAuditToDiscord(user,{action:"delete",entity_type:"staff_profile",entity_id:null,
+          details:{type:"حذف نهائي لبيانات عضو",detail:"تم حذف بيانات عضو نهائيًا من بوابة S.W.A.T. REDLINE."}});
+      } catch(error) {
+        console.error("Permanent member deletion audit forwarding failed:",error?.message||"unknown");
+      }
+      return send(res,200,{ok:true,deleted:true,counts:result.counts||{}});
+    }
     const values = action === "ban" ? { is_banned: true, is_active: false }
       : action === "unban" ? { is_banned: false, is_active: true }
       : action === "deactivate" ? { is_active: false }
