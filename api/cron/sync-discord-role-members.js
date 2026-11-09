@@ -105,7 +105,7 @@ function discordAvatar(member, userId) {
 function profileFromDiscordMember(member, now) {
   const user = member?.user || {};
   const id = String(user.id || "");
-  if (!/^\\d{15,22}$/.test(id)) return null;
+  if (!/^\d{15,22}$/.test(id)) return null;
   const username = String(user.username || "").slice(0, 100);
   const displayName = String(member.nick || user.global_name || username || "Discord user").slice(0, 100);
   return {
@@ -129,8 +129,7 @@ function profileFromDiscordMember(member, now) {
 }
 
 async function saveNewProfiles(base, key, members, now) {
-  const profiles = members.map(member => profileFromDiscordMember(member, now))
-    .filter(profile => profile && Array.isArray(members.find(item => String(item?.user?.id) === profile.discord_user_id)?.roles));
+  const profiles = members.map(member => profileFromDiscordMember(member, now)).filter(Boolean);
   if (!profiles.length) return 0;
 
   // Ignore duplicate discord_user_id rows. Existing profiles are deliberately
@@ -168,7 +167,7 @@ export default async function handler(req, res) {
     const token = process.env.DISCORD_BOT_TOKEN;
     const guildId = String(process.env.DISCORD_GUILD_ID || "");
     const roleId = String(process.env.DISCORD_ROLE_ID || "");
-    if (!base || !key || !token || !/^\\d{15,22}$/.test(guildId) || !/^\\d{15,22}$/.test(roleId)) {
+    if (!base || !key || !token || !/^\d{15,22}$/.test(guildId) || !/^\d{15,22}$/.test(roleId)) {
       return json(res, 503, { error: "إعدادات Discord أو Supabase المطلوبة للمزامنة غير مكتملة." });
     }
 
@@ -249,7 +248,7 @@ export default async function handler(req, res) {
         break;
       }
       const nextCursor = String(batch[batch.length - 1]?.user?.id || "");
-      if (!/^\\d{15,22}$/.test(nextCursor) || nextCursor === cursor) {
+      if (!/^\d{15,22}$/.test(nextCursor) || nextCursor === cursor) {
         return json(res, 502, { error: "تعذّر تحريك مؤشر صفحات أعضاء Discord بأمان." });
       }
       cursor = nextCursor;
