@@ -23,6 +23,7 @@ test("scheduled Discord role sync verifies GitHub OIDC and the exact repository 
   assert.match(api, /claims\.repository !== EXPECTED_REPOSITORY/);
   assert.match(api, /claims\.workflow_ref !== EXPECTED_WORKFLOW/);
   assert.match(api, /claims\.ref !== EXPECTED_REF/);
+  assert.match(api, /"schedule", "workflow_dispatch", "push"/);
   assert.match(workflow, /cron: "\*\/5 \* \* \* \*"/);
   assert.match(workflow, /id-token: write/);
   assert.match(membersApi, /handleDiscordRoleSync/);
