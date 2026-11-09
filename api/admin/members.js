@@ -290,7 +290,7 @@ async function assignmentMember(token,guildId,id) {
     throw error;
   }
 }
-async function listAssignments(url,key,token,guildId) {
+async function listAssignments(url,key,token,guildId,allowWebsiteAdminRole=false) {
   if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
   const [profileResponse,assignmentResponse,callsignResponse]=await Promise.all([
     supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,registration_source,last_login,login_count,created_at&order=display_name.asc"),
@@ -322,7 +322,8 @@ async function listAssignments(url,key,token,guildId) {
       console.warn("Assignment bulk member sync unavailable:",JSON.stringify({status:error?.status,code:error?.code,path:error?.path||null}));
     }
   }
-  const roles=guild?assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles,[process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID]):[];
+  const protectedRoleIds=allowWebsiteAdminRole?[]:[process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID];
+  const roles=guild?assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles,protectedRoleIds):[];
   const members=profiles.map(profile=>{
     const id=String(profile.discord_user_id);
     const live=liveScan?.found.get(id)||null;
@@ -424,8 +425,12 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   if(profile.is_active===false||profile.is_banned)return send(res,409,{error:"لا يمكن تعيين حساب موقوف أو محظور من الموقع."});
   const guild=await assignmentGuildContext(token,guildId);
   if(!guild.canManageRoles)return send(res,409,{error:"البوت لا يمتلك صلاحية Manage Roles في سيرفر Discord."});
-  const rankRoles=assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles,[process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID]);
+  const protectedRoleIds=user?.isOwner?[]:[process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID];
+  const rankRoles=assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles,protectedRoleIds);
   const requestedRoleIds=action==="assign"?(Array.isArray(body.rank_role_ids)?body.rank_role_ids.map(String):body.rank_role_id?[String(body.rank_role_id)]:[]):[];
+  const websiteAdminRoleId=String(process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID||"");
+  if(action==="assign"&&!user?.isOwner&&websiteAdminRoleId&&requestedRoleIds.includes(websiteAdminRoleId))
+    return send(res,403,{error:"Only the portal owner can grant or revoke Website Admin."});
   if(action==="assign"&&(!requestedRoleIds.length||requestedRoleIds.length>20||new Set(requestedRoleIds).size!==requestedRoleIds.length))
     return send(res,400,{error:"اختر رتبة واحدة على الأقل، وبحد أقصى 20 رتبة مختلفة."});
   const targetRoles=requestedRoleIds.map(id=>rankRoles.find(role=>role.id===id));
@@ -627,6 +632,7 @@ export default async function handler(req, res) {
   }
   user.isWebsiteAdmin = websiteAdmin;
   const canManagePortal = Boolean(user.isOwner || websiteAdmin);
+  if (!canManagePortal) return send(res,403,{error:"Website Admin permission required"});
   try {
     const searchParams = new URL(req.url, "https://portal.invalid").searchParams;
     const requestBody = req.body && typeof req.body === "object" ? req.body : {};
@@ -647,7 +653,7 @@ export default async function handler(req, res) {
     }
     if (req.method === "GET" && searchParams.get("assignments") === "1") {
       const token = process.env.DISCORD_BOT_TOKEN, guildId = process.env.DISCORD_GUILD_ID;
-      try { return send(res, 200, await listAssignments(url,key,token,guildId)); }
+      try { return send(res, 200, await listAssignments(url,key,token,guildId,user.isOwner)); }
       catch (error) { console.error("Assignment list failed:",error?.message||"unknown"); return send(res,error.status||502,{error:error.message||"Could not load assignments."}); }
     }
     if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("activity") === "1") {
