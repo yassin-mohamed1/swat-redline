@@ -2158,7 +2158,7 @@ async function renderPersonnel(){
    const owner=m.discord_user_id===d.ownerId;
    const status=owner?'المالك المحمي':m.is_banned?'محظور':m.is_active?'نشط':'موقوف';
    const tag=owner?'green':m.is_banned?'red':m.is_active?'green':'gray';
-   const actions=!currentIsOwner?'<span class="muted">عرض فقط</span>':owner?'<span class="muted">لا يمكن حظره أو فصله</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button>`;
+   const actions=!currentIsOwner?'<span class="muted">عرض فقط</span>':owner?'<span class="muted">المالك محمي ولا يمكن حذفه أو حظره</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button> <button class="btn danger" onclick="memberAction('${adminEscape(m.discord_user_id)}','delete')">حذف نهائي</button>`;
    const profileType=m.is_manual?'<span class="tag orange">إضافة يدوية • لم يسجل دخول</span>':'';
    return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<div style="display:flex;flex-direction:column;gap:3px"><b>${adminEscape(m.display_name||'Discord user')}</b>${m.username?`<span class="muted">@${adminEscape(m.username)}</span>`:''}${profileType}</div></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
   }).join('')||'<tr><td colspan="6"><div class="empty">لا توجد حسابات أو أعضاء مضافون يدويًا حتى الآن.</div></td></tr>';
@@ -2402,9 +2402,17 @@ async function renderLoginActivity(){
  }catch(e){const detail=e.diagnostics?'<div style="margin-top:6px;font-size:11px;direction:ltr;text-align:left;white-space:normal;overflow-wrap:anywhere">'+adminEscape(JSON.stringify(e.diagnostics))+'</div>':'';body.innerHTML=`<tr><td colspan="5">${adminEscape(e.message||'تعذر تحميل سجل الدخول والخروج')}${detail}</td></tr>`;}
 }
 async function memberAction(id,action){
- const labels={ban:'حظر هذا الحساب',unban:'رفع الحظر عن هذا الحساب',deactivate:'فصل هذا الحساب من الموقع',activate:'إعادة تفعيل هذا الحساب'};
- if(!confirm('هل أنت متأكد من تنفيذ: '+labels[action]+'؟'))return;
- try{const r=await fetch('/api/admin/members',{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({discord_user_id:id,action})}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'فشل الإجراء');toast('تم تحديث صلاحيات الفرد');await renderPersonnel()}catch(e){toast(e.message||'تعذر تنفيذ الإجراء')}
+ const labels={ban:'حظر هذا الحساب',unban:'رفع الحظر عن هذا الحساب',deactivate:'فصل هذا الحساب من الموقع',activate:'إعادة تفعيل هذا الحساب',delete:'حذف هذا العضو نهائيًا من بيانات الموقع'};
+ if(action==='delete'){
+  if(!confirm('حذف نهائي: سيتم مسح ملف العضو وسجل دخوله وتعييناته وتحذيراته وبياناته المرتبطة بالموقع.\\n\\nبعد الحذف يستطيع تسجيل الدخول من Discord مرة أخرى كعضو جديد.\\n\\nهذا الإجراء لا يمكن التراجع عنه. هل تريد المتابعة؟'))return;
+  if(prompt('للتأكيد، اكتب Discord ID الخاص بالعضو:')!==String(id)){toast('تم إلغاء الحذف؛ معرّف Discord غير مطابق.');return;}
+ }else if(!confirm('هل أنت متأكد من تنفيذ: '+labels[action]+'؟'))return;
+ try{
+  const r=await fetch('/api/admin/members',{method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({discord_user_id:id,action})}),d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||'فشل الإجراء');
+  toast(action==='delete'?'تم حذف بيانات العضو نهائيًا، ويمكنه التسجيل من جديد.':'تم تحديث صلاحيات الفرد');
+  await renderPersonnel();
+ }catch(e){toast(e.message||'تعذر تنفيذ الإجراء')}
 }
 function selectorFor(el){
  if(el.id)return '#'+CSS.escape(el.id);
