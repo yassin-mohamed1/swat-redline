@@ -2324,12 +2324,11 @@ async function renderPersonnel(){
   body.innerHTML=members.map(m=>{
    const owner=m.discord_user_id===d.ownerId;
    const websiteAdmin=!owner&&currentWebsiteAdminRoleId&&Array.isArray(m.discord_roles)&&m.discord_roles.includes(currentWebsiteAdminRoleId);
-   const adminBadge=websiteAdmin?'<span class="tag green">ADMIN</span>':'';
-   const status=owner?'المالك ADMIN':m.is_banned?'محظور':m.is_active?'نشط':'موقوف';
-   const tag=owner?'green':m.is_banned?'red':m.is_active?'green':'gray';
+    const status=owner?'المالك ADMIN':m.is_banned?'محظور':m.is_active?(websiteAdmin?'ADMIN':'نشط'):'موقوف';
+    const tag=owner||websiteAdmin?'green':m.is_banned?'red':m.is_active?'green':'gray';
    const actions=!currentCanAdmin?'<span class="muted">عرض فقط</span>':owner?'<span class="muted">حساب المالك ADMIN محمي ولا يمكن حذفه أو حظره</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button> <button class="btn danger" onclick="memberAction('${adminEscape(m.discord_user_id)}','delete')">حذف نهائي</button>`;
    const profileType=pendingRegistrationBadge(m);
-   return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${adminEscape(m.display_name||'Discord user')}</b>${adminBadge}</div>${m.username?`<span class="muted">@${adminEscape(m.username)}</span>`:''}${profileType}</div></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
+   return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${adminEscape(m.display_name||'Discord user')}</b></div>${m.username?`<span class="muted">@${adminEscape(m.username)}</span>`:''}${profileType}</div></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
   }).join('')||'<tr><td colspan="6"><div class="empty">لا توجد حسابات مسجلة أو أعضاء مضافون يدويًا أو تلقائيًا حتى الآن.</div></td></tr>';
  }catch(e){
   const detail=e.diagnostics?'<div style="margin-top:6px;font-size:11px;direction:ltr;text-align:left;white-space:normal;overflow-wrap:anywhere">'+adminEscape(JSON.stringify(e.diagnostics))+'</div>':'';
