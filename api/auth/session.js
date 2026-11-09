@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
+import { isWebsiteAdmin as hasWebsiteAdminRole } from "../../lib/portal-admin.js";
 function parseCookies(header = "") {
   const result = {};
   for (const part of header.split(";")) {
@@ -87,7 +88,17 @@ export default async function handler(req, res) {
       console.error("Staff login event failed:", eventError instanceof Error ? eventError.message : "unknown");
     }
   }
+  let isWebsiteAdmin = false;
+  if (!isOwner) {
+    try {
+      isWebsiteAdmin = await hasWebsiteAdminRole(user);
+    } catch (error) {
+      console.error("Website Admin role lookup failed:", error instanceof Error ? error.message : "unknown");
+    }
+  }
   return res.status(200).json({ authenticated: true, user: {
-    id: user.id, username: user.username, displayName: user.displayName || user.username, avatar: user.avatar || null, isOwner
+    id: user.id, username: user.username, displayName: user.displayName || user.username,
+    avatar: user.avatar || null, isOwner, isWebsiteAdmin,
+    websiteAdminRoleId: process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID || ""
   }});
 }
