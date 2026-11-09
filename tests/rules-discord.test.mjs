@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { buildRuleDiscordMessages } from "../lib/rules-discord.js";
 
 const read = path => readFile(new URL(path, import.meta.url), "utf8");
@@ -74,8 +74,6 @@ test("optional empty rule fields do not prevent creating a Discord rules announc
 test("rules publishing shares the existing notification function and stays within Hobby limits", async () => {
   const api = await read("../api/notifications/send.js");
   const html = await read("../index.html");
-  const { readFile } = await import("node:fs/promises");
-  const { readdir } = await import("node:fs/promises");
   const apiFiles = [];
   async function walk(directory) {
     for (const entry of await readdir(new URL(directory, import.meta.url), { withFileTypes: true })) {
@@ -97,8 +95,6 @@ test("rules publishing shares the existing notification function and stays withi
   assert.match(api, /body\.action === "publish_rule"/);
   assert.match(html, /fetch\('\/api\/notifications\/send'/);
   assert.doesNotMatch(html, /fetch\('\/api\/rules\/send'/);
-  assert.doesNotMatch(api, /function publishSavedRuleToDiscord[\s\S]*?\\n}/);
-  await readFile(new URL("../api/notifications/send.js", import.meta.url), "utf8");
 });
 
 test("rules editor leaves title, description and body optional and only admins get the send action", async () => {
