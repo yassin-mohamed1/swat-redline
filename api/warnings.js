@@ -59,6 +59,21 @@ async function db(cfg, path, init = {}) {
     ...(init.headers || {})
   }});
 }
+async function memberPrivateNotificationsEnabled(cfg, discordUserId) {
+  const query = new URLSearchParams({
+    discord_user_id: "eq." + String(discordUserId),
+    select: "notifications_enabled",
+    limit: "1"
+  });
+  const response = await db(cfg, "staff_profiles?" + query.toString());
+  if (!response.ok) {
+    console.error("Warning DM preference lookup failed:", response.status, (await response.text()).slice(0, 250));
+    throw Object.assign(new Error("تعذّر التحقق من إعداد استقبال الرسائل الخاصة للعضو."), { status: 503 });
+  }
+  const rows = await response.json();
+  // A member without a portal profile has not opted out; existing profiles default to enabled.
+  return !rows.length || rows[0].notifications_enabled !== false;
+}
 async function rpc(cfg, name, body) {
   const r = await db(cfg, "rpc/" + name, { method: "POST", body: JSON.stringify(body) });
   if (!r.ok) {
@@ -708,6 +723,12 @@ export default async function handler(req, res) {
     const targetName = discordName(target);
     const targetProfile = { id: targetId, name: targetName, avatarUrl: discordAvatarUrl(target, cfg.guildId) };
     if (targetId === process.env.DISCORD_OWNER_ID) return json(res, 403, { error: "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي من خلال هذه الأداة." });
+    let dmAllowed;
+    try {
+      dmAllowed = await memberPrivateNotificationsEnabled(cfg, targetId);
+    } catch (preferenceError) {
+      return json(res, preferenceError.status || 503, { error: preferenceError.message || "تعذّر التحقق من تفضيلات الرسائل الخاصة؛ لم يتم إرسال أي رسالة." });
+    }
 
     const start = await rpc(cfg, "begin_disciplinary_action", {
       p_request_id: requestId,
@@ -746,30 +767,32 @@ export default async function handler(req, res) {
       return json(res, error.status || 502, { ok: false, status: "failed", error: error.message || "Discord roles could not be updated." });
     }
 
-    try {
-      dmResult = await sendDirectNotice(cfg, targetId,
-        disciplinaryNoticeEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt));
-    } catch (error) {
-      let rollbackFailed = false;
-      try { await restoreMemberRoles(cfg, targetId, roleResult.originalRoles); }
-      catch (rollbackError) {
-        rollbackFailed = true;
-        console.error("Role rollback failed after private message delivery failure:", rollbackError.code || rollbackError.message);
+    if (dmAllowed) {
+      try {
+        dmResult = await sendDirectNotice(cfg, targetId,
+          disciplinaryNoticeEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt));
+      } catch (error) {
+        let rollbackFailed = false;
+        try { await restoreMemberRoles(cfg, targetId, roleResult.originalRoles); }
+        catch (rollbackError) {
+          rollbackFailed = true;
+          console.error("Role rollback failed after private message delivery failure:", rollbackError.code || rollbackError.message);
+        }
+        const errorCode = String(error.code || error.message || "dm_delivery_failed").slice(0, 100);
+        await rpc(cfg, "complete_disciplinary_action_v2", {
+          p_action_id: start.action_id, p_role_sync_status: rollbackFailed ? "succeeded" : "failed",
+          p_dm_status: "failed", p_dm_channel_id: null, p_dm_message_id: null,
+          p_channel_status: "failed", p_channel_message_id: null, p_warning_expires_at: null,
+          p_error_code: (rollbackFailed ? "dm_failed_rollback_failed:" : "dm_failed:") + errorCode
+        });
+        return json(res, 502, {
+          ok: false, status: "failed",
+          error: rollbackFailed
+            ? "فشل إرسال الرسالة الخاصة كما فشل التراجع عن تغيير الرتبة. يلزم إصلاح الرتبة يدويًا من ديسكورد."
+            : "تعذّر إرسال الرسالة الخاصة إلى العضو. تم التراجع عن تغيير الرتبة ولم يتم تسجيل الإنذار أو قرار الفصل.",
+          code: errorCode
+        });
       }
-      const errorCode = String(error.code || error.message || "dm_delivery_failed").slice(0, 100);
-      await rpc(cfg, "complete_disciplinary_action_v2", {
-        p_action_id: start.action_id, p_role_sync_status: rollbackFailed ? "succeeded" : "failed",
-        p_dm_status: "failed", p_dm_channel_id: null, p_dm_message_id: null,
-        p_channel_status: "failed", p_channel_message_id: null, p_warning_expires_at: null,
-        p_error_code: (rollbackFailed ? "dm_failed_rollback_failed:" : "dm_failed:") + errorCode
-      });
-      return json(res, 502, {
-        ok: false, status: "failed",
-        error: rollbackFailed
-          ? "فشل إرسال الرسالة الخاصة كما فشل التراجع عن تغيير الرتبة. يلزم إصلاح الرتبة يدويًا من ديسكورد."
-          : "تعذّر إرسال الرسالة الخاصة إلى العضو. تم التراجع عن تغيير الرتبة ولم يتم تسجيل الإنذار أو قرار الفصل.",
-        code: errorCode
-      });
     }
 
     try {
@@ -783,11 +806,14 @@ export default async function handler(req, res) {
         rollbackFailed = true;
         console.error("Role rollback failed after announcement delivery failure:", rollbackError.code || rollbackError.message);
       }
-      try { await deleteDirectNotice(cfg, dmResult); }
-      catch (deleteError) { console.error("Could not withdraw private notice after channel failure:", deleteError.code || deleteError.message); }
+      if (dmResult) {
+        try { await deleteDirectNotice(cfg, dmResult); }
+        catch (deleteError) { console.error("Could not withdraw private notice after channel failure:", deleteError.code || deleteError.message); }
+      }
       await rpc(cfg, "complete_disciplinary_action_v2", {
         p_action_id: start.action_id, p_role_sync_status: rollbackFailed ? "succeeded" : "failed",
-        p_dm_status: "failed", p_dm_channel_id: dmResult.channelId, p_dm_message_id: dmResult.messageId,
+        p_dm_status: dmResult ? "failed" : "skipped",
+        p_dm_channel_id: dmResult?.channelId || null, p_dm_message_id: dmResult?.messageId || null,
         p_channel_status: "failed", p_channel_message_id: null, p_warning_expires_at: null,
         p_error_code: (rollbackFailed ? "channel_failed_rollback_failed:" : "channel_failed:") + errorCode
       });
@@ -801,9 +827,9 @@ export default async function handler(req, res) {
     const completion = await rpc(cfg, "complete_disciplinary_action_v2", {
       p_action_id: start.action_id,
       p_role_sync_status: "succeeded",
-      p_dm_status: "sent",
-      p_dm_channel_id: dmResult.channelId,
-      p_dm_message_id: dmResult.messageId,
+      p_dm_status: dmResult ? "sent" : "skipped",
+      p_dm_channel_id: dmResult?.channelId || null,
+      p_dm_message_id: dmResult?.messageId || null,
       p_channel_status: "sent",
       p_channel_message_id: channelMessage.id || null,
       p_warning_expires_at: expiresAt,
@@ -815,7 +841,8 @@ export default async function handler(req, res) {
         target_discord_id:targetId}});
     return json(res, 200, {
       ok: true, status: completion.status, action_id: start.action_id,
-      dm_status: "sent", dm_message_id: dmResult.messageId,
+      dm_status: dmResult ? "sent" : "skipped",
+      dm_message_id: dmResult?.messageId || null,
       channel_status: "sent", channel_message_id: channelMessage.id || null,
       warning_level: level, action_type: actionType, expires_at: expiresAt
     });
