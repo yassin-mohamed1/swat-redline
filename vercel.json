@@ -3,6 +3,9 @@
   "functions": {
     "api/notifications/send.js": {
       "maxDuration": 60
+    },
+    "api/admin/members.js": {
+      "maxDuration": 60
     }
   }
 }
