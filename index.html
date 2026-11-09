@@ -2182,6 +2182,8 @@ async function renderPersonnel(){
  if(!body||(!currentIsOwner&&!currentCanManageAssignments))return;
  const activityPanel=document.getElementById('personnelLoginActivityPanel');
  if(activityPanel)activityPanel.hidden=!currentIsOwner;
+ const syncButton=document.getElementById('syncDiscordRoleMembersButton');
+ if(syncButton)syncButton.hidden=!currentIsOwner;
  body.innerHTML='<tr><td colspan="6">جاري تحميل الأفراد...</td></tr>';
  if(currentIsOwner)renderLoginActivity();
  try{
