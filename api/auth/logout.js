@@ -34,6 +34,14 @@ export default async function handler(req, res) {
     try {
       const base = process.env.SUPABASE_URL.replace(/\/+$/, "");
       const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      // An old signed cookie from a deleted account must not recreate logout history.
+      const profileQuery = new URLSearchParams({discord_user_id:"eq."+String(user.id),select:"discord_user_id",limit:"1"});
+      const profileCheck = await fetch(base + "/rest/v1/staff_profiles?" + profileQuery, {
+        headers:{apikey:key,Authorization:"Bearer "+key}
+      });
+      if (!profileCheck.ok) throw new Error("Could not verify account before writing logout history.");
+      const existingProfiles = await profileCheck.json();
+      if (existingProfiles.length) {
       const response = await fetch(base + "/rest/v1/staff_login_events", {
         method: "POST",
         headers: { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json", Prefer: "return=minimal" },
@@ -59,6 +67,7 @@ export default async function handler(req, res) {
         const inserted=await auditResponse.json().catch(()=>[]);
         if(inserted.length)await forwardAuditToDiscord(user,{action:"logout",entity_type:"authentication",entity_id:user.id,
           details:{type:"تسجيل خروج",detail:"سجل "+(user.displayName||user.username||"المستخدم")+" الخروج من بوابة S.W.A.T. REDLINE."}});
+      }
       }
     } catch (error) {
       console.error("Staff logout event failed:", error instanceof Error ? error.message : "unknown");
