@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("Discord OAuth requires the configured S.W.A.T. website access role", async () => {
+test("Discord OAuth blocks accounts without the configured access role", async () => {
   const auth = await readFile(new URL("../api/auth/discord.js", import.meta.url), "utf8");
   const session = await readFile(new URL("../api/auth/session.js", import.meta.url), "utf8");
 
@@ -12,44 +12,56 @@ test("Discord OAuth requires the configured S.W.A.T. website access role", async
   assert.match(session, /user\.roleId !== process\.env\.DISCORD_ROLE_ID/);
 });
 
-test("scheduled Discord role sync verifies GitHub OIDC and the exact repository workflow", async () => {
-  const api = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
-  const membersApi = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
-  const workflow = await readFile(new URL("../.github/workflows/discord-role-sync.yml", import.meta.url), "utf8");
+test("Discord role sync can only be triggered by the authenticated owner with a same-origin POST", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const helper = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const workflowUrl = new URL("../.github/workflows/discord-role-sync.yml", import.meta.url);
 
-  assert.match(api, /token\.actions\.githubusercontent\.com/);
-  assert.match(api, /crypto\.verify\("RSA-SHA256"/);
-  assert.match(api, /EXPECTED_AUDIENCE = "swat-redline-discord-role-sync"/);
-  assert.match(api, /claims\.repository !== EXPECTED_REPOSITORY/);
-  assert.match(api, /claims\.workflow_ref !== EXPECTED_WORKFLOW/);
-  assert.match(api, /claims\.ref !== EXPECTED_REF/);
-  assert.match(api, /"schedule", "workflow_dispatch", "push"/);
-  assert.match(workflow, /cron: "\*\/5 \* \* \* \*"/);
-  assert.match(workflow, /id-token: write/);
-  assert.match(membersApi, /handleDiscordRoleSync/);
-  assert.match(membersApi, /sync_discord_role_members/);
-  assert.ok(workflow.includes("https://swat-redline.vercel.app/api/admin/members?task=sync_discord_role_members"));
+  assert.match(api, /requestBody\.action === "sync_discord_role_members"/);
+  assert.match(api, /if \(!user\.isOwner\) return send\(res,403/);
+  assert.match(api, /requireSameOrigin\(req,res\)/);
+  assert.match(api, /handleDiscordRoleSync\(req,res\)/);
+  assert.match(helper, /if \(req\.method !== "POST"\)/);
+  assert.doesNotMatch(helper, /verifyGitHubActionsRequest|token\.actions\.githubusercontent\.com/);
+  assert.match(helper, /trigger: "manual_owner_button"/);
+  assert.match(html, /id="syncDiscordRoleMembersButton"/);
+  assert.match(html, /if\(!currentIsOwner\)/);
+  assert.match(html, /syncButton\.hidden=!currentIsOwner/);
+  await assert.rejects(readFile(workflowUrl, "utf8"), { code: "ENOENT" });
 });
 
-test("role sync inserts only new Discord profiles and ignores conflicts without rewriting existing records", async () => {
-  const api = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
+test("role sync inserts only new members with the access role and preserves existing records", async () => {
+  const helper = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
   const membersApi = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
-  assert.match(membersApi, /handleDiscordRoleSync/);
-  assert.match(membersApi, /sync_discord_role_members/);
-  assert.match(api, /GET.*members|\/members\?/s);
-  assert.match(api, /member\.roles\.map\(String\)\.includes\(roleId\)/);
-  assert.match(api, /on_conflict: "discord_user_id"/);
-  assert.match(api, /resolution=ignore-duplicates,return=representation/);
-  assert.match(api, /is_manual: false/);
-  assert.match(api, /manual_created_by_discord_id: null/);
-  assert.match(api, /login_count: 0/);
-  assert.match(api, /last_login: null/);
-  assert.match(api, /notifications_enabled: true/);
-  assert.match(api, /cursor_id: cursor/);
-  assert.match(api, /MAX_PAGES_PER_RUN/);
-  assert.match(api, /Server Members Intent \(GUILD_MEMBERS\)/);
-  assert.doesNotMatch(api, /staff_profiles\?[^\n]*PATCH/);
+  assert.match(helper, /member\.roles\.map\(String\)\.includes\(roleId\)/);
+  assert.match(helper, /on_conflict: "discord_user_id"/);
+  assert.match(helper, /resolution=ignore-duplicates,return=representation/);
+  assert.match(helper, /is_manual: false/);
+  assert.match(helper, /registration_source: "bot_role"/);
+  assert.match(helper, /manual_created_by_discord_id: null/);
+  assert.match(helper, /login_count: 0/);
+  assert.match(helper, /last_login: null/);
+  assert.match(helper, /cursor_id: cursor/);
+  assert.match(helper, /MAX_PAGES_PER_RUN/);
+  assert.doesNotMatch(helper, /setInterval|schedule/);
+  assert.match(membersApi, /registration_source:"manual_id"/);
+  assert.match(membersApi, /registration_source,last_login,login_count/);
+  assert.match(html, /registration_source==='bot_role'/);
+  assert.match(html, /إضافة تلقائية بواسطة بوت S\.W\.A\.T\./);
+  assert.match(html, /pendingRegistrationBadge\(member\)/);
+});
+
+test("registration source migration marks the previous bot-added members and keeps portal-login status separate", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/20261109155000_staff_profile_registration_source.sql", import.meta.url), "utf8");
+
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS registration_source text/);
+  assert.match(migration, /WHEN is_manual IS TRUE THEN 'manual_id'/);
+  assert.match(migration, /THEN 'bot_role'/);
+  assert.match(migration, /'1561561038263029900'/);
+  assert.match(migration, /registration_source IN \('manual_id', 'bot_role', 'oauth'\)/);
 });
 
 test("new Discord role sync state is private and writable only by the service role", async () => {
