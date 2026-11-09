@@ -1,0 +1,52 @@
+name: Sync Discord access-role members
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: swat-redline-discord-role-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Request a short-lived GitHub identity token
+        id: oidc
+        shell: bash
+        env:
+          OIDC_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          OIDC_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${OIDC_REQUEST_URL:-}" || -z "${OIDC_REQUEST_TOKEN:-}" ]]; then
+            echo "GitHub OIDC token endpoint is unavailable." >&2
+            exit 1
+          fi
+          response="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${OIDC_REQUEST_TOKEN}" \
+            "${OIDC_REQUEST_URL}&audience=swat-redline-discord-role-sync")"
+          token="$(jq -r '.value // empty' <<< "$response")"
+          if [[ -z "$token" ]]; then
+            echo "GitHub did not issue an OIDC token." >&2
+            exit 1
+          fi
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Synchronize members who have the S.W.A.T. access role
+        shell: bash
+        env:
+          GITHUB_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 70 \
+            -H "Authorization: Bearer ${GITHUB_OIDC_TOKEN}" \
+            "https://swat-redline.vercel.app/api/cron/sync-discord-role-members"
