@@ -162,7 +162,7 @@ export default async function handler(req, res) {
       return json(res, 401, { error: "غير مصرح بتشغيل مزامنة أعضاء Discord." });
     }
 
-    const base = process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+    const base = process.env.SUPABASE_URL?.replace(/\/+$/, "");
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const token = process.env.DISCORD_BOT_TOKEN;
     const guildId = String(process.env.DISCORD_GUILD_ID || "");
