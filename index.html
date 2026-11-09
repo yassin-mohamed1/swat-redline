@@ -1115,7 +1115,7 @@ html[dir="ltr"] .field label{text-align:left}
 #page-personnel .assignment-modal-body{padding:19px;display:grid;gap:15px}
 #page-personnel .assignment-field{display:grid;gap:7px}
 #page-personnel .assignment-actions{display:flex;gap:9px;flex-wrap:wrap}
-</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضافتهم القيادة يدويًا باستخدام Discord ID</div></div><div class="assignment-toolbar"><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجّلت الدخول إلى الموقع مرة واحدة على الأقل، وليس كل أعضاء سيرفر Discord تلقائيًا.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
+</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضافتهم القيادة يدويًا باستخدام Discord ID</div></div><div class="assignment-toolbar"><button class="btn primary" id="syncDiscordRoleMembersButton" type="button" hidden onclick="syncDiscordRoleMembers()">↻ فحص رول S.W.A.T. وتسجيل الأعضاء</button><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجّلت الدخول إلى الموقع مرة واحدة على الأقل، وليس كل أعضاء سيرفر Discord تلقائيًا.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
  <div class="assignment-modal-card" style="width:min(560px,100%)">
   <div class="assignment-modal-head">
    <div><h3 style="margin:0">إضافة عضو بدون تسجيل دخول</h3><div class="muted">إضافته إلى دليل الأفراد باستخدام Discord ID فقط</div></div>
@@ -2147,6 +2147,36 @@ async function submitWarningAction(action){
 }
 
 function fmtAdminDate(v){if(!v)return 'لم يسجل بعد';try{return new Date(v).toLocaleString(document.documentElement.lang==='ar'?'ar-SA':'en-US',{dateStyle:'medium',timeStyle:'short'})}catch{return '—'}}
+function pendingRegistrationBadge(member){
+ if(member?.is_manual)return '<span class="tag orange">إضافة يدوية • لم يسجل دخول الموقع</span>';
+ if(member?.registration_source==='bot_role'&&!member?.last_login&&Number(member?.login_count||0)===0)
+  return '<span class="tag orange">إضافة تلقائية بواسطة بوت S.W.A.T. • لم يسجل دخول الموقع</span>';
+ return '';
+}
+async function syncDiscordRoleMembers(){
+ if(!currentIsOwner){toast('زر فحص أعضاء Discord مخصص للأونر فقط.');return;}
+ const button=document.getElementById('syncDiscordRoleMembersButton');
+ if(button){button.disabled=true;button.textContent='جارٍ فحص أعضاء Discord...';}
+ try{
+  const response=await fetch('/api/admin/members',{
+   method:'POST',credentials:'same-origin',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'sync_discord_role_members'})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر فحص أعضاء Discord.');
+  const scanned=Number(data.members_scanned||0);
+  const matching=Number(data.members_with_access_role||0);
+  const added=Number(data.newly_registered||0);
+  toast('اكتمل الفحص: '+scanned+' عضو مفحوص، '+matching+' معهم رول S.W.A.T.، وتمت إضافة '+added+' عضو جديد.');
+  await renderPersonnel();
+  if(document.getElementById('page-assignments')?.classList.contains('active'))await renderAssignments();
+ }catch(error){
+  toast(error.message||'فشل فحص أعضاء Discord.');
+ }finally{
+  if(button){button.disabled=false;button.textContent='↻ فحص رول S.W.A.T. وتسجيل الأعضاء';button.hidden=!currentIsOwner;}
+ }
+}
 async function renderPersonnel(){
  const body=document.getElementById('personnelRows');
  if(!body||(!currentIsOwner&&!currentCanManageAssignments))return;
@@ -2163,7 +2193,7 @@ async function renderPersonnel(){
    const status=owner?'المالك المحمي':m.is_banned?'محظور':m.is_active?'نشط':'موقوف';
    const tag=owner?'green':m.is_banned?'red':m.is_active?'green':'gray';
    const actions=!currentIsOwner?'<span class="muted">عرض فقط</span>':owner?'<span class="muted">المالك محمي ولا يمكن حذفه أو حظره</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button> <button class="btn danger" onclick="memberAction('${adminEscape(m.discord_user_id)}','delete')">حذف نهائي</button>`;
-   const profileType=m.is_manual?'<span class="tag orange">إضافة يدوية • لم يسجل دخول</span>':'';
+   const profileType=pendingRegistrationBadge(m);
    return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<div style="display:flex;flex-direction:column;gap:3px"><b>${adminEscape(m.display_name||'Discord user')}</b>${m.username?`<span class="muted">@${adminEscape(m.username)}</span>`:''}${profileType}</div></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
   }).join('')||'<tr><td colspan="6"><div class="empty">لا توجد حسابات أو أعضاء مضافون يدويًا حتى الآن.</div></td></tr>';
  }catch(e){
@@ -2231,7 +2261,7 @@ function renderAssignmentRows(){
   const canEdit=member.in_guild!==false&&member.account_status==='active';
   const avatar=member.avatar_url?'<img src="'+assignmentEscape(member.avatar_url)+'" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">':'';
   const action=canEdit?'<button class="btn" type="button" onclick="openAssignmentModal(\''+assignmentEscape(member.discord_user_id)+'\')">إدارة التعيين</button>':'<span class="muted">غير متاح</span>';
-  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+(member.is_manual?'<div class="muted">إضافة يدوية • لم يسجل دخول الموقع</div>':'')+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(member.discord_user_id)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+action+'</td></tr>';
+  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+pendingRegistrationBadge(member)+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(member.discord_user_id)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+action+'</td></tr>';
  }).join('')||'<tr><td colspan="7"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
 }
 function openManualMemberModal(){
@@ -3256,6 +3286,17 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "تم إصدار الإنذار بنجاح، وتم احترام إيقاف الرسائل الخاصة لدى العضو.":"The warning was issued successfully, and the member's DM opt-out was respected.",
  "تم فصل العضو بنجاح، وتم احترام إيقاف الرسائل الخاصة لدى العضو.":"The member was dismissed successfully, and the member's DM opt-out was respected.",
  "رسائل الخاص من بوت البوابة مفعّلة تلقائيًا بعد دخولك. لو مش حابب تستقبل رسائل خاصة من البوت، شيل علامة الصح هنا. التغيير يمنع رسائل الخاص من التعيينات والتحذيرات والتنبيهات والإعلانات المحوّلة، لكنه لا يوقف منشورات قنوات Discord أو المنشنات داخل السيرفر. تقدر ترجع تفعّلها في أي وقت.":"Private messages from the portal bot are enabled by default. Uncheck this option to stop DMs from assignments, warnings, alerts and forwarded announcements. This does not stop Discord channel posts or server mentions. You can re-enable it at any time."
+});
+Object.assign(PORTAL_TRANSLATIONS,{
+ "↻ فحص رول S.W.A.T. وتسجيل الأعضاء":"↻ Scan S.W.A.T. role and register members",
+ "جارٍ فحص أعضاء Discord...":"Scanning Discord members...",
+ "اكتمل الفحص: ":"Scan completed: ",
+ " عضو مفحوص، ":" members scanned, ",
+ " معهم رول S.W.A.T.، وتمت إضافة ":" have the S.W.A.T. role, and ",
+ " عضو جديد.":" new member(s) added.",
+ "زر فحص أعضاء Discord مخصص للأونر فقط.":"The Discord member scan button is available to the owner only.",
+ "إضافة يدوية • لم يسجل دخول الموقع":"Manually added • Has not logged into the portal",
+ "إضافة تلقائية بواسطة بوت S.W.A.T. • لم يسجل دخول الموقع":"Automatically added by S.W.A.T. bot • Has not logged into the portal"
 });
 const portalTranslationEntries = Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
 function replaceArabicPhrase(source,phrase,translation){
