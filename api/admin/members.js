@@ -411,7 +411,7 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   const targetId=String(body.discord_user_id||"");
   const action=body.action==="remove"?"remove":body.action==="assign"?"assign":"";
   if(!action||!/^\d{15,22}$/.test(targetId))return send(res,400,{error:"اختر عضوًا وإجراءً صحيحًا."});
-  const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&limit=1");
+  const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,display_name,username,avatar_url,is_active,is_banned,notifications_enabled&limit=1");
   if(!profileResponse.ok)return send(res,503,{error:"تعذّر التحقق من وجود العضو في دليل الأفراد."});
   const profile=(await profileResponse.json())[0];
   if(!profile)return send(res,404,{error:"هذا العضو غير موجود في دليل الأفراد. أضفه أولًا من صفحة الأفراد."});
@@ -551,23 +551,29 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     console.error("Assignment audit forward failed:",auditError?.code||auditError?.message||"unknown");
   }
 
-  let dmStatus="sent",dmFailure=null;
-  try{
-    await assignmentSendDm(token,targetId,embed);
-  }catch(error){
-    dmStatus="failed";
-    const messages=assignmentDmFailureMessage(error);
-    dmFailure={
-      code:String(error?.code||error?.status||"unknown"),
-      stage:error?.dmStage||"unknown",
-      message:messages.ar,
-      message_en:messages.en
-    };
-    console.warn("Assignment DM delivery failed:",JSON.stringify({code:dmFailure.code,stage:dmFailure.stage,status:Number(error?.status||0)}));
+  const dmAllowed=profile.notifications_enabled!==false;
+  let dmStatus=dmAllowed?"sent":"skipped",dmFailure=null;
+  if(dmAllowed){
+    try{
+      await assignmentSendDm(token,targetId,embed);
+    }catch(error){
+      dmStatus="failed";
+      const messages=assignmentDmFailureMessage(error);
+      dmFailure={
+        code:String(error?.code||error?.status||"unknown"),
+        stage:error?.dmStage||"unknown",
+        message:messages.ar,
+        message_en:messages.en
+      };
+      console.warn("Assignment DM delivery failed:",JSON.stringify({code:dmFailure.code,stage:dmFailure.stage,status:Number(error?.status||0)}));
+    }
+  }else{
+    console.info("Assignment DM skipped because the member disabled private notifications.");
   }
   return send(res,200,{
     ok:true,action,assignment:savedResult,dm_status:dmStatus,
-    ...(dmFailure?{dm_error_code:dmFailure.code,dm_error_stage:dmFailure.stage,dm_message:dmFailure.message}:{}),
+    ...(dmStatus==="skipped"?{dm_skipped_reason:"recipient_opted_out"}:{}),
+    ...(dmFailure?{dm_error_code:dmFailure.code,dm_error_stage:dmFailure.stage,dm_message:dmFailure.message,dm_message_en:dmFailure.message_en}:{}),
     reference
   });
 }
