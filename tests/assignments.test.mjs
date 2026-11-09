@@ -10,12 +10,12 @@ test("assignment and personnel APIs use the same warning manager role and enforc
   assert.match(api, /staff_profiles\?discord_user_id=/);
   assert.match(api, /member\.roles\.includes\(managerRoleId\)/);
   assert.match(api, /requireAssignmentManager\(url,key,process\.env\.DISCORD_BOT_TOKEN/);
-  assert.match(api, /req\.method==="PATCH"&&!user\.isOwner/);
-  assert.match(api, /searchParams\.get\("activity"\)==="1"&&!user\.isOwner/);
+  assert.match(api, /req\.method==="PATCH"&&!canManagePortal/);
+  assert.match(api, /searchParams\.get\("activity"\)==="1"&&!canManagePortal/);
   assert.match(warnings, /DISCORD_WARNING_MANAGER_ROLE_ID/);
   assert.match(warnings, /member\.roles\.includes\(cfg\.managerRoleId\)/);
   assert.match(html, /currentCanManageAssignments=currentCanManageWarnings/);
-  assert.match(html, /currentIsOwner\|\|currentCanManageAssignments/);
+  assert.match(html, /currentCanAdmin\|\|currentCanManageAssignments/);
 });
 
 test("assignment API exposes every Discord role and explains hierarchy and permission limits", async () => {
@@ -148,8 +148,8 @@ test("assignment directory is above Discord roles and manager controls protect l
   const roles = html.indexOf("الرتب المتاحة من سيرفر Discord");
   assert.ok(directory > 0 && roles > directory);
   assert.match(html, /personnelLoginActivityPanel/);
-  assert.match(html, /activityPanel\.hidden=!currentIsOwner/);
-  assert.match(html, /const actions=!currentIsOwner/);
+  assert.match(html, /activityPanel\.hidden=!currentCanAdmin/);
+  assert.match(html, /const actions=!currentCanAdmin/);
 });
 
 test("assignment list keeps working when Discord member list is rate limited or unavailable", async () => {
