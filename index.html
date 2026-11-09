@@ -1819,7 +1819,7 @@ async function sendRuleToDiscord(ruleId,button){
  const previousHtml=button?.innerHTML||'↗ إرسال إلى Discord';
  if(button){button.disabled=true;button.textContent='جارٍ الإرسال...'}
  try{
-  const response=await fetch('/api/rules/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({ruleId:String(ruleId)})});
+  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'publish_rule',ruleId:String(ruleId)})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok){
    if(data.partial)throw new Error('تم إرسال '+Number(data.messagesSent||0)+' رسالة من أجزاء القانون، ثم توقف الإرسال. راجع روم القوانين قبل إعادة المحاولة.');
