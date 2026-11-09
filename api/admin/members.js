@@ -289,7 +289,7 @@ async function assignmentMember(token,guildId,id) {
 async function listAssignments(url,key,token,guildId) {
   if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
   const [profileResponse,assignmentResponse,callsignResponse]=await Promise.all([
-    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,created_at&order=display_name.asc"),
+    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,registration_source,last_login,login_count,created_at&order=display_name.asc"),
     supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,rank_role_ids,rank_role_names,callsign,status,assigned_by_name,updated_at"),
     supabase(url,key,"staff_callsigns?select=callsign&is_active=eq.true&order=callsign.asc")
   ]);
