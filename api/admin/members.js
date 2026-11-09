@@ -166,7 +166,7 @@ function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor
     fields:[
       {name:"العضو",value:String(name||"Discord member").slice(0,180),inline:true},
       {name:"Discord ID",value:discordId,inline:true},
-      {name:"الرتبة",value:assigned?String(rankName).slice(0,100):"تم إنهاء التعيين",inline:true},
+      {name:assigned?"الرتب الجديدة":"الرتبة",value:assigned?(String(rankName||"").trim().slice(0,100)||"لم تتم إضافة رتب جديدة في هذا التحديث."):"تم إنهاء التعيين",inline:true},
       {name:"كود النداء",value:assigned?(callsign||"لم يتم تعيين كود نداء"):"تم إلغاء كود النداء السابق",inline:true},
       {name:"صدر بواسطة",value:String(actor||"S.W.A.T. REDLINE Command").slice(0,120),inline:true},
       {name:"الرقم المرجعي",value:reference,inline:false}
@@ -485,18 +485,23 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId);
   const displayName=assignmentMemberName(member,profile.display_name||"Discord member");
   const avatar=assignmentAvatar(member,guildId)||profile.avatar_url||null;
+  const originalRoles=(member.roles||[]).map(String);
+  // The DM must list only roles newly granted by this save, not every role
+  // already present on the member or re-selected in the appointment editor.
+  const newlyAssignedRoles=action==="assign"
+    ?targetRoles.filter(role=>!originalRoles.includes(String(role.id)))
+    :[];
   const reference=crypto.randomUUID();
   const embed=assignmentEmbed({
     assigned:action==="assign",
     name:displayName,
     discordId:targetId,
     avatar,
-    rankName:rankNames.join("، "),
+    rankName:newlyAssignedRoles.map(role=>role.name).join("، "),
     callsign,
     actor:user.displayName||user.username||"Portal manager",
     reference
   });
-  const originalRoles=[...(member.roles||[])];
   const previousResponse=await supabase(url,key,"staff_assignments?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=rank_role_id,rank_role_ids,status&limit=1");
   if(!previousResponse.ok)return send(res,503,{error:"تعذّر قراءة التعيين السابق قبل تحديث الرتب."});
   const previousAssignment=(await previousResponse.json())[0]||null;
