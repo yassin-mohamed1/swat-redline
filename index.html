@@ -2512,7 +2512,7 @@ async function addNextCallsign(){
  finally{if(button)button.disabled=false;}
 }
 async function submitStaffAssignment(action){
- if((!currentIsOwner&&!currentCanManageAssignments)||!assignmentTargetId)return;
+ if((!currentCanAdmin&&!currentCanManageAssignments)||!assignmentTargetId)return;
  const member=assignmentData.members.find(item=>String(item.discord_user_id)===assignmentTargetId);
  if(!member)return;
  const rankRoleIds=action==='assign'?selectedAssignmentRoleIds():[];
@@ -2567,7 +2567,7 @@ async function submitStaffAssignment(action){
  }
 }
 async function renderLoginActivity(){
- const body=document.getElementById('loginActivityRows');if(!body||!currentIsOwner)return;
+ const body=document.getElementById('loginActivityRows');if(!body||!currentCanAdmin)return;
  body.innerHTML='<tr><td colspan="5">جاري تحميل السجل...</td></tr>';
  try{
   const r=await fetch('/api/admin/members?activity=1',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
