@@ -4,6 +4,7 @@ import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
+import { buildRuleDiscordMessages } from "../../lib/rules-discord.js";
 
 const MAX_RECIPIENTS_PER_BATCH = 200;
 const MAX_NOTIFICATION_IMAGES = 4;
@@ -63,6 +64,108 @@ function getConfig() {
   if (!base || !serviceKey) return { error: "storage_not_configured" };
   if (!botToken) return { error: "bot_token_missing" };
   return { base, serviceKey, botToken, notificationChannelId, announcementPostChannelId, evidenceChannelId, notificationRoleId };
+}
+
+const SWAT_RULES_CHANNEL_ID = "1561775787152117770";
+
+async function publishSavedRuleToDiscord(user, ruleId) {
+  const config = getConfig();
+  if (config.error === "bot_token_missing") {
+    throw Object.assign(new Error("Discord bot is not connected. Add DISCORD_BOT_TOKEN to Vercel."), { status: 503 });
+  }
+  if (config.error) {
+    throw Object.assign(new Error("Rules storage is not configured."), { status: 503 });
+  }
+  if (!config.notificationRoleId || !/^\\d{17,20}$/.test(config.notificationRoleId)) {
+    throw Object.assign(new Error("لم يتم ضبط رتبة منشن SWAT في DISCORD_NOTIFICATION_ROLE_ID."), { status: 503 });
+  }
+
+  const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
+  const stateResponse = await supabaseRequest(config, "app_state?" + stateQuery, { method: "GET" });
+  if (!stateResponse.ok) {
+    console.error("Rules publication state lookup failed:", stateResponse.status, (await stateResponse.text()).slice(0, 250));
+    throw Object.assign(new Error("تعذر قراءة القوانين المحفوظة من قاعدة البيانات."), { status: 502 });
+  }
+  const rows = await stateResponse.json();
+  const savedRules = Array.isArray(rows[0]?.data?.rules) ? rows[0].data.rules : [];
+  const rule = savedRules.find(item => item && !Array.isArray(item) &&
+    String(item.id || "") === ruleId && item.type === "law");
+  if (!rule) {
+    throw Object.assign(new Error("لم يتم العثور على هذا القانون ضمن القوانين المحفوظة. احفظه أولًا ثم أعد الإرسال."), { status: 404 });
+  }
+
+  const actor = user.displayName || user.username || "S.W.A.T. Command";
+  const messages = buildRuleDiscordMessages(rule, actor);
+  const messageIds = [];
+  for (let index = 0; index < messages.length; index++) {
+    const first = index === 0;
+    const payload = {
+      ...messages[index],
+      content: first ? "<@&" + config.notificationRoleId + ">" : "",
+      allowed_mentions: first
+        ? { parse: [], roles: [config.notificationRoleId] }
+        : { parse: [] }
+    };
+    try {
+      const sent = await discordRequest(config,
+        "/channels/" + encodeURIComponent(SWAT_RULES_CHANNEL_ID) + "/messages",
+        { method: "POST", body: JSON.stringify(payload) }
+      );
+      if (sent?.id) messageIds.push(String(sent.id));
+    } catch (error) {
+      const status = Number(error?.status || 0);
+      const message = status === 403
+        ? "البوت لا يملك صلاحية إرسال الرسائل أو تضمين الروابط في روم SWAT Rules."
+        : status === 404
+          ? "لم يتم العثور على روم SWAT Rules أو أن البوت لا يستطيع الوصول إليها."
+          : status === 429
+            ? "Discord فرض حدًا مؤقتًا للإرسال. أعد المحاولة بعد انتهاء المهلة."
+            : "تعذر إرسال القانون إلى Discord. رمز الخطأ: " + String(error?.code || status || "unknown");
+      throw Object.assign(new Error(message), {
+        status: 502,
+        messagesSent: index,
+        partial: index > 0,
+        messageIds
+      });
+    }
+  }
+
+  const auditEvent = {
+    actor_discord_id: user.id,
+    actor_name: actor,
+    action: "create",
+    entity_type: "discord_rule_post",
+    entity_id: ruleId,
+    details: {
+      type: "نشر قانون في Discord",
+      detail: "نشر " + actor + " القانون «" + String(rule.title || "بدون عنوان").slice(0, 140) + "» في روم S.W.A.T. RULES.",
+      ref: ruleId,
+      channel_id: SWAT_RULES_CHANNEL_ID,
+      channel_message_ids: messageIds
+    }
+  };
+  try {
+    const auditResponse = await supabaseRequest(config, "audit_logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(auditEvent)
+    });
+    if (auditResponse.ok) {
+      await forwardAuditToDiscord(user, {
+        action: auditEvent.action,
+        entity_type: auditEvent.entity_type,
+        entity_id: auditEvent.entity_id,
+        details: auditEvent.details
+      });
+    } else {
+      console.warn("S.W.A.T. rules announcement audit write failed:", auditResponse.status);
+    }
+  } catch (error) {
+    console.warn("S.W.A.T. rules announcement audit failed:", error?.message || "unknown");
+  }
+
+  return { channelId: SWAT_RULES_CHANNEL_ID, messagesSent: messageIds.length, messageIds, roleMentioned: true };
+}
 }
 async function isActiveStaffForNotifications(config, user) {
   if (user.isOwner) return true;
@@ -423,6 +526,24 @@ export default async function handler(req, res) {
   const body = typeof req.body === "string"
     ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
     : (req.body || {});
+  if (body.action === "publish_rule") {
+    const ruleId = typeof body.ruleId === "string" ? body.ruleId.trim() : "";
+    if (!ruleId || ruleId.length > 180) {
+      return res.status(400).json({ error: "معرّف القانون غير صالح." });
+    }
+    try {
+      const result = await publishSavedRuleToDiscord(user, ruleId);
+      return res.status(200).json({ ok: true, ...result });
+    } catch (error) {
+      return res.status(error.status || 502).json({
+        error: error.message || "تعذر نشر القانون إلى Discord.",
+        messagesSent: Number(error.messagesSent || 0),
+        partial: Boolean(error.partial),
+        messageIds: Array.isArray(error.messageIds) ? error.messageIds : []
+      });
+    }
+  }
+
   const type = body.entity_type;
   const entityId = typeof body.entity_id === "string" ? body.entity_id.trim() : "";
   const batchKey = typeof body.batch_key === "string" ? body.batch_key : "";
