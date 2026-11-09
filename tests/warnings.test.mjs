@@ -48,15 +48,20 @@ test("existing Discord announcement forwarder has its required text helper", asy
   assert.match(forwarder, /function buildForwardParts\(/);
 });
 
-test("warning DM and announcement delivery are mandatory and expiry is scheduled", async () => {
+test("warning DMs respect member opt-out while announcements and expiry remain active", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261108084856_warning_expiry_and_required_dm.sql", import.meta.url), "utf8");
+  const optOutMigration = await readFile(new URL("../supabase/migrations/20261109135000_allow_disciplinary_dm_opt_out.sql", import.meta.url), "utf8");
   const schedule = await readFile(new URL("../supabase/migrations/20261108085251_warning_expiry_endpoint_consolidation.sql", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
+  assert.match(api, /memberPrivateNotificationsEnabled/);
+  assert.match(api, /notifications_enabled/);
+  assert.match(api, /if \(dmAllowed\)/);
   assert.match(api, /await sendDirectNotice/);
   assert.match(api, /await sendAnnouncement/);
-  assert.match(api, /تعذّر إرسال الرسالة الخاصة إلى العضو/);
+  assert.match(api, /p_dm_status: dmResult \? "sent" : "skipped"/);
+  assert.match(api, /dm_status: dmResult \? "sent" : "skipped"/);
   assert.match(api, /restoreMemberRoles/);
   assert.match(api, /CRON_SECRET/);
   assert.match(api, /processExpiredWarningRoles/);
@@ -66,6 +71,9 @@ test("warning DM and announcement delivery are mandatory and expiry is scheduled
 
   assert.match(migration, /warning_expires_at timestamptz/);
   assert.match(migration, /dm_status text NOT NULL DEFAULT 'pending'/);
+  assert.match(optOutMigration, /'pending', 'sent', 'failed', 'skipped'/);
+  assert.match(optOutMigration, /p_dm_status IN \('sent','skipped'\)/);
+  assert.match(optOutMigration, /p_dm_status = 'failed'/);
   assert.match(migration, /claim_expired_warning_roles/);
   assert.match(migration, /complete_expired_warning_role/);
   assert.match(schedule, /\* \* \* \* \*/);
@@ -74,6 +82,29 @@ test("warning DM and announcement delivery are mandatory and expiry is scheduled
   assert.match(html, /تلقائيًا/);
   assert.match(html, /الرسالة الخاصة/);
   assert.match(html, /30 يومًا/);
+});
+
+
+test("all site DM delivery paths honor each member's personal opt-out", async () => {
+  const assignments = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const warnings = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const notifications = await readFile(new URL("../api/notifications/send.js", import.meta.url), "utf8");
+  const forwarder = await readFile(new URL("../lib/announcement-forwarder.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+  assert.match(assignments, /notifications_enabled&limit=1/);
+  assert.match(assignments, /profile\.notifications_enabled!==false/);
+  assert.match(assignments, /dmStatus=dmAllowed\?"sent":"skipped"/);
+  assert.match(warnings, /memberPrivateNotificationsEnabled/);
+  assert.match(warnings, /return !rows\.length \|\| rows\[0\]\.notifications_enabled !== false/);
+  assert.match(warnings, /if \(dmAllowed\)/);
+  assert.match(notifications, /notifications_enabled: "eq\.true"/);
+  assert.doesNotMatch(notifications, /recipientMap\.set\(ownerDiscordId/);
+  assert.match(notifications, /ownerIncluded = recipients\.some/);
+  assert.match(forwarder, /notifications_enabled: "eq\.true"/);
+  assert.doesNotMatch(forwarder, /recipientMap\.set\(ownerDiscordId/);
+  assert.match(html, /data\.dm_status==='skipped'/);
+  assert.match(html, /استقبال الرسائل من إعداداته/);
 });
 
 test("disciplinary embeds use English branding and warning titles with Arabic field labels", async () => {
