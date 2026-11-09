@@ -33,11 +33,16 @@ test("Website Admin can use owner-level portal management APIs", async () => {
   assert.match(session, /isWebsiteAdmin,\s*websiteAdminRoleId/);
 });
 
-test("Website Admin UI shows ADMIN badges and preserves the protected owner label", async () => {
+test("Personnel directory refreshes live Discord roles and labels Website Admin separately from owner", async () => {
   const html = await read("../index.html");
+  const members = await read("../api/admin/members.js");
   assert.match(html, /currentIsWebsiteAdmin=Boolean\(data\.user\.isWebsiteAdmin\)/);
   assert.match(html, /currentCanAdmin=currentIsOwner\|\|currentIsWebsiteAdmin/);
-  assert.match(html, /<span class="tag green">ADMIN<\/span>/);
+  assert.match(html, /websiteAdmin\?'ADMIN':'نشط'/);
   assert.match(html, /المالك ADMIN/);
   assert.match(html, /حساب المالك ADMIN محمي ولا يمكن حذفه أو حظره/);
+  assert.doesNotMatch(html, /const adminBadge=websiteAdmin/);
+  assert.match(members, /refreshPersonnelDiscordRoles/);
+  assert.match(members, /assignmentGuildMembers\(token,guildId,profiles\)/);
+  assert.match(members, /memberRolesLive: liveRoles\.synced/);
 });
