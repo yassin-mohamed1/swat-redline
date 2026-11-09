@@ -39,5 +39,5 @@ test("Website Admin UI shows ADMIN badges and preserves the protected owner labe
   assert.match(html, /currentCanAdmin=currentIsOwner\|\|currentIsWebsiteAdmin/);
   assert.match(html, /<span class="tag green">ADMIN<\/span>/);
   assert.match(html, /المالك ADMIN/);
-  assert.match(html, /المالك محمي ولا يمكن حذفه أو حظره/);
+  assert.match(html, /حساب المالك ADMIN محمي ولا يمكن حذفه أو حظره/);
 });
