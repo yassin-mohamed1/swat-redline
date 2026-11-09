@@ -3,6 +3,9 @@
   "functions": {
     "api/notifications/send.js": {
       "maxDuration": 60
+    },
+    "api/cron/sync-discord-role-members.js": {
+      "maxDuration": 60
     }
   }
 }
