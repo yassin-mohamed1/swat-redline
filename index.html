@@ -3308,6 +3308,21 @@ const portalLanguageObserver=new MutationObserver(()=>{
 });
 portalLanguageObserver.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','title','aria-label','alt','value']});
 
+
+Object.assign(PORTAL_TRANSLATIONS, {
+ "تم التخطي حسب تفضيل العضو":"Skipped due to the member's preference",
+ "تم تحديث الرتب وحفظ التعيين، ولم تُرسل رسالة خاصة لأن العضو أوقف استقبال الرسائل من إعداداته.":"Discord roles and appointment were saved; no DM was sent because the member disabled private notifications.",
+ "عند الإيقاف، لن تُرسل رسائل خاصة للأعضاء. وفي وضع التجربة، يستقبل المالك نسخة فقط إذا كان استقبال الرسائل الخاصة مفعّلًا في إعداداته الشخصية.":"When disabled, member DMs are stopped. In test mode, the owner receives a copy only when private notifications are enabled in the owner's personal settings.",
+ "الرسائل الخاصة مسموحة للأعضاء الذين فعّلوها من إعداداتهم الشخصية.":"Private messages are allowed only for members who enabled them in their personal settings.",
+ "إرسال الخاص للأعضاء متوقف؛ وضع المالك فقط يخضع لتفضيله الشخصي أيضًا.":"Member DMs are disabled; owner-only test delivery also respects the owner's personal preference.",
+ "النشر في روم Discord متوقف؛ الرسائل الخاصة لها إعداد مستقل.":"Discord channel posting is disabled; private messages have a separate setting.",
+ "وضع التجربة: لم تُرسل نسخة خاصة لأن المالك أوقف استقبال الرسائل من إعداداته الشخصية.":"Test mode: no private copy was sent because the owner disabled private notifications in personal settings.",
+ "تم النشر في الروم، ولم تُرسل رسائل خاصة لأن لا يوجد مستلم مفعّل لاستقبالها.":"Posted in the channel; no private messages were sent because no recipient has private notifications enabled.",
+ "لم تُرسل رسائل خاصة؛ لا يوجد مستلم فعّل استقبال تنبيهات الخاص.":"No private messages were sent because no recipient has enabled private alerts.",
+ "تم النشر في الروم؛ لم تصل نسخة خاصة لأن المالك أوقف استقبالها.":"Posted in the channel; no private copy was sent because the owner opted out.",
+ "فشل النشر في الروم، ولم تُرسل نسخة خاصة لأن المالك أوقف استقبالها.":"Channel posting failed; no private copy was sent because the owner opted out."
+});
+
 applyPortalLanguage();
 loadPublicSiteImages();
 initAuth();
