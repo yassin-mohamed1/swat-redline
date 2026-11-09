@@ -1411,7 +1411,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -1567,7 +1567,7 @@ async function loadAuditLog(){
   const arrestButton=p.status==='wanted'
     ? '<button class="btn primary" style="flex:1;min-width:90px" onclick="event.stopPropagation();arrestPerson('+idArg+')">تم القبض</button>'
     : '<button class="btn" style="flex:1;min-width:90px" disabled>تم القبض عليه</button>';
-  const notifyButton=currentIsOwner?'<button class="btn ghostred" style="flex:1;min-width:100px" onclick="event.stopPropagation();sendPortalNotification(\'person\','+idArg+',this)">إرسال تنبيه</button>':'';
+  const notifyButton=currentCanAdmin?'<button class="btn ghostred" style="flex:1;min-width:100px" onclick="event.stopPropagation();sendPortalNotification(\'person\','+idArg+',this)">إرسال تنبيه</button>':'';
   return '<article class="person" onclick="viewPerson('+idArg+')"><img src="'+src+'" onerror="this.style.opacity=.15;this.alt=\'لا توجد صورة\'" alt="صورة '+esc(p.name)+'"><div class="pbody">'+statusTag(p)+'<h4>'+esc(p.name)+'</h4><div class="muted">#'+esc(p.id)+' • '+esc(p.priority)+' الخطورة</div><div class="personFoot"><span class="tag '+priorityTag(p)+'">'+esc(p.priority)+'</span><span class="muted">'+(p.images||[]).length+' صورة</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+notifyButton+'<button class="btn danger" style="flex:1;min-width:70px" onclick="event.stopPropagation();deletePerson('+idArg+')">حذف الملف</button>'+arrestButton+'<button class="btn" style="flex:1;min-width:70px" onclick="event.stopPropagation();editPerson('+idArg+')">تعديل الملف</button></div></div></article>';
 }
 function renderDashboard(){let active=people.filter(p=>p.status==='wanted');document.getElementById('statWanted').textContent=active.length;document.getElementById('statSuspects').textContent=cases.length+people.filter(p=>p.status!=='archived'&&String(p.charges||'').trim()).length;document.getElementById('statArrested').textContent=people.filter(p=>p.status==='arrested').length;document.getElementById('statReports').textContent=reports.length;document.getElementById('dashboardPeople').innerHTML=active.slice(0,3).map(personCard).join('')||'<div class="empty">لا توجد ملفات مطلوبة</div>';renderActivity();renderTasks()}
@@ -1886,7 +1886,7 @@ canvas.toBlob(blob=>{if(!blob){toast('تعذر إنشاء الصورة');return}
 }
 function deleteInvestigation(id){const x=investigations.find(v=>v.id===id);if(!x)return;if(!confirm('تأكيد حذف ملف التحري '+x.id+' الخاص بـ '+x.name+'؟'))return;investigations=investigations.filter(v=>v.id!==id);save();log('حذف','حذف ملف تحرٍّ '+x.name,id);renderInvestigations();toast('تم حذف ملف التحري')}
 
-function renderAll(){renderDashboard();renderWanted();renderSuspects();renderOps();renderAnnouncements();renderInvestigations();renderReports();renderRules();renderAudit();if(currentIsOwner)renderPersonnel();applySiteSettings()}
+function renderAll(){renderDashboard();renderWanted();renderSuspects();renderOps();renderAnnouncements();renderInvestigations();renderReports();renderRules();renderAudit();if(currentCanAdmin||currentCanManageAssignments)renderPersonnel();applySiteSettings()}
 
 function adminEscape(s){return esc(String(s??''))}
 let warningLoadBusy=false;
@@ -2185,7 +2185,7 @@ function pendingRegistrationBadge(member){
  return '';
 }
 function openDiscordRoleCandidates(){
- if(!currentIsOwner){toast('قائمة إضافة أعضاء S.W.A.T. مخصصة للأونر فقط.');return;}
+ if(!currentCanAdmin){toast('قائمة إضافة أعضاء S.W.A.T. مخصصة للإدارة فقط.');return;}
  discordRoleCandidates=[];
  discordRoleCandidateSelection=new Set();
  discordRoleCandidateScanComplete=true;
@@ -2239,7 +2239,7 @@ function renderDiscordRoleCandidates(){
  updateDiscordRoleCandidateSelection();
 }
 async function loadDiscordRoleCandidates(append){
- if(!currentIsOwner||discordRoleCandidateBusy)return;
+ if(!currentCanAdmin||discordRoleCandidateBusy)return;
  discordRoleCandidateBusy=true;
  const status=document.getElementById('discordRoleCandidatesStatus');
  const loadMore=document.getElementById('discordRoleLoadMoreButton');
@@ -2275,7 +2275,7 @@ async function loadDiscordRoleCandidates(append){
  }
 }
 async function registerSelectedDiscordRoleCandidates(){
- if(!currentIsOwner){toast('إضافة أعضاء S.W.A.T. مخصصة للأونر فقط.');return;}
+ if(!currentCanAdmin){toast('إضافة أعضاء S.W.A.T. مخصصة للإدارة فقط.');return;}
  const ids=[...discordRoleCandidateSelection];
  if(!ids.length){toast('حدد عضوًا واحدًا على الأقل لإضافته.');return;}
  const button=document.getElementById('discordRoleAddSelectedButton');
@@ -2309,24 +2309,27 @@ async function registerSelectedDiscordRoleCandidates(){
 }
 async function renderPersonnel(){
  const body=document.getElementById('personnelRows');
- if(!body||(!currentIsOwner&&!currentCanManageAssignments))return;
+ if(!body||(!currentCanAdmin&&!currentCanManageAssignments))return;
  const activityPanel=document.getElementById('personnelLoginActivityPanel');
- if(activityPanel)activityPanel.hidden=!currentIsOwner;
+ if(activityPanel)activityPanel.hidden=!currentCanAdmin;
  const syncButton=document.getElementById('syncDiscordRoleMembersButton');
- if(syncButton)syncButton.hidden=!currentIsOwner;
+ if(syncButton)syncButton.hidden=!currentCanAdmin;
  body.innerHTML='<tr><td colspan="6">جاري تحميل الأفراد...</td></tr>';
- if(currentIsOwner)renderLoginActivity();
+ if(currentCanAdmin)renderLoginActivity();
  try{
   const r=await fetch('/api/admin/members',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
   if(!r.ok){const err=new Error(d.error||'تعذر تحميل الأفراد');err.diagnostics=d.diagnostics;throw err;}
   const members=d.members||[];
+  currentWebsiteAdminRoleId=String(d.websiteAdminRoleId||currentWebsiteAdminRoleId||'');
   body.innerHTML=members.map(m=>{
    const owner=m.discord_user_id===d.ownerId;
-   const status=owner?'المالك المحمي':m.is_banned?'محظور':m.is_active?'نشط':'موقوف';
+   const websiteAdmin=!owner&&currentWebsiteAdminRoleId&&Array.isArray(m.discord_roles)&&m.discord_roles.includes(currentWebsiteAdminRoleId);
+   const adminBadge=websiteAdmin?'<span class="tag green">ADMIN</span>':'';
+   const status=owner?'المالك ADMIN':m.is_banned?'محظور':m.is_active?'نشط':'موقوف';
    const tag=owner?'green':m.is_banned?'red':m.is_active?'green':'gray';
-   const actions=!currentIsOwner?'<span class="muted">عرض فقط</span>':owner?'<span class="muted">المالك محمي ولا يمكن حذفه أو حظره</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button> <button class="btn danger" onclick="memberAction('${adminEscape(m.discord_user_id)}','delete')">حذف نهائي</button>`;
+   const actions=!currentCanAdmin?'<span class="muted">عرض فقط</span>':owner?'<span class="muted">المالك محمي ولا يمكن حذفه أو حظره</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button> <button class="btn danger" onclick="memberAction('${adminEscape(m.discord_user_id)}','delete')">حذف نهائي</button>`;
    const profileType=pendingRegistrationBadge(m);
-   return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<div style="display:flex;flex-direction:column;gap:3px"><b>${adminEscape(m.display_name||'Discord user')}</b>${m.username?`<span class="muted">@${adminEscape(m.username)}</span>`:''}${profileType}</div></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
+   return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<div style="display:flex;flex-direction:column;gap:3px"><b>${adminEscape(m.display_name||'Discord user')}</b>${adminBadge}${m.username?`<span class="muted">@${adminEscape(m.username)}</span>`:''}${profileType}</div></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
   }).join('')||'<tr><td colspan="6"><div class="empty">لا توجد حسابات مسجلة أو أعضاء مضافون يدويًا أو تلقائيًا حتى الآن.</div></td></tr>';
  }catch(e){
   const detail=e.diagnostics?'<div style="margin-top:6px;font-size:11px;direction:ltr;text-align:left;white-space:normal;overflow-wrap:anywhere">'+adminEscape(JSON.stringify(e.diagnostics))+'</div>':'';
@@ -2397,7 +2400,7 @@ function renderAssignmentRows(){
  }).join('')||'<tr><td colspan="7"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
 }
 function openManualMemberModal(){
- if(!currentIsOwner&&!currentCanManageAssignments){toast('ليس لديك صلاحية إضافة أفراد إلى الدليل.');return;}
+ if(!currentCanAdmin&&!currentCanManageAssignments){toast('ليس لديك صلاحية إضافة أفراد إلى الدليل.');return;}
  const id=document.getElementById('manualDiscordUserId');if(id)id.value='';
  const name=document.getElementById('manualDisplayName');if(name)name.value='';
  const status=document.getElementById('manualMemberStatus');if(status)status.textContent='';
@@ -2430,7 +2433,7 @@ async function submitManualMember(){
  }
 }
 async function renderAssignments(){
- if(!currentIsOwner&&!currentCanManageAssignments)return;
+ if(!currentCanAdmin&&!currentCanManageAssignments)return;
  const body=document.getElementById('assignmentRows');if(body)body.innerHTML='<tr><td colspan="7">جارٍ تحميل أعضاء الموقع ورتب Discord...</td></tr>';
  try{
   const response=await fetch('/api/admin/members?assignments=1',{credentials:'same-origin',cache:'no-store'});
@@ -2463,7 +2466,7 @@ async function renderAssignments(){
  }
 }
 function openAssignmentModal(id){
- if(!currentIsOwner&&!currentCanManageAssignments){toast('ليس لديك صلاحية إدارة التعيينات.');return;}
+ if(!currentCanAdmin&&!currentCanManageAssignments){toast('ليس لديك صلاحية إدارة التعيينات.');return;}
  const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
  if(!member||member.in_guild===false||member.account_status!=='active'){toast('هذا الحساب غير متاح للتعيين حاليًا.');return;}
  assignmentTargetId=String(id);
@@ -2495,7 +2498,7 @@ function selectedAssignmentCallsign(){
  return value||null;
 }
 async function addNextCallsign(){
- if(!currentIsOwner&&!currentCanManageAssignments){toast('ليس لديك صلاحية إضافة أكواد النداء.');return;}
+ if(!currentCanAdmin&&!currentCanManageAssignments){toast('ليس لديك صلاحية إضافة أكواد النداء.');return;}
  const button=document.getElementById('addCallsignButton');if(button)button.disabled=true;
  try{
   const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add_next_callsign'})});
@@ -2620,7 +2623,7 @@ async function persistSiteImages(successMessage){
  const status=document.getElementById('siteImagesStatus');if(status)status.textContent=successMessage||'تم حفظ صور الموقع للجميع.';
 }
 async function handleSiteImageUpload(kind,input){
- if(!currentIsOwner||!input||!input.files||!input.files[0])return;
+ if(!currentCanAdmin||!input||!input.files||!input.files[0])return;
  const file=input.files[0];input.value='';
  if(!/^image\/(jpeg|png|webp|gif)$/i.test(file.type)){toast('اختر صورة JPG أو PNG أو WEBP أو GIF');return}
  if(file.size>2*1024*1024){toast('الحد الأقصى لحجم الصورة 2MB');return}
@@ -2652,7 +2655,7 @@ async function handleSiteImageUpload(kind,input){
  }catch(e){if(status)status.textContent=e.message||'تعذر حفظ الصورة';toast(e.message||'تعذر حفظ الصورة')}
 }
 async function clearSiteImage(kind){
- if(!currentIsOwner)return;
+ if(!currentCanAdmin)return;
  const imgs=currentSiteImages();if(!imgs[kind])return;
  const labels={logo:'الشعار القديم',logoSidebar:'شعار القائمة الجانبية',logoLoading:'شعار شاشة التحميل',logoLogin:'شعار شاشة تسجيل الدخول',banner:'صورة البانر',background:'خلفية الموقع'};
  if(!confirm('إزالة '+(labels[kind]||'الصورة')+'؟'))return;
@@ -2722,7 +2725,7 @@ if(disciplinaryTargetStatus)disciplinaryTargetStatus.textContent=disciplinaryTar
 applySiteSettings();renderSiteImageSettings();document.getElementById('settingsStatus').textContent='تم تحميل الإعدادات المحفوظة.'}catch(e){document.getElementById('settingsStatus').textContent=e.message||'تعذر تحميل الإعدادات'}
 }
 async function saveNotificationMentionPreference(disabled){
- if(!currentIsOwner)return;
+ if(!currentCanAdmin)return;
  const checkbox=document.getElementById('notificationMentionDisabledToggle'),status=document.getElementById('notificationMentionStatus');
  if(!checkbox||!status)return;
  const previous=siteSettings.notificationRoleMentionDisabled!==false;
@@ -2740,7 +2743,7 @@ async function saveNotificationMentionPreference(disabled){
  }finally{checkbox.disabled=false}
 }
 async function saveDisciplinaryTargetMentionPreference(enabled){
- if(!currentIsOwner)return;
+ if(!currentCanAdmin)return;
  const checkbox=document.getElementById('disciplinaryTargetMentionToggle'),status=document.getElementById('disciplinaryTargetMentionStatus');
  if(!checkbox||!status)return;
  const previous=siteSettings.disciplinaryTargetMentionEnabled!==false;
@@ -2759,7 +2762,7 @@ async function saveDisciplinaryTargetMentionPreference(enabled){
  }finally{checkbox.disabled=false;}
 }
 async function saveNotificationDeliveryPreference(key,enabled){
- if(!currentIsOwner||!['notificationChannelEnabled','notificationMemberDmEnabled'].includes(key))return;
+ if(!currentCanAdmin||!['notificationChannelEnabled','notificationMemberDmEnabled'].includes(key))return;
  const isChannel=key==='notificationChannelEnabled';
  const checkbox=document.getElementById(isChannel?'notificationChannelEnabledToggle':'notificationMemberDmEnabledToggle');
  const status=document.getElementById(isChannel?'notificationChannelEnabledStatus':'notificationMemberDmEnabledStatus');
@@ -2776,9 +2779,9 @@ async function saveNotificationDeliveryPreference(key,enabled){
 }
 async function saveSettingPayload(payload){const r=await fetch('/api/admin/settings',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:payload})}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'تعذر حفظ الإعدادات')}
 async function saveThemeSettings(){try{siteSettings.accentColor=document.getElementById('settingAccent').value;siteSettings.backgroundColor=document.getElementById('settingBackground').value;await saveSettingPayload({accentColor:siteSettings.accentColor,backgroundColor:siteSettings.backgroundColor});applySiteSettings();toast('تم حفظ ألوان الموقع للجميع')}catch(e){toast(e.message||'تعذر حفظ الألوان')}}
-function toggleVisualEditMode(){if(!currentIsOwner)return;visualEditMode=!visualEditMode;document.getElementById('toggleVisualEdit').textContent=visualEditMode?'إيقاف وضع التحرير':'تفعيل وضع التحرير';document.getElementById('settingsStatus').textContent=visualEditMode?'انقر مرتين على النص لتعديله، Alt+نقرة للون النص، Shift+Alt+نقرة للخلفية.':'وضع التحرير متوقف.'}
+function toggleVisualEditMode(){if(!currentCanAdmin)return;visualEditMode=!visualEditMode;document.getElementById('toggleVisualEdit').textContent=visualEditMode?'إيقاف وضع التحرير':'تفعيل وضع التحرير';document.getElementById('settingsStatus').textContent=visualEditMode?'انقر مرتين على النص لتعديله، Alt+نقرة للون النص، Shift+Alt+نقرة للخلفية.':'وضع التحرير متوقف.'}
 document.addEventListener('dblclick',async e=>{
- if(!visualEditMode||!currentIsOwner||e.target.closest('#page-settings')||e.target.matches('input,textarea,select,option'))return;
+ if(!visualEditMode||!currentCanAdmin||e.target.closest('#page-settings')||e.target.matches('input,textarea,select,option'))return;
  const el=e.target.closest('h1,h2,h3,h4,p,span,b,strong,small,label,button,a,div,td,th');if(!el)return;
  let idx=-1,node=null;for(let i=0;i<el.childNodes.length;i++){const n=el.childNodes[i];if(n.nodeType===3&&n.nodeValue.trim()){idx=i;node=n;break}}
  if(!node)return;const value=prompt('تعديل النص الظاهر:',node.nodeValue.trim());if(value===null)return;node.nodeValue=node.nodeValue.replace(node.nodeValue.trim(),value);
@@ -2786,7 +2789,7 @@ document.addEventListener('dblclick',async e=>{
  try{await saveSettingPayload({textOverrides:siteSettings.textOverrides});toast('تم حفظ النص المعدّل للجميع')}catch(err){toast(err.message||'تعذر حفظ النص')}
 });
 document.addEventListener('click',async e=>{
- if(!visualEditMode||!currentIsOwner||e.target.closest('#page-settings')||!e.altKey)return;
+ if(!visualEditMode||!currentCanAdmin||e.target.closest('#page-settings')||!e.altKey)return;
  const el=e.target.closest('h1,h2,h3,h4,p,span,b,strong,small,label,button,a,div,td,th');if(!el)return;e.preventDefault();e.stopPropagation();
  const key=selectorFor(el),old=siteSettings.styleOverrides[key]||{},property=e.shiftKey?'backgroundColor':'color',value=prompt(property==='color'?'لون النص بصيغة #RRGGBB':'لون الخلفية بصيغة #RRGGBB',old[property]||'#39d69b');
  if(value===null)return;if(!/^#[0-9a-fA-F]{6}$/.test(value)){toast('اكتب اللون بصيغة #RRGGBB');return}siteSettings.styleOverrides[key]={...old,[property]:value};
@@ -2910,7 +2913,7 @@ function go(page){
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='records')showRecordTab(tab||activeRecordTab||'people');
  if(page==='announcements')renderAnnouncements();if(page==='reports')renderReports();if(page==='audit')renderAudit();
- if(page==='personnel'&&(currentIsOwner||currentCanManageAssignments))renderPersonnel();if(page==='personnel'&&!currentIsOwner&&!currentCanManageAssignments){go('dashboard');return;}if(page==='assignments'&&(currentIsOwner||currentCanManageAssignments))renderAssignments();if(page==='assignments'&&!currentIsOwner&&!currentCanManageAssignments){go('dashboard');return;}if(page==='warnings'&&currentCanManageWarnings)renderWarnings();if(page==='warnings'&&!currentCanManageWarnings){go('dashboard');return;}if(page==='settings'){loadDiscordNotificationPreference();if(currentIsOwner)loadSiteSettings();}
+ if(page==='personnel'&&(currentCanAdmin||currentCanManageAssignments))renderPersonnel();if(page==='personnel'&&!currentCanAdmin&&!currentCanManageAssignments){go('dashboard');return;}if(page==='assignments'&&(currentCanAdmin||currentCanManageAssignments))renderAssignments();if(page==='assignments'&&!currentCanAdmin&&!currentCanManageAssignments){go('dashboard');return;}if(page==='warnings'&&currentCanManageWarnings)renderWarnings();if(page==='warnings'&&!currentCanManageWarnings){go('dashboard');return;}if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();}
  if(page==='gallery')renderSiteGallery();applySiteSettings();window.scrollTo({top:0,behavior:'smooth'})
 }document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)go(b.dataset.page)});
 function openModal(){document.getElementById('viewContent')?.remove();document.getElementById('editContent')?.remove();document.getElementById('personForm').style.display='';document.getElementById('personForm').reset();pendingImages=[];document.getElementById('imagePreview').innerHTML='';document.getElementById('modalTitle').textContent='إضافة ملف شخص / قضية';document.getElementById('modalBack').classList.add('open')}function closeModal(){document.getElementById('modalBack').classList.remove('open')}document.getElementById('fImages').addEventListener('change',async e=>{pendingImages=[];pendingImageDescriptions=[];let files=[...e.target.files];for(let f of files){if(!f.type.startsWith('image/'))continue;if(f.size>1.5*1024*1024){toast('الصورة أكبر من 1.5MB في النموذج التجريبي');continue}let data=await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)});pendingImages.push(data);pendingImageDescriptions.push('')}document.getElementById('imagePreview').innerHTML=pendingImages.map((src,i)=>'<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:start;width:100%;margin:8px 0;padding:8px;border:1px solid #30343b;border-radius:8px"><img src="'+src+'" alt="صورة '+(i+1)+'" style="width:76px;height:76px;object-fit:cover;border-radius:6px"><div><label for="fImageDesc'+i+'" style="display:block;margin-bottom:6px">وصف الصورة '+(i+1)+'</label><textarea id="fImageDesc'+i+'" rows="2" placeholder="اكتب وصف هذه الصورة أو الدليل..." style="width:100%;min-height:60px"></textarea></div></div>').join('')});
@@ -3124,10 +3127,13 @@ async function initAuth(){
     const data=await response.json();
     if(!data.authenticated||!data.user) throw new Error('unauthorized');
     currentIsOwner=Boolean(data.user.isOwner);
+    currentIsWebsiteAdmin=Boolean(data.user.isWebsiteAdmin);
+    currentCanAdmin=currentIsOwner||currentIsWebsiteAdmin;
+    currentWebsiteAdminRoleId=String(data.user.websiteAdminRoleId||'');
     try{const warningAccess=await fetch('/api/warnings?access=1',{credentials:'same-origin',cache:'no-store'});currentCanManageWarnings=warningAccess.ok;currentCanManageAssignments=currentCanManageWarnings;if(currentCanManageWarnings){const warningNav=document.getElementById('warningsNav');if(warningNav)warningNav.style.display='flex';}}catch{currentCanManageWarnings=false;}
     currentUserId=data.user.id||null;
     currentUser=data.user.displayName||data.user.username||data.user.globalName||data.user.id||'Discord user';
-    document.getElementById('settingsNav').style.display='flex';document.getElementById('ownerSettingsPanels').style.display=currentIsOwner?'block':'none';const assignmentsNav=document.getElementById('assignmentsNav');if(assignmentsNav)assignmentsNav.style.display=(currentIsOwner||currentCanManageAssignments)?'flex':'none';const personnelNav=document.querySelector('#nav button[data-page="personnel"]');if(personnelNav)personnelNav.style.display=(currentIsOwner||currentCanManageAssignments)?'flex':'none';
+    document.getElementById('settingsNav').style.display='flex';document.getElementById('ownerSettingsPanels').style.display=currentCanAdmin?'block':'none';const assignmentsNav=document.getElementById('assignmentsNav');if(assignmentsNav)assignmentsNav.style.display=(currentCanAdmin||currentCanManageAssignments)?'flex':'none';const personnelNav=document.querySelector('#nav button[data-page="personnel"]');if(personnelNav)personnelNav.style.display=(currentCanAdmin||currentCanManageAssignments)?'flex':'none';
     document.getElementById('profileName').textContent=data.user.displayName||data.user.username||data.user.globalName||'Discord user';
     const avatar=document.getElementById('profileAvatar');
     if(data.user.avatar){
@@ -3135,7 +3141,7 @@ async function initAuth(){
     }else{
       avatar.textContent=(data.user.displayName||data.user.username||'?').slice(0,1).toUpperCase();
     }
-    document.getElementById('profileRole').textContent='موثّق عبر Discord';
+    document.getElementById('profileRole').textContent=currentIsOwner?'OWNER ADMIN':currentIsWebsiteAdmin?'ADMIN':'موثّق عبر Discord';
     app.classList.remove('auth-locked');
     gate.style.display='none';
     await pullSharedState(true);
@@ -3174,12 +3180,12 @@ const PORTAL_TRANSLATIONS = {
 'إدارة الملفات والصور والأدلة وحالة القبض':'Manage files, images, evidence, and arrest status','تصدير السجلات JSON':'Export records JSON','＋ إضافة مطلوب':'＋ Add wanted person','كل الحالات':'All statuses','مطلوب':'Wanted','تم القبض عليه':'Arrested','مؤرشف':'Archived','كل مستويات الخطورة':'All threat levels','عالي':'High','متوسط':'Medium','منخفض':'Low',
 'سجل الملفات':'File records','ملخص القضايا المرتبطة بسجلات المطلوبين':'Summary of cases linked to wanted records','＋ إنشاء ملف قضية':'＋ Create case file','القضايا المفتوحة':'Open cases','رقم الملف':'File ID','الاسم':'Name','الوصف / التهمة داخل RP':'Description / RP charge','الحالة':'Status','إجراء':'Action',
 'سجل عمليات سيرفر FiveM':'FiveM server operations log','＋ إضافة عملية':'＋ Add operation','سجل العمليات':'Operations log','الرقم':'ID','اسم العملية':'Operation name','المسؤول':'Responsible','التوقيت':'Time','إجراءات':'Actions',
-'دليل الأفراد':'Personnel Directory','حسابات Discord التي سجّلت الدخول إلى بوابة S.W.A.T. REDLINE':'Discord accounts that have signed in to the S.W.A.T. REDLINE portal','↻ تحديث القائمة':'↻ Refresh list','الفرد':'Member','آخر نشاط':'Last activity','مرات الدخول':'Login count','إجراءات المالك':'Owner actions','جاري تحميل الأفراد...':'Loading personnel...',
+'دليل الأفراد':'Personnel Directory','حسابات Discord التي سجّلت الدخول إلى بوابة S.W.A.T. REDLINE':'Discord accounts that have signed in to the S.W.A.T. REDLINE portal','↻ تحديث القائمة':'↻ Refresh list','الفرد':'Member','آخر نشاط':'Last activity','مرات الدخول':'Login count','إجراءات الإدارة':'Admin actions','جاري تحميل الأفراد...':'Loading personnel...',
 'تظهر هنا الحسابات التي سجّلت الدخول إلى الموقع مرة واحدة على الأقل، وليس كل أعضاء سيرفر Discord تلقائيًا.':'Only accounts that have signed in to this website appear here; this does not automatically include every Discord server member.',
-'لوحة المالك — تغييرات محفوظة مركزيًا وتُطبّق على البوابة':'Owner panel — changes are saved centrally and applied to the portal','المظهر العام':'Appearance','اللون الرئيسي':'Accent color','لون الخلفية':'Background color','حفظ ألوان الموقع':'Save site colors',
+'لوحة الإدارة — تغييرات محفوظة مركزيًا وتُطبّق على البوابة':'Admin panel — changes are saved centrally and applied to the portal','المظهر العام':'Appearance','اللون الرئيسي':'Accent color','لون الخلفية':'Background color','حفظ ألوان الموقع':'Save site colors',
 'محرر محتوى الموقع':'Site content editor','فعّل وضع التحرير ثم انقر مرتين على أي نص ظاهر لتعديله. Alt + نقرة لتغيير لون النص، وShift + Alt + نقرة لتغيير لون خلفية العنصر. احفظ التغييرات لتظهر للأعضاء الآخرين.':'Enable edit mode, then double-click any visible text to edit it. Alt-click to change text color; Shift+Alt-click to change the element background. Save changes to share them with other members.',
 'تفعيل وضع التحرير':'Enable edit mode','حفظ تعديلات المحتوى':'Save content changes','مسح تعديلات المحتوى':'Clear content changes','تحميل الإعدادات...':'Loading settings...',
-'ملاحظات الصلاحيات':'Permissions notes','هذه اللوحة متاحة لحساب المالك فقط. الحظر والفصل يُنفذان من الخادم، وحساب المالك محمي من التعديل من خلال واجهة الإدارة.':'This panel is owner-only. Bans and deactivation are enforced server-side, and the owner account is protected from changes through this interface.',
+'ملاحظات الصلاحيات':'Permissions notes','هذه اللوحة متاحة للمالك وأصحاب رتبة WEBSITE ADMIN. الحظر والفصل يُنفذان من الخادم، وحساب المالك محمي من التعديل من خلال واجهة الإدارة.':'This panel is available to the owner and WEBSITE ADMIN role holders. Bans and deactivation are enforced server-side, and the owner account is protected from changes through this interface.',
 'لإظهار جميع أعضاء Discord بمن فيهم من لم يسجّلوا دخول الموقع، يلزم ربط بوت Discord بصلاحية قراءة أعضاء السيرفر؛ هذه القائمة حاليًا تعرض من سجّلوا الدخول إلى الموقع.':'To list all Discord members, including those who have never signed in here, connect a Discord bot with server-member access. This list currently shows website sign-ins only.',
 'تقارير القضايا والعمليات':'Case and operations reports','＋ إنشاء تقرير':'＋ Create report','أحدث التقارير':'Latest reports','رقم التقرير':'Report ID','العنوان':'Title','الكاتب':'Author','تاريخ الإنشاء':'Created at',
 'مكتبة إجراءات وقواعد القسم':'Department procedures and rules','＋ إضافة تعميم':'＋ Add directive','دليل القسم':'Department guide','أوامر اليوم':"Today's orders",'مراجعة ملفات المطلوبين ذات الأولوية العالية.':'Review high-priority wanted files.','تحديث تقارير العمليات قبل نهاية المناوبة.':'Update operation reports before the end of the shift.','تأكيد قراءة آخر تعميم صادر من القيادة.':'Confirm you have read the latest command directive.',
@@ -3187,7 +3193,7 @@ const PORTAL_TRANSLATIONS = {
 'آخر الأحداث':'Latest events','كل الأحداث':'All events','إضافة':'Create','تعديل':'Edit','حذف':'Delete','قبض':'Arrest','تصدير':'Export','الوقت':'Time','المستخدم':'User','الحدث':'Event','التفاصيل':'Details','المرجع':'Reference',
 'املأ البيانات المتاحة — يمكن إضافة تفاصيل لاحقًا':'Fill in the available information — details can be added later','اسم الشخصية داخل اللعبة *':'In-game character name *','رقم الملف *':'File ID *','مستوى الخطورة':'Threat level','التهم / سبب الطلب داخل الـ RP':'Charges / reason for wanted status in RP','تفاصيل إضافية':'Additional details','صورة الشخص والأدلة (يمكن اختيار عدة صور)':'Person image and evidence (multiple images allowed)','الصور تُحفظ داخل تخزين المتصفح في هذا النموذج فقط. سعة التخزين محدودة.':'Images are stored only in this browser for this form. Storage capacity is limited.','حفظ الملف':'Save file','إلغاء':'Cancel',
 'لا توجد ملفات مطلوبة':'No wanted files','لا توجد نتائج مطابقة':'No matching results','فتح الملف':'Open file','حذف الملف':'Delete file','حذف العملية':'Delete operation','لا توجد عمليات مسجلة':'No operations recorded','حذف التقرير':'Delete report','لا توجد تقارير مسجلة':'No reports recorded','لا توجد قوانين أو تعميمات.':'No rules or directives.','لا توجد أحداث':'No events','لا توجد حسابات مسجلة حتى الآن.':'No accounts registered yet.',
-'لا يمكن حظره أو فصله':'Cannot ban or deactivate the owner','رفع الحظر':'Unban','حظر':'Ban','فصل من الموقع':'Deactivate','إعادة تفعيل':'Reactivate','المالك المحمي':'Protected owner','محظور':'Banned','نشط':'Active','موقوف':'Inactive','لم يسجل بعد':'Not recorded yet','لا توجد تفاصيل مسجلة':'No details recorded','لا توجد ملاحظات إضافية':'No additional notes','لا توجد صور مرفقة':'No images attached',
+'لا يمكن حظره أو فصله':'Cannot ban or deactivate the owner','رفع الحظر':'Unban','حظر':'Ban','فصل من الموقع':'Deactivate','إعادة تفعيل':'Reactivate','المالك ADMIN':'OWNER ADMIN','محظور':'Banned','نشط':'Active','موقوف':'Inactive','لم يسجل بعد':'Not recorded yet','لا توجد تفاصيل مسجلة':'No details recorded','لا توجد ملاحظات إضافية':'No additional notes','لا توجد صور مرفقة':'No images attached',
 'أرشفة':'Archive','تعديل النصوص':'Edit text','إعادة فتح الملف':'Reopen file','تنزيل صورة للملف':'Download case image','تنزيل PDF':'Download PDF','تنزيل بوستر':'Download case image','تنزيل ملف JSON':'Download JSON file',
 'تعذر تحميل القائمة':'Could not load the list','تعذر تحميل الأفراد':'Could not load personnel','تعذر تحميل الإعدادات':'Could not load settings','تعذر تنفيذ الإجراء':'Could not perform the action','فشل الإجراء':'Action failed','تم تحديث صلاحيات الفرد':'Member permissions updated','تم حفظ التعديلات':'Changes saved','تم مسح التعديلات المخصصة':'Custom changes cleared',
 'جارٍ تسجيل الخروج...':'Logging out...','تعذّر تسجيل الخروج، حاول مرة أخرى':'Could not log out. Please try again','Demo: هذا الملف محفوظ في تخزين المتصفح فقط. الصور الكبيرة أو الكثيرة تحتاج تخزين ملفات حقيقيًا.':'Demo: this file is stored only in this browser. Large or numerous images require real file storage.'
