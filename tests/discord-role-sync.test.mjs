@@ -13,7 +13,8 @@ test("Discord OAuth requires the configured S.W.A.T. website access role", async
 });
 
 test("scheduled Discord role sync verifies GitHub OIDC and the exact repository workflow", async () => {
-  const api = await readFile(new URL("../api/cron/sync-discord-role-members.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
+  const membersApi = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const workflow = await readFile(new URL("../.github/workflows/discord-role-sync.yml", import.meta.url), "utf8");
 
   assert.match(api, /token\.actions\.githubusercontent\.com/);
@@ -24,12 +25,17 @@ test("scheduled Discord role sync verifies GitHub OIDC and the exact repository 
   assert.match(api, /claims\.ref !== EXPECTED_REF/);
   assert.match(workflow, /cron: "\*\/5 \* \* \* \*"/);
   assert.match(workflow, /id-token: write/);
-  assert.match(workflow, /api\/cron\/sync-discord-role-members/);
+  assert.match(membersApi, /handleDiscordRoleSync/);
+  assert.match(membersApi, /sync_discord_role_members/);
+  assert.match(workflow, /api\\/admin\\/members\\?task=sync_discord_role_members/);
 });
 
 test("role sync inserts only new Discord profiles and ignores conflicts without rewriting existing records", async () => {
-  const api = await readFile(new URL("../api/cron/sync-discord-role-members.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
+  const membersApi = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
 
+  assert.match(membersApi, /handleDiscordRoleSync/);
+  assert.match(membersApi, /sync_discord_role_members/);
   assert.match(api, /GET.*members|\/members\?/s);
   assert.match(api, /member\.roles\.map\(String\)\.includes\(roleId\)/);
   assert.match(api, /on_conflict: "discord_user_id"/);
