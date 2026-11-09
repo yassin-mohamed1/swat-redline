@@ -48,4 +48,4 @@ jobs:
           set -euo pipefail
           curl --fail-with-body --silent --show-error --max-time 70 \
             -H "Authorization: Bearer ${GITHUB_OIDC_TOKEN}" \
-            "https://swat-redline.vercel.app/api/cron/sync-discord-role-members"
+            "https://swat-redline.vercel.app/api/admin/members?task=sync_discord_role_members"
