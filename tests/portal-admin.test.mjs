@@ -1,4 +1,5 @@
 import test from "node:test";
+import { newlyGrantedRoles } from "../lib/assignment-notifications.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
@@ -45,4 +46,20 @@ test("Personnel directory refreshes live Discord roles and labels Website Admin 
   assert.match(members, /refreshPersonnelDiscordRoles/);
   assert.match(members, /assignmentGuildMembers\(token,guildId,profiles\)/);
   assert.match(members, /memberRolesLive: liveRoles\.synced/);
+});
+
+
+test("appointment notifications include only roles newly granted in the current save", () => {
+  const newlyGranted = newlyGrantedRoles([
+    { id: "old-role", name: "Existing Team" },
+    { id: "website-admin", name: "Website Admin" },
+    { id: "swat-supervisor", name: "S.W.A.T. Supervisor" },
+  ], ["old-role", "website-admin"]);
+  assert.deepEqual(newlyGranted.map(role => role.name), ["S.W.A.T. Supervisor"]);
+
+  const noNewRoles = newlyGrantedRoles([
+    { id: "old-role", name: "Existing Team" },
+    { id: "website-admin", name: "Website Admin" },
+  ], ["old-role", "website-admin"]);
+  assert.deepEqual(noNewRoles, []);
 });
