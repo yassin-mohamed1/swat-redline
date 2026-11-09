@@ -72,15 +72,19 @@ test("optional empty rule fields do not prevent creating a Discord rules announc
 });
 
 test("rules endpoint targets only the configured S.W.A.T. Rules room and restricts posting to portal admins", async () => {
-  const api = await read("../api/rules/send.js");
-  assert.match(api, /RULES_CHANNEL_ID = "1561775787152117770"/);
+  const api = await read("../api/notifications/send.js");
+  assert.match(api, /SWAT_RULES_CHANNEL_ID = "1561775787152117770"/);
   assert.match(api, /isWebsiteAdmin\(user\)/);
   assert.match(api, /requireActivePortalStaff\(user\)/);
   assert.match(api, /user\.isOwner/);
   assert.match(api, /DISCORD_NOTIFICATION_ROLE_ID/);
-  assert.match(api, /allowed_mentions: first \? \{ parse: \[\], roles: \[roleId\] \}/);
+  assert.match(api, /allowed_mentions: first\s*\? \{ parse: \[\], roles: \[config\.notificationRoleId\] \}/);
   assert.match(api, /item\.type === "law"/);
   assert.match(api, /app_state\?id=eq\.main&select=data/);
+  assert.match(api, /body\.action === "publish_rule"/);
+  assert.match(html, /fetch\('\/api\/notifications\/send'/);
+  assert.doesNotMatch(html, /fetch\('\/api\/rules\/send'/);
+  assert.doesNotMatch(api, /RULES_CHANNEL_ID/);
 });
 
 test("rules editor leaves title, description and body optional and only admins get the send action", async () => {
