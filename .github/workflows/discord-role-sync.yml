@@ -21,18 +21,15 @@ jobs:
       - name: Request a short-lived GitHub identity token
         id: oidc
         shell: bash
-        env:
-          OIDC_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          OIDC_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "${OIDC_REQUEST_URL:-}" || -z "${OIDC_REQUEST_TOKEN:-}" ]]; then
+          if [[ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
             echo "GitHub OIDC token endpoint is unavailable." >&2
             exit 1
           fi
           response="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer ${OIDC_REQUEST_TOKEN}" \
-            "${OIDC_REQUEST_URL}&audience=swat-redline-discord-role-sync")"
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=swat-redline-discord-role-sync")"
           token="$(jq -r '.value // empty' <<< "$response")"
           if [[ -z "$token" ]]; then
             echo "GitHub did not issue an OIDC token." >&2
