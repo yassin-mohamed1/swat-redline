@@ -4,6 +4,7 @@ import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { handleDiscordRoleSync } from "../../lib/discord-role-sync.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
+import { newlyGrantedRoles } from "../../lib/assignment-notifications.js";
 
 const ASSIGNMENT_RANKS = [
   { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
@@ -489,7 +490,7 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   // The DM must list only roles newly granted by this save, not every role
   // already present on the member or re-selected in the appointment editor.
   const newlyAssignedRoles=action==="assign"
-    ?targetRoles.filter(role=>!originalRoles.includes(String(role.id)))
+    ?newlyGrantedRoles(targetRoles,originalRoles)
     :[];
   const reference=crypto.randomUUID();
   const embed=assignmentEmbed({
