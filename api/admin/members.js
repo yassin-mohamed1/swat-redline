@@ -385,6 +385,7 @@ async function handleAddManualMember(url,key,token,guildId,user,body,res) {
     discord_roles_synced_at:now,
     is_manual:true,
     manual_created_by_discord_id:user.id,
+    registration_source:"manual_id",
     created_at:now,
     updated_at:now
   };
@@ -606,10 +607,6 @@ async function handleAddNextCallsign(url,key,user,res){
 }
 
 export default async function handler(req, res) {
-  const incomingUrl = new URL(req.url, "https://portal.invalid");
-  if (req.method === "GET" && incomingUrl.searchParams.get("task") === "sync_discord_role_members") {
-    return await handleDiscordRoleSync(req, res);
-  }
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   const user = session(req);
@@ -619,6 +616,12 @@ export default async function handler(req, res) {
   if (!url || !key) return send(res, 503, { error: "Database is not configured" });
   try {
     const searchParams = new URL(req.url, "https://portal.invalid").searchParams;
+    const requestBody = req.body && typeof req.body === "object" ? req.body : {};
+    if (req.method === "POST" && requestBody.action === "sync_discord_role_members") {
+      if (!user.isOwner) return send(res,403,{error:"Owner permission required"});
+      if (!requireSameOrigin(req,res)) return;
+      return await handleDiscordRoleSync(req,res);
+    }
     if(req.method==="PATCH"&&!user.isOwner)return send(res,403,{error:"Owner permission required"});
     if(req.method==="GET"&&searchParams.get("activity")==="1"&&!user.isOwner)return send(res,403,{error:"Owner permission required"});
     const needsAssignmentManager=req.method==="POST"||(req.method==="GET"&&searchParams.get("activity")!=="1");
@@ -650,7 +653,7 @@ export default async function handler(req, res) {
     }
     if (req.method === "GET") {
       const q = new URLSearchParams({
-        select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned,is_manual,last_seen,last_login,login_count,created_at,updated_at",
+        select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned,is_manual,registration_source,last_seen,last_login,login_count,created_at,updated_at",
         order: "last_seen.desc.nullslast"
       });
       const response = await supabase(url, key, "staff_profiles?" + q);
