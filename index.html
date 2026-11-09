@@ -2188,7 +2188,7 @@ function openDiscordRoleCandidates(){
  if(!currentIsOwner){toast('قائمة إضافة أعضاء S.W.A.T. مخصصة للأونر فقط.');return;}
  discordRoleCandidates=[];
  discordRoleCandidateSelection=new Set();
- discordRoleCandidateScanComplete=false;
+ discordRoleCandidateScanComplete=true;
  const modal=document.getElementById('discordRoleCandidatesModal');
  if(modal)modal.hidden=false;
  renderDiscordRoleCandidates();
