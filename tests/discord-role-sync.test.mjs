@@ -12,14 +12,14 @@ test("Discord OAuth blocks accounts without the configured access role", async (
   assert.match(session, /user\.roleId !== process\.env\.DISCORD_ROLE_ID/);
 });
 
-test("only the authenticated owner can open the candidate picker or add selected members", async () => {
+test("only the owner or Website Admin can open the candidate picker or add selected members", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const helper = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
   assert.match(api, /"list_discord_role_candidates"/);
   assert.match(api, /"register_selected_discord_members"/);
-  assert.match(api, /if \(!user\.isOwner\) return send\(res,403/);
+  assert.match(api, /if \(!canManagePortal\) return send\(res,403/);
   assert.match(api, /requireSameOrigin\(req,res\)/);
   assert.match(api, /handleDiscordRoleSync\(req,res\)/);
   assert.match(helper, /if \(req\.method !== "POST"\)/);
@@ -29,7 +29,7 @@ test("only the authenticated owner can open the candidate picker or add selected
   assert.match(html, /openDiscordRoleCandidates\(\)/);
   assert.match(html, /discordRoleCandidateSelection/);
   assert.match(html, /registerSelectedDiscordRoleCandidates\(\)/);
-  assert.match(html, /syncButton\.hidden=!currentIsOwner/);
+  assert.match(html, /syncButton\.hidden=!currentCanAdmin/);
 });
 
 test("candidate preview only lists role-holders missing from the portal and excludes bot accounts", async () => {
