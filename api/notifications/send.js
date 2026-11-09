@@ -76,7 +76,7 @@ async function publishSavedRuleToDiscord(user, ruleId) {
   if (config.error) {
     throw Object.assign(new Error("Rules storage is not configured."), { status: 503 });
   }
-  if (!config.notificationRoleId || !/^\\d{17,20}$/.test(config.notificationRoleId)) {
+  if (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId)) {
     throw Object.assign(new Error("لم يتم ضبط رتبة منشن SWAT في DISCORD_NOTIFICATION_ROLE_ID."), { status: 503 });
   }
 
