@@ -283,7 +283,7 @@ async function assignmentGuildMembers(token,guildId,profiles) {
 }
 let personnelRoleCache={key:"",expiresAt:0,value:null,pending:null};
 async function cachedPersonnelDiscordRoles(token,guildId,profiles) {
-  const ids=profiles.map(profile=>String(profile.discord_user_id||"")).filter(id=>/^\\d{15,22}$/.test(id)).sort();
+  const ids=profiles.map(profile=>String(profile.discord_user_id||"")).filter(id=>/^\d{15,22}$/.test(id)).sort();
   if(!ids.length)return {found:new Map(),complete:true,scannedThrough:null};
   const cacheKey=String(guildId)+":"+ids.join(",");
   if(personnelRoleCache.key===cacheKey&&personnelRoleCache.value&&personnelRoleCache.expiresAt>Date.now())
@@ -303,15 +303,15 @@ async function cachedPersonnelDiscordRoles(token,guildId,profiles) {
 }
 async function refreshPersonnelDiscordRoles(token,guildId,members) {
   if(!Array.isArray(members)||!members.length)return {members:Array.isArray(members)?members:[],synced:true};
-  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))return {members,synced:false};
+  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))return {members,synced:false};
   try{
     const scan=await cachedPersonnelDiscordRoles(token,guildId,members);
     const membersWithLiveRoles=members.map(member=>{
       const id=String(member.discord_user_id||"");
-      if(!/^\\d{15,22}$/.test(id))return {...member,discord_roles_live:false};
+      if(!/^\d{15,22}$/.test(id))return {...member,discord_roles_live:false};
       const live=scan.found.get(id);
       if(live)return {...member,discord_roles:Array.isArray(live.roles)?live.roles:[],discord_roles_live:true};
-      const covered=scan.complete||(scan.scannedThrough&&/^\\d{15,22}$/.test(String(scan.scannedThrough))&&BigInt(id)<=BigInt(scan.scannedThrough));
+      const covered=scan.complete||(scan.scannedThrough&&/^\d{15,22}$/.test(String(scan.scannedThrough))&&BigInt(id)<=BigInt(scan.scannedThrough));
       return covered?{...member,discord_roles:[],discord_roles_live:true}:{...member,discord_roles_live:false};
     });
     return {members:membersWithLiveRoles,synced:true};
