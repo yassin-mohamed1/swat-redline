@@ -91,7 +91,7 @@ test("rules publishing shares the existing notification function and stays withi
   assert.match(api, /DISCORD_NOTIFICATION_ROLE_ID/);
   assert.match(api, /allowed_mentions: first\s*\? \{ parse: \[\], roles: \[config\.notificationRoleId\] \}/);
   assert.match(api, /item\.type === "law"/);
-  assert.match(api, /app_state\?id=eq\.main&select=data/);
+  assert.match(api, /new URLSearchParams\(\{ id: "eq\.main", select: "data", limit: "1" \}\)/);
   assert.match(api, /body\.action === "publish_rule"/);
   assert.match(html, /fetch\('\/api\/notifications\/send'/);
   assert.doesNotMatch(html, /fetch\('\/api\/rules\/send'/);
