@@ -50,6 +50,18 @@ jobs:
           GITHUB_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error --max-time 70 \
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          status="$(curl --silent --show-error --max-time 70 \
+            -o "$response_file" -w "%{http_code}" \
             -H "Authorization: Bearer ${GITHUB_OIDC_TOKEN}" \
-            "https://swat-redline.vercel.app/api/admin/members?task=sync_discord_role_members"
+            "https://swat-redline.vercel.app/api/admin/members?task=sync_discord_role_members")"
+          cat "$response_file"
+          if [[ "$status" == "403" ]] && [[ "$(jq -r '.code // empty' "$response_file")" == "50001" ]]; then
+            echo "::warning title=Enable Server Members Intent::Discord has not granted the bot access to list guild members. Enable Server Members Intent in the Discord Developer Portal; scheduled synchronization will retry automatically."
+            exit 0
+          fi
+          if [[ ! "$status" =~ ^2[0-9][0-9]$ ]]; then
+            echo "::error::Discord role synchronization failed with HTTP $status."
+            exit 1
+          fi
