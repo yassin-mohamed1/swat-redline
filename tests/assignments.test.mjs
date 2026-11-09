@@ -137,7 +137,9 @@ test("manual personnel creation lives under Personnel and does not require membe
   assert.match(personnel, /manualDiscordUserId/);
   assert.match(personnel, /submitManualMember/);
   assert.doesNotMatch(assignments, /openManualMemberModal\(\)/);
-  assert.match(html, /profileType=m\.is_manual/);
+  assert.match(html, /const profileType=pendingRegistrationBadge\(m\)/);
+  assert.match(html, /إضافة تلقائية بواسطة بوت S\.W\.A\.T\./);
+  assert.match(html, /registration_source==='bot_role'/);
 });
 
 test("assignment directory is above Discord roles and manager controls protect login history", async () => {
