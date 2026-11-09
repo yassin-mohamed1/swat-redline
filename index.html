@@ -3248,6 +3248,15 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "هذا الإعداد يتحكم في منشن رتبة @SWAT داخل التنبيهات العامة وإعلانات التحذيرات وقرارات الفصل. عند إيقافه، لن يظهر منشن رتبة SWAT في أي من هذه الرسائل. منشن العضو المستهدف له إعداد مستقل بالأسفل.":"This setting controls the @SWAT role mention in regular notifications, warning announcements, and dismissal announcements. When disabled, the SWAT role will not be mentioned in any of these messages. The target member mention has a separate setting below."
 });
 const portalTextNodes = new WeakMap(), portalAttributes = new WeakMap();
+Object.assign(PORTAL_TRANSLATIONS, {
+ "تم التخطي حسب تفضيل العضو":"Skipped due to the member's preference",
+ "لم تُرسل رسالة خاصة احترامًا لتفضيل العضو.":"No DM was sent, respecting the member's preference.",
+ "تم إرسال الإشعار الخاص.":"The private notification was sent.",
+ "تم نشر إعلان قناة التحذيرات.":"The warnings-channel announcement was published.",
+ "تم إصدار الإنذار بنجاح، وتم احترام إيقاف الرسائل الخاصة لدى العضو.":"The warning was issued successfully, and the member's DM opt-out was respected.",
+ "تم فصل العضو بنجاح، وتم احترام إيقاف الرسائل الخاصة لدى العضو.":"The member was dismissed successfully, and the member's DM opt-out was respected.",
+ "رسائل الخاص من بوت البوابة مفعّلة تلقائيًا بعد دخولك. لو مش حابب تستقبل رسائل خاصة من البوت، شيل علامة الصح هنا. التغيير يمنع رسائل الخاص من التعيينات والتحذيرات والتنبيهات والإعلانات المحوّلة، لكنه لا يوقف منشورات قنوات Discord أو المنشنات داخل السيرفر. تقدر ترجع تفعّلها في أي وقت.":"Private messages from the portal bot are enabled by default. Uncheck this option to stop DMs from assignments, warnings, alerts and forwarded announcements. This does not stop Discord channel posts or server mentions. You can re-enable it at any time."
+});
 const portalTranslationEntries = Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
 function replaceArabicPhrase(source,phrase,translation){
  if(!phrase||phrase.length<3||!source.includes(phrase))return source;
