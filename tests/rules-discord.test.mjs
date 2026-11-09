@@ -71,8 +71,21 @@ test("optional empty rule fields do not prevent creating a Discord rules announc
   assert.ok(messages[0].embeds[0].fields.some(field => field.name === "المحتوى"));
 });
 
-test("rules endpoint targets only the configured S.W.A.T. Rules room and restricts posting to portal admins", async () => {
+test("rules publishing shares the existing notification function and stays within Hobby limits", async () => {
   const api = await read("../api/notifications/send.js");
+  const html = await read("../index.html");
+  const { readFile } = await import("node:fs/promises");
+  const { readdir } = await import("node:fs/promises");
+  const apiFiles = [];
+  async function walk(directory) {
+    for (const entry of await readdir(new URL(directory, import.meta.url), { withFileTypes: true })) {
+      const relative = directory + "/" + entry.name;
+      if (entry.isDirectory()) await walk(relative);
+      else if (entry.isFile() && entry.name.endsWith(".js")) apiFiles.push(relative);
+    }
+  }
+  await walk("../api");
+  assert.equal(apiFiles.length, 12);
   assert.match(api, /SWAT_RULES_CHANNEL_ID = "1561775787152117770"/);
   assert.match(api, /isWebsiteAdmin\(user\)/);
   assert.match(api, /requireActivePortalStaff\(user\)/);
@@ -84,7 +97,8 @@ test("rules endpoint targets only the configured S.W.A.T. Rules room and restric
   assert.match(api, /body\.action === "publish_rule"/);
   assert.match(html, /fetch\('\/api\/notifications\/send'/);
   assert.doesNotMatch(html, /fetch\('\/api\/rules\/send'/);
-  assert.doesNotMatch(api, /RULES_CHANNEL_ID/);
+  assert.doesNotMatch(api, /function publishSavedRuleToDiscord[\s\S]*?\\n}/);
+  await readFile(new URL("../api/notifications/send.js", import.meta.url), "utf8");
 });
 
 test("rules editor leaves title, description and body optional and only admins get the send action", async () => {
