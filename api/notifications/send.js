@@ -486,9 +486,9 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: "The protected owner Discord ID is not configured; no notification was sent." });
     }
 
-    // Other staff members receive DMs only when the owner-level DM switch is on
-    // and their personal opt-in remains enabled. The portal owner is always added
-    // independently of their personal toggle, active flag, or ban flag.
+    // Personal opt-out applies to every account, including the portal owner.
+    // When broadcast is disabled, only the owner is considered, and only if the
+    // owner's own private-notification preference remains enabled.
     const broadcastEnabled = process.env.DISCORD_NOTIFICATIONS_BROADCAST_ENABLED === "true";
     const recipientQuery = new URLSearchParams({
       select: "discord_user_id,display_name",
@@ -506,18 +506,10 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "Could not load notification recipients." });
     }
     const recipientRows = await recipientResponse.json();
-    const recipientMap = new Map(recipientRows
-      .filter(row => /^\d{17,20}$/.test(String(row.discord_user_id || "")))
-      .map(row => [String(row.discord_user_id), row]));
-    if (!recipientMap.has(ownerDiscordId)) {
-      recipientMap.set(ownerDiscordId, {
-        discord_user_id: ownerDiscordId,
-        display_name: ownerDiscordId === String(user.id) ? (user.displayName || user.username) : "S.W.A.T. Owner"
-      });
-    }
-    const recipients = [...recipientMap.values()]
-      .filter(row => memberDmEnabled && broadcastEnabled || String(row.discord_user_id) === ownerDiscordId)
+    const recipients = recipientRows
+      .filter(row => /^\\d{17,20}$/.test(String(row.discord_user_id || "")))
       .sort((a, b) => String(a.discord_user_id).localeCompare(String(b.discord_user_id)));
+    const ownerIncluded = recipients.some(row => String(row.discord_user_id) === ownerDiscordId);
 
     if (recipients.length > MAX_RECIPIENTS_PER_BATCH) {
       return res.status(409).json({
@@ -866,7 +858,7 @@ export default async function handler(req, res) {
       channel_disabled: !channelEnabled,
       members_dm_enabled: memberDmEnabled && broadcastEnabled,
       members_dm_disabled: !(memberDmEnabled && broadcastEnabled),
-      owner_always_included: true,
+      owner_included: ownerIncluded,
       owner_dm_sent: ownerDmSent,
       owner_dm_error_code: ownerDmErrorCode,
       role_ping_sent: channelSent && !notificationRoleMentionDisabled,
@@ -879,13 +871,15 @@ export default async function handler(req, res) {
         other: Object.entries(failureReasons).filter(([code]) => !["50278", "50007"].includes(code)).reduce((sum, [, count]) => sum + count, 0)
       },
       mode: broadcastEnabled ? "broadcast" : "test_self",
-      message: channelStatus === "disabled"
-        ? `Channel publishing is disabled by the owner. ${sent} private messages sent; the owner is always included.`
-        : channelStatus === "failed"
-          ? `Channel publishing failed; ${sent} private messages sent and ${failed} failed independently.`
-          : failed
-            ? `Channel post published; ${sent} private messages sent and ${failed} failed.`
-            : `Channel post published; ${sent} private messages sent.`
+      message: !recipients.length
+        ? "No eligible recipients have private notifications enabled."
+        : channelStatus === "disabled"
+          ? `Channel publishing is disabled by the owner. ${sent} private messages sent.`
+          : channelStatus === "failed"
+            ? `Channel publishing failed; ${sent} private messages sent and ${failed} failed independently.`
+            : failed
+              ? `Channel post published; ${sent} private messages sent and ${failed} failed.`
+              : `Channel post published; ${sent} private messages sent.`
     });
   } catch (error) {
     console.error("Notification send failed:", error instanceof Error ? error.message : "unknown");
