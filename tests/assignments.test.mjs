@@ -172,3 +172,16 @@ test("manual additions, callsigns and multi-rank assignment have auditable write
   assert.match(migration, /'before', v_before/);
   assert.match(migration, /'after', v_after/);
 });
+
+
+test("Website Admin role stays visible but cannot be assigned through the appointments role picker", async () => {
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+  assert.match(api, /function assignmentRankList\(roles, botPosition, guildId, canManageRoles, protectedRoleIds = \[\]\)/);
+  assert.match(api, /protectedIds\.has\(String\(role\.id\)\) \? "protected"/);
+  assert.equal((api.match(/assignmentRankList\(guild\.roles,Number\(guild\.botTop\.position\),guildId,guild\.canManageRoles,\[process\.env\.DISCORD_WEBSITE_ADMIN_ROLE_ID\]\)/g) || []).length, 2);
+  assert.match(api, /targetRoles\.some\(role=>!role\|\|!role\.assignable\)/);
+  assert.match(html, /role\.unavailable_reason==='protected'/);
+  assert.match(html, /رتبة WEBSITE ADMIN محمية ولا يمكن منحها من داخل الموقع/);
+});
