@@ -166,7 +166,6 @@ async function publishSavedRuleToDiscord(user, ruleId) {
 
   return { channelId: SWAT_RULES_CHANNEL_ID, messagesSent: messageIds.length, messageIds, roleMentioned: true };
 }
-}
 async function isActiveStaffForNotifications(config, user) {
   if (user.isOwner) return true;
   const query = new URLSearchParams({
