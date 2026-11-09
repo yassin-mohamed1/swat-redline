@@ -281,6 +281,45 @@ async function assignmentGuildMembers(token,guildId,profiles) {
   }
   return {found,complete,scannedThrough};
 }
+let personnelRoleCache={key:"",expiresAt:0,value:null,pending:null};
+async function cachedPersonnelDiscordRoles(token,guildId,profiles) {
+  const ids=profiles.map(profile=>String(profile.discord_user_id||"")).filter(id=>/^\\d{15,22}$/.test(id)).sort();
+  if(!ids.length)return {found:new Map(),complete:true,scannedThrough:null};
+  const cacheKey=String(guildId)+":"+ids.join(",");
+  if(personnelRoleCache.key===cacheKey&&personnelRoleCache.value&&personnelRoleCache.expiresAt>Date.now())
+    return personnelRoleCache.value;
+  if(personnelRoleCache.key===cacheKey&&personnelRoleCache.pending)
+    return personnelRoleCache.pending;
+  const pending=assignmentGuildMembers(token,guildId,profiles);
+  personnelRoleCache={key:cacheKey,expiresAt:0,value:null,pending};
+  try{
+    const value=await pending;
+    personnelRoleCache={key:cacheKey,expiresAt:Date.now()+15000,value,pending:null};
+    return value;
+  }catch(error){
+    personnelRoleCache={key:"",expiresAt:0,value:null,pending:null};
+    throw error;
+  }
+}
+async function refreshPersonnelDiscordRoles(token,guildId,members) {
+  if(!Array.isArray(members)||!members.length)return {members:Array.isArray(members)?members:[],synced:true};
+  if(!token||!/^\\d{15,22}$/.test(String(guildId||"")))return {members,synced:false};
+  try{
+    const scan=await cachedPersonnelDiscordRoles(token,guildId,members);
+    const membersWithLiveRoles=members.map(member=>{
+      const id=String(member.discord_user_id||"");
+      if(!/^\\d{15,22}$/.test(id))return {...member,discord_roles_live:false};
+      const live=scan.found.get(id);
+      if(live)return {...member,discord_roles:Array.isArray(live.roles)?live.roles:[],discord_roles_live:true};
+      const covered=scan.complete||(scan.scannedThrough&&/^\\d{15,22}$/.test(String(scan.scannedThrough))&&BigInt(id)<=BigInt(scan.scannedThrough));
+      return covered?{...member,discord_roles:[],discord_roles_live:true}:{...member,discord_roles_live:false};
+    });
+    return {members:membersWithLiveRoles,synced:true};
+  }catch(error){
+    console.warn("Personnel live Discord role refresh unavailable:",JSON.stringify({status:error?.status,code:error?.code}));
+    return {members,synced:false};
+  }
+}
 async function assignmentMember(token,guildId,id) {
   try {
     const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+id);
@@ -682,7 +721,9 @@ export default async function handler(req, res) {
       if (response.ok) {
         const members = await response.json();
         const normalized = members.map((m) => ({ ...m, is_active: m.is_active !== false, is_banned: Boolean(m.is_banned), last_seen: m.last_seen || null, last_login: m.last_login || null, login_count: Number(m.login_count || 0) }));
-        return send(res, 200, { members: await mergeLoginEvents(url, key, normalized), ownerId: process.env.DISCORD_OWNER_ID, websiteAdminRoleId: process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID || "", migrationRequired: false });
+        const merged=await mergeLoginEvents(url,key,normalized);
+        const liveRoles=await refreshPersonnelDiscordRoles(process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,merged);
+        return send(res, 200, { members: liveRoles.members, ownerId: process.env.DISCORD_OWNER_ID, websiteAdminRoleId: process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID || "", memberRolesLive: liveRoles.synced, migrationRequired: false });
       }
 
       const detail = (await response.text()).slice(0, 500);
@@ -710,17 +751,19 @@ export default async function handler(req, res) {
           }
         });
       }
-      const members = await fallback.json();
+      const members = (await fallback.json()).map((m) => ({
+        ...m,
+        is_banned: false,
+        last_seen: null,
+        last_login: null,
+        login_count: 0,
+      }));
+      const liveRoles=await refreshPersonnelDiscordRoles(process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,members);
       return send(res, 200, {
-        members: members.map((m) => ({
-          ...m,
-          is_banned: false,
-          last_seen: null,
-          last_login: null,
-          login_count: 0,
-        })),
+        members: liveRoles.members,
         ownerId: process.env.DISCORD_OWNER_ID,
         websiteAdminRoleId: process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID || "",
+        memberRolesLive: liveRoles.synced,
         migrationRequired: true,
         warning: "Directory loaded without activity tracking. Apply the admin controls migration to enable login counts, last activity, bans, and site settings.",
       });
