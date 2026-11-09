@@ -3,6 +3,7 @@ import { discordApiRequest } from "../../lib/discord-rest.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { handleDiscordRoleSync } from "../../lib/discord-role-sync.js";
+import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 
 const ASSIGNMENT_RANKS = [
   { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
@@ -67,16 +68,17 @@ async function supabase(url, key, path, init = {}) {
 }
 async function requireAssignmentManager(url,key,token,guildId,user) {
   if(user?.isOwner)return;
-  const managerRoleId=String(process.env.DISCORD_WARNING_MANAGER_ROLE_ID||"");
-  if(!/^\d{15,22}$/.test(managerRoleId))
-    throw Object.assign(new Error("لم يتم إعداد رتبة إدارة التحذيرات والتعيينات في إعدادات الخادم."),{status:503});
-  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))
-    throw Object.assign(new Error("لم يتم إعداد اتصال بوت Discord والسيرفر."),{status:503});
   const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(user.id)+"&select=is_active,is_banned&limit=1");
   if(!profileResponse.ok)throw Object.assign(new Error("تعذّر التحقق من صلاحية حساب المدير."),{status:503});
   const profile=(await profileResponse.json())[0];
   if(!profile||profile.is_active===false||profile.is_banned)
     throw Object.assign(new Error("حسابك غير نشط أو غير مصرح له بإدارة التعيينات."),{status:403});
+  if(user?.isWebsiteAdmin)return;
+  const managerRoleId=String(process.env.DISCORD_WARNING_MANAGER_ROLE_ID||"");
+  if(!/^\d{15,22}$/.test(managerRoleId))
+    throw Object.assign(new Error("لم يتم إعداد رتبة إدارة التحذيرات والتعيينات في إعدادات الخادم."),{status:503});
+  if(!token||!/^\d{15,22}$/.test(String(guildId||"")))
+    throw Object.assign(new Error("لم يتم إعداد اتصال بوت Discord والسيرفر."),{status:503});
   const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+user.id);
   if(!Array.isArray(member.roles)||!member.roles.includes(managerRoleId))
     throw Object.assign(new Error("ليس لديك رتبة إدارة التحذيرات المصرح لها بإدارة التعيينات والنداءات."),{status:403});
@@ -614,6 +616,15 @@ export default async function handler(req, res) {
   const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return send(res, 503, { error: "Database is not configured" });
+  let websiteAdmin = false;
+  try {
+    websiteAdmin = await isWebsiteAdmin(user);
+    if (websiteAdmin && !user.isOwner) await requireActivePortalStaff(user);
+  } catch (error) {
+    return send(res, error.status || 503, { error: error.message || "تعذر التحقق من صلاحيات إدارة الموقع." });
+  }
+  user.isWebsiteAdmin = websiteAdmin;
+  const canManagePortal = Boolean(user.isOwner || websiteAdmin);
   try {
     const searchParams = new URL(req.url, "https://portal.invalid").searchParams;
     const requestBody = req.body && typeof req.body === "object" ? req.body : {};
@@ -621,12 +632,12 @@ export default async function handler(req, res) {
       "list_discord_role_candidates",
       "register_selected_discord_members"
     ].includes(String(requestBody.action || ""))) {
-      if (!user.isOwner) return send(res,403,{error:"Owner permission required"});
+      if (!canManagePortal) return send(res,403,{error:"Website Admin permission required"});
       if (!requireSameOrigin(req,res)) return;
       return await handleDiscordRoleSync(req,res);
     }
-    if(req.method==="PATCH"&&!user.isOwner)return send(res,403,{error:"Owner permission required"});
-    if(req.method==="GET"&&searchParams.get("activity")==="1"&&!user.isOwner)return send(res,403,{error:"Owner permission required"});
+    if(req.method==="PATCH"&&!canManagePortal)return send(res,403,{error:"Website Admin permission required"});
+    if(req.method==="GET"&&searchParams.get("activity")==="1"&&!canManagePortal)return send(res,403,{error:"Website Admin permission required"});
     const needsAssignmentManager=req.method==="POST"||(req.method==="GET"&&searchParams.get("activity")!=="1");
     if(needsAssignmentManager){
       try{await requireAssignmentManager(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user);}
@@ -656,14 +667,14 @@ export default async function handler(req, res) {
     }
     if (req.method === "GET") {
       const q = new URLSearchParams({
-        select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned,is_manual,registration_source,last_seen,last_login,login_count,created_at,updated_at",
+        select: "discord_user_id,display_name,username,avatar_url,discord_roles,is_active,is_banned,is_manual,registration_source,last_seen,last_login,login_count,created_at,updated_at",
         order: "last_seen.desc.nullslast"
       });
       const response = await supabase(url, key, "staff_profiles?" + q);
       if (response.ok) {
         const members = await response.json();
         const normalized = members.map((m) => ({ ...m, is_active: m.is_active !== false, is_banned: Boolean(m.is_banned), last_seen: m.last_seen || null, last_login: m.last_login || null, login_count: Number(m.login_count || 0) }));
-        return send(res, 200, { members: await mergeLoginEvents(url, key, normalized), ownerId: process.env.DISCORD_OWNER_ID, migrationRequired: false });
+        return send(res, 200, { members: await mergeLoginEvents(url, key, normalized), ownerId: process.env.DISCORD_OWNER_ID, websiteAdminRoleId: process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID || "", migrationRequired: false });
       }
 
       const detail = (await response.text()).slice(0, 500);
@@ -701,6 +712,7 @@ export default async function handler(req, res) {
           login_count: 0,
         })),
         ownerId: process.env.DISCORD_OWNER_ID,
+        websiteAdminRoleId: process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID || "",
         migrationRequired: true,
         warning: "Directory loaded without activity tracking. Apply the admin controls migration to enable login counts, last activity, bans, and site settings.",
       });
