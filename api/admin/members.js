@@ -705,7 +705,7 @@ export default async function handler(req, res) {
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     const targetId = String(body.discord_user_id || "");
     const action = String(body.action || "");
-    if (!/^\\d{15,22}$/.test(targetId) || !["ban", "unban", "deactivate", "activate", "delete"].includes(action))
+    if (!/^\d{15,22}$/.test(targetId) || !["ban", "unban", "deactivate", "activate", "delete"].includes(action))
       return send(res, 400, { error: "Invalid member action" });
     if (targetId === process.env.DISCORD_OWNER_ID)
       return send(res, 403, { error: "The protected owner cannot be modified." });
