@@ -3145,9 +3145,13 @@ async function initAuth(){
     currentUser=data.user.displayName||data.user.username||data.user.globalName||data.user.id||'Discord user';
     document.getElementById('settingsNav').style.display='flex';
     document.getElementById('ownerSettingsPanels').style.display=currentCanAdmin?'block':'none';
-    ['adminNavDivider','adminNavHeading','personnelNav','assignmentsNav','auditNav'].forEach(id=>{
+    ['adminNavDivider','adminNavHeading'].forEach(id=>{
       const node=document.getElementById(id);
       if(node)node.style.display=currentCanAdmin?'block':'none';
+    });
+    ['personnelNav','assignmentsNav','auditNav'].forEach(id=>{
+      const node=document.getElementById(id);
+      if(node)node.style.display=currentCanAdmin?'flex':'none';
     });
     const warningsNav=document.getElementById('warningsNav');
     if(warningsNav)warningsNav.style.display=currentCanAdmin&&currentCanManageWarnings?'flex':'none';
