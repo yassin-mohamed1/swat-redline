@@ -1115,7 +1115,7 @@ html[dir="ltr"] .field label{text-align:left}
 #page-personnel .assignment-modal-body{padding:19px;display:grid;gap:15px}
 #page-personnel .assignment-field{display:grid;gap:7px}
 #page-personnel .assignment-actions{display:flex;gap:9px;flex-wrap:wrap}
-</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضيفوا يدويًا أو تلقائيًا بواسطة بوت S.W.A.T.</div></div><div class="assignment-toolbar"><button class="btn primary" id="syncDiscordRoleMembersButton" type="button" hidden onclick="syncDiscordRoleMembers()">↻ فحص رول S.W.A.T. وتسجيل الأعضاء</button><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجلت دخول الموقع، وكذلك الأعضاء الذين أضفتهم يدويًا أو أضافهم البوت تلقائيًا بسبب حملهم لرول S.W.A.T.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
+</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضيفوا يدويًا أو تلقائيًا بواسطة بوت S.W.A.T.</div></div><div class="assignment-toolbar"><button class="btn primary" id="syncDiscordRoleMembersButton" type="button" hidden onclick="openDiscordRoleCandidates()">＋ اختيار أعضاء جدد من رول S.W.A.T.</button><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجلت دخول الموقع، وكذلك الأعضاء الذين أضفتهم يدويًا أو أضافهم البوت تلقائيًا بسبب حملهم لرول S.W.A.T.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
  <div class="assignment-modal-card" style="width:min(560px,100%)">
   <div class="assignment-modal-head">
    <div><h3 style="margin:0">إضافة عضو بدون تسجيل دخول</h3><div class="muted">إضافته إلى دليل الأفراد باستخدام Discord ID فقط</div></div>
@@ -1135,6 +1135,37 @@ html[dir="ltr"] .field label{text-align:left}
    <div class="assignment-actions">
     <button class="btn primary" id="manualMemberSaveButton" type="button" onclick="submitManualMember()">إضافة إلى دليل الأفراد</button>
     <button class="btn" type="button" onclick="closeManualMemberModal()">إلغاء</button>
+   </div>
+  </div>
+ </div>
+</div>
+<style>
+#page-personnel .discord-role-candidate-list{display:grid;gap:8px;max-height:48vh;overflow:auto;padding:2px}
+#page-personnel .discord-role-candidate{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #343a44;background:#15181d;border-radius:9px;cursor:pointer;min-width:0}
+#page-personnel .discord-role-candidate:hover{border-color:#747d8c;background:#1a1e24}
+#page-personnel .discord-role-candidate input{accent-color:#d92735;width:17px;height:17px;flex:0 0 auto}
+#page-personnel .discord-role-candidate-info{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}
+#page-personnel .discord-role-candidate-info small{color:#999fab;font-size:10px}
+#page-personnel #discordRoleAddSelectedButton:disabled{opacity:.45;cursor:not-allowed}
+</style>
+<div id="discordRoleCandidatesModal" class="assignment-modal" hidden>
+ <div class="assignment-modal-card" style="width:min(760px,100%)">
+  <div class="assignment-modal-head">
+   <div><h3 style="margin:0">اختيار أعضاء رول S.W.A.T.</h3><div class="muted">يعرض الأشخاص الموجودين في سيرفر Discord الذين يحملون الرول المطلوبة وغير مسجلين في الموقع. حسابات البوتات مستبعدة.</div></div>
+   <button class="btn" type="button" onclick="closeDiscordRoleCandidates()">إغلاق</button>
+  </div>
+  <div class="assignment-modal-body">
+   <div class="notice" style="margin:0">لن تتم إضافة أي شخص بمجرد ظهوره هنا. اختر الأعضاء المطلوبين ثم اضغط «إضافة المختارين». أي عضو موجود بالفعل في الموقع لن يظهر في القائمة.</div>
+   <div class="assignment-toolbar" style="justify-content:space-between">
+    <span class="muted">الأعضاء غير المسجلين: <b id="discordRoleCandidateCount">0</b> • المختارون: <b id="discordRoleSelectedCount">0</b></span>
+    <button class="btn" id="discordRoleLoadMoreButton" type="button" hidden onclick="loadDiscordRoleCandidates(true)">تحميل باقي الأعضاء</button>
+   </div>
+   <div id="discordRoleCandidatesStatus" class="muted" aria-live="polite">جارٍ فحص أعضاء Discord...</div>
+   <div id="discordRoleCandidateRows" class="discord-role-candidate-list"></div>
+   <div id="discordRoleCandidateEmpty" class="muted" hidden style="padding:14px;text-align:center">لا يوجد أعضاء جدد يحملون الرول المطلوبة حاليًا.</div>
+   <div class="assignment-actions" style="justify-content:flex-end">
+    <button class="btn primary" id="discordRoleAddSelectedButton" type="button" disabled onclick="registerSelectedDiscordRoleCandidates()">إضافة المختارين إلى الموقع</button>
+    <button class="btn" type="button" onclick="closeDiscordRoleCandidates()">إغلاق</button>
    </div>
   </div>
  </div>
@@ -1380,7 +1411,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -2153,31 +2184,127 @@ function pendingRegistrationBadge(member){
   return '<span class="tag orange">إضافة تلقائية بواسطة بوت S.W.A.T. • لم يسجل دخول الموقع</span>';
  return '';
 }
-async function syncDiscordRoleMembers(){
- if(!currentIsOwner){toast('زر فحص أعضاء Discord مخصص للأونر فقط.');return;}
- const button=document.getElementById('syncDiscordRoleMembersButton');
- if(button){button.disabled=true;button.textContent='جارٍ فحص أعضاء Discord...';}
+function openDiscordRoleCandidates(){
+ if(!currentIsOwner){toast('قائمة إضافة أعضاء S.W.A.T. مخصصة للأونر فقط.');return;}
+ discordRoleCandidates=[];
+ discordRoleCandidateSelection=new Set();
+ discordRoleCandidateScanComplete=false;
+ const modal=document.getElementById('discordRoleCandidatesModal');
+ if(modal)modal.hidden=false;
+ renderDiscordRoleCandidates();
+ loadDiscordRoleCandidates(false);
+}
+function closeDiscordRoleCandidates(){
+ const modal=document.getElementById('discordRoleCandidatesModal');
+ if(modal)modal.hidden=true;
+}
+function toggleDiscordRoleCandidate(checkbox){
+ const id=String(checkbox?.value||'');
+ if(!id)return;
+ if(checkbox.checked){
+  if(discordRoleCandidateSelection.size>=100){
+   checkbox.checked=false;
+   toast('يمكنك اختيار 100 عضو كحد أقصى في المرة الواحدة.');
+   return;
+  }
+  discordRoleCandidateSelection.add(id);
+ }else discordRoleCandidateSelection.delete(id);
+ updateDiscordRoleCandidateSelection();
+}
+function updateDiscordRoleCandidateSelection(){
+ const count=document.getElementById('discordRoleSelectedCount');
+ if(count)count.textContent=String(discordRoleCandidateSelection.size);
+ const add=document.getElementById('discordRoleAddSelectedButton');
+ if(add)add.disabled=discordRoleCandidateBusy||discordRoleCandidateSelection.size===0;
+}
+function renderDiscordRoleCandidates(){
+ const root=document.getElementById('discordRoleCandidateRows');
+ if(!root)return;
+ if(!discordRoleCandidates.length){
+  root.innerHTML='<div class="muted" style="padding:25px;text-align:center">لم يتم العثور على أعضاء جدد في الدفعة الحالية.</div>';
+ }else{
+  root.innerHTML=discordRoleCandidates.map(member=>{
+   const id=String(member.discord_user_id||'');
+   const checked=discordRoleCandidateSelection.has(id)?' checked':'';
+   const avatar=member.avatar_url?'<img src="'+adminEscape(member.avatar_url)+'" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover">':'';
+   return '<label class="discord-role-candidate"><input type="checkbox" value="'+adminEscape(id)+'"'+checked+' onchange="toggleDiscordRoleCandidate(this)">'+avatar+'<span class="discord-role-candidate-info"><b>'+adminEscape(member.display_name||'Discord user')+'</b>'+(member.username?'<small>@'+adminEscape(member.username)+'</small>':'')+'<small>'+adminEscape(id)+'</small></span></label>';
+  }).join('');
+ }
+ const total=document.getElementById('discordRoleCandidateCount');
+ if(total)total.textContent=String(discordRoleCandidates.length);
+ const more=document.getElementById('discordRoleLoadMoreButton');
+ if(more)more.hidden=discordRoleCandidateScanComplete;
+ const empty=document.getElementById('discordRoleCandidateEmpty');
+ if(empty)empty.hidden=discordRoleCandidates.length>0;
+ updateDiscordRoleCandidateSelection();
+}
+async function loadDiscordRoleCandidates(append){
+ if(!currentIsOwner||discordRoleCandidateBusy)return;
+ discordRoleCandidateBusy=true;
+ const status=document.getElementById('discordRoleCandidatesStatus');
+ const loadMore=document.getElementById('discordRoleLoadMoreButton');
+ const add=document.getElementById('discordRoleAddSelectedButton');
+ if(status)status.textContent=append?'جارٍ فحص الدفعة التالية من أعضاء السيرفر...':'جارٍ فحص أعضاء السيرفر واستبعاد المسجلين والبوتات...';
+ if(loadMore)loadMore.disabled=true;
+ if(add)add.disabled=true;
  try{
   const response=await fetch('/api/admin/members',{
-   method:'POST',credentials:'same-origin',
+   method:'POST',credentials:'same-origin',cache:'no-store',
    headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({action:'sync_discord_role_members'})
+   body:JSON.stringify({action:'list_discord_role_candidates'})
   });
   const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'تعذّر فحص أعضاء Discord.');
-  const scanned=Number(data.members_scanned||0);
-  const matching=Number(data.members_with_access_role||0);
-  const added=Number(data.newly_registered||0);
-  const summary='تم فحص '+scanned+' عضو، '+matching+' معهم رول S.W.A.T.، وتمت إضافة '+added+' عضو جديد.';
-  toast(data.cycle_complete
-   ?'اكتمل الفحص بالكامل: '+summary
-   :'اكتملت دفعة من الفحص: '+summary+' اضغط الزر مرة أخرى لاستكمال بقية أعضاء السيرفر.');
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل قائمة الأعضاء المرشحين.');
+  const seen=new Set(discordRoleCandidates.map(item=>String(item.discord_user_id)));
+  const incoming=Array.isArray(data.candidates)?data.candidates:[];
+  if(!append){discordRoleCandidates=[];discordRoleCandidateSelection=new Set();}
+  for(const member of incoming){
+   const id=String(member.discord_user_id||'');
+   if(id&&!seen.has(id)){seen.add(id);discordRoleCandidates.push(member);}
+  }
+  discordRoleCandidateScanComplete=Boolean(data.cycle_complete);
+  if(status)status.textContent='تم فحص '+Number(data.members_scanned||0)+' عضو في هذه الدفعة، وظهر '+incoming.length+' عضو غير مسجل يحمل رول S.W.A.T.'+(discordRoleCandidateScanComplete?'، واكتمل فحص السيرفر.':'، ما زال هناك أعضاء آخرون؛ استخدم «تحميل باقي الأعضاء».');
+  renderDiscordRoleCandidates();
+ }catch(error){
+  if(status)status.textContent=error.message||'تعذّر تحميل قائمة الأعضاء.';
+  toast(error.message||'فشل فحص أعضاء Discord.');
+ }finally{
+  discordRoleCandidateBusy=false;
+  if(loadMore){loadMore.disabled=false;loadMore.hidden=discordRoleCandidateScanComplete;}
+  updateDiscordRoleCandidateSelection();
+ }
+}
+async function registerSelectedDiscordRoleCandidates(){
+ if(!currentIsOwner){toast('إضافة أعضاء S.W.A.T. مخصصة للأونر فقط.');return;}
+ const ids=[...discordRoleCandidateSelection];
+ if(!ids.length){toast('حدد عضوًا واحدًا على الأقل لإضافته.');return;}
+ const button=document.getElementById('discordRoleAddSelectedButton');
+ const status=document.getElementById('discordRoleCandidatesStatus');
+ discordRoleCandidateBusy=true;
+ if(button){button.disabled=true;button.textContent='جارٍ إضافة الأعضاء المختارين...';}
+ try{
+  const response=await fetch('/api/admin/members',{
+   method:'POST',credentials:'same-origin',cache:'no-store',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'register_selected_discord_members',discord_user_ids:ids})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّرت إضافة الأعضاء المختارين.');
+  const removed=new Set(ids);
+  discordRoleCandidates=discordRoleCandidates.filter(item=>!removed.has(String(item.discord_user_id)));
+  discordRoleCandidateSelection=new Set();
+  renderDiscordRoleCandidates();
+  if(status)status.textContent='تمت الإضافة: '+Number(data.newly_registered||0)+' عضو جديد. تم تجاهل '+Number(data.skipped_existing||0)+' موجودين بالفعل و'+Number(data.skipped_not_eligible||0)+' لم يعودوا مستوفين للشروط.';
+  toast('تمت إضافة '+Number(data.newly_registered||0)+' عضو جديد إلى دليل الأفراد.');
   await renderPersonnel();
   if(document.getElementById('page-assignments')?.classList.contains('active'))await renderAssignments();
  }catch(error){
-  toast(error.message||'فشل فحص أعضاء Discord.');
+  if(status)status.textContent=error.message||'تعذّرت إضافة الأعضاء المختارين.';
+  toast(error.message||'فشلت إضافة الأعضاء.');
  }finally{
-  if(button){button.disabled=false;button.textContent='↻ فحص رول S.W.A.T. وتسجيل الأعضاء';button.hidden=!currentIsOwner;}
+  discordRoleCandidateBusy=false;
+  if(button){button.textContent='إضافة المختارين إلى الموقع';button.disabled=discordRoleCandidateSelection.size===0;}
+  updateDiscordRoleCandidateSelection();
  }
 }
 async function renderPersonnel(){
@@ -3293,6 +3420,24 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "رسائل الخاص من بوت البوابة مفعّلة تلقائيًا بعد دخولك. لو مش حابب تستقبل رسائل خاصة من البوت، شيل علامة الصح هنا. التغيير يمنع رسائل الخاص من التعيينات والتحذيرات والتنبيهات والإعلانات المحوّلة، لكنه لا يوقف منشورات قنوات Discord أو المنشنات داخل السيرفر. تقدر ترجع تفعّلها في أي وقت.":"Private messages from the portal bot are enabled by default. Uncheck this option to stop DMs from assignments, warnings, alerts and forwarded announcements. This does not stop Discord channel posts or server mentions. You can re-enable it at any time."
 });
 Object.assign(PORTAL_TRANSLATIONS,{
+ "＋ اختيار أعضاء جدد من رول S.W.A.T.":"＋ Choose new members with the S.W.A.T. role",
+ "اختيار أعضاء رول S.W.A.T.":"Choose S.W.A.T. role members",
+ "تحميل باقي الأعضاء":"Load remaining members",
+ "جارٍ فحص أعضاء السيرفر...":"Scanning server members...",
+ "جارٍ فحص الدفعة التالية من أعضاء السيرفر...":"Scanning the next batch of server members...",
+ "جارٍ فحص أعضاء السيرفر واستبعاد المسجلين والبوتات...":"Scanning server members and excluding existing profiles and bots...",
+ "تمت الإضافة: ":"Added: ",
+ " عضو جديد. تم تجاهل ":" new member(s). Skipped ",
+ " موجودين بالفعل و":" already registered and ",
+ " لم يعودوا مستوفين للشروط.":" no longer eligible.",
+ "تمت إضافة ":"Added ",
+ " إلى دليل الأفراد.":" to the personnel directory.",
+ "إضافة المختارين إلى الموقع":"Add selected members to the portal",
+ "لن تتم إضافة أي شخص بمجرد ظهوره هنا. اختر الأعضاء المطلوبين ثم اضغط «إضافة المختارين». أي عضو موجود بالفعل في الموقع لن يظهر في القائمة.":"No one is added just by appearing here. Select the members you want and click “Add selected”. Anyone already registered in the portal is excluded.",
+ "يعرض الأشخاص الموجودين في سيرفر Discord الذين يحملون الرول المطلوبة وغير مسجلين في الموقع. حسابات البوتات مستبعدة.":"Shows Discord server members who have the required role and are not registered in the portal. Bot accounts are excluded.",
+ "لا يوجد أعضاء جدد يحملون الرول المطلوبة حاليًا.":"There are currently no new members with the required role.",
+ "الأعضاء غير المسجلين: ":"Unregistered members: ",
+ "المختارون: ":"Selected: "
  "↻ فحص رول S.W.A.T. وتسجيل الأعضاء":"↻ Scan S.W.A.T. role and register members",
  "جارٍ فحص أعضاء Discord...":"Scanning Discord members...",
  "اكتمل الفحص: ":"Scan completed: ",
