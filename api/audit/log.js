@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
+import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 
 function parseCookies(header = "") {
   const result = {};
@@ -75,6 +76,16 @@ export default async function handler(req, res) {
   if (!url || !key) return send(res, 503, { error: "Database is not configured" });
 
   if (req.method === "GET") {
+    let canReadAudit = Boolean(user.isOwner);
+    try {
+      if (!canReadAudit) {
+        canReadAudit = await isWebsiteAdmin(user);
+        if (canReadAudit) await requireActivePortalStaff(user);
+      }
+    } catch (error) {
+      return send(res, error.status || 503, { error: error.message || "Could not verify Website Admin access." });
+    }
+    if (!canReadAudit) return send(res, 403, { error: "Website Admin permission required to view the audit log." });
     try {
       const query = new URLSearchParams({
         select: "id,actor_discord_id,actor_name,action,entity_type,entity_id,details,created_at",
