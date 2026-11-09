@@ -106,13 +106,15 @@ function assignmentRankKey(name) {
   const rank = ASSIGNMENT_RANKS.find(item => item.key === normalized || (item.aliases || []).includes(normalized));
   return rank?.key || null;
 }
-function assignmentRankList(roles, botPosition, guildId, canManageRoles) {
+function assignmentRankList(roles, botPosition, guildId, canManageRoles, protectedRoleIds = []) {
+  const protectedIds = new Set(protectedRoleIds.map(String).filter(Boolean));
   return roles.map(role => {
     const key = assignmentRankKey(role.name);
     const def = ASSIGNMENT_RANKS.find(item => item.key === key);
     const position = Number(role.position || 0);
     const managed = Boolean(role.managed);
-    const unavailableReason = String(role.id) === String(guildId) ? "everyone"
+    const unavailableReason = protectedIds.has(String(role.id)) ? "protected"
+      : String(role.id) === String(guildId) ? "everyone"
       : managed ? "managed"
       : !canManageRoles ? "permission"
       : position >= Number(botPosition) ? "hierarchy"
@@ -320,7 +322,7 @@ async function listAssignments(url,key,token,guildId) {
       console.warn("Assignment bulk member sync unavailable:",JSON.stringify({status:error?.status,code:error?.code,path:error?.path||null}));
     }
   }
-  const roles=guild?assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles):[];
+  const roles=guild?assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles,[process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID]):[];
   const members=profiles.map(profile=>{
     const id=String(profile.discord_user_id);
     const live=liveScan?.found.get(id)||null;
@@ -422,7 +424,7 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   if(profile.is_active===false||profile.is_banned)return send(res,409,{error:"لا يمكن تعيين حساب موقوف أو محظور من الموقع."});
   const guild=await assignmentGuildContext(token,guildId);
   if(!guild.canManageRoles)return send(res,409,{error:"البوت لا يمتلك صلاحية Manage Roles في سيرفر Discord."});
-  const rankRoles=assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles);
+  const rankRoles=assignmentRankList(guild.roles,Number(guild.botTop.position),guildId,guild.canManageRoles,[process.env.DISCORD_WEBSITE_ADMIN_ROLE_ID]);
   const requestedRoleIds=action==="assign"?(Array.isArray(body.rank_role_ids)?body.rank_role_ids.map(String):body.rank_role_id?[String(body.rank_role_id)]:[]):[];
   if(action==="assign"&&(!requestedRoleIds.length||requestedRoleIds.length>20||new Set(requestedRoleIds).size!==requestedRoleIds.length))
     return send(res,400,{error:"اختر رتبة واحدة على الأقل، وبحد أقصى 20 رتبة مختلفة."});
