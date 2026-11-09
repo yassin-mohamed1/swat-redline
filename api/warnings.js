@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { requireSameOrigin } from "../lib/request-security.js";
 import { discordApiRequest } from "../lib/discord-rest.js";
 import { forwardAuditToDiscord } from "../lib/audit-log.js";
+import { isWebsiteAdmin } from "../lib/portal-admin.js";
 
 const WARNING_LEVELS = [1, 2];
 
@@ -122,7 +123,7 @@ async function requireActiveStaff(cfg, user) {
 }
 async function requireManager(cfg, user) {
   await requireActiveStaff(cfg, user);
-  if (user.isOwner) return;
+  if (user.isOwner || await isWebsiteAdmin(user)) return;
   const member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + user.id);
   if (!Array.isArray(member.roles) || !member.roles.includes(cfg.managerRoleId)) {
     throw Object.assign(new Error("حسابك لا يمتلك رتبة إدارة التحذيرات (المعرّف: " + cfg.managerRoleId + "). أضف هذه الرتبة إلى حسابك لإصدار التحذيرات."), { status: 403 });
