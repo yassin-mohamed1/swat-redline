@@ -124,10 +124,7 @@ async function requireActiveStaff(cfg, user) {
 async function requireManager(cfg, user) {
   await requireActiveStaff(cfg, user);
   if (user.isOwner || await isWebsiteAdmin(user)) return;
-  const member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + user.id);
-  if (!Array.isArray(member.roles) || !member.roles.includes(cfg.managerRoleId)) {
-    throw Object.assign(new Error("حسابك لا يمتلك رتبة إدارة التحذيرات (المعرّف: " + cfg.managerRoleId + "). أضف هذه الرتبة إلى حسابك لإصدار التحذيرات."), { status: 403 });
-  }
+  throw Object.assign(new Error("يجب امتلاك رتبة Website Admin لإدارة التحذيرات."), { status: 403 });
 }
 function unionPermissions(roleList) {
   return roleList.reduce((value, role) => value | BigInt(role?.permissions || "0"), 0n);
@@ -547,6 +544,7 @@ export default async function handler(req, res) {
   try {
     const params = new URL(req.url, "https://portal.invalid").searchParams;
     if (req.method === "GET" && params.get("diagnostics") === "1") {
+      await requireManager(cfg, user);
       const diagnostics = await warningDiagnostics(cfg, user);
       return json(res, 200, diagnostics);
     }
