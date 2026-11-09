@@ -3,6 +3,7 @@ import { handleAnnouncementForwarder } from "../../lib/announcement-forwarder.js
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { discordApiRequest } from "../../lib/discord-rest.js";
+import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 
 const MAX_RECIPIENTS_PER_BATCH = 200;
 const MAX_NOTIFICATION_IMAGES = 4;
@@ -361,7 +362,16 @@ export default async function handler(req, res) {
 
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized." });
-  if (req.method === "GET" && !user.isOwner) return res.status(403).json({ error: "Only the portal owner can inspect notification diagnostics." });
+  if (req.method === "GET") {
+    let websiteAdmin = false;
+    try {
+      websiteAdmin = await isWebsiteAdmin(user);
+      if (websiteAdmin && !user.isOwner) await requireActivePortalStaff(user);
+    } catch (error) {
+      return res.status(error.status || 503).json({ error: error.message || "Could not verify Website Admin access." });
+    }
+    if (!user.isOwner && !websiteAdmin) return res.status(403).json({ error: "Website Admin permission required to inspect notification diagnostics." });
+  }
 
   if (req.method === "GET") {
     const token = process.env.DISCORD_BOT_TOKEN;
