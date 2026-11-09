@@ -28,7 +28,7 @@ test("scheduled Discord role sync verifies GitHub OIDC and the exact repository 
   assert.match(workflow, /id-token: write/);
   assert.match(membersApi, /handleDiscordRoleSync/);
   assert.match(membersApi, /sync_discord_role_members/);
-  assert.match(workflow, /api\\/admin\\/members\\?task=sync_discord_role_members/);
+  assert.ok(workflow.includes("https://swat-redline.vercel.app/api/admin/members?task=sync_discord_role_members"));
 });
 
 test("role sync inserts only new Discord profiles and ignores conflicts without rewriting existing records", async () => {
