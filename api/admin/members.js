@@ -617,7 +617,10 @@ export default async function handler(req, res) {
   try {
     const searchParams = new URL(req.url, "https://portal.invalid").searchParams;
     const requestBody = req.body && typeof req.body === "object" ? req.body : {};
-    if (req.method === "POST" && requestBody.action === "sync_discord_role_members") {
+    if (req.method === "POST" && [
+      "list_discord_role_candidates",
+      "register_selected_discord_members"
+    ].includes(String(requestBody.action || ""))) {
       if (!user.isOwner) return send(res,403,{error:"Owner permission required"});
       if (!requireSameOrigin(req,res)) return;
       return await handleDiscordRoleSync(req,res);
