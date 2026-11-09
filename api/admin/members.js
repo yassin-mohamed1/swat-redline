@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
+import { handleDiscordRoleSync } from "../../lib/discord-role-sync.js";
 
 const ASSIGNMENT_RANKS = [
   { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
@@ -605,6 +606,10 @@ async function handleAddNextCallsign(url,key,user,res){
 }
 
 export default async function handler(req, res) {
+  const incomingUrl = new URL(req.url, "https://portal.invalid");
+  if (req.method === "GET" && incomingUrl.searchParams.get("task") === "sync_discord_role_members") {
+    return await handleDiscordRoleSync(req, res);
+  }
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   const user = session(req);
