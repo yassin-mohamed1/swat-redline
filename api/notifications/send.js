@@ -507,7 +507,7 @@ export default async function handler(req, res) {
     }
     const recipientRows = await recipientResponse.json();
     const recipients = recipientRows
-      .filter(row => /^\\d{17,20}$/.test(String(row.discord_user_id || "")))
+      .filter(row => /^\d{17,20}$/.test(String(row.discord_user_id || "")))
       .sort((a, b) => String(a.discord_user_id).localeCompare(String(b.discord_user_id)));
     const ownerIncluded = recipients.some(row => String(row.discord_user_id) === ownerDiscordId);
 
