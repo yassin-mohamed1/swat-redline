@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
+import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 
 function cookies(header = "") {
   const out = {};
@@ -27,7 +28,14 @@ export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   const user = session(req);
   if (!user) return res.status(401).json({ error: "Authentication required" });
-  if (!user.isOwner) return res.status(403).json({ error: "Owner permission required" });
+  let websiteAdmin = false;
+  try {
+    websiteAdmin = await isWebsiteAdmin(user);
+    if (websiteAdmin && !user.isOwner) await requireActivePortalStaff(user);
+  } catch (error) {
+    return res.status(error.status || 503).json({ error: error.message || "Could not verify Website Admin access." });
+  }
+  if (!user.isOwner && !websiteAdmin) return res.status(403).json({ error: "Website Admin permission required" });
   if (!requireSameOrigin(req, res)) return;
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "Method not allowed" }); }
   const base = process.env.SUPABASE_URL?.replace(/\/+$/, ""), key = process.env.SUPABASE_SERVICE_ROLE_KEY;
