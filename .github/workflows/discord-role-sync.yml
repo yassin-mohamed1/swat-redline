@@ -40,6 +40,10 @@ jobs:
           echo "::add-mask::$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
 
+      - name: Wait for the matching Vercel production deployment
+        shell: bash
+        run: sleep 25
+
       - name: Synchronize members who have the S.W.A.T. access role
         shell: bash
         env:
