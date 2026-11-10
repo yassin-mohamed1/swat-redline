@@ -1,4 +1,5 @@
--- Keep the attendance poller disabled until the Vercel route is deployed.
+-- Register the one-minute poller for the deployed Vercel attendance route.
+-- Apply this migration only after /api/attendance/sync is live in production.
 SELECT cron.schedule(
   'swat-daily-attendance-poller',
   '* * * * *',
@@ -15,7 +16,3 @@ SELECT cron.schedule(
     ) AS request_id;
   $job$
 );
-
-UPDATE cron.job
-   SET active = false
- WHERE jobname = 'swat-daily-attendance-poller';
