@@ -457,9 +457,10 @@ function getSiteNoticeChannelId() {
 
 async function readSiteNoticeBatch(config, noticeId) {
   const query = new URLSearchParams({
-    batch_key: "eq." + noticeId,
+    entity_id: "eq." + noticeId,
     entity_type: "eq.announcement",
-    select: "id,batch_key,channel_status,channel_message_id,channel_error_code,created_at",
+    select: "id,batch_key,entity_id,channel_status,channel_message_id,channel_error_code,created_at",
+    order: "created_at.desc",
     limit: "1"
   });
   const response = await supabaseRequest(config, "discord_notification_batches?" + query.toString());
@@ -496,9 +497,11 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
   const allowedIds = ids.filter(id => noticeIds.has(id));
   if (!allowedIds.length) return res.status(200).json({ ok: true, publications: {} });
   const query = new URLSearchParams({
-    batch_key: "in.(" + allowedIds.join(",") + ")",
+    entity_id: "in.(" + allowedIds.join(",") + ")",
     entity_type: "eq.announcement",
-    select: "batch_key,channel_status,channel_message_id,channel_error_code,created_at"
+    select: "entity_id,batch_key,channel_status,channel_message_id,channel_error_code,created_at",
+    order: "created_at.desc",
+    limit: "1000"
   });
   const response = await supabaseRequest(config, "discord_notification_batches?" + query.toString());
   if (!response.ok) {
@@ -509,9 +512,11 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
   const guildId = String(process.env.DISCORD_GUILD_ID || "");
   const publications = {};
   for (const row of rows) {
+    const noticeId = String(row.entity_id || "");
+    if (!noticeId || publications[noticeId]) continue;
     const messageId = String(row.channel_message_id || "");
     const channelId = getSiteNoticeChannelId();
-    publications[row.batch_key] = {
+    publications[noticeId] = {
       status: row.channel_status,
       messageId: messageId || null,
       channelId,
@@ -525,7 +530,143 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
   return res.status(200).json({ ok: true, publications });
 }
 
-async function publishSavedSiteNotice(user, noticeId) {
+async function readSavedSiteNoticeContext(config, noticeId) {
+  const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
+  const stateResponse = await supabaseRequest(config, "app_state?" + stateQuery.toString());
+  if (!stateResponse.ok) {
+    console.error("Official notice management state lookup failed:", stateResponse.status, (await stateResponse.text()).slice(0, 200));
+    throw Object.assign(new Error("تعذّر قراءة سجل التعاميم من الموقع."), { status: 502 });
+  }
+  const stateRows = await stateResponse.json();
+  const notices = Array.isArray(stateRows[0]?.data?.siteNotices) ? stateRows[0].data.siteNotices : [];
+  const notice = notices.find(item => String(item?.id || "") === noticeId);
+  if (!notice) throw Object.assign(new Error("التعميم غير موجود في سجل الموقع."), { status: 404 });
+  return { notice, batch: await readSiteNoticeBatch(config, noticeId) };
+}
+
+async function writeSiteNoticeAudit(config, user, action, noticeId, title, details) {
+  const actor = truncate(user.displayName || user.username || "S.W.A.T. Command", 100);
+  const event = {
+    actor_discord_id: user.id,
+    actor_name: actor,
+    action,
+    entity_type: "site_notice_management",
+    entity_id: noticeId,
+    details: {
+      type: action === "update" ? "تعديل تعميم رسمي" : "حذف تعميم رسمي",
+      detail: actor + (action === "update" ? " عدّل " : " حذف ") + "التعميم «" + String(title || "").slice(0, 180) + "».",
+      ...details
+    }
+  };
+  try {
+    const response = await supabaseRequest(config, "audit_logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(event)
+    });
+    if (!response.ok) console.warn("Official notice management audit insert failed:", response.status);
+  } catch (error) {
+    console.warn("Official notice management audit failed:", error?.message || "unknown");
+  }
+}
+
+async function updatePublishedSiteNotice(user, noticeId) {
+  const config = getConfig();
+  if (config.error === "bot_token_missing") throw Object.assign(new Error("Discord bot is not connected."), { status: 503 });
+  if (config.error) throw Object.assign(new Error("Notification storage is not configured."), { status: 503 });
+  const channelId = getSiteNoticeChannelId();
+  if (!/^\\d{17,20}$/.test(channelId)) throw Object.assign(new Error("روم التعميم غير مضبوطة."), { status: 503 });
+  if (!await isActiveStaffForNotifications(config, user)) throw Object.assign(new Error("حساب الإدارة غير نشط أو تعذّر التحقق منه."), { status: 403 });
+
+  const { notice, batch } = await readSavedSiteNoticeContext(config, noticeId);
+  const normalized = normalizeSiteNoticeInput(notice);
+  if (!siteNoticeBatchIsSent(batch)) return { updatedOnPortal: true, updatedOnDiscord: false, notPublished: true };
+
+  const payload = buildSiteNoticeDiscordPayload({
+    ...normalized,
+    notificationRoleId: config.notificationRoleId,
+    roleMentionDisabled: true
+  });
+  try {
+    await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages/" + encodeURIComponent(batch.channel_message_id), {
+      method: "PATCH",
+      body: JSON.stringify({ embeds: payload.embeds })
+    });
+  } catch (error) {
+    const code = String(error?.code || error?.status || "discord_edit_failed").slice(0, 80);
+    await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ channel_error_code: "edit_" + code })
+    }).catch(() => null);
+    const message = Number(error?.status) === 404
+      ? "رسالة Discord الأصلية غير موجودة. التعديل محفوظ في الموقع، لكن الرسالة لم تعد موجودة في الروم."
+      : Number(error?.status) === 403
+        ? "البوت لا يملك صلاحية تعديل رسائل التعميم في روم 🔴 SWAT • WARNING."
+        : "تم حفظ التعديل في الموقع، لكن تعذّر تحديث رسالة Discord. يمكنك الضغط على تعديل ثم الحفظ لإعادة المحاولة.";
+    throw Object.assign(new Error(message), { status: 502, code });
+  }
+
+  await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ channel_error_code: null })
+  }).catch(() => null);
+  await writeSiteNoticeAudit(config, user, "update", noticeId, normalized.title, {
+    channel_id: channelId,
+    channel_message_id: batch.channel_message_id
+  });
+  return { updatedOnPortal: true, updatedOnDiscord: true, channelId, messageId: batch.channel_message_id };
+}
+
+async function deleteSiteNoticePublication(user, noticeId) {
+  const config = getConfig();
+  if (config.error === "bot_token_missing") throw Object.assign(new Error("Discord bot is not connected."), { status: 503 });
+  if (config.error) throw Object.assign(new Error("Notification storage is not configured."), { status: 503 });
+  const channelId = getSiteNoticeChannelId();
+  if (!/^\\d{17,20}$/.test(channelId)) throw Object.assign(new Error("روم التعميم غير مضبوطة."), { status: 503 });
+  if (!await isActiveStaffForNotifications(config, user)) throw Object.assign(new Error("حساب الإدارة غير نشط أو تعذّر التحقق منه."), { status: 403 });
+
+  const { notice, batch } = await readSavedSiteNoticeContext(config, noticeId);
+  if (batch?.channel_status === "pending") {
+    throw Object.assign(new Error("لا يمكن حذف التعميم أثناء وجود عملية نشر قيد التنفيذ."), { status: 409 });
+  }
+  let discordDeleted = false;
+  if (siteNoticeBatchIsSent(batch)) {
+    try {
+      await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages/" + encodeURIComponent(batch.channel_message_id), {
+        method: "DELETE"
+      });
+      discordDeleted = true;
+    } catch (error) {
+      if (Number(error?.status) !== 404) {
+        const message = Number(error?.status) === 403
+          ? "البوت لا يملك صلاحية حذف الرسائل من روم 🔴 SWAT • WARNING."
+          : "تعذّر حذف رسالة Discord؛ لم يتم حذف سجل التعميم من الموقع.";
+        throw Object.assign(new Error(message), { status: 502, code: error?.code || error?.status || "discord_delete_failed" });
+      }
+      discordDeleted = true;
+    }
+
+    const ledgerUpdate = await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ channel_status: "deleted", channel_error_code: null })
+    });
+    if (!ledgerUpdate.ok) {
+      console.error("Deleted official notice message but failed to update delivery ledger:", ledgerUpdate.status, (await ledgerUpdate.text()).slice(0, 200));
+      throw Object.assign(new Error("تم حذف رسالة Discord، لكن تعذّر تحديث سجل النشر. حدّث الصفحة قبل المحاولة مرة أخرى."), { status: 502 });
+    }
+  }
+  await writeSiteNoticeAudit(config, user, "delete", noticeId, notice.title, {
+    channel_id: channelId,
+    channel_message_id: batch?.channel_message_id || null,
+    discord_deleted: discordDeleted
+  });
+  return { deletedFromDiscord: discordDeleted };
+}
+
+async function publishSavedSiteNotice(user, noticeId, { allowResend = false } = {}) {
   const config = getConfig();
   if (config.error === "bot_token_missing") {
     throw Object.assign(new Error("Discord bot is not connected. Add DISCORD_BOT_TOKEN to Vercel."), { status: 503 });
@@ -550,7 +691,7 @@ async function publishSavedSiteNotice(user, noticeId) {
   }
   const settings = new Map((await settingsResponse.json()).map(row => [row.key, row.value]));
   if (settings.get("notificationChannelEnabled") !== true) {
-    throw Object.assign(new Error("النشر في روم SWAT - NOTIFICATION متوقف من إعدادات الموقع. فعّل السماح بالنشر أولًا."), { status: 409 });
+    throw Object.assign(new Error("النشر في روم 🔴 SWAT • WARNING متوقف من إعدادات الموقع. فعّل السماح بالنشر أولًا."), { status: 409 });
   }
 
   const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
@@ -572,7 +713,7 @@ async function publishSavedSiteNotice(user, noticeId) {
 
   let batch = await readSiteNoticeBatch(config, noticeId);
   let batchId = null;
-  if (siteNoticeBatchIsSent(batch)) {
+  if (siteNoticeBatchIsSent(batch) && !allowResend) {
     const messageId = String(batch.channel_message_id);
     const guildId = String(process.env.DISCORD_GUILD_ID || "");
     return {
@@ -610,7 +751,7 @@ async function publishSavedSiteNotice(user, noticeId) {
       method: "POST",
       headers: { "Content-Type": "application/json", Prefer: "return=representation" },
       body: JSON.stringify({
-        batch_key: noticeId,
+        batch_key: batch?.batch_key ? crypto.randomUUID() : noticeId,
         actor_discord_id: user.id,
         entity_type: "announcement",
         entity_id: noticeId,
@@ -657,9 +798,9 @@ async function publishSavedSiteNotice(user, noticeId) {
       body: JSON.stringify({ channel_status: "failed", channel_error_code: code })
     }).catch(() => null);
     const message = Number(error?.status) === 403
-      ? "البوت لا يملك صلاحية إرسال الرسائل أو التضمينات في روم SWAT - NOTIFICATION."
+      ? "البوت لا يملك صلاحية إرسال الرسائل أو التضمينات في روم 🔴 SWAT • WARNING."
       : Number(error?.status) === 404
-        ? "لم يتم العثور على روم SWAT - NOTIFICATION أو أن البوت لا يستطيع الوصول إليها."
+        ? "لم يتم العثور على روم 🔴 SWAT • WARNING أو أن البوت لا يستطيع الوصول إليها."
         : Number(error?.status) === 429
           ? "Discord فرض حدًا مؤقتًا للإرسال. حاول مرة أخرى بعد انتهاء المهلة."
           : "تعذّر نشر التعميم في Discord. رمز الخطأ: " + code;
@@ -685,7 +826,7 @@ async function publishSavedSiteNotice(user, noticeId) {
     entity_id: noticeId,
     details: {
       type: "نشر تعميم رسمي على Discord",
-      detail: "نشر " + actor + " التعميم «" + normalized.title.slice(0, 180) + "» في روم SWAT - NOTIFICATION.",
+      detail: "نشر " + actor + " التعميم «" + normalized.title.slice(0, 180) + "» في روم 🔴 SWAT • WARNING.",
       channel_id: channelId,
       channel_message_id: messageId
     }
@@ -807,6 +948,28 @@ export default async function handler(req, res) {
   const body = typeof req.body === "string"
     ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
     : (req.body || {});
+  if (body.action === "edit_site_notice" || body.action === "delete_site_notice" || body.action === "resend_site_notice") {
+    const noticeId = typeof body.noticeId === "string" ? body.noticeId.trim() : "";
+    if (!isSiteNoticeId(noticeId)) return res.status(400).json({ error: "معرّف التعميم غير صالح." });
+    try {
+      if (body.action === "edit_site_notice") {
+        const result = await updatePublishedSiteNotice(user, noticeId);
+        return res.status(200).json({ ok: true, ...result });
+      }
+      if (body.action === "delete_site_notice") {
+        const result = await deleteSiteNoticePublication(user, noticeId);
+        return res.status(200).json({ ok: true, ...result });
+      }
+      const result = await publishSavedSiteNotice(user, noticeId, { allowResend: true });
+      return res.status(200).json({ ok: true, ...result });
+    } catch (error) {
+      return res.status(error.status || 502).json({
+        error: error.message || "تعذّر تنفيذ العملية على التعميم.",
+        code: error.code || null
+      });
+    }
+  }
+
   if (body.action === "publish_site_notice") {
     const noticeId = typeof body.noticeId === "string" ? body.noticeId.trim() : "";
     if (!isSiteNoticeId(noticeId)) {
