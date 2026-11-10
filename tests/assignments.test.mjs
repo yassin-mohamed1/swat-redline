@@ -13,7 +13,8 @@ test("assignment and personnel APIs use the same warning manager role and enforc
   assert.match(api, /req\.method==="PATCH"&&!canManagePortal/);
   assert.match(api, /searchParams\.get\("activity"\)==="1"&&!canManagePortal/);
   assert.match(warnings, /DISCORD_WARNING_MANAGER_ROLE_ID/);
-  assert.match(warnings, /member\.roles\.includes\(cfg\.managerRoleId\)/);
+  // Warnings now delegate manager authorization to the shared Website Admin verifier.
+  assert.match(warnings, /user\.isOwner \|\| await isWebsiteAdmin\(user\)/);
   assert.match(html, /currentCanManageAssignments=currentCanManageWarnings/);
   assert.match(html, /currentCanAdmin\|\|currentCanManageAssignments/);
 });
@@ -180,7 +181,9 @@ test("Website Admin role stays visible but cannot be assigned through the appoin
 
   assert.match(api, /function assignmentRankList\(roles, botPosition, guildId, canManageRoles, protectedRoleIds = \[\]\)/);
   assert.match(api, /protectedIds\.has\(String\(role\.id\)\) \? "protected"/);
-  assert.equal((api.match(/assignmentRankList\(guild\.roles,Number\(guild\.botTop\.position\),guildId,guild\.canManageRoles,\[process\.env\.DISCORD_WEBSITE_ADMIN_ROLE_ID\]\)/g) || []).length, 2);
+  assert.match(api, /const protectedRoleIds=allowWebsiteAdminRole\?\[\]:\[process\.env\.DISCORD_WEBSITE_ADMIN_ROLE_ID\]/);
+  assert.match(api, /const protectedRoleIds=user\?\.isOwner\?\[\]:\[process\.env\.DISCORD_WEBSITE_ADMIN_ROLE_ID\]/);
+  assert.match(api, /allowWebsiteAdminRole\?\[\]:\[process\.env\.DISCORD_WEBSITE_ADMIN_ROLE_ID\]/);
   assert.match(api, /targetRoles\.some\(role=>!role\|\|!role\.assignable\)/);
   assert.match(html, /role\.unavailable_reason==='protected'/);
   assert.match(html, /رتبة WEBSITE ADMIN محمية ولا يمكن منحها من داخل الموقع/);
