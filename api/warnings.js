@@ -452,63 +452,144 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmResult?"sent":"skipped",channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0};
 }
 async function processAutomaticAttendanceDiscipline(cfg) {
-  const dashboard=await listAttendanceDashboard(cfg);
-  const candidates=dashboard.members.filter(member=>member.is_swat_member&&Number(member.days_since_last)>=7&&member.discord_user_id!==process.env.DISCORD_OWNER_ID)
-    .sort((a,b)=>Number(b.days_since_last)-Number(a.days_since_last)).slice(0,8);
-  if(!candidates.length)return {ok:true,scanned:dashboard.total_members,due:0,processed:0,warnings:0,dismissed:0,failed:0};
-  const botUser=await discord(cfg,"/users/@me");
-  const actor={id:botUser.id,displayName:"S.W.A.T. REDLINE • Attendance Automation"};
-  let processed=0,warnings=0,dismissed=0,failed=0;
-  const results=[];
-  for(const candidate of candidates){
-    for(let stage=1;stage<=3&&processed<8;stage++){
-      const [latestStamp]=await Promise.all([latestAttendanceForMember(cfg,candidate.discord_user_id)]);
-      const absence=elapsedAbsenceDays(latestStamp,candidate.registered_at,dashboard.attendance_started_at,new Date());
-      if(absence.days<stage*7)break;
-      const eventKey="attendance:"+candidate.discord_user_id+":"+stage+":"+absence.startedAt;
-      const claim=await rpc(cfg,"claim_swat_attendance_discipline",{p_event_key:eventKey,p_discord_user_id:candidate.discord_user_id,p_stage:stage});
-      if(!claim.claimed){
-        if(claim.status==="completed")continue;
-        break;
+  const dashboard = await listAttendanceDashboard(cfg);
+  const candidates = dashboard.members
+    .filter(member => member.is_swat_member && member.discord_user_id !== process.env.DISCORD_OWNER_ID)
+    .map(member => {
+      const dismissed = member.warning_status === "dismissed";
+      const currentLevel = dismissed ? 0 : Number(member.warning_level || 0);
+      return { ...member, next_stage: currentLevel + 1 };
+    })
+    .filter(member => member.next_stage >= 1 && member.next_stage <= 3 &&
+      Number(member.days_since_last) >= member.next_stage * 7)
+    .sort((a, b) => Number(b.days_since_last) - Number(a.days_since_last));
+
+  if (!candidates.length) {
+    return { ok: true, scanned: dashboard.total_members, due: 0, processed: 0, warnings: 0, dismissed: 0, failed: 0 };
+  }
+
+  const botUser = await discord(cfg, "/users/@me");
+  const actor = { id: botUser.id, displayName: "S.W.A.T. REDLINE • Attendance Automation" };
+  let processed = 0, warnings = 0, dismissed = 0, failed = 0;
+  const results = [];
+
+  // Limit the amount of Discord work per minute, but keep scanning the full due queue.
+  for (const candidate of candidates) {
+    if (processed >= 3) break;
+    const stage = candidate.next_stage;
+    const latestStamp = await latestAttendanceForMember(cfg, candidate.discord_user_id);
+    const absence = elapsedAbsenceDays(
+      latestStamp,
+      candidate.registered_at,
+      dashboard.attendance_started_at,
+      new Date()
+    );
+    if (absence.days < stage * 7) continue;
+
+    const eventKey = "attendance:" + candidate.discord_user_id + ":" + stage + ":" + absence.startedAt;
+    const claim = await rpc(cfg, "claim_swat_attendance_discipline", {
+      p_event_key: eventKey,
+      p_discord_user_id: candidate.discord_user_id,
+      p_stage: stage
+    });
+    if (!claim.claimed) continue;
+
+    try {
+      const latestMember = await getGuildMemberOrNull(cfg, candidate.discord_user_id);
+      if (!latestMember || !Array.isArray(latestMember.roles) ||
+          !latestMember.roles.includes(cfg.swatRoleId)) {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: true, p_error_code: null
+        });
+        continue;
       }
-      try{
-        const currentMember=await getGuildMemberOrNull(cfg,candidate.discord_user_id);
-        if(!currentMember||!Array.isArray(currentMember.roles)||!currentMember.roles.includes(cfg.swatRoleId)){
-          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});break;
-        }
-        const freshSubject=await currentDisciplinaryState(cfg,candidate.discord_user_id);
-        const currentLevel=freshSubject.status==="dismissed"?0:Number(freshSubject.warning_level||0);
-        if(stage<=2&&currentLevel>=stage){
-          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});continue;
-        }
-        if((stage<=2&&currentLevel!==stage-1)||(stage===3&&currentLevel<2))throw new Error("attendance_disciplinary_sequence_mismatch");
-        const finalStamp=await latestAttendanceForMember(cfg,candidate.discord_user_id);
-        const finalAbsence=elapsedAbsenceDays(finalStamp,candidate.registered_at,dashboard.attendance_started_at,new Date());
-        if(finalAbsence.days<stage*7||finalAbsence.startedAt!==absence.startedAt){
-          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});break;
-        }
-        const action=await applyAutomaticAttendanceAction(cfg,actor,candidate.discord_user_id,stage,finalAbsence.days,finalAbsence.startedAt);
-        if(action.skipped){
-          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});break;
-        }
-        await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});
-        processed++;if(stage===3)dismissed++;else warnings++;
-        results.push({discord_user_id:candidate.discord_user_id,stage,action_type:action.action_type,action_id:action.action_id,dm_status:action.dm_status});
-        // Run at most one new disciplinary step per member per cron pass.
-        break;
-      }catch(error){
-        failed++;
-        const code=String(error.code||error.detail||error.message||"attendance_disciplinary_failed").slice(0,120);
-        try{await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:false,p_error_code:code});}
-        catch(claimError){console.error("Attendance discipline claim release failed:",claimError?.detail||claimError?.message||"unknown");}
-        results.push({discord_user_id:candidate.discord_user_id,stage,status:"retry_scheduled",error:code});
-        break;
+
+      const freshSubject = await currentDisciplinaryState(cfg, candidate.discord_user_id);
+      // A completed dismissal is terminal until the member is deliberately re-added to SWAT;
+      // if the role was re-added, the existing database workflow permits a new Warning 1 cycle.
+      if (stage === 3 && freshSubject.status === "dismissed") {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: true, p_error_code: null
+        });
+        continue;
       }
+      const freshLevel = freshSubject.status === "dismissed"
+        ? 0
+        : Number(freshSubject.warning_level || 0);
+      const freshStage = freshLevel + 1;
+      if (freshStage !== stage) {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: true, p_error_code: null
+        });
+        continue;
+      }
+
+      // Re-check the stamp immediately before any role or disciplinary change.
+      const finalStamp = await latestAttendanceForMember(cfg, candidate.discord_user_id);
+      const finalAbsence = elapsedAbsenceDays(
+        finalStamp,
+        candidate.registered_at,
+        dashboard.attendance_started_at,
+        new Date()
+      );
+      if (finalAbsence.days < stage * 7 || finalAbsence.startedAt !== absence.startedAt) {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: true, p_error_code: null
+        });
+        continue;
+      }
+
+      const action = await applyAutomaticAttendanceAction(
+        cfg, actor, candidate.discord_user_id, stage, finalAbsence.days, finalAbsence.startedAt
+      );
+      if (action.skipped) {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: true, p_error_code: null
+        });
+        continue;
+      }
+      await rpc(cfg, "complete_swat_attendance_discipline", {
+        p_event_key: eventKey, p_success: true, p_error_code: null
+      });
+      processed++;
+      if (stage === 3) dismissed++;
+      else warnings++;
+      results.push({
+        discord_user_id: candidate.discord_user_id,
+        stage,
+        action_type: action.action_type,
+        action_id: action.action_id,
+        dm_status: action.dm_status
+      });
+    } catch (error) {
+      failed++;
+      const code = String(error.code || error.detail || error.message || "attendance_disciplinary_failed").slice(0, 120);
+      try {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: false, p_error_code: code
+        });
+      } catch (claimError) {
+        console.error("Attendance discipline claim release failed:", claimError?.detail || claimError?.message || "unknown");
+      }
+      results.push({
+        discord_user_id: candidate.discord_user_id,
+        stage,
+        status: "retry_scheduled",
+        error: code
+      });
     }
   }
-  return {ok:failed===0,scanned:dashboard.total_members,due:candidates.length,processed,warnings,dismissed,failed,results};
+  return {
+    ok: failed === 0,
+    scanned: dashboard.total_members,
+    due: candidates.length,
+    processed,
+    warnings,
+    dismissed,
+    failed,
+    results
+  };
 }
-
 async function processExpiredWarningRoles(cfg) {
   const due = await rpc(cfg, "claim_expired_warning_roles", { p_limit: 25 });
   if (!Array.isArray(due) || due.length === 0) {
