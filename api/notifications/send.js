@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { handleAnnouncementForwarder } from "../../lib/announcement-forwarder.js";
+import { handleAttendancePoller } from "../../lib/attendance-poller.js";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { discordApiRequest } from "../../lib/discord-rest.js";
@@ -888,6 +889,10 @@ export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
 
   if (req.method === "GET" && req.headers["x-announcement-sync-secret"] !== undefined) {
+    const schedulerUrl = new URL(req.url, "https://swat-redline.vercel.app");
+    if (schedulerUrl.searchParams.get("task") === "attendance") {
+      return handleAttendancePoller(req, res);
+    }
     return handleAnnouncementForwarder(req, res);
   }
 
