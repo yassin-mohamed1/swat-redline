@@ -2364,7 +2364,7 @@ async function renderAttendance(){
   const response=await fetch('/api/warnings?attendance=1',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل بيانات الحضور.');
-  attendanceData={members:Array.isArray(data.members)?data.members:[],generated_at:data.generated_at||null};
+  attendanceData={members:Array.isArray(data.members)?data.members:[],generated_at:data.generated_at||null,attendance_started_at:data.attendance_started_at||null};
   const rows=attendanceData.members;
   const today=rows.filter(member=>member.today_present).length;
   const missing=rows.length-today;
@@ -2375,7 +2375,7 @@ async function renderAttendance(){
   set('attendanceMissingCount',missing);
   set('attendanceWeekAbsentCount',absentWeek);
   const updated=document.getElementById('attendanceUpdatedAt');
-  if(updated)updated.textContent='آخر تحديث: '+fmtWarningDate(data.generated_at)+' • توقيت الرياض';
+  if(updated)updated.textContent='آخر تحديث: '+fmtWarningDate(data.generated_at)+' • بداية النظام: '+fmtWarningDate(data.attendance_started_at);
   renderAttendanceRows();
  }catch(error){
   if(body)body.innerHTML='<tr><td colspan="8">'+adminEscape(error.message||'تعذّر تحميل بيانات الحضور.')+'</td></tr>';
