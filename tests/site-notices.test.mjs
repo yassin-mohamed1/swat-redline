@@ -130,8 +130,8 @@ test("portal notice editor has exactly title and description fields and a separa
   assert.match(html, /id="siteNoticeTitle" maxlength="256" required/);
   assert.match(html, /id="siteNoticeDescription" rows="7" maxlength="4000" required/);
   assert.match(html, /async function saveSiteNotice\(event\)/);
-  assert.match(html, /async function publishSiteNotice\(id,button\)/);
-  assert.match(html, /body:JSON\.stringify\(\{action:'publish_site_notice',noticeId:String\(id\)\}\)/);
+  assert.match(html, /async function publishSiteNotice\(id,button,resend=false\)/);
+  assert.match(html, /const action=resend\?/);
   assert.match(html, /لن تُرسل رسائل خاصة للأعضاء/);
   assert.match(html, /التحذيرات تستمر في روم التحذيرات المنفصلة/);
   assert.match(html, /data:\{people,cases,investigations,tasks,operations,reports,announcements,siteNotices,/);
@@ -148,7 +148,7 @@ test("official notices appear in Warnings only and follow Warnings page access",
   assert.doesNotMatch(html.slice(announcementsStart, personnelStart), /siteNoticesPanel/);
   assert.match(html, /if\(page==='warnings'&&currentCanManageWarnings\)\{renderWarnings\(\);renderSiteNotices\(\);\}/);
   assert.match(html, /function openSiteNoticeModal\(\)\{\s*if\(!currentCanManageWarnings\)/);
-  assert.match(html, /function publishSiteNotice\(id,button\)\{\s*if\(!currentCanManageWarnings\)/);
+  assert.match(html, /function publishSiteNotice\(id,button,resend=false\)\{\s*if\(!currentCanManageWarnings\)/);
 });
 
 
