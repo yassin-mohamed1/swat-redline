@@ -371,6 +371,12 @@ test("automatic attendance discipline reuses the existing warning ladder at 7, 1
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.attendance_discipline_claims/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.claim_swat_attendance_discipline/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.complete_swat_attendance_discipline/);
+  const guardMigration = await readFile(new URL("../supabase/migrations/20261110180500_guard_attendance_discipline_until_production.sql", import.meta.url), "utf8");
+  assert.match(guardMigration, /enabled boolean NOT NULL DEFAULT false/);
+  assert.match(guardMigration, /'status','disabled'/);
+  assert.match(api, /next_allowed_at_ms/);
+  assert.match(api, /Date\.now\(\) >= member\.next_allowed_at_ms/);
+  assert.match(api, /Date\.now\(\) - lastActionMs < 7 \* 86400000/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.claim_swat_attendance_discipline/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.claim_swat_attendance_discipline[\s\S]*TO service_role/);
 });
