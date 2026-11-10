@@ -136,13 +136,13 @@ The checks cover:
 Static checks and Vercel deployment status do not replace live browser/Discord testing. Notification batches are bounded to a single serverless request; a larger recipient group needs a durable queue/worker before increasing the limit.
 
 
-## SWAT Attendance Bot (Railway Worker)
+## SWAT Daily Attendance
 
-- The always-on worker lives in `attendance-bot/` and uses Discord Gateway `GuildMessages`, `MessageContent`, and `GuildMembers` intents.
-- It listens only to the configured attendance channel (default: `1569735227146768434`) in the configured guild.
-- Only non-bot members holding `DISCORD_ROLE_ID` are eligible to register attendance.
-- The first message per member per Riyadh calendar day is stored in `attendance_records`; further messages on that same day are acknowledged as already registered.
-- Attendance is recorded through the server-only `record_swat_daily_attendance` RPC. The browser cannot access the table directly.
-- This release only collects daily attendance and acknowledges it. It does not issue disciplinary warnings, dismiss members, or remove roles.
-- Railway service root directory: `/attendance-bot`; runtime: Node.js 22+; build command: `npm install --omit=dev`; start command: `npm start`.
-- Railway environment variables: `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_ROLE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ATTENDANCE_CHANNEL_ID=1569735227146768434`.
+- The attendance sync runs as a Vercel API route called by a Supabase `pg_cron` job every minute. No always-on Railway worker is required.
+- The route is authenticated with the existing `ANNOUNCEMENT_SYNC_SECRET` and uses the existing Discord bot and Supabase service-role environment variables in Vercel.
+- It polls only attendance channel `1569735227146768434`, reads message author and timestamp metadata, and does not need message text.
+- Only non-bot members in the configured guild who hold `DISCORD_ROLE_ID` and have an active, non-banned `staff_profiles` record can be recorded.
+- The first message per member per Riyadh calendar day is stored in `attendance_records`; additional messages receive an already-recorded confirmation. The unique `(discord_user_id, attendance_date)` constraint makes this idempotent.
+- The scheduler uses a database lease and cursor so overlapping runs do not double-process messages. On its first run it records the latest existing message as a baseline; only later messages are treated as new attendance.
+- Attendance warnings, dismissals, role changes, and automatic removals are intentionally not part of this phase.
+- Apply `20261110165500_schedule_swat_attendance_poller.sql` only after `/api/attendance/sync` is deployed to production.
