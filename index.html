@@ -1366,10 +1366,10 @@ html[dir="ltr"] .field label{text-align:left}
   <div class="panelhead"><div><h3>سجل الإجراءات والرسائل الأصلية</h3><span class="sub">تعديل السبب أو التفاصيل يحدّث رسالة Discord الأصلية</span></div><span class="tag gray">آخر 500 إجراء</span></div>
   <div class="panelbody">
    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-    <select id="warningHistoryFilter" class="warning-input" style="max-width:220px" onchange="renderWarningHistory()"><option value="all">كل الإجراءات</option><option value="warning">الإنذارات فقط</option><option value="dismissal">الفصل فقط</option><option value="expired">الإنذارات المنتهية</option></select>
+    <select id="warningHistoryFilter" class="warning-input" style="max-width:220px" onchange="renderWarningHistory()"><option value="all">كل الإجراءات</option><option value="warning">الإنذارات فقط</option><option value="dismissal">الفصل فقط</option><option value="expired">الإنذارات المنتهية</option><option value="voided">الإجراءات الملغاة</option></select>
     <input id="warningHistorySearch" class="warning-input" style="flex:1;min-width:220px" placeholder="ابحث في سجل الإجراءات..." oninput="renderWarningHistory()">
    </div>
-   <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>العضو</th><th>الإجراء</th><th>السبب</th><th>صدر بواسطة</th><th>الخاص</th><th>القناة</th><th>الانتهاء</th><th>تعديل</th></tr></thead><tbody id="warningHistoryRows"><tr><td colspan="9">جارٍ تحميل سجل الإجراءات...</td></tr></tbody></table></div>
+   <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>العضو</th><th>الإجراء</th><th>السبب</th><th>صدر بواسطة</th><th>الخاص</th><th>القناة</th><th>الانتهاء</th><th>إدارة الإجراء</th></tr></thead><tbody id="warningHistoryRows"><tr><td colspan="9">جارٍ تحميل سجل الإجراءات...</td></tr></tbody></table></div>
   </div>
  </div>
 </div>
@@ -1378,6 +1378,7 @@ html[dir="ltr"] .field label{text-align:left}
  <div class="warning-modal-card">
   <div class="warning-modal-head"><div><h3 style="margin:0" id="warningManageTitle">إدارة حالة العضو</h3><div class="muted" id="warningManageMember"></div></div><button class="btn" type="button" onclick="closeWarningModal('warningManageModal')">إغلاق</button></div>
   <div class="warning-modal-body">
+   <div><label for="warningManageName">اسم العضو المعروض</label><input id="warningManageName" class="warning-input" maxlength="100" style="width:100%;margin-top:6px" placeholder="اسم العضو كما يظهر في الموقع"></div>
    <div><label for="warningManageLevel">الحالة الجديدة</label><select id="warningManageLevel" class="warning-input" style="width:100%;margin-top:6px" onchange="refreshWarningManageModal()"><option value="0">إزالة الإنذار الحالي / بدون إنذار</option><option value="1">الإنذار الأول</option><option value="2">الإنذار الثاني</option><option value="3">فصل العضو</option></select></div>
    <div id="warningManageHint" class="muted" style="line-height:1.8"></div>
    <div><label for="warningManageReason">سبب التعديل <span style="color:var(--red)">*</span></label><textarea id="warningManageReason" class="warning-input" rows="3" maxlength="1000" placeholder="اكتب سبب إزالة الإنذار أو تعديل الحالة..." style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
@@ -1391,11 +1392,13 @@ html[dir="ltr"] .field label{text-align:left}
  <div class="warning-modal-card">
   <div class="warning-modal-head"><div><h3 style="margin:0">تعديل الرسالة التأديبية</h3><div class="muted" id="warningEditMember"></div></div><button class="btn" type="button" onclick="closeWarningModal('warningEditModal')">إغلاق</button></div>
   <div class="warning-modal-body">
+   <div><label for="warningEditName">اسم العضو</label><input id="warningEditName" class="warning-input" maxlength="100" style="width:100%;margin-top:6px" placeholder="اسم العضو المعروض في سجل التحذيرات"></div>
+   <div><label for="warningEditLevel">مستوى الإنذار</label><select id="warningEditLevel" class="warning-input" style="width:100%;margin-top:6px"><option value="1">الإنذار الأول</option><option value="2">الإنذار الثاني</option></select></div>
    <div><label for="warningEditReason">سبب الإجراء</label><textarea id="warningEditReason" class="warning-input" rows="3" maxlength="1000" style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
    <div><label for="warningEditDetails">تفاصيل إضافية</label><textarea id="warningEditDetails" class="warning-input" rows="3" maxlength="3000" style="width:100%;margin-top:6px;resize:vertical"></textarea></div>
-   <div class="muted" style="line-height:1.8">سيتم تحديث الرسالة الأصلية في قناة التحذيرات والرسالة الخاصة للعضو. وسيظل التعديل مسجلًا في سجل النشاط.</div>
+   <div class="muted" style="line-height:1.8">سيتم تحديث السجل والحالة الحالية إذا كان هذا الإجراء هو الأحدث. سيتم تحديث رسائل Discord الموجودة فقط؛ حذف رسالة قديمة يدويًا لن يمنع حفظ تعديل السجل.</div>
    <div id="warningEditStatus" class="muted" aria-live="polite"></div>
-   <div class="warning-modal-actions"><button class="btn primary" id="warningEditSave" type="button" onclick="submitWarningEdit()">حفظ وتحديث رسائل Discord</button><button class="btn" type="button" onclick="closeWarningModal('warningEditModal')">إلغاء</button></div>
+   <div class="warning-modal-actions"><button class="btn primary" id="warningEditSave" type="button" onclick="submitWarningEdit()">حفظ تعديل السجل</button><button class="btn" type="button" onclick="closeWarningModal('warningEditModal')">إلغاء</button></div>
   </div>
  </div>
 </div>
@@ -2308,12 +2311,22 @@ function renderWarningHistory(){
   if(filter==='warning'&&a.action_type!=='warning')return false;
   if(filter==='dismissal'&&a.action_type!=='dismissal')return false;
   if(filter==='expired'&&!a.expired_at)return false;
-  return (String(a.target_name||'')+' '+String(a.discord_user_id||'')+' '+String(a.reason||'')+' '+String(a.actor_name||'')).toLowerCase().includes(query);
+  if(filter==='voided'&&a.status!=='voided')return false;
+  return (String(a.target_name||'')+' '+String(a.discord_user_id||'')+' '+String(a.reason||'')+' '+String(a.actor_name||'')+' '+String(a.void_reason||'')).toLowerCase().includes(query);
  }).slice(0,500);
  body.innerHTML=actions.map(a=>{
-  const editable=a.status==='completed'&&a.dm_channel_id&&a.dm_message_id&&a.channel_message_id;
-  const typeClass=a.action_type==='dismissal'?'red':'gray';
-  return '<tr><td>'+adminEscape(fmtWarningDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+typeClass+'">'+adminEscape(warningActionLabel(a.action_type,a.warning_level))+'</span></td><td>'+adminEscape(a.reason)+'</td><td>'+adminEscape(a.actor_name)+'</td><td><span class="tag '+(a.dm_status==='sent'?'green':a.dm_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.dm_status))+'</span></td><td><span class="tag '+(a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(warningDeliveryLabel(a.channel_status))+'</span></td><td>'+adminEscape(a.expired_at?'منتهي':a.warning_expires_at?fmtWarningDate(a.warning_expires_at):'—')+'</td><td><button class="btn" type="button" '+(editable?'':'disabled title="لا تتوفر معرّفات الرسائل المكتملة"')+' onclick="openWarningEdit(\''+adminEscape(a.id)+'\')">تعديل الرسالة</button></td></tr>';
+  const manageable=a.status==='completed'&&a.action_type==='warning';
+  const typeClass=a.status==='voided'?'gray':a.action_type==='dismissal'?'red':'gray';
+  const actionLabel=a.status==='voided'?'ملغي • '+warningActionLabel(a.action_type,a.warning_level):warningActionLabel(a.action_type,a.warning_level);
+  const reasonCell=adminEscape(a.reason)+(a.status==='voided'?'<div class="muted" style="color:var(--amber);margin-top:4px">سبب الإلغاء: '+adminEscape(a.void_reason||'غير محدد')+'</div>':'');
+  const actorName=a.status==='voided'&&a.voided_by_name
+   ?adminEscape(a.actor_name)+'<div class="muted" style="margin-top:3px">أُلغي بواسطة: '+adminEscape(a.voided_by_name)+'</div>'
+   :adminEscape(a.actor_name);
+  const editButton=manageable?'<button class="btn" type="button" onclick="openWarningEdit(\''+adminEscape(a.id)+'\')">تعديل</button>':'';
+  const voidButton=manageable?'<button class="btn danger" type="button" onclick="voidWarningAction(\''+adminEscape(a.id)+'\')">إلغاء الإجراء</button>':'';
+  const deliveryStatus=a.status==='voided'?'ملغي':warningDeliveryLabel(a.dm_status);
+  const channelStatus=a.status==='voided'?'ملغي':warningDeliveryLabel(a.channel_status);
+  return '<tr><td>'+adminEscape(fmtWarningDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+typeClass+'">'+adminEscape(actionLabel)+'</span></td><td>'+reasonCell+'</td><td>'+actorName+'</td><td><span class="tag '+(a.status==='voided'?'gray':a.dm_status==='sent'?'green':a.dm_status==='failed'?'red':'gray')+'">'+adminEscape(deliveryStatus)+'</span></td><td><span class="tag '+(a.status==='voided'?'gray':a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(channelStatus)+'</span></td><td>'+adminEscape(a.expired_at?'منتهي':a.warning_expires_at?fmtWarningDate(a.warning_expires_at):'—')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+editButton+voidButton+'</div></td></tr>';
  }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد إجراءات مطابقة لهذا البحث.</div></td></tr>';
 }
 function openWarningManage(id){
@@ -2325,6 +2338,7 @@ function openWarningManage(id){
  if(member)member.textContent=(subject.display_name||'عضو ديسكورد')+' • '+id+' • الحالة الحالية: '+(subject.status==='dismissed'?'مفصول':warningLevelLabel(subject.warning_level||0));
  const level=document.getElementById('warningManageLevel');
  if(level)level.value=subject.status==='dismissed'?'0':String(Number(subject.warning_level||0));
+ const name=document.getElementById('warningManageName');if(name)name.value=subject.display_name||'';
  const reason=document.getElementById('warningManageReason');if(reason)reason.value='';
  const status=document.getElementById('warningManageStatus');if(status)status.textContent='';
  const modal=document.getElementById('warningManageModal');if(modal)modal.hidden=false;
@@ -2377,7 +2391,7 @@ async function submitWarningAdjustment(){
  if(save)save.disabled=true;
  if(status)status.textContent='جارٍ مزامنة رتب Discord وحفظ سجل التعديل...';
  try{
-  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'adjust_state',discord_user_id:warningManageTargetId,warning_level:desired,reason})});
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'adjust_state',discord_user_id:warningManageTargetId,display_name:String(document.getElementById('warningManageName')?.value||'').trim(),warning_level:desired,reason})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تعديل الحالة التأديبية.');
   if(status)status.textContent='تم تحديث الحالة التأديبية ومزامنة رتب Discord.';
@@ -2395,9 +2409,11 @@ async function submitWarningAdjustment(){
 function openWarningEdit(actionId){
  const action=warningData.actions.find(item=>String(item.id)===String(actionId));
  if(!action)return;
- if(action.status!=='completed'||!action.dm_channel_id||!action.dm_message_id||!action.channel_message_id){toast('لا تتوفر كل معرّفات الرسائل لتعديل هذا السجل.');return;}
+ if(action.status!=='completed'||action.action_type!=='warning'){toast('يمكن تعديل سجلات الإنذار المكتملة فقط.');return;}
  warningEditingActionId=String(actionId);
  const member=document.getElementById('warningEditMember');if(member)member.textContent=(action.target_name||'عضو ديسكورد')+' • '+warningActionLabel(action.action_type,action.warning_level);
+ const name=document.getElementById('warningEditName');if(name)name.value=action.target_name||'';
+ const level=document.getElementById('warningEditLevel');if(level)level.value=String(Number(action.warning_level||1));
  const reason=document.getElementById('warningEditReason');if(reason)reason.value=action.reason||'';
  const details=document.getElementById('warningEditDetails');if(details)details.value=action.details||'';
  const status=document.getElementById('warningEditStatus');if(status)status.textContent='';
@@ -2405,27 +2421,54 @@ function openWarningEdit(actionId){
 }
 async function submitWarningEdit(){
  if(!currentCanManageWarnings||!warningEditingActionId)return;
+ const targetName=String(document.getElementById('warningEditName')?.value||'').trim();
+ const level=Number(document.getElementById('warningEditLevel')?.value||0);
  const reason=String(document.getElementById('warningEditReason')?.value||'').trim();
  const details=String(document.getElementById('warningEditDetails')?.value||'').trim();
  const status=document.getElementById('warningEditStatus');
  const save=document.getElementById('warningEditSave');
+ if(!targetName||targetName.length>100){toast('اسم العضو مطلوب وبحد أقصى 100 حرف.');return;}
+ if(![1,2].includes(level)){toast('اختر الإنذار الأول أو الثاني.');return;}
  if(!reason){toast('سبب الإجراء مطلوب.');return;}
- if(!confirm('سيتم تعديل الرسالة الأصلية في Discord والاحتفاظ بالتغيير في سجل الموقع. هل تريد المتابعة؟'))return;
+ if(!confirm('سيتم حفظ اسم العضو ومستوى الإنذار والسبب والتفاصيل. إذا كانت الرسالة الأصلية موجودة في Discord سيتم تحديثها أيضًا. هل تريد المتابعة؟'))return;
  if(save)save.disabled=true;
- if(status)status.textContent='جارٍ تحديث رسالة القناة والرسالة الخاصة...';
+ if(status)status.textContent='جارٍ حفظ سجل التحذير ومزامنة Discord...';
  try{
-  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit_action',action_id:warningEditingActionId,reason,details})});
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit_action',action_id:warningEditingActionId,target_name:targetName,warning_level:level,reason,details})});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تعديل الرسالة التأديبية.');
-  if(status)status.textContent='تم تعديل الرسالة التأديبية الأصلية في Discord.';
-  toast('تم تعديل الرسالة الأصلية وتسجيل العملية في سجل النشاط.');
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تعديل سجل التحذير.');
+  const failures=Array.isArray(data.discord_message_failures)?data.discord_message_failures:[];
+  if(status)status.textContent=failures.length
+   ?'تم حفظ السجل، لكن بعض رسائل Discord لم تتحدث ('+failures.map(item=>item.message+': '+item.code).join('، ')+').'
+   :data.discord_messages_updated?'تم حفظ السجل وتحديث رسائل Discord الموجودة.':'تم حفظ السجل؛ لا توجد رسالة Discord سابقة لتحديثها.';
+  toast(failures.length?'تم حفظ السجل. راجع حالة مزامنة رسائل Discord.':'تم حفظ تعديل الاسم ومستوى الإنذار والسبب.');
   closeWarningModal('warningEditModal');
   await renderWarnings();
   if(typeof loadAuditLog==='function')loadAuditLog();
  }catch(error){
-  if(status)status.textContent=error.message||'تعذّر تعديل الرسالة التأديبية.';
-  toast(error.message||'تعذّر تعديل الرسالة التأديبية.');
+  if(status)status.textContent=error.message||'تعذّر تعديل سجل التحذير.';
+  toast(error.message||'تعذّر تعديل سجل التحذير.');
  }finally{if(save)save.disabled=false;}
+}
+
+async function voidWarningAction(actionId){
+ if(!currentCanManageWarnings)return;
+ const action=warningData.actions.find(item=>String(item.id)===String(actionId));
+ if(!action||action.status!=='completed'||action.action_type!=='warning'){toast('الإلغاء متاح لسجلات الإنذار المكتملة فقط.');return;}
+ const reason=window.prompt('اكتب سبب إلغاء '+warningActionLabel(action.action_type,action.warning_level)+' للعضو '+(action.target_name||action.discord_user_id)+':','إلغاء إداري بعد مراجعة الحالة.');
+ if(reason===null)return;
+ if(!String(reason).trim()){toast('سبب الإلغاء مطلوب.');return;}
+ if(!confirm('سيتم وضع الإجراء كـ «ملغي» مع الاحتفاظ بسجله واسم من أصدره وسبب الإلغاء. إذا كان هذا آخر إنذار فعال، سيتم تحديث حالة العضو وإزالة رتبته من Discord. هل تريد المتابعة؟'))return;
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'void_action',action_id:String(actionId),reason:String(reason).trim()})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر إلغاء الإجراء.');
+  await renderWarnings();
+  if(typeof loadAuditLog==='function')loadAuditLog();
+  if(!data.roles_synced)toast('تم إلغاء السجل وتحديث حالة الموقع، لكن تعذّرت مزامنة رتبة Discord. راجع العضو من إدارة الحالات.');
+  else if(data.message_delete_failures?.length)toast('تم إلغاء السجل. تعذّر حذف بعض الرسائل القديمة من Discord؛ يمكنك حذفها يدويًا.');
+  else toast('تم إلغاء الإجراء وتحديث حالة العضو مع الاحتفاظ بسجل التدقيق.');
+ }catch(error){toast(error.message||'تعذّر إلغاء الإجراء.');}
 }
 
 async function submitWarningAction(action){
