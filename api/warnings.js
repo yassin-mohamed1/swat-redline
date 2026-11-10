@@ -268,8 +268,9 @@ async function listAttendanceDashboard(cfg) {
     const first = daily[daily.length - 1]?.[1] || null;
     const lastDate = daily[0]?.[0] || null;
     const registeredAt = profile.created_at || now.toISOString();
-    const baselineAt = last?.first_seen_at || registeredAt;
-    const daysSinceLast = Math.max(0, Math.floor((now.getTime() - new Date(baselineAt).getTime()) / 86400000));
+    const baselineDate = lastDate || riyadhDateKey(registeredAt);
+    const baselineOrdinal = dateOrdinal(baselineDate);
+    const daysSinceLast = baselineOrdinal === null ? 0 : Math.max(0, todayOrdinal - baselineOrdinal);
     const weekCount = daily.filter(([date]) => {
       const ordinal = dateOrdinal(date);
       return ordinal !== null && ordinal >= weekStartOrdinal && ordinal <= todayOrdinal;
