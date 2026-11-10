@@ -23,18 +23,17 @@ function sectionText(messages, label) {
     .join("");
 }
 
-test("S.W.A.T. rules Discord messages preserve title, description and body exactly", () => {
+test("S.W.A.T. rules Discord messages use only law name and law text", () => {
   const rule = {
     id: "LAW-000123",
     type: "law",
-    title: "  قانون استخدام القوة 🚨\nعنوان كامل  ",
-    description: "الوصف الأول\nالسطر الثاني مع رموز 🛡️",
+    title: "قانون استخدام القوة 🚨\nعنوان كامل",
     body: "النص الكامل للقانون\n1- أول بند\n2- ثاني بند\n\nلا يتم حذف المسافات الأخيرة.  "
   };
   const messages = buildRuleDiscordMessages(rule, "Yassin_Ninja", new Date("2026-11-09T19:00:00.000Z"));
-  assert.equal(sectionText(messages, "عنوان القانون"), rule.title);
-  assert.equal(sectionText(messages, "وصف القانون"), rule.description);
-  assert.equal(sectionText(messages, "نص القانون"), rule.body);
+  assert.equal(sectionText(messages, "اسم القانون"), rule.title);
+  assert.equal(sectionText(messages, "القانون"), rule.body);
+  assert.ok(!messages.flatMap(message => message.embeds).some(embed => /وصف القانون|عنوان القانون|نص القانون/.test(embed.title || "")));
 });
 
 test("long laws are split without cutting Unicode surrogate pairs or exceeding Discord embed limits", () => {
@@ -97,11 +96,12 @@ test("rules publishing shares the existing notification function and stays withi
   assert.doesNotMatch(html, /fetch\('\/api\/rules\/send'/);
 });
 
-test("rules editor leaves title, description and body optional and only admins get the send action", async () => {
+test("rules editor exposes only law name and law text", async () => {
   const html = await read("../index.html");
-  assert.doesNotMatch(html, /id="ruleTitle" required/);
-  assert.doesNotMatch(html, /id="ruleBody" rows="6" required/);
-  assert.match(html, /document\.getElementById\('ruleBody'\)\.required=false/);
+  assert.match(html, /id="ruleTitleLabel"[^>]*>اسم القانون/);
+  assert.match(html, /id="ruleBodyLabel"[^>]*>القانون/);
+  assert.doesNotMatch(html, /id="ruleDescription(Field|Label)?"/);
+  assert.doesNotMatch(html, /وصف القانون/);
   assert.match(html, /currentCanAdmin\?'<button type="button" class="btn rule-send-button"/);
   assert.match(html, /id="rulesSearch"/);
 });
@@ -122,10 +122,10 @@ test("rules publishing supports two isolated Discord destinations", async () => 
   assert.match(html, /destination:target/);
   assert.match(builder, /destination === "server" \? "SERVER RULES" : "S\.W\.A\.T\. CITY RULES"/);
   const serverMessages = buildRuleDiscordMessages({
-    id: "SERVER-LAW-01", type: "law", title: "Server Code", description: "Server-wide rules", body: "Follow server rules."
+    id: "SERVER-LAW-01", type: "law", title: "Server Code", body: "Follow server rules."
   }, "Website Admin", new Date("2026-11-11T12:00:00.000Z"), { destination: "server" });
   const cityMessages = buildRuleDiscordMessages({
-    id: "CITY-LAW-01", type: "law", title: "City Code", description: "S.W.A.T. city rules", body: "Follow city rules."
+    id: "CITY-LAW-01", type: "law", title: "City Code", body: "Follow city rules."
   }, "Website Admin");
   assert.match(serverMessages[0].embeds[0].title, /SERVER RULES/);
   assert.match(serverMessages[0].embeds[0].fields.find(field => field.name === "القسم").value, /SERVER RULES/);
