@@ -190,27 +190,7 @@ function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor
 
 function memberIdentityEmbed({name,avatar,cityRank,callsign}) {
   const safeName=String(name||"S.W.A.T. Member")
-    .replace(/[\\_*~|`>]/g,"\\function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor,reference}) {
-  return {
-    color:assigned?0xD92735:0x737B87,
-    author:{name:"S.W.A.T. REDLINE • PERSONNEL COMMAND"},
-    title:assigned?"🎖️ OFFICIAL APPOINTMENT":"📋 APPOINTMENT ENDED",
-    description:assigned
-      ?"تم اعتماد تعيينك الجديد في S.W.A.T. REDLINE من خلال بوابة القيادة."
-      :"تم إنهاء تعيينك الحالي في S.W.A.T. REDLINE وإزالة رتبة التعيين من حسابك.",
-    ...(avatar?{thumbnail:{url:avatar}}:{}),
-    fields:[
-      {name:"العضو",value:String(name||"Discord member").slice(0,180),inline:true},
-      {name:"Discord ID",value:discordId,inline:true},
-      {name:assigned?"الرتب الجديدة":"الرتبة",value:assigned?(String(rankName||"").trim().slice(0,100)||"لم تتم إضافة رتب جديدة في هذا التحديث."):"تم إنهاء التعيين",inline:true},
-      {name:"كود النداء",value:assigned?(callsign||"لم يتم تعيين كود نداء"):"تم إلغاء كود النداء السابق",inline:true},
-      {name:"صدر بواسطة",value:String(actor||"S.W.A.T. REDLINE Command").slice(0,120),inline:true},
-      {name:"الرقم المرجعي",value:reference,inline:false}
-    ],
-    footer:{text:"S.W.A.T. REDLINE • PERSONNEL & APPOINTMENTS"},
-    timestamp:new Date().toISOString()
-  };
-}")
+    .replace(/[\\_*~|>]/g,"\\$&")
     .slice(0,180);
   return {
     color:0xD92735,
@@ -226,6 +206,7 @@ function memberIdentityEmbed({name,avatar,cityRank,callsign}) {
     timestamp:new Date().toISOString()
   };
 }
+
 async function assignmentSendDm(token,targetId,embed) {
   let dm;
   try {
