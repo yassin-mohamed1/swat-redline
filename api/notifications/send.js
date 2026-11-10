@@ -534,6 +534,7 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
     const existing = publications[noticeId];
     if (!existing || (candidate.status === "sent" && existing.status !== "sent")) {
       publications[noticeId] = candidate;
+      if (existing?.errorCode) publications[noticeId].errorCode = existing.errorCode;
     } else if (existing.status === "sent" && !existing.errorCode && candidate.errorCode) {
       existing.errorCode = candidate.errorCode;
     }
