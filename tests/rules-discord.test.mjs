@@ -58,7 +58,7 @@ test("only very long laws continue across identically styled single-embed messag
   for (const message of messages) {
     const embed = message.embeds[0];
     assert.ok(String(embed.description || "").length <= 4096);
-    assert.ok(embedTextLength(embed) <= 6000);
+    assert.ok(embedLength(embed) <= 6000);
     assert.ok(embed.title.includes("S.W.A.T. REDLINE"));
   }
 });
