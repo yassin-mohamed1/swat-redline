@@ -84,7 +84,7 @@ async function publishSavedRuleToDiscord(user, ruleId, destination = "city") {
   if (config.error) {
     throw Object.assign(new Error("Rules storage is not configured."), { status: 503 });
   }
-  if (destination === "city" && (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId))) {
+  if (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId)) {
     throw Object.assign(new Error("لم يتم ضبط رتبة منشن SWAT في DISCORD_NOTIFICATION_ROLE_ID."), { status: 503 });
   }
 
@@ -109,8 +109,8 @@ async function publishSavedRuleToDiscord(user, ruleId, destination = "city") {
     const first = index === 0;
     const payload = {
       ...messages[index],
-      content: first && destination === "city" ? "<@&" + config.notificationRoleId + ">" : "",
-      allowed_mentions: first && destination === "city"
+      content: first ? "<@&" + config.notificationRoleId + ">" : "",
+      allowed_mentions: first
         ? { parse: [], roles: [config.notificationRoleId] }
         : { parse: [] }
     };
@@ -173,7 +173,7 @@ async function publishSavedRuleToDiscord(user, ruleId, destination = "city") {
     console.warn("S.W.A.T. rules announcement audit failed:", error?.message || "unknown");
   }
 
-  return { channelId, destination, destinationLabel, messagesSent: messageIds.length, messageIds, roleMentioned: destination === "city" };
+  return { channelId, destination, destinationLabel, messagesSent: messageIds.length, messageIds, roleMentioned: true };
 }
 async function isActiveStaffForNotifications(config, user) {
   if (user.isOwner) return true;
