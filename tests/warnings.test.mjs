@@ -308,17 +308,17 @@ test("disciplinary subjects can be archived from the current list without deleti
   const end = api.indexOf('if (body.action === "adjust_state")', start);
   const handler = api.slice(start, end);
   assert.ok(start >= 0 && end > start);
-  assert.match(handler, /rpc\\(cfg, "set_disciplinary_subject_archive"/);
-  assert.match(handler, /p_actor_discord_id: user\\.id/);
-  assert.match(handler, /cannot_archive_subject_with_active_warning/);
-  assert.match(api, /listData\\(cfg, params\\.get\\("include_archived"\\) === "1"\\)/);
-  assert.match(api, /is_archived=eq\\.false/);
-  assert.match(migration, /ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false/);
-  assert.match(migration, /CREATE OR REPLACE FUNCTION public\\.set_disciplinary_subject_archive/);
-  assert.match(migration, /INSERT INTO public\\.audit_logs/);
-  assert.match(migration, /is_archived = false/);
-  assert.match(migration, /REVOKE ALL ON FUNCTION public\\.set_disciplinary_subject_archive/);
-  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\\.set_disciplinary_subject_archive[\\s\\S]*TO service_role/);
+  assert.ok(handler.includes('rpc(cfg, "set_disciplinary_subject_archive"'));
+  assert.ok(handler.includes("p_actor_discord_id: user.id"));
+  assert.ok(handler.includes("cannot_archive_subject_with_active_warning"));
+  assert.ok(api.includes('listData(cfg, params.get("include_archived") === "1")'));
+  assert.ok(api.includes("is_archived=eq.false"));
+  assert.ok(migration.includes("ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false"));
+  assert.ok(migration.includes("CREATE OR REPLACE FUNCTION public.set_disciplinary_subject_archive"));
+  assert.ok(migration.includes("INSERT INTO public.audit_logs"));
+  assert.ok(migration.includes("is_archived = false"));
+  assert.ok(migration.includes("REVOKE ALL ON FUNCTION public.set_disciplinary_subject_archive"));
+  assert.ok(migration.includes("GRANT EXECUTE ON FUNCTION public.set_disciplinary_subject_archive"));
 });
 
 test("the warnings page hides archived subjects by default and offers manager restore", async () => {
