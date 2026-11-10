@@ -458,10 +458,15 @@ async function processAutomaticAttendanceDiscipline(cfg) {
     .map(member => {
       const dismissed = member.warning_status === "dismissed";
       const currentLevel = dismissed ? 0 : Number(member.warning_level || 0);
-      return { ...member, next_stage: currentLevel + 1 };
+      const lastActionMs = Date.parse(member.warning_updated_at || "");
+      const nextAllowedAtMs = currentLevel > 0 && Number.isFinite(lastActionMs)
+        ? lastActionMs + 7 * 86400000
+        : 0;
+      return { ...member, next_stage: currentLevel + 1, next_allowed_at_ms: nextAllowedAtMs };
     })
     .filter(member => member.next_stage >= 1 && member.next_stage <= 3 &&
-      Number(member.days_since_last) >= member.next_stage * 7)
+      Number(member.days_since_last) >= member.next_stage * 7 &&
+      Date.now() >= member.next_allowed_at_ms)
     .sort((a, b) => Number(b.days_since_last) - Number(a.days_since_last));
 
   if (!candidates.length) {
@@ -520,6 +525,14 @@ async function processAutomaticAttendanceDiscipline(cfg) {
       if (freshStage !== stage) {
         await rpc(cfg, "complete_swat_attendance_discipline", {
           p_event_key: eventKey, p_success: true, p_error_code: null
+        });
+        continue;
+      }
+      const lastActionMs = Date.parse(freshSubject.last_action_at || "");
+      if (freshLevel > 0 && Number.isFinite(lastActionMs) &&
+          Date.now() - lastActionMs < 7 * 86400000) {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: false, p_error_code: "next_disciplinary_stage_not_due"
         });
         continue;
       }
