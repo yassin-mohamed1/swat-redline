@@ -197,7 +197,7 @@ async function listData(cfg) {
   const [staffResponse, subjectResponse, actionResponse] = await Promise.all([
     db(cfg, "staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&order=display_name.asc"),
     db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,created_at,updated_at&order=updated_at.desc"),
-    db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_channel_id,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,created_at&order=created_at.desc&limit=500")
+    db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_channel_id,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,voided_at,void_reason,voided_by_discord_id,voided_by_name,completed_at,created_at&order=created_at.desc&limit=500")
   ]);
   if (!staffResponse.ok || !subjectResponse.ok || !actionResponse.ok) throw new Error("تعذّر تحميل سجلات التحذيرات.");
   return { members: await staffResponse.json(), subjects: await subjectResponse.json(), actions: await actionResponse.json() };
@@ -567,15 +567,16 @@ export default async function handler(req, res) {
       const targetId = String(body.discord_user_id || "");
       const desiredLevel = Number(body.warning_level);
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-      if (!/^\\d{15,22}$/.test(targetId) || ![0,1,2].includes(desiredLevel) ||
-          !reason || reason.length > 1000) {
+      const requestedName = typeof body.display_name === "string" ? body.display_name.trim() : "";
+      if (!/^\d{15,22}$/.test(targetId) || ![0,1,2].includes(desiredLevel) ||
+          !reason || reason.length > 1000 || requestedName.length > 100) {
         return json(res, 400, { error: "راجع معرّف العضو والحالة وسبب التعديل." });
       }
       if (targetId === process.env.DISCORD_OWNER_ID) {
         return json(res, 403, { error: "لا يمكن تعديل الحالة التأديبية للمالك المحمي." });
       }
       const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
-      const targetName = discordName(target);
+      const targetName = requestedName || discordName(target);
       const targetAvatar = discordAvatarUrl(target, cfg.guildId);
       const desiredStatus = "active";
       const expiresAt = desiredLevel === 1 || desiredLevel === 2
@@ -625,83 +626,247 @@ export default async function handler(req, res) {
       }
     }
 
-    if (body.action === "edit_action") {
+    if (body.action === "void_action") {
       const actionId = String(body.action_id || "");
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-      const details = typeof body.details === "string" ? body.details.trim() : "";
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(actionId) ||
-          !reason || reason.length > 1000 || details.length > 3000) {
-        return json(res, 400, { error: "راجع رقم السجل وسبب الإجراء والتفاصيل." });
+          !reason || reason.length > 1000) {
+        return json(res, 400, { error: "راجع رقم الإجراء وسبب الإلغاء." });
       }
-      const actionResponse = await db(cfg, "disciplinary_actions?id=eq." + encodeURIComponent(actionId) + "&select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,dm_channel_id,dm_message_id,channel_message_id,warning_expires_at&limit=1");
+
+      const actionResponse = await db(cfg,
+        "disciplinary_actions?id=eq." + encodeURIComponent(actionId) +
+        "&select=id,discord_user_id,target_name,action_type,warning_level,status,dm_channel_id,dm_message_id,channel_message_id&limit=1");
+      if (!actionResponse.ok) return json(res, 503, { error: "تعذّر تحميل سجل التحذير المطلوب إلغاؤه." });
+      const records = await actionResponse.json();
+      const record = records[0];
+      if (!record || record.status !== "completed" || record.action_type !== "warning") {
+        return json(res, 404, { error: "سجل التحذير غير موجود أو سبق إلغاؤه أو لا يمكن إلغاؤه من هذه الشاشة." });
+      }
+      if (record.discord_user_id === process.env.DISCORD_OWNER_ID) {
+        return json(res, 403, { error: "لا يمكن إلغاء إجراء يخص مالك السيرفر المحمي." });
+      }
+
+      let result;
+      try {
+        result = await rpc(cfg, "void_disciplinary_action_record", {
+          p_action_id: actionId,
+          p_reason: reason,
+          p_actor_discord_id: user.id,
+          p_actor_name: user.displayName
+        });
+      } catch (error) {
+        console.error("Disciplinary warning void RPC failed:", error?.detail || error?.message || "unknown");
+        return json(res, 502, { error: "تعذّر إلغاء سجل التحذير في قاعدة البيانات." });
+      }
+
+      let rolesSynced = true;
+      let roleSyncError = null;
+      if (result.was_current) {
+        try {
+          if (result.subject_state?.status === "dismissed") {
+            await updateMemberRoles(cfg, record.discord_user_id, 3, true);
+          } else {
+            await syncWarningLevel(cfg, record.discord_user_id, Number(result.subject_state?.warning_level || 0));
+          }
+        } catch (error) {
+          rolesSynced = false;
+          roleSyncError = String(error.code || error.message || "warning_role_sync_failed").slice(0, 120);
+          console.error("Warning role sync after void failed:", roleSyncError);
+        }
+      }
+
+      let deletedChannelMessage = false;
+      let deletedDmMessage = false;
+      const messageDeleteFailures = [];
+      if (record.channel_message_id) {
+        try {
+          await discord(cfg, "/channels/" + cfg.channelId + "/messages/" + record.channel_message_id, { method: "DELETE" });
+          deletedChannelMessage = true;
+        } catch (error) {
+          if (Number(error?.status) !== 404) {
+            messageDeleteFailures.push({ message: "channel", code: String(error.code || error.status || "delete_failed").slice(0, 80) });
+          } else {
+            deletedChannelMessage = true;
+          }
+        }
+      }
+      if (record.dm_channel_id && record.dm_message_id) {
+        try {
+          await discord(cfg, "/channels/" + record.dm_channel_id + "/messages/" + record.dm_message_id, { method: "DELETE" });
+          deletedDmMessage = true;
+        } catch (error) {
+          if (Number(error?.status) !== 404) {
+            messageDeleteFailures.push({ message: "dm", code: String(error.code || error.status || "delete_failed").slice(0, 80) });
+          } else {
+            deletedDmMessage = true;
+          }
+        }
+      }
+
+      await forwardAuditToDiscord(user, {
+        action: "delete",
+        entity_type: "disciplinary_action",
+        entity_id: actionId,
+        details: {
+          type: "إلغاء سجل تحذير",
+          detail: "تم إلغاء سجل التحذير للعضو " + (record.target_name || record.discord_user_id) + ".",
+          target_discord_id: record.discord_user_id,
+          void_reason: reason,
+          roles_synced: rolesSynced,
+          discord_message_delete_failures: messageDeleteFailures
+        }
+      });
+
+      return json(res, 200, {
+        ok: true,
+        voided: true,
+        was_current: Boolean(result.was_current),
+        subject_state: result.subject_state || null,
+        roles_synced: rolesSynced,
+        role_sync_error: roleSyncError,
+        deleted_channel_message: deletedChannelMessage,
+        deleted_dm_message: deletedDmMessage,
+        message_delete_failures: messageDeleteFailures
+      });
+    }
+
+    if (body.action === "edit_action") {
+      const actionId = String(body.action_id || "");
+      const targetName = typeof body.target_name === "string" ? body.target_name.trim() : "";
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const details = typeof body.details === "string" ? body.details.trim() : "";
+      const requestedLevel = Number(body.warning_level);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(actionId) ||
+          !targetName || targetName.length > 100 || ![1,2].includes(requestedLevel) ||
+          !reason || reason.length > 1000 || details.length > 3000) {
+        return json(res, 400, { error: "راجع اسم العضو ومستوى الإنذار والسبب والتفاصيل." });
+      }
+
+      const actionResponse = await db(cfg,
+        "disciplinary_actions?id=eq." + encodeURIComponent(actionId) +
+        "&select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,dm_channel_id,dm_message_id,channel_message_id,warning_expires_at,expired_at,completed_at&limit=1");
       if (!actionResponse.ok) return json(res, 503, { error: "تعذّر تحميل السجل المطلوب تعديله." });
       const actionRows = await actionResponse.json();
       const record = actionRows[0];
-      if (!record || record.status !== "completed") {
-        return json(res, 404, { error: "السجل غير موجود أو لم يكتمل إرساله." });
+      if (!record || record.status !== "completed" || record.action_type !== "warning") {
+        return json(res, 404, { error: "سجل الإنذار غير موجود أو سبق إلغاؤه أو لا يمكن تعديله." });
       }
-      if (!record.dm_channel_id || !record.dm_message_id || !record.channel_message_id) {
-        return json(res, 409, { error: "لا يمكن تعديل الرسالة لأن معرّفات رسائل Discord غير مكتملة." });
+      if (record.discord_user_id === process.env.DISCORD_OWNER_ID) {
+        return json(res, 403, { error: "لا يمكن تعديل سجل يخص مالك السيرفر المحمي." });
       }
-      const subjectResponse = await db(cfg, "disciplinary_subjects?discord_user_id=eq." + encodeURIComponent(record.discord_user_id) + "&select=avatar_url,display_name&limit=1");
+
+      const subjectResponse = await db(cfg,
+        "disciplinary_subjects?discord_user_id=eq." + encodeURIComponent(record.discord_user_id) +
+        "&select=avatar_url,display_name,warning_level,status,last_action_at,warning_expires_at&limit=1");
       if (!subjectResponse.ok) return json(res, 503, { error: "تعذّر تحميل بيانات العضو." });
       const subjectRows = await subjectResponse.json();
       const subject = subjectRows[0] || {};
-      const targetProfile = { id: record.discord_user_id, name: subject.display_name || record.target_name, avatarUrl: subject.avatar_url || null };
-      const level = Number(record.warning_level);
-      const expiresAt = record.warning_expires_at || null;
-      const revisedEmbed = disciplinaryNoticeEmbed(record.action_type, level, targetProfile, reason, details, record.actor_name, record.id, expiresAt);
-      const previousEmbed = disciplinaryNoticeEmbed(record.action_type, level, targetProfile, record.reason, record.details, record.actor_name, record.id, expiresAt);
-      const channelPath = "/channels/" + cfg.channelId + "/messages/" + record.channel_message_id;
-      const dmPath = "/channels/" + record.dm_channel_id + "/messages/" + record.dm_message_id;
-      let channelChanged = false;
-      let dmChanged = false;
-      try {
-        await discord(cfg, channelPath, { method: "PATCH", body: JSON.stringify({ embeds: [revisedEmbed] }) });
-        channelChanged = true;
-        await discord(cfg, dmPath, { method: "PATCH", body: JSON.stringify({ embeds: [revisedEmbed] }) });
-        dmChanged = true;
-      } catch (error) {
-        const rollbackErrors = [];
-        if (dmChanged) {
-          try { await discord(cfg, dmPath, { method: "PATCH", body: JSON.stringify({ embeds: [previousEmbed] }) }); }
-          catch (e) { rollbackErrors.push("dm"); }
+      const wasCurrent =
+        subject.status === "active" &&
+        Number(subject.warning_level) === Number(record.warning_level) &&
+        subject.last_action_at && record.completed_at &&
+        Date.parse(subject.last_action_at) === Date.parse(record.completed_at) &&
+        !record.expired_at &&
+        (!record.warning_expires_at || Date.parse(record.warning_expires_at) > Date.now());
+
+      const newExpiry = wasCurrent
+        ? new Date(Date.now() + warningValidityDays(requestedLevel) * 24 * 60 * 60 * 1000).toISOString()
+        : record.warning_expires_at || null;
+
+      let roleResult = null;
+      if (wasCurrent) {
+        try {
+          roleResult = await syncWarningLevel(cfg, record.discord_user_id, requestedLevel);
+        } catch (error) {
+          return json(res, error.status || 502, {
+            error: error.message || "تعذّر مزامنة رتبة الإنذار المطلوبة في Discord. لم يتم تعديل سجل الموقع."
+          });
         }
-        if (channelChanged) {
-          try { await discord(cfg, channelPath, { method: "PATCH", body: JSON.stringify({ embeds: [previousEmbed] }) }); }
-          catch (e) { rollbackErrors.push("channel"); }
-        }
-        return json(res, 502, {
-          error: rollbackErrors.length
-            ? "فشل تعديل إحدى رسائل Discord وتعذّر استعادة كل الرسائل القديمة. راجع الرسائل يدويًا."
-            : "تعذّر تعديل رسائل Discord. لم يتم تغيير سجل الموقع.",
-          rollback_failed: rollbackErrors.length > 0
-        });
       }
+
+      let databaseResult;
       try {
-        await rpc(cfg, "edit_disciplinary_action_record", {
+        databaseResult = await rpc(cfg, "edit_disciplinary_action_record_v2", {
           p_action_id: actionId,
+          p_target_name: targetName,
+          p_warning_level: requestedLevel,
           p_reason: reason,
           p_details: details,
+          p_warning_expires_at: newExpiry,
           p_actor_discord_id: user.id,
           p_actor_name: user.displayName
         });
       } catch (error) {
         let rollbackFailed = false;
-        for (const path of [dmPath, channelPath]) {
-          try { await discord(cfg, path, { method: "PATCH", body: JSON.stringify({ embeds: [previousEmbed] }) }); }
-          catch { rollbackFailed = true; }
+        if (roleResult?.originalRoles) {
+          try { await restoreMemberRoles(cfg, record.discord_user_id, roleResult.originalRoles); }
+          catch (rollbackError) {
+            rollbackFailed = true;
+            console.error("Warning role rollback after record edit failed:", rollbackError.code || rollbackError.message);
+          }
         }
         return json(res, 502, {
           error: rollbackFailed
-            ? "فشل حفظ السجل وتعذّر استعادة رسالة Discord. راجع العضو يدويًا."
-            : "تعذّر حفظ التعديل في سجل الموقع، وتمت استعادة رسائل Discord كما كانت.",
+            ? "فشل حفظ التعديل وتعذّر استعادة رتب Discord. يلزم فحص العضو يدويًا."
+            : "تعذّر حفظ تعديل سجل التحذير. لم تُعتمد التغييرات.",
           rollback_failed: rollbackFailed
         });
       }
-      await forwardAuditToDiscord(user,{action:"update",entity_type:"disciplinary_action",entity_id:actionId,
-        details:{type:"تعديل سجل تحذير",detail:"تم تعديل سجل الإجراء التأديبي للفرد "+(record.target_name||record.discord_user_id)+".",target_discord_id:record.discord_user_id}});
-      return json(res, 200, { ok: true, action_id: actionId, discord_messages_updated: true });
+
+      const targetProfile = {
+        id: record.discord_user_id,
+        name: targetName,
+        avatarUrl: subject.avatar_url || null
+      };
+      const expiresAt = databaseResult.warning_expires_at || newExpiry;
+      const revisedEmbed = disciplinaryNoticeEmbed("warning", requestedLevel, targetProfile, reason, details, record.actor_name, record.id, expiresAt);
+      const channelPath = record.channel_message_id
+        ? "/channels/" + cfg.channelId + "/messages/" + record.channel_message_id
+        : null;
+      const dmPath = record.dm_channel_id && record.dm_message_id
+        ? "/channels/" + record.dm_channel_id + "/messages/" + record.dm_message_id
+        : null;
+      let channelUpdated = false;
+      let dmUpdated = false;
+      const discordMessageFailures = [];
+      for (const [kind, path] of [["channel",channelPath],["dm",dmPath]]) {
+        if (!path) continue;
+        try {
+          await discord(cfg, path, { method: "PATCH", body: JSON.stringify({ embeds: [revisedEmbed] }) });
+          if (kind === "channel") channelUpdated = true;
+          else dmUpdated = true;
+        } catch (error) {
+          discordMessageFailures.push({
+            message: kind,
+            code: String(error.code || error.status || "message_update_failed").slice(0, 80)
+          });
+        }
+      }
+
+      await forwardAuditToDiscord(user, {
+        action: "update",
+        entity_type: "disciplinary_action",
+        entity_id: actionId,
+        details: {
+          type: "تعديل سجل تحذير",
+          detail: "تم تعديل اسم العضو ومستوى التحذير وبيانات الإجراء التأديبي للفرد " + targetName + ".",
+          target_discord_id: record.discord_user_id,
+          was_current: Boolean(databaseResult.was_current),
+          discord_message_failures: discordMessageFailures
+        }
+      });
+
+      return json(res, 200, {
+        ok: true,
+        action_id: actionId,
+        was_current: Boolean(databaseResult.was_current),
+        subject_warning_level: databaseResult.subject_warning_level,
+        warning_expires_at: databaseResult.warning_expires_at,
+        discord_messages_updated: channelUpdated || dmUpdated,
+        discord_message_failures: discordMessageFailures,
+        discord_roles_updated: Boolean(roleResult)
+      });
     }
 
     const actionType = body.action === "dismiss" ? "dismissal" : body.action === "issue" ? "warning" : "";

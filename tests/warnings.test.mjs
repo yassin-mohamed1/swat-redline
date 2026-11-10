@@ -213,16 +213,18 @@ test("disciplinary status changes synchronize warning roles and save an immutabl
   assert.match(migration, /'after', v_after/);
 });
 
-test("disciplinary record editing updates both original Discord messages and audits the edit", async () => {
+test("disciplinary warning editing updates name, level and history even when Discord messages are missing", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../supabase/migrations/20261108093000_manage_disciplinary_records.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261110143307_disciplinary_action_management.sql", import.meta.url), "utf8");
   assert.match(api, /body\.action === "edit_action"/);
-  assert.match(api, /method: "PATCH", body: JSON\.stringify\(\{ embeds: \[revisedEmbed\] \}\)/);
-  assert.match(api, /record\.dm_channel_id/);
-  assert.match(api, /record\.channel_message_id/);
-  assert.match(api, /rpc\(cfg, "edit_disciplinary_action_record"/);
-  assert.match(migration, /'تعديل سجل\/رسالة تأديبية'/);
-  assert.match(migration, /'before', v_before/);
+  assert.match(api, /target_name: targetName/);
+  assert.match(api, /p_warning_level: requestedLevel/);
+  assert.match(api, /rpc\(cfg, "edit_disciplinary_action_record_v2"/);
+  assert.match(api, /if \(!path\) continue/);
+  assert.match(api, /syncWarningLevel\(cfg, record\.discord_user_id, requestedLevel\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.edit_disciplinary_action_record_v2/);
+  assert.match(migration, /'before',v_before/);
+  assert.match(migration, /'after',v_after/);
 });
 
 test("warning page groups member states, new actions, and message history into separate views", async () => {
@@ -237,4 +239,63 @@ test("warning page groups member states, new actions, and message history into s
   assert.match(html, /function submitWarningAdjustment\(\)/);
   assert.match(html, /function submitWarningEdit\(\)/);
   assert.match(html, /function showWarningView\(view\)/);
+});
+
+
+test("warning actions can be voided without hard-deleting their records", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261110143307_disciplinary_action_management.sql", import.meta.url), "utf8");
+  const start = api.indexOf('if (body.action === "void_action")');
+  const end = api.indexOf('if (body.action === "edit_action")', start);
+  const handler = api.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(handler, /rpc\(cfg, "void_disciplinary_action_record"/);
+  assert.match(handler, /method: "DELETE"/);
+  assert.match(handler, /syncWarningLevel\(cfg, record\.discord_user_id/);
+  assert.match(handler, /roles_synced: rolesSynced/);
+  assert.match(migration, /status IN \('pending','completed','failed','voided'\)/);
+  assert.match(migration, /void_reason text/);
+  assert.match(migration, /voided_by_discord_id text/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.void_disciplinary_action_record/);
+  assert.match(migration, /'before',v_before/);
+  assert.match(migration, /'after',v_after/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.void_disciplinary_action_record/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.void_disciplinary_action_record[\s\S]*TO service_role/);
+});
+
+test("warning management remains restricted to the existing owner and Website Admin gate", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const handler = api.slice(api.indexOf("export default async function handler"));
+  const managerGate = handler.indexOf("await requireManager(cfg, user)");
+  const voidAction = handler.indexOf('if (body.action === "void_action")');
+  const editAction = handler.indexOf('if (body.action === "edit_action")');
+  assert.ok(managerGate >= 0 && voidAction > managerGate && editAction > managerGate);
+  assert.match(api, /async function requireManager\(cfg, user\)/);
+  assert.match(api, /if \(user\.isOwner \|\| await isWebsiteAdmin\(user\)\) return/);
+  assert.match(api, /if \(!requireSameOrigin\(req, res\)\) return/);
+});
+
+test("warning member names can be edited from the manager-only state editor", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(api, /const requestedName = typeof body\.display_name === "string"/);
+  assert.match(api, /p_display_name: targetName/);
+  assert.match(html, /id="warningManageName"/);
+  assert.match(html, /display_name:String\(document\.getElementById\('warningManageName'\)/);
+});
+
+test("warning history exposes edit and void actions for completed warnings, independent of old Discord IDs", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const start = html.indexOf("function renderWarningHistory()");
+  const end = html.indexOf("function openWarningManage(", start);
+  const renderer = html.slice(start, end);
+  assert.match(html, /id="warningEditName"/);
+  assert.match(html, /id="warningEditLevel"/);
+  assert.match(html, /function voidWarningAction\(actionId\)/);
+  assert.match(html, /action:'void_action'/);
+  assert.match(html, /<option value="voided">الإجراءات الملغاة<\/option>/);
+  assert.match(renderer, /a\.status==='completed'&&a\.action_type==='warning'/);
+  assert.match(renderer, /onclick="openWarningEdit/);
+  assert.match(renderer, /onclick="voidWarningAction/);
+  assert.doesNotMatch(renderer, /a\.dm_channel_id&&a\.dm_message_id&&a\.channel_message_id/);
 });
