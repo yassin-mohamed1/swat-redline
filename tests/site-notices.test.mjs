@@ -147,3 +147,16 @@ test("official notices appear in Warnings only and follow Warnings page access",
   assert.match(html, /function openSiteNoticeModal\(\)\{\s*if\(!currentCanManageWarnings\)/);
   assert.match(html, /function publishSiteNotice\(id,button\)\{\s*if\(!currentCanManageWarnings\)/);
 });
+
+
+test("shared state initializes safeData before validating and normalizing official notices", async () => {
+  const state = await read("../api/state.js");
+  const writeHandler = state.indexOf('if (req.method === "PUT")');
+  const safeDataDeclaration = state.indexOf("const safeData = {}", writeHandler);
+  const noticeGuard = state.indexOf('if (Object.prototype.hasOwnProperty.call(data, "siteNotices"))', writeHandler);
+  const normalizedAssignment = state.indexOf("safeData.siteNotices = incomingNotices", writeHandler);
+  const databaseWrite = state.indexOf('body: JSON.stringify({', writeHandler);
+  assert.ok(safeDataDeclaration >= 0 && noticeGuard > safeDataDeclaration);
+  assert.ok(normalizedAssignment > noticeGuard);
+  assert.ok(databaseWrite > normalizedAssignment);
+});
