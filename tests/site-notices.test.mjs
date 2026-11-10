@@ -130,8 +130,8 @@ test("portal notice editor has exactly title and description fields and a separa
   assert.match(html, /id="siteNoticeTitle" maxlength="256" required/);
   assert.match(html, /id="siteNoticeDescription" rows="7" maxlength="4000" required/);
   assert.match(html, /async function saveSiteNotice\(event\)/);
-  assert.match(html, /async function publishSiteNotice\(id,button\)/);
-  assert.match(html, /body:JSON\.stringify\(\{action:'publish_site_notice',noticeId:String\(id\)\}\)/);
+  assert.match(html, /async function publishSiteNotice\(id,button,resend=false\)/);
+  assert.match(html, /const action=resend\?/);
   assert.match(html, /لن تُرسل رسائل خاصة للأعضاء/);
   assert.match(html, /التحذيرات تستمر في روم التحذيرات المنفصلة/);
   assert.match(html, /data:\{people,cases,investigations,tasks,operations,reports,announcements,siteNotices,/);
@@ -147,8 +147,8 @@ test("official notices appear in Warnings only and follow Warnings page access",
   assert.ok(warningsStart >= 0 && noticesStart > warningsStart && noticesStart < warningsNext);
   assert.doesNotMatch(html.slice(announcementsStart, personnelStart), /siteNoticesPanel/);
   assert.match(html, /if\(page==='warnings'&&currentCanManageWarnings\)\{renderWarnings\(\);renderSiteNotices\(\);\}/);
-  assert.match(html, /function openSiteNoticeModal\(\)\{\s*if\(!currentCanManageWarnings\)/);
-  assert.match(html, /function publishSiteNotice\(id,button\)\{\s*if\(!currentCanManageWarnings\)/);
+  assert.match(html, /function openSiteNoticeModal\(id=null\)\{\s*if\(!currentCanManageWarnings\)/);
+  assert.match(html, /function publishSiteNotice\(id,button,resend=false\)\{\s*if\(!currentCanManageWarnings\)/);
 });
 
 
@@ -174,4 +174,58 @@ test("official site notices have a dedicated channel target independent from war
   assert.match(publisher, /const channelId = getSiteNoticeChannelId\(\)/);
   assert.match(api, /const channelId = getSiteNoticeChannelId\(\)/);
   assert.doesNotMatch(publisher, /config\.notificationChannelId/);
+});
+
+test("published official notices expose edit, delete, resend, and open-message actions", async () => {
+  const html = await read("../index.html");
+  const start = html.indexOf("function renderSiteNotices(");
+  const end = html.indexOf("async function refreshSiteNoticeStatuses(", start);
+  const render = html.slice(start, end);
+  assert.ok(render.includes("const editButton="));
+  assert.ok(render.includes("const removeButton="));
+  assert.ok(render.includes("this,true"));
+  assert.ok(render.includes("فتح رسالة Discord"));
+});
+
+test("editing a published notice updates every stored Discord copy", async () => {
+  const api = await read("../api/notifications/send.js");
+  const start = api.indexOf("async function updatePublishedSiteNotice(");
+  const end = api.indexOf("async function deleteSiteNoticePublication(", start);
+  const edit = api.slice(start, end);
+  assert.ok(edit.includes("const liveBatches = batches.filter(siteNoticeBatchIsSent)"));
+  assert.ok(edit.includes('method: "PATCH"'));
+  assert.ok(edit.includes("body: JSON.stringify({ embeds: payload.embeds })"));
+  assert.ok(edit.includes("messages_updated: updatedCount"));
+  assert.equal(edit.includes('method: "POST"'), false);
+});
+
+test("deleting a notice removes every published Discord copy and records deleted status", async () => {
+  const api = await read("../api/notifications/send.js");
+  const start = api.indexOf("async function deleteSiteNoticePublication(");
+  const end = api.indexOf("async function publishSavedSiteNotice(", start);
+  const remove = api.slice(start, end);
+  assert.ok(remove.includes("const liveBatches = batches.filter(siteNoticeBatchIsSent)"));
+  assert.ok(remove.includes('method: "DELETE"'));
+  assert.ok(remove.includes('channel_status: "deleted"'));
+  assert.ok(remove.includes("discord_deleted_count: deletedCount"));
+  assert.ok(remove.includes('channel_status === "pending"'));
+});
+
+test("explicit resend creates a new notification batch instead of reusing the original key", async () => {
+  const api = await read("../api/notifications/send.js");
+  const start = api.indexOf("async function publishSavedSiteNotice(");
+  const end = api.indexOf("export default async function handler", start);
+  const publish = api.slice(start, end);
+  assert.ok(publish.includes("allowResend = false"));
+  assert.ok(publish.includes("siteNoticeBatchIsSent(batch) && !allowResend"));
+  assert.ok(publish.includes("batch?.batch_key ? crypto.randomUUID() : noticeId"));
+  assert.ok(api.includes('body.action === "edit_site_notice" || body.action === "delete_site_notice" || body.action === "resend_site_notice"'));
+});
+
+test("publication history is keyed by notice entity ID and preserves a live copy when a newer resend fails", async () => {
+  const api = await read("../api/notifications/send.js");
+  assert.ok(api.includes('entity_id: "eq." + noticeId'));
+  assert.ok(api.includes('entity_id: "in.(" + allowedIds.join(",") + ")"'));
+  assert.ok(api.includes("candidate.status === \"sent\" && existing.status !== \"sent\""));
+  assert.ok(api.includes("existing.status === \"sent\" && !existing.errorCode && candidate.errorCode"));
 });

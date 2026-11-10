@@ -61,13 +61,15 @@ The site notification route posts announcements to the owner-selected Announceme
 
 ## Official site notices
 
-- Official notices are created and stored in the shared `app_state.siteNotices` collection before they can be published.
-- Each notice contains only its title and description as editable content. Publication status and the Discord message link are read from the server-side `discord_notification_batches` ledger.
-- The owner and Website Admin can create, delete unpublished drafts, and publish notices. Active portal members can view the notice archive and publication status.
-- Publishing uses `DISCORD_NOTIFICATION_CHANNEL_ID` and the existing owner-controlled channel-enable and SWAT-role-mention settings. It posts one embed to the notifications room only; it does not send member DMs.
-- Disciplinary notices remain isolated in `DISCORD_WARNINGS_CHANNEL_ID` through `/api/warnings.js`; the official site-notice publisher does not call that route or channel.
-- A notice UUID is used as the unique notification batch key to prevent accidental repeat publication. A failed publish can be retried; a sent or in-progress publication cannot be submitted again from the portal.
-- No new Supabase table or migration is required. The existing notification batch ledger records the Discord message ID and delivery state.
+- Official notices are created and stored in the shared `app_state.siteNotices` collection before publishing.
+- Each notice has an editable title and description. The owner and Website Admin can edit or delete notices; active portal members can view them.
+- Publishing uses `DISCORD_SITE_NOTICES_CHANNEL_ID`, currently configured to `1568885316566122577` (🔴 SWAT • WARNING). This is a dedicated setting separate from `DISCORD_WARNINGS_CHANNEL_ID`, even though both currently target the same Discord room.
+- Publishing posts one embed to the configured site-notice channel only; it does not send member DMs.
+- Editing a published notice updates every still-live Discord message associated with that notice.
+- Deleting a notice removes all still-live Discord copies, then removes the notice from the portal. If a Discord deletion fails, the notice remains in the portal so the operation can be retried.
+- Explicit resend publishes a new Discord message and retains earlier copies. The portal records each attempt under a unique `batch_key` and shows the latest live publication.
+- Duplicate normal publishing is blocked; pending operations cannot be edited or deleted.
+- No new Supabase table or migration is required. The existing `discord_notification_batches` ledger records each attempt and Discord message ID.
 
 ## Disciplinary warnings
 
