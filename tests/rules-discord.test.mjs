@@ -89,7 +89,7 @@ test("rules publishing shares the existing notification function and stays withi
   assert.match(api, /requireActivePortalStaff\(user\)/);
   assert.match(api, /user\.isOwner/);
   assert.match(api, /DISCORD_NOTIFICATION_ROLE_ID/);
-  assert.match(api, /allowed_mentions: first\s*\? \{ parse: \[\], roles: \[config\.notificationRoleId\] \}/);
+  assert.match(api, /allowed_mentions: first && destination === "city"\s*\? \{ parse: \[\], roles: \[config\.notificationRoleId\] \}/);
   assert.match(api, /item\.type === "law"/);
   assert.match(api, /new URLSearchParams\(\{ id: "eq\.main", select: "data", limit: "1" \}\)/);
   assert.match(api, /body\.action === "publish_rule"/);
@@ -104,4 +104,31 @@ test("rules editor leaves title, description and body optional and only admins g
   assert.match(html, /document\.getElementById\('ruleBody'\)\.required=false/);
   assert.match(html, /currentCanAdmin\?'<button type="button" class="btn rule-send-button"/);
   assert.match(html, /id="rulesSearch"/);
+});
+
+test("rules publishing supports two isolated Discord destinations", async () => {
+  const api = await read("../api/notifications/send.js");
+  const html = await read("../index.html");
+  const builder = await read("../lib/rules-discord.js");
+  assert.match(api, /SWAT_RULES_CHANNEL_ID = "1561775787152117770"/);
+  assert.match(api, /SERVER_RULES_CHANNEL_ID = "1561481977591242812"/);
+  assert.match(api, /body\.destination === undefined \? "city" : String\(body\.destination\)/);
+  assert.match(api, /destination === "server" \? SERVER_RULES_CHANNEL_ID : SWAT_RULES_CHANNEL_ID/);
+  assert.match(api, /first && destination === "city"/);
+  assert.match(api, /encodeURIComponent\(channelId\)/);
+  assert.match(api, /channel_id: channelId/);
+  assert.match(html, /Send to City Rules/);
+  assert.match(html, /Send to Server Rules/);
+  assert.match(html, /destination:target/);
+  assert.match(builder, /destination === "server" \? "SERVER RULES" : "S\.W\.A\.T\. CITY RULES"/);
+  const serverMessages = buildRuleDiscordMessages({
+    id: "SERVER-LAW-01", type: "law", title: "Server Code", description: "Server-wide rules", body: "Follow server rules."
+  }, "Website Admin", new Date("2026-11-11T12:00:00.000Z"), { destination: "server" });
+  const cityMessages = buildRuleDiscordMessages({
+    id: "CITY-LAW-01", type: "law", title: "City Code", description: "S.W.A.T. city rules", body: "Follow city rules."
+  }, "Website Admin");
+  assert.match(serverMessages[0].embeds[0].title, /SERVER RULES/);
+  assert.match(serverMessages[0].embeds[0].fields.find(field => field.name === "القسم").value, /SERVER RULES/);
+  assert.match(cityMessages[0].embeds[0].title, /OFFICIAL CITY RULES/);
+  assert.match(cityMessages[0].embeds[0].fields.find(field => field.name === "القسم").value, /S\.W\.A\.T\. CITY RULES/);
 });

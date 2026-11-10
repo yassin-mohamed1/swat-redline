@@ -69,8 +69,14 @@ function getConfig() {
 }
 
 const SWAT_RULES_CHANNEL_ID = "1561775787152117770";
+const SERVER_RULES_CHANNEL_ID = "1561481977591242812";
 
-async function publishSavedRuleToDiscord(user, ruleId) {
+async function publishSavedRuleToDiscord(user, ruleId, destination = "city") {
+  if (!["city", "server"].includes(destination)) {
+    throw Object.assign(new Error("Invalid rules destination."), { status: 400 });
+  }
+  const channelId = destination === "server" ? SERVER_RULES_CHANNEL_ID : SWAT_RULES_CHANNEL_ID;
+  const destinationLabel = destination === "server" ? "Server Rules" : "S.W.A.T. City Rules";
   const config = getConfig();
   if (config.error === "bot_token_missing") {
     throw Object.assign(new Error("Discord bot is not connected. Add DISCORD_BOT_TOKEN to Vercel."), { status: 503 });
@@ -78,7 +84,7 @@ async function publishSavedRuleToDiscord(user, ruleId) {
   if (config.error) {
     throw Object.assign(new Error("Rules storage is not configured."), { status: 503 });
   }
-  if (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId)) {
+  if (destination === "city" && (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId))) {
     throw Object.assign(new Error("لم يتم ضبط رتبة منشن SWAT في DISCORD_NOTIFICATION_ROLE_ID."), { status: 503 });
   }
 
@@ -97,29 +103,29 @@ async function publishSavedRuleToDiscord(user, ruleId) {
   }
 
   const actor = user.displayName || user.username || "S.W.A.T. Command";
-  const messages = buildRuleDiscordMessages(rule, actor);
+  const messages = buildRuleDiscordMessages(rule, actor, new Date(), { destination });
   const messageIds = [];
   for (let index = 0; index < messages.length; index++) {
     const first = index === 0;
     const payload = {
       ...messages[index],
-      content: first ? "<@&" + config.notificationRoleId + ">" : "",
-      allowed_mentions: first
+      content: first && destination === "city" ? "<@&" + config.notificationRoleId + ">" : "",
+      allowed_mentions: first && destination === "city"
         ? { parse: [], roles: [config.notificationRoleId] }
         : { parse: [] }
     };
     try {
       const sent = await discordRequest(config,
-        "/channels/" + encodeURIComponent(SWAT_RULES_CHANNEL_ID) + "/messages",
+        "/channels/" + encodeURIComponent(channelId) + "/messages",
         { method: "POST", body: JSON.stringify(payload) }
       );
       if (sent?.id) messageIds.push(String(sent.id));
     } catch (error) {
       const status = Number(error?.status || 0);
       const message = status === 403
-        ? "البوت لا يملك صلاحية إرسال الرسائل أو تضمين الروابط في روم SWAT Rules."
+        ? "البوت لا يملك صلاحية إرسال الرسائل أو تضمين الروابط في روم " + destinationLabel + "."
         : status === 404
-          ? "لم يتم العثور على روم SWAT Rules أو أن البوت لا يستطيع الوصول إليها."
+          ? "لم يتم العثور على روم " + destinationLabel + " أو أن البوت لا يستطيع الوصول إليها."
           : status === 429
             ? "Discord فرض حدًا مؤقتًا للإرسال. أعد المحاولة بعد انتهاء المهلة."
             : "تعذر إرسال القانون إلى Discord. رمز الخطأ: " + String(error?.code || status || "unknown");
@@ -140,9 +146,10 @@ async function publishSavedRuleToDiscord(user, ruleId) {
     entity_id: ruleId,
     details: {
       type: "نشر قانون في Discord",
-      detail: "نشر " + actor + " القانون «" + String(rule.title || "بدون عنوان").slice(0, 140) + "» في روم S.W.A.T. RULES.",
+      detail: "نشر " + actor + " القانون «" + String(rule.title || "بدون عنوان").slice(0, 140) + "» في روم " + destinationLabel + ".",
       ref: ruleId,
-      channel_id: SWAT_RULES_CHANNEL_ID,
+      destination,
+      channel_id: channelId,
       channel_message_ids: messageIds
     }
   };
@@ -166,7 +173,7 @@ async function publishSavedRuleToDiscord(user, ruleId) {
     console.warn("S.W.A.T. rules announcement audit failed:", error?.message || "unknown");
   }
 
-  return { channelId: SWAT_RULES_CHANNEL_ID, messagesSent: messageIds.length, messageIds, roleMentioned: true };
+  return { channelId, destination, destinationLabel, messagesSent: messageIds.length, messageIds, roleMentioned: destination === "city" };
 }
 async function isActiveStaffForNotifications(config, user) {
   if (user.isOwner) return true;
@@ -1140,7 +1147,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "معرّف القانون غير صالح." });
     }
     try {
-      const result = await publishSavedRuleToDiscord(user, ruleId);
+      const destination = body.destination === undefined ? "city" : String(body.destination);
+      if (!["city", "server"].includes(destination)) {
+        return res.status(400).json({ error: "وجهة نشر القانون غير صالحة." });
+      }
+      const result = await publishSavedRuleToDiscord(user, ruleId, destination);
       return res.status(200).json({ ok: true, ...result });
     } catch (error) {
       return res.status(error.status || 502).json({

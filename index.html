@@ -2134,23 +2134,26 @@ function printReport(id){
  win.document.write('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>'+safe(r.title)+'</title><style>body{font-family:Arial,sans-serif;color:#161616;padding:34px;line-height:1.8}header{border-bottom:3px solid #a71925;padding-bottom:14px;margin-bottom:22px}h1{margin:0 0 8px;font-size:25px}h2{font-size:16px;border-bottom:1px solid #ddd;padding-bottom:6px;margin-top:24px}p{white-space:pre-wrap}small{color:#555}</style><header><small>S.W.A.T. REDLINE • SECURE COMMAND CENTER</small><h1>'+safe(r.title)+'</h1><small>'+safe(r.id)+' • '+safe(REPORT_TYPES[r.reportType]||'تقرير')+' • '+safe(r.status||'مسودة')+'</small><p>الكاتب: '+safe(r.owner||'غير محدد')+' • التاريخ: '+safe(r.date||'—')+' • السجل المرتبط: '+safe(reportLinkedLabel(r))+'</p></header>'+sections.map(s=>s[1]?'<h2>'+s[0]+'</h2><p>'+safe(s[1])+'</p>':'').join('')+'</html>');
  win.document.close();win.focus();setTimeout(()=>win.print(),250);
 }
-async function sendRuleToDiscord(ruleId,button){
+async function sendRuleToDiscord(ruleId,destination,button){
  if(!currentCanAdmin){toast('إرسال القوانين إلى Discord متاح للإدارة فقط.');return}
+ const target=destination==='server'?'server':'city';
+ const targetLabel=target==='server'?'Server Rules':'City Rules';
  const rule=rules.find(item=>String(item?.id||'')===String(ruleId)&&item?.type==='law');
  if(!rule){toast('لم يتم العثور على القانون في القائمة الحالية. حدّث الصفحة وحاول مرة أخرى.');return}
- if(!confirm('تأكيد إرسال القانون «'+(rule.title||'بدون عنوان')+'» إلى روم S.W.A.T. RULES؟'))return;
- const previousHtml=button?.innerHTML||'↗ إرسال إلى Discord';
- if(button){button.disabled=true;button.textContent='جارٍ الإرسال...'}
+ if(!confirm('Send «'+(rule.title||'Untitled rule')+'» to '+targetLabel+'?'))return;
+ const previousHtml=button?.innerHTML||'Send to '+targetLabel;
+ if(button){button.disabled=true;button.textContent='Sending...'}
  try{
-  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'publish_rule',ruleId:String(ruleId)})});
+  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'publish_rule',ruleId:String(ruleId),destination:target})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok){
-   if(data.partial)throw new Error('تم إرسال '+Number(data.messagesSent||0)+' رسالة من أجزاء القانون، ثم توقف الإرسال. راجع روم القوانين قبل إعادة المحاولة.');
-   throw new Error(data.error||'تعذر إرسال القانون إلى Discord.');
+   if(data.partial)throw new Error('Only '+Number(data.messagesSent||0)+' message(s) were sent before delivery stopped. Check the target rules room before retrying.');
+   throw new Error(data.error||'Could not send the rule to Discord.');
   }
   const count=Number(data.messagesSent||0);
-  toast(count>1?'تم إرسال القانون كاملًا إلى S.W.A.T. RULES في '+count+' رسائل.':'تم إرسال القانون إلى روم S.W.A.T. RULES بنجاح.');
-  log('إرسال','نشر القانون «'+(rule.title||'بدون عنوان')+'» في Discord • S.W.A.T. RULES',rule.id);
+  const roomLabel=target==='server'?'Server Rules':'S.W.A.T. City Rules';
+  toast(count>1?'Rule sent to '+roomLabel+' in '+count+' messages.':'Rule sent to '+roomLabel+'.');
+  log('إرسال','نشر القانون «'+(rule.title||'بدون عنوان')+'» في Discord • '+roomLabel,rule.id);
  }catch(error){
   toast(error.message||'حدث خطأ أثناء إرسال القانون.');
  }finally{
@@ -2175,11 +2178,11 @@ function renderRules(){
   '<div class="task" style="gap:8px;align-items:center;flex-wrap:wrap;padding:13px 0"><span class="tag red">'+esc(r.id||'CIRCULAR')+'</span><div style="flex:1;min-width:180px"><b>'+esc(r.title||'تعميم بدون عنوان')+'</b><div class="muted" style="margin-top:5px;white-space:pre-wrap">'+esc(r.description||r.body||'لا يوجد وصف إضافي.')+'</div></div><div class="actions"><button class="btn" onclick="editRule('+i+')">تعديل</button><button class="btn danger" onclick="deleteRule('+i+')">حذف</button></div></div>'
  ).join('')||(query?'<div class="rules-empty-state">لا توجد تعاميم أو أدلة تطابق البحث.</div>':'<div class="rules-empty-state">لا توجد تعاميم أو أدلة محفوظة حتى الآن.</div>');
  document.getElementById('lawsList').innerHTML=laws.map(({r,i})=>{
-  const sendButton=currentCanAdmin?'<button type="button" class="btn rule-send-button" onclick="sendRuleToDiscord('+jsArg(r.id)+',this)">↗ إرسال إلى Discord</button>':'';
+  const sendButtons=currentCanAdmin?'<button type="button" class="btn rule-send-button" onclick="sendRuleToDiscord('+jsArg(r.id)+',\'city\',this)">Send to City Rules</button><button type="button" class="btn rule-send-button" onclick="sendRuleToDiscord('+jsArg(r.id)+',\'server\',this)">Send to Server Rules</button>':'';
   return '<article class="law-card rule-law-card"><div class="rule-card-heading"><div><div class="rule-card-kicker"><span class="tag red">قانون رسمي</span><span class="muted">'+esc(r.id||'بدون رقم مرجعي')+'</span></div><h4>'+esc(r.title||'قانون بدون عنوان')+'</h4></div></div>'+
    '<section class="rule-card-section"><div class="rule-card-section-label">وصف القانون</div><p class="'+(r.description?'':'rule-card-empty')+'">'+esc(r.description||'لم تتم إضافة وصف لهذا القانون.')+'</p></section>'+
    '<section class="rule-card-section"><div class="rule-card-section-label">نص القانون</div><p class="'+(r.body?'':'rule-card-empty')+'">'+esc(r.body||'لم تتم إضافة نص لهذا القانون.')+'</p></section>'+
-   '<div class="rule-card-actions"><button type="button" class="btn" onclick="editRule('+i+')">تعديل</button>'+sendButton+'<button type="button" class="btn danger" onclick="deleteRule('+i+')">حذف</button></div></article>';
+   '<div class="rule-card-actions"><button type="button" class="btn" onclick="editRule('+i+')">تعديل</button>'+sendButtons+'<button type="button" class="btn danger" onclick="deleteRule('+i+')">حذف</button></div></article>';
  }).join('')||(query?'<div class="rules-empty-state">لا توجد قوانين تطابق البحث. جرّب كلمة أخرى أو رقم القانون.</div>':'<div class="rules-empty-state">لا توجد قوانين مضافة حتى الآن. استخدم «إضافة قانون» لإنشاء أول قانون رسمي.</div>');
  renderDailyCommands();
 }
