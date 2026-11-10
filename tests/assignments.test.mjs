@@ -189,3 +189,59 @@ test("Website Admin role stays visible but cannot be assigned through the appoin
   assert.match(html, /role\.unavailable_reason==='protected'/);
   assert.match(html, /رتبة WEBSITE ADMIN محمية ولا يمكن منحها من داخل الموقع/);
 });
+
+test("city rank is independent from Discord roles and is saved through the member identity record", async () => {
+  const api = await read("../api/admin/members.js", "utf8");
+  const html = await read("../index.html", "utf8");
+  const migration = await read("../supabase/migrations/20261111000100_staff_member_identities.sql", "utf8");
+  const start = api.indexOf("async function handleSaveCityRank(");
+  const end = api.indexOf("\nasync function handlePublishMemberIdentity(", start);
+  assert.ok(start >= 0 && end > start, "independent City Rank handler exists");
+  const handler = api.slice(start, end);
+  for (const rank of [
+    "swat_commander", "deputy_swat_commander", "swat_team_leader",
+    "swat_supervisor", "swat_senior_operator", "swat_operator", "swat_recruit"
+  ]) {
+    assert.ok(api.includes('key: "' + rank + '"') || migration.includes("'" + rank + "'"));
+  }
+  assert.match(handler, /staff_member_identities\?on_conflict=discord_user_id/);
+  assert.match(handler, /city_rank:cityRank\.key/);
+  assert.doesNotMatch(handler, /assignmentDiscord\(|staff_assignments/);
+  assert.match(api, /body\.action==="save_city_rank"/);
+  assert.match(html, /id="assignmentCityRank"/);
+  assert.match(html, /saveAssignmentCityRank\(\)/);
+  assert.match(html, /حفظ City Rank فقط/);
+  assert.match(html, /city_rank:action==='assign'/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.staff_member_identities/);
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /REVOKE ALL PRIVILEGES ON TABLE public\.staff_member_identities FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.staff_member_identities TO service_role/);
+});
+
+test("member identity publishing sends one card and updates the stored Discord message instead of duplicating it", async () => {
+  const api = await read("../api/admin/members.js", "utf8");
+  const html = await read("../index.html", "utf8");
+  const migration = await read("../supabase/migrations/20261111000100_staff_member_identities.sql", "utf8");
+  const start = api.indexOf("async function handlePublishMemberIdentity(");
+  const end = api.indexOf("\nasync function handleAddNextCallsign(", start);
+  assert.ok(start >= 0 && end > start, "identity publisher exists");
+  const handler = api.slice(start, end);
+  assert.match(handler, /SWAT_MEMBERS_CHANNEL_ID/);
+  assert.match(handler, /method:"PATCH"/);
+  assert.match(handler, /method:"POST"/);
+  assert.match(handler, /Number\(error\?\.status\)!==404/);
+  assert.match(handler, /staff_member_identities\?discord_user_id=eq\./);
+  assert.match(handler, /message_id:String\(message\.id\)/);
+  assert.match(handler, /allowed_mentions:\{parse:\[\]\}/);
+  assert.match(handler, /CITY_RANKS\.find/);
+  assert.match(handler, /memberIdentityEmbed/);
+  assert.match(handler, /assignment\?\.callsign/);
+  assert.match(api, /SWAT_MEMBERS_CHANNEL_ID = "1561489833505849505"/);
+  assert.match(html, /id="assignmentRows"/);
+  assert.match(html, /City Rank/);
+  assert.match(html, /publishMemberIdentity\(/);
+  assert.match(html, /identity\.message_id\?'تحديث الهوية':'إرسال الهوية'/);
+  assert.match(migration, /message_id text/);
+  assert.match(migration, /staff_member_identities_message_pair_check/);
+  assert.match(migration, /staff_member_identities_message_unique/);
+});
