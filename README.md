@@ -82,6 +82,11 @@ The site notification route posts announcements to the owner-selected Announceme
 - The bot also needs View Channel, Send Messages, and Embed Links in `DISCORD_WARNINGS_CHANNEL_ID`.
 - The expiry worker runs inside the existing `/api/warnings?task=expire` serverless function to stay within Vercel Hobby's function limit. It uses the production-only `CRON_SECRET` and a matching secret held in Supabase Vault; keep both server-side.
 - Disciplinary records are stored in `disciplinary_subjects` and `disciplinary_actions`; RLS is enabled and browser-role access is revoked.
+- Only an active owner or Website Admin (through the existing `requireManager` gate) can adjust, edit, or void warning records. No ordinary member-facing permission was added.
+- Managers can edit a completed warning's display name, warning level, reason, and details. If it is the active/latest warning, its Discord warning role and expiry are synchronized; edits still work when an old Discord message was manually deleted.
+- Voiding a warning marks the action `voided` instead of hard-deleting it, records the reason and administrator, and recalculates the member's state from the latest remaining completed action. If the voided warning was current, the matching Discord warning role is synchronized.
+- A void action attempts to remove the old warning-channel post and member DM; already-deleted messages are treated as removed. Failed Discord cleanup or role sync is surfaced to the administrator without erasing the audit trail.
+- `voided` actions remain visible in the history filter with their void reason and the person who voided them. Database RPCs are executable only by `service_role`; API access is protected by the same server-side owner/Website Admin gate as the rest of the Warnings page.
 
 ## Database and storage
 
