@@ -92,8 +92,16 @@ async function recordAttendance(message: any) {
   }
 
   const result = await response.json() as {
-    recorded?: boolean; duplicate?: boolean; first_seen_at?: string;
+    recorded?: boolean; duplicate?: boolean; eligible?: boolean; first_seen_at?: string;
   };
+
+  if (!result.eligible) {
+    await message.reply({
+      content: "⚠️ لم يتم العثور على حساب SWAT نشط لك في الموقع. راجع الإدارة للتأكد من تسجيلك وتفعيل حسابك.",
+      allowedMentions: { repliedUser: false }
+    }).catch(() => {});
+    return;
+  }
 
   if (result.recorded) {
     await message.reply({
