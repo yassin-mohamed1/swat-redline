@@ -2339,9 +2339,9 @@ function refreshWarningForm(){
  if(dismiss)dismiss.style.display=level===3?'inline-flex':'none';
  if(issue){issue.style.display=level===3?'none':'inline-flex';issue.textContent='إصدار '+warningLevelLabel(level);}
  const current=Number(subject?.warning_level||0),isDismissed=subject?.status==='dismissed';
- const canIssue=Boolean(id)&&(!isDismissed||restartingDismissed)&&level<=2&&(restartingDismissed||level===current+1);
+ const canIssue=Boolean(id)&&(!isDismissed||restartingDismissed)&&level<=2;
  if(issue){issue.disabled=!canIssue;issue.textContent=restartingDismissed?'بدء دورة جديدة • إصدار الإنذار الأول':'إصدار '+warningLevelLabel(level);}
- if(dismiss)dismiss.disabled=!id||isDismissed||level!==3||current!==2;
+ if(dismiss)dismiss.disabled=!id||isDismissed||level!==3;
 }
 async function renderWarnings(){
  if(!currentCanManageWarnings||warningLoadBusy)return;
