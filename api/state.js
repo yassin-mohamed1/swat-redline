@@ -226,6 +226,14 @@ export default async function handler(req, res) {
         });
       }
 
+      // Merge keys that older open browser tabs do not know about instead of
+      // silently deleting newer collections such as cases or rule tombstones.
+      const safeData = {};
+      for (const key of allowed) {
+        if (Array.isArray(data[key])) safeData[key] = data[key];
+        else if (Array.isArray(current.data?.[key])) safeData[key] = current.data[key];
+      }
+
       // Official site notices are a privileged collection. Publication status
       // is read from the server-side delivery ledger and is never persisted from
       // the browser as part of the notice's editable content.
@@ -277,13 +285,7 @@ export default async function handler(req, res) {
         safeData.siteNotices = incomingNotices;
       }
 
-      // Merge keys that older open browser tabs do not know about instead of
-      // silently deleting newer collections such as cases or rule tombstones.
-      const safeData = {};
-      for (const key of allowed) {
-        if (Array.isArray(data[key])) safeData[key] = data[key];
-        else if (Array.isArray(current.data?.[key])) safeData[key] = current.data[key];
-      }
+
 
       // A deleted rule ID remains tombstoned so stale tabs cannot resurrect it.
       const incomingDeleted = Array.isArray(data.deletedRuleIds) ? data.deletedRuleIds : [];
