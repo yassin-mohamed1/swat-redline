@@ -229,15 +229,23 @@ async function listAttendanceDashboard(cfg) {
     select: "discord_user_id,warning_level,status,last_reason,last_action_at,warning_expires_at",
     limit: "1000"
   });
-  const [staffResponse, subjectResponse] = await Promise.all([
+  const attendanceStateQuery = new URLSearchParams({
+    channel_id: "eq." + (process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434"),
+    select: "initialized_at",
+    limit: "1"
+  });
+  const [staffResponse, subjectResponse, stateResponse] = await Promise.all([
     db(cfg, "staff_profiles?" + staffQuery.toString()),
-    db(cfg, "disciplinary_subjects?" + subjectQuery.toString())
+    db(cfg, "disciplinary_subjects?" + subjectQuery.toString()),
+    db(cfg, "attendance_sync_state?" + attendanceStateQuery.toString())
   ]);
-  if (!staffResponse.ok || !subjectResponse.ok) {
-    throw new Error("تعذّر تحميل الأعضاء أو حالات التحذيرات.");
+  if (!staffResponse.ok || !subjectResponse.ok || !stateResponse.ok) {
+    throw new Error("تعذّر تحميل الأعضاء أو حالات التحذيرات أو بداية نظام البصمة.");
   }
   const staff = await staffResponse.json();
   const subjects = await subjectResponse.json();
+  const stateRows = await stateResponse.json();
+  const attendanceStartedAt = stateRows[0]?.initialized_at || new Date().toISOString();
   const recordsByMember = new Map();
   for (let offset = 0, page = 0; page < 50; page++, offset += 1000) {
     const rows = await attendanceRows(cfg, offset);
@@ -268,8 +276,12 @@ async function listAttendanceDashboard(cfg) {
     const first = daily[daily.length - 1]?.[1] || null;
     const lastDate = daily[0]?.[0] || null;
     const registeredAt = profile.created_at || now.toISOString();
-    const baselineDate = lastDate || riyadhDateKey(registeredAt);
-    const baselineOrdinal = dateOrdinal(baselineDate);
+    const firstEligibleDate = [
+      dateOrdinal(riyadhDateKey(attendanceStartedAt)),
+      dateOrdinal(riyadhDateKey(registeredAt))
+    ].filter(value => value !== null);
+    const graceStartOrdinal = firstEligibleDate.length ? Math.max(...firstEligibleDate) : todayOrdinal;
+    const baselineOrdinal = lastDate ? dateOrdinal(lastDate) : graceStartOrdinal;
     const daysSinceLast = baselineOrdinal === null ? 0 : Math.max(0, todayOrdinal - baselineOrdinal);
     const weekCount = daily.filter(([date]) => {
       const ordinal = dateOrdinal(date);
@@ -293,6 +305,7 @@ async function listAttendanceDashboard(cfg) {
       avatar_url: profile.avatar_url || null,
       registered_at: profile.created_at || null,
       today_present: lastDate === today,
+      has_ever_attended: Boolean(last),
       last_attendance_at: last?.first_seen_at || null,
       last_attendance_date: lastDate,
       first_attendance_at: first?.first_seen_at || null,
