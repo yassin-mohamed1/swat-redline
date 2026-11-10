@@ -344,7 +344,7 @@ test("attendance dashboard is a separate page directly below warnings", async ()
   assert.match(api, /params\.get\("attendance"\) === "1"/);
   assert.match(api, /async function listAttendanceDashboard\(cfg\)/);
   assert.match(api, /attendance_records/);
-  assert.match(api, /is_active: "eq\.true"/);
+  assert.match(api, /profile\.is_active === true/);
   assert.match(api, /is_banned: "eq\.false"/);
   assert.match(html, /id="attendanceNav"/);
   assert.match(html, /id="page-attendance"/);
@@ -360,7 +360,7 @@ test("automatic attendance discipline reuses the existing warning ladder at 7, 1
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261110175528_attendance_disciplinary_automation.sql", import.meta.url), "utf8");
   assert.match(api, /async function processAutomaticAttendanceDiscipline\(cfg\)/);
-  assert.match(api, /absence\.days<stage\*7/);
+  assert.match(api, /member\.next_stage \* 7/);
   assert.match(api, /applyAutomaticAttendanceAction\(/);
   assert.match(api, /begin_disciplinary_action/);
   assert.match(api, /complete_disciplinary_action_v2/);
