@@ -147,7 +147,7 @@ test("official notices appear in Warnings only and follow Warnings page access",
   assert.ok(warningsStart >= 0 && noticesStart > warningsStart && noticesStart < warningsNext);
   assert.doesNotMatch(html.slice(announcementsStart, personnelStart), /siteNoticesPanel/);
   assert.match(html, /if\(page==='warnings'&&currentCanManageWarnings\)\{renderWarnings\(\);renderSiteNotices\(\);\}/);
-  assert.match(html, /function openSiteNoticeModal\(\)\{\s*if\(!currentCanManageWarnings\)/);
+  assert.match(html, /function openSiteNoticeModal\(id=null\)\{\s*if\(!currentCanManageWarnings\)/);
   assert.match(html, /function publishSiteNotice\(id,button,resend=false\)\{\s*if\(!currentCanManageWarnings\)/);
 });
 
