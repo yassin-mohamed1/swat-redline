@@ -19,6 +19,7 @@ test("attendance room composer is available from the daily attendance page", asy
 
 test("attendance room messages ping only the configured SWAT role in the attendance channel", async () => {
   const api = await read("../api/notifications/send.js");
+  const html = await read("../index.html");
   assert.match(api, /body\.action === "publish_attendance_notice"/);
   assert.match(api, /process\.env\.ATTENDANCE_CHANNEL_ID \|\| "1569735227146768434"/);
   assert.match(api, /isActiveStaffForNotifications\(config, user\)/);
