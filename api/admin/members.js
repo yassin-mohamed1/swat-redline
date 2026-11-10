@@ -194,16 +194,12 @@ function memberIdentityEmbed({name,avatar,cityRank,callsign}) {
     .slice(0,180);
   return {
     color:0xD92735,
-    author:{name:"S.W.A.T. REDLINE • OFFICIAL MEMBERS"},
-    title:"🛡️ S.W.A.T. MEMBER IDENTITY",
     description:"**"+safeName+"**",
     ...(avatar?{thumbnail:{url:avatar}}:{}),
     fields:[
-      {name:"CITY RANK",value:String(cityRank||"غير محدد").slice(0,100),inline:true},
-      {name:"CALL SIGN",value:String(callsign||"غير محدد").slice(0,80),inline:true}
-    ],
-    footer:{text:"S.W.A.T. REDLINE • MEMBERS DIRECTORY"},
-    timestamp:new Date().toISOString()
+      {name:"🏅 CITY RANK",value:String(cityRank||"غير محدد").slice(0,100),inline:true},
+      {name:"📡 CALL SIGN",value:String(callsign||"غير محدد").slice(0,80),inline:true}
+    ]
   };
 }
 
