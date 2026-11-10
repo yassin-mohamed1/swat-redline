@@ -451,6 +451,10 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
 }
 
 
+function getSiteNoticeChannelId() {
+  return String(process.env.DISCORD_SITE_NOTICES_CHANNEL_ID || "").trim();
+}
+
 async function readSiteNoticeBatch(config, noticeId) {
   const query = new URLSearchParams({
     batch_key: "eq." + noticeId,
@@ -506,7 +510,7 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
   const publications = {};
   for (const row of rows) {
     const messageId = String(row.channel_message_id || "");
-    const channelId = String(config.notificationChannelId || "");
+    const channelId = getSiteNoticeChannelId();
     publications[row.batch_key] = {
       status: row.channel_status,
       messageId: messageId || null,
@@ -527,9 +531,9 @@ async function publishSavedSiteNotice(user, noticeId) {
     throw Object.assign(new Error("Discord bot is not connected. Add DISCORD_BOT_TOKEN to Vercel."), { status: 503 });
   }
   if (config.error) throw Object.assign(new Error("Notification storage is not configured."), { status: 503 });
-  const channelId = String(config.notificationChannelId || "").trim();
+  const channelId = getSiteNoticeChannelId();
   if (!/^\d{17,20}$/.test(channelId)) {
-    throw Object.assign(new Error("روم SWAT - NOTIFICATION غير مضبوطة. راجع DISCORD_NOTIFICATION_CHANNEL_ID في Vercel."), { status: 503 });
+    throw Object.assign(new Error("روم التعاميم 🔴 SWAT • WARNING غير مضبوطة. راجع DISCORD_SITE_NOTICES_CHANNEL_ID في Vercel."), { status: 503 });
   }
   if (!await isActiveStaffForNotifications(config, user)) {
     throw Object.assign(new Error("حساب الإدارة غير نشط أو تعذّر التحقق منه."), { status: 403 });
