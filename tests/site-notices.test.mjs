@@ -112,6 +112,10 @@ test("only active owner or Website Admin can change the official notices collect
   assert.match(state, /requireActivePortalStaff\(user\)/);
   assert.match(state, /Only the portal owner or Website Admin may manage official notices/);
   assert.match(state, /An official notice contains an invalid ID/);
+  assert.match(state, /const normalizeNotice = notice =>/);
+  assert.match(state, /const changedNotices = JSON\.stringify\(previousNotices\) !== JSON\.stringify\(incomingNotices\)/);
+  assert.match(state, /safeData\.siteNotices = incomingNotices/);
+  assert.doesNotMatch(state, /safeData\.siteNotices = data\.siteNotices/);
 });
 
 test("portal notice editor has exactly title and description fields and a separate publish action", async () => {
