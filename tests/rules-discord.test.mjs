@@ -124,7 +124,7 @@ test("rules publishing supports two isolated Discord destinations", async () => 
   assert.match(api, /SERVER_RULES_CHANNEL_ID = "1561481977591242812"/);
   assert.match(api, /body\.destination === undefined \? "city" : String\(body\.destination\)/);
   assert.match(api, /destination === "server" \? SERVER_RULES_CHANNEL_ID : SWAT_RULES_CHANNEL_ID/);
-  assert.match(api, /first && destination === "city"/);
+  assert.match(api, /content: first \? "<@&" \+ config\.notificationRoleId/);
   assert.match(api, /encodeURIComponent\(channelId\)/);
   assert.match(api, /channel_id: channelId/);
   assert.match(html, /Send to City Rules/);
