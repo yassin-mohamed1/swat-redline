@@ -518,10 +518,10 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
   const publications = {};
   for (const row of rows) {
     const noticeId = String(row.entity_id || "");
-    if (!noticeId || publications[noticeId]) continue;
+    if (!noticeId) continue;
     const messageId = String(row.channel_message_id || "");
     const channelId = getSiteNoticeChannelId();
-    publications[noticeId] = {
+    const candidate = {
       status: row.channel_status,
       messageId: messageId || null,
       channelId,
@@ -531,6 +531,12 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
         ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
         : null
     };
+    const existing = publications[noticeId];
+    if (!existing || (candidate.status === "sent" && existing.status !== "sent")) {
+      publications[noticeId] = candidate;
+    } else if (existing.status === "sent" && !existing.errorCode && candidate.errorCode) {
+      existing.errorCode = candidate.errorCode;
+    }
   }
   return res.status(200).json({ ok: true, publications });
 }
