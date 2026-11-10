@@ -193,6 +193,129 @@ async function warningDiagnostics(cfg, user) {
       canViewChannel: bit(10), canSendMessages: bit(11), canEmbedLinks: bit(14) }
   };
 }
+
+function riyadhDateKey(value) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(value instanceof Date ? value : new Date(value));
+  const get = type => parts.find(part => part.type === type)?.value || "";
+  return get("year") + "-" + get("month") + "-" + get("day");
+}
+function dateOrdinal(value) {
+  const match = String(value || "").slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000);
+}
+async function attendanceRows(cfg, offset) {
+  const query = new URLSearchParams({
+    select: "discord_user_id,attendance_date,first_seen_at",
+    order: "attendance_date.desc,first_seen_at.desc",
+    limit: "1000",
+    offset: String(offset)
+  });
+  const response = await db(cfg, "attendance_records?" + query.toString());
+  if (!response.ok) throw new Error("تعذّر تحميل سجل البصمات.");
+  return response.json();
+}
+async function listAttendanceDashboard(cfg) {
+  const staffQuery = new URLSearchParams({
+    select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned,created_at",
+    is_active: "eq.true",
+    is_banned: "eq.false",
+    order: "display_name.asc",
+    limit: "1000"
+  });
+  const subjectQuery = new URLSearchParams({
+    select: "discord_user_id,warning_level,status,last_reason,last_action_at,warning_expires_at",
+    limit: "1000"
+  });
+  const [staffResponse, subjectResponse] = await Promise.all([
+    db(cfg, "staff_profiles?" + staffQuery.toString()),
+    db(cfg, "disciplinary_subjects?" + subjectQuery.toString())
+  ]);
+  if (!staffResponse.ok || !subjectResponse.ok) {
+    throw new Error("تعذّر تحميل الأعضاء أو حالات التحذيرات.");
+  }
+  const staff = await staffResponse.json();
+  const subjects = await subjectResponse.json();
+  const recordsByMember = new Map();
+  for (let offset = 0, page = 0; page < 50; page++, offset += 1000) {
+    const rows = await attendanceRows(cfg, offset);
+    for (const row of rows) {
+      const id = String(row.discord_user_id || "");
+      if (!id) continue;
+      if (!recordsByMember.has(id)) recordsByMember.set(id, []);
+      recordsByMember.get(id).push(row);
+    }
+    if (rows.length < 1000) break;
+    if (page === 49) throw new Error("سجل البصمات أكبر من الحد المسموح للتحميل؛ يلزم تقسيم التقرير.");
+  }
+  const subjectById = new Map(subjects.map(subject => [String(subject.discord_user_id), subject]));
+  const now = new Date();
+  const today = riyadhDateKey(now);
+  const todayOrdinal = dateOrdinal(today);
+  const weekStartOrdinal = todayOrdinal - 6;
+  const members = staff.map(profile => {
+    const id = String(profile.discord_user_id);
+    const stamps = recordsByMember.get(id) || [];
+    const unique = new Map();
+    for (const stamp of stamps) {
+      const date = String(stamp.attendance_date || "").slice(0, 10);
+      if (date && !unique.has(date)) unique.set(date, stamp);
+    }
+    const daily = [...unique.entries()].sort((a, b) => dateOrdinal(b[0]) - dateOrdinal(a[0]));
+    const last = daily[0]?.[1] || null;
+    const first = daily[daily.length - 1]?.[1] || null;
+    const lastDate = daily[0]?.[0] || null;
+    const registeredAt = profile.created_at || now.toISOString();
+    const baselineAt = last?.first_seen_at || registeredAt;
+    const daysSinceLast = Math.max(0, Math.floor((now.getTime() - new Date(baselineAt).getTime()) / 86400000));
+    const weekCount = daily.filter(([date]) => {
+      const ordinal = dateOrdinal(date);
+      return ordinal !== null && ordinal >= weekStartOrdinal && ordinal <= todayOrdinal;
+    }).length;
+    let streak = 0;
+    let previousOrdinal = null;
+    for (const [date] of daily) {
+      const ordinal = dateOrdinal(date);
+      if (ordinal === null) continue;
+      if (previousOrdinal === null) streak = 1;
+      else if (previousOrdinal - ordinal === 1) streak++;
+      else break;
+      previousOrdinal = ordinal;
+    }
+    const subject = subjectById.get(id) || null;
+    return {
+      discord_user_id: id,
+      display_name: profile.display_name || profile.username || "Discord member",
+      username: profile.username || "",
+      avatar_url: profile.avatar_url || null,
+      registered_at: profile.created_at || null,
+      today_present: lastDate === today,
+      last_attendance_at: last?.first_seen_at || null,
+      last_attendance_date: lastDate,
+      first_attendance_at: first?.first_seen_at || null,
+      days_since_last: daysSinceLast,
+      weeks_since_last: Math.floor(daysSinceLast / 7),
+      last_seven_days: weekCount,
+      total_days: daily.length,
+      current_streak_days: streak,
+      warning_level: Number(subject?.warning_level || 0),
+      warning_status: subject?.status || "clear",
+      warning_reason: subject?.last_reason || null,
+      warning_updated_at: subject?.last_action_at || null,
+      warning_expires_at: subject?.warning_expires_at || null
+    };
+  });
+  return {
+    generated_at: now.toISOString(),
+    timezone: "Asia/Riyadh",
+    channel_id: process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434",
+    total_members: members.length,
+    members
+  };
+}
+
 async function listData(cfg, includeArchived = false) {
   const subjectQuery =
     "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,is_archived,archived_at,archived_by_name,archive_reason,created_at,updated_at&order=updated_at.desc" +
@@ -554,6 +677,10 @@ export default async function handler(req, res) {
     await requireManager(cfg, user);
     if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("access") === "1") {
       return json(res, 200, { authorized: true });
+    }
+    if (req.method === "GET" && params.get("attendance") === "1") {
+      const data = await listAttendanceDashboard(cfg);
+      return json(res, 200, data);
     }
     if (req.method === "GET") {
       const data = await listData(cfg, params.get("include_archived") === "1");
