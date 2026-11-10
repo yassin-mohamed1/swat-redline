@@ -23,3 +23,8 @@ jobs:
         run: node scripts/validate-source.mjs
       - name: Run security helper tests
         run: node --test tests/*.test.mjs
+      - name: Validate attendance worker
+        run: |
+          cd attendance-bot
+          npm install --ignore-scripts --no-audit --no-fund
+          node --check index.js
