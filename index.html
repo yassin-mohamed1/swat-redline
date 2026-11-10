@@ -1711,15 +1711,18 @@ function renderSiteNotices(skipStatusRefresh=false){
   const sent=status==='sent';
   const pending=status==='pending';
   const failed=status==='failed';
-  const badge=sent?'<span class="tag green">تم النشر في روم الإشعارات</span>':pending?'<span class="tag orange">جارٍ تأكيد النشر</span>':failed?'<span class="tag red">تعذّر النشر</span>':'<span class="tag gray">محفوظ على الموقع</span>';
+  const deleted=status==='deleted';
+  const badge=sent?'<span class="tag green">تم النشر في 🔴 SWAT • WARNING</span>':pending?'<span class="tag orange">جارٍ تأكيد النشر</span>':failed?'<span class="tag red">تعذّر النشر</span>':deleted?'<span class="tag gray">حُذفت رسالة Discord</span>':'<span class="tag gray">محفوظ على الموقع</span>';
   const publishButton=sent
-    ?(item.discordMessageUrl?'<a class="btn" href="'+esc(item.discordMessageUrl)+'" target="_blank" rel="noopener">فتح رسالة Discord ↗</a>':'<button class="btn" type="button" disabled>تم النشر</button>')
+    ?'<button class="btn primary" type="button" onclick="publishSiteNotice('+jsArg(item.id)+',this,true)">إعادة إرسال</button>'
     :pending?'<button class="btn" type="button" disabled>جارٍ النشر...</button>'
-    :currentCanManageWarnings?'<button class="btn primary" type="button" onclick="publishSiteNotice('+jsArg(item.id)+',this)">'+(failed?'إعادة المحاولة':'نشر على Discord')+'</button>':'<span class="muted">—</span>';
-  const removeButton=currentCanManageWarnings&&!sent&&!pending?'<button class="btn danger" type="button" onclick="deleteSiteNotice('+jsArg(item.id)+')">حذف</button>':'';
+    :currentCanManageWarnings?'<button class="btn primary" type="button" onclick="publishSiteNotice('+jsArg(item.id)+',this,false)">'+(failed?'إعادة المحاولة':'نشر على Discord')+'</button>':'<span class="muted">—</span>';
+  const openButton=sent&&item.discordMessageUrl?'<a class="btn" href="'+esc(item.discordMessageUrl)+'" target="_blank" rel="noopener">فتح رسالة Discord ↗</a>':'';
+  const editButton=currentCanManageWarnings?'<button class="btn" type="button" onclick="openSiteNoticeModal('+jsArg(item.id)+')"'+(pending?' disabled':'')+'>تعديل</button>':'';
+  const removeButton=currentCanManageWarnings?'<button class="btn danger" type="button" onclick="deleteSiteNotice('+jsArg(item.id)+')"'+(pending?' disabled':'')+'>حذف</button>':'';
   const description=String(item.description||'');
   const shortDescription=description.length>190?description.slice(0,187)+'…':description;
-  return '<tr><td><b>'+esc(item.title||'بدون عنوان')+'</b></td><td style="max-width:380px;white-space:normal">'+esc(shortDescription)+'</td><td>'+esc(item.owner||'غير محدد')+'</td><td>'+esc(formatAnnouncementDate(item.createdAt))+'</td><td>'+badge+(failed&&item.discordErrorCode?'<div class="muted" style="font-size:10px">Code: '+esc(item.discordErrorCode)+'</div>':'')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+publishButton+removeButton+'</div></td></tr>';
+  return '<tr><td><b>'+esc(item.title||'بدون عنوان')+'</b></td><td style="max-width:380px;white-space:normal">'+esc(shortDescription)+'</td><td>'+esc(item.owner||'غير محدد')+'</td><td>'+esc(formatAnnouncementDate(item.createdAt))+'</td><td>'+badge+(failed&&item.discordErrorCode?'<div class="muted" style="font-size:10px">Code: '+esc(item.discordErrorCode)+'</div>':'')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+editButton+removeButton+publishButton+openButton+'</div></td></tr>';
  }).join('')||'<tr><td colspan="6" class="empty">لا توجد تعاميم رسمية حتى الآن. اضغط «إضافة تعميم» لإنشاء أول تعميم.</td></tr>';
  if(!skipStatusRefresh)refreshSiteNoticeStatuses();
 }
