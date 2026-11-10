@@ -48,6 +48,13 @@ test("manual disciplinary actions allow Warning 2 or dismissal without earlier w
   assert.match(html, /<option value="3">الفصل<\/option>/);
   assert.doesNotMatch(html, /<option value="3">Warning 3<\/option>/);
   assert.match(html, /الأعضاء المفصولون/);
+  const refreshUiStart = html.indexOf("function refreshWarningForm()");
+  const refreshUiEnd = html.indexOf("async function renderWarnings()", refreshUiStart);
+  assert.ok(refreshUiStart >= 0 && refreshUiEnd > refreshUiStart);
+  const refreshUi = html.slice(refreshUiStart, refreshUiEnd);
+  assert.match(refreshUi, /const canIssue=Boolean\(id\)&&\(!isDismissed\|\|restartingDismissed\)&&level<=2/);
+  assert.match(refreshUi, /dismiss\.disabled=!id\|\|isDismissed\|\|level!==3/);
+  assert.doesNotMatch(refreshUi, /current\+1|current!==2/);
   const manualUiStart = html.indexOf("async function submitWarningAction(action)");
   const manualUiEnd = html.indexOf("\n}\n", manualUiStart);
   assert.ok(manualUiStart >= 0 && manualUiEnd > manualUiStart);
