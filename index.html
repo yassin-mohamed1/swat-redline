@@ -1722,7 +1722,7 @@ function renderSiteNotices(skipStatusRefresh=false){
   const removeButton=currentCanManageWarnings?'<button class="btn danger" type="button" onclick="deleteSiteNotice('+jsArg(item.id)+')"'+(pending?' disabled':'')+'>حذف</button>':'';
   const description=String(item.description||'');
   const shortDescription=description.length>190?description.slice(0,187)+'…':description;
-  return '<tr><td><b>'+esc(item.title||'بدون عنوان')+'</b></td><td style="max-width:380px;white-space:normal">'+esc(shortDescription)+'</td><td>'+esc(item.owner||'غير محدد')+'</td><td>'+esc(formatAnnouncementDate(item.createdAt))+'</td><td>'+badge+(failed&&item.discordErrorCode?'<div class="muted" style="font-size:10px">Code: '+esc(item.discordErrorCode)+'</div>':'')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+editButton+removeButton+publishButton+openButton+'</div></td></tr>';
+  return '<tr><td><b>'+esc(item.title||'بدون عنوان')+'</b></td><td style="max-width:380px;white-space:normal">'+esc(shortDescription)+'</td><td>'+esc(item.owner||'غير محدد')+'</td><td>'+esc(formatAnnouncementDate(item.createdAt))+'</td><td>'+badge+(item.discordErrorCode?'<div class="muted" style="font-size:10px;color:var(--amber)">مزامنة Discord: '+esc(item.discordErrorCode)+'</div>':'')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+editButton+removeButton+publishButton+openButton+'</div></td></tr>';
  }).join('')||'<tr><td colspan="6" class="empty">لا توجد تعاميم رسمية حتى الآن. اضغط «إضافة تعميم» لإنشاء أول تعميم.</td></tr>';
  if(!skipStatusRefresh)refreshSiteNoticeStatuses();
 }
