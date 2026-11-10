@@ -1322,7 +1322,7 @@ html[dir="ltr"] .field label{text-align:left}
 
 <div id="warningViewMembers">
  <div class="panel">
-  <div class="panelhead"><div><h3>الأعضاء والحالات الحالية</h3><span class="sub" id="warningRecordCount">0 عضو</span></div><span class="tag gray">إدارة ومراجعة</span></div>
+  <div class="panelhead"><div><h3 id="warningMembersHeading">الأعضاء والحالات الحالية</h3><span class="sub" id="warningRecordCount">0 عضو</span></div><button class="btn" id="warningArchiveToggle" type="button" onclick="toggleWarningArchivedView()">عرض الأعضاء المؤرشفين</button></div>
   <div class="panelbody">
    <div class="warning-filters" style="margin-bottom:12px">
     <button class="btn active" type="button" data-warning-filter="all" onclick="setWarningFilter('all')">كل الأعضاء</button>
@@ -1443,7 +1443,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -2248,14 +2248,17 @@ async function renderWarnings(){
  const rows=document.getElementById('warningRecordRows'),history=document.getElementById('warningHistoryRows');
  if(rows)rows.innerHTML='<tr><td colspan="7">جارٍ تحميل السجلات...</td></tr>';
  try{
-  const response=await fetch('/api/warnings',{credentials:'same-origin',cache:'no-store'}),data=await response.json().catch(()=>({}));
+  const response=await fetch('/api/warnings'+(warningShowArchived?'?include_archived=1':''),{credentials:'same-origin',cache:'no-store'}),data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل سجل التحذيرات.');
   warningData={members:Array.isArray(data.members)?data.members:[],subjects:Array.isArray(data.subjects)?data.subjects:[],actions:Array.isArray(data.actions)?data.actions:[]};
   const select=document.getElementById('warningMemberSelect'),previous=select?.value||'';
   if(select){select.innerHTML='<option value="">اختر عضوًا...</option>'+warningData.members.map(m=>'<option value="'+adminEscape(m.discord_user_id)+'">'+adminEscape(m.display_name||m.username||'عضو ديسكورد')+' — '+adminEscape(m.discord_user_id)+'</option>').join('');if(warningData.members.some(m=>String(m.discord_user_id)===previous))select.value=previous;}
-  [1,2].forEach(level=>{const node=document.getElementById('warningCount'+level);if(node)node.textContent=warningData.subjects.filter(s=>s.status!=='dismissed'&&Number(s.warning_level)===level).length});
-  const dismissedCount=document.getElementById('warningCount3');if(dismissedCount)dismissedCount.textContent=warningData.subjects.filter(s=>s.status==='dismissed').length;
-  const allCount=document.getElementById('warningCountAll');if(allCount)allCount.textContent=warningData.subjects.length;
+  const visibleSubjects=warningData.subjects.filter(s=>Boolean(s.is_archived)===warningShowArchived);
+  [1,2].forEach(level=>{const node=document.getElementById('warningCount'+level);if(node)node.textContent=visibleSubjects.filter(s=>s.status!=='dismissed'&&Number(s.warning_level)===level).length});
+  const dismissedCount=document.getElementById('warningCount3');if(dismissedCount)dismissedCount.textContent=visibleSubjects.filter(s=>s.status==='dismissed').length;
+  const allCount=document.getElementById('warningCountAll');if(allCount)allCount.textContent=visibleSubjects.length;
+  const archiveToggle=document.getElementById('warningArchiveToggle');if(archiveToggle)archiveToggle.textContent=warningShowArchived?'العودة للأعضاء الحاليين':'عرض الأعضاء المؤرشفين';
+  const membersHeading=document.getElementById('warningMembersHeading');if(membersHeading)membersHeading.textContent=warningShowArchived?'الأعضاء المؤرشفون':'الأعضاء والحالات الحالية';
   renderWarningRecords();
   renderWarningHistory();
   refreshWarningForm();
@@ -2275,6 +2278,11 @@ function showWarningView(view){
  if(selected==='create')refreshWarningForm();
  if(selected==='history')renderWarningHistory();
 }
+function toggleWarningArchivedView(){
+ if(!currentCanManageWarnings)return;
+ warningShowArchived=!warningShowArchived;
+ renderWarnings();
+}
 function setWarningFilter(filter){
  warningRecordFilter=['all','first','second','dismissed','clear'].includes(filter)?filter:'all';
  document.querySelectorAll('[data-warning-filter]').forEach(button=>button.classList.toggle('active',button.dataset.warningFilter===warningRecordFilter));
@@ -2287,6 +2295,7 @@ function renderWarningRecords(){
  const body=document.getElementById('warningRecordRows');if(!body)return;
  const query=String(document.getElementById('warningSearch')?.value||'').trim().toLowerCase();
  const records=warningData.subjects.filter(s=>{
+  if(Boolean(s.is_archived)!==warningShowArchived)return false;
   const search=(String(s.display_name||'')+' '+String(s.discord_user_id||'')).toLowerCase().includes(query);
   if(!search)return false;
   if(warningRecordFilter==='first')return s.status!=='dismissed'&&Number(s.warning_level)===1;
@@ -2295,13 +2304,19 @@ function renderWarningRecords(){
   if(warningRecordFilter==='clear')return s.status!=='dismissed'&&Number(s.warning_level)===0;
   return true;
  });
- const count=document.getElementById('warningRecordCount');if(count)count.textContent=records.length+' عضو';
+ const count=document.getElementById('warningRecordCount');if(count)count.textContent=records.length+(warningShowArchived?' عضو مؤرشف':' عضو');
  body.innerHTML=records.map(s=>{
   const level=Number(s.warning_level||0);
   const label=s.status==='dismissed'?'مفصول':level?warningLevelLabel(level):'بدون إنذار';
   const tag=s.status==='dismissed'?'red':level===2?'yellow':level===1?'gray':'green';
-  return '<tr><td><b>'+adminEscape(s.display_name)+'</b></td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+tag+'">'+adminEscape(label)+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtWarningDate(s.last_action_at||s.updated_at))+'</td><td>'+adminEscape(s.warning_expires_at?fmtWarningDate(s.warning_expires_at):'—')+'</td><td><button class="btn" type="button" onclick="openWarningManage(\''+adminEscape(s.discord_user_id)+'\')">إدارة الحالة</button></td></tr>';
- }).join('')||'<tr><td colspan="7"><div class="empty">لا توجد سجلات مطابقة لهذا الاختيار.</div></td></tr>';
+  const manageButton='<button class="btn" type="button" onclick="openWarningManage(\''+adminEscape(s.discord_user_id)+'\')">إدارة الحالة</button>';
+  const canArchive=level===0||s.status==='dismissed';
+  const archiveButton=warningShowArchived
+   ?'<button class="btn primary" type="button" onclick="restoreWarningSubject(\''+adminEscape(s.discord_user_id)+'\')">إعادة للقائمة</button>'
+   :'<button class="btn danger" type="button" '+(canArchive?'':'disabled title="لا يمكن إخفاء عضو لديه إنذار فعّال"')+' onclick="archiveWarningSubject(\''+adminEscape(s.discord_user_id)+'\')">إزالة من القائمة</button>';
+  const archiveInfo=warningShowArchived?'<div class="muted" style="margin-top:4px">سبب الإزالة: '+adminEscape(s.archive_reason||'—')+' • بواسطة: '+adminEscape(s.archived_by_name||'—')+'</div>':'';
+  return '<tr><td><b>'+adminEscape(s.display_name)+'</b>'+archiveInfo+'</td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+tag+'">'+adminEscape(label)+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtWarningDate(s.last_action_at||s.updated_at))+'</td><td>'+adminEscape(s.warning_expires_at?fmtWarningDate(s.warning_expires_at):'—')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+manageButton+archiveButton+'</div></td></tr>';
+ }).join('')||'<tr><td colspan="7"><div class="empty">'+(warningShowArchived?'لا توجد أعضاء مؤرشفة.':'لا توجد سجلات مطابقة لهذا الاختيار.')+'</div></td></tr>';
 }
 function renderWarningHistory(){
  const body=document.getElementById('warningHistoryRows');if(!body)return;
@@ -2329,6 +2344,40 @@ function renderWarningHistory(){
   return '<tr><td>'+adminEscape(fmtWarningDate(a.created_at))+'</td><td><b>'+adminEscape(a.target_name)+'</b><div class="muted"><code>'+adminEscape(a.discord_user_id)+'</code></div></td><td><span class="tag '+typeClass+'">'+adminEscape(actionLabel)+'</span></td><td>'+reasonCell+'</td><td>'+actorName+'</td><td><span class="tag '+(a.status==='voided'?'gray':a.dm_status==='sent'?'green':a.dm_status==='failed'?'red':'gray')+'">'+adminEscape(deliveryStatus)+'</span></td><td><span class="tag '+(a.status==='voided'?'gray':a.channel_status==='sent'?'green':a.channel_status==='failed'?'red':'gray')+'">'+adminEscape(channelStatus)+'</span></td><td>'+adminEscape(a.expired_at?'منتهي':a.warning_expires_at?fmtWarningDate(a.warning_expires_at):'—')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+editButton+voidButton+'</div></td></tr>';
  }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد إجراءات مطابقة لهذا البحث.</div></td></tr>';
 }
+async function archiveWarningSubject(id){
+ if(!currentCanManageWarnings)return;
+ const subject=warningSubjectFor(id);
+ if(!subject){toast('العضو غير موجود في السجل.');return;}
+ if(Number(subject.warning_level)>0&&subject.status==='active'){toast('لا يمكن إزالة عضو لديه إنذار فعّال.');return;}
+ const reason=window.prompt('اكتب سبب إزالة '+(subject.display_name||id)+' من قائمة الحالات الحالية:','إزالة سجل تجريبي من قائمة الحالات.');
+ if(reason===null)return;
+ if(!String(reason).trim()){toast('سبب الإزالة مطلوب.');return;}
+ if(!confirm('سيختفي العضو من جدول الحالات الحالية والعدادات. لن يتم حذف سجل التحذيرات أو سجل التدقيق، ولن يتم تغيير رتب Discord. هل تريد المتابعة؟'))return;
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'archive_subject',discord_user_id:String(id),reason:String(reason).trim()})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّرت إزالة العضو من القائمة.');
+  toast('تمت إزالة العضو من قائمة الحالات مع الاحتفاظ بسجله.');
+  await renderWarnings();
+  if(typeof loadAuditLog==='function')loadAuditLog();
+ }catch(error){toast(error.message||'تعذّرت إزالة العضو من القائمة.');}
+}
+async function restoreWarningSubject(id){
+ if(!currentCanManageWarnings)return;
+ const subject=warningSubjectFor(id);
+ if(!subject){toast('العضو المؤرشف غير موجود.');return;}
+ if(!confirm('إعادة '+(subject.display_name||id)+' إلى قائمة الحالات الحالية؟'))return;
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'restore_subject',discord_user_id:String(id),reason:'إعادة العضو إلى قائمة الحالات الحالية بطلب الإدارة.'})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّرت استعادة العضو.');
+  warningShowArchived=false;
+  toast('تمت إعادة العضو إلى قائمة الحالات الحالية.');
+  await renderWarnings();
+  if(typeof loadAuditLog==='function')loadAuditLog();
+ }catch(error){toast(error.message||'تعذّرت استعادة العضو.');}
+}
+
 function openWarningManage(id){
  const subject=warningSubjectFor(id);if(!subject)return;
  warningManageTargetId=String(id);
@@ -3980,6 +4029,25 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "تم حفظ السجل. راجع حالة مزامنة رسائل Discord.":"The record was saved. Review Discord message synchronization status.",
  "تم حفظ السجل؛ لا توجد رسالة Discord سابقة لتحديثها.":"The record was saved; there was no existing Discord message to update.",
  "تم حفظ السجل والحالة الحالية إذا كان هذا الإجراء هو الأحدث.":"The record and current state were updated when this was the latest action."
+});
+
+Object.assign(PORTAL_TRANSLATIONS, {
+ "عرض الأعضاء المؤرشفين":"Show archived members",
+ "العودة للأعضاء الحاليين":"Back to current members",
+ "الأعضاء المؤرشفون":"Archived members",
+ "عضو مؤرشف":"archived members",
+ "إزالة من القائمة":"Remove from list",
+ "إعادة للقائمة":"Restore to list",
+ "سبب الإزالة: ":"Removal reason: ",
+ "لا توجد أعضاء مؤرشفة.":"No archived members.",
+ "لا يمكن إزالة عضو لديه إنذار فعّال.":"A member with an active warning cannot be removed from the list.",
+ "سبب الإزالة مطلوب.":"A removal reason is required.",
+ "تمت إزالة العضو من قائمة الحالات مع الاحتفاظ بسجله.":"The member was removed from the current list and the history was preserved.",
+ "تمت إعادة العضو إلى قائمة الحالات الحالية.":"The member was restored to the current list.",
+ "اكتب سبب إزالة ":"Enter a reason for removing ",
+ "إزالة سجل تجريبي من قائمة الحالات.":"Remove a test record from the current list.",
+ "سيختفي العضو من جدول الحالات الحالية والعدادات. لن يتم حذف سجل التحذيرات أو سجل التدقيق، ولن يتم تغيير رتب Discord. هل تريد المتابعة؟":"The member will disappear from the current-state table and counters. Warning and audit history will not be deleted, and Discord roles will not change. Continue?",
+ "إعادة العضو إلى قائمة الحالات الحالية بطلب الإدارة.":"Restore the member to the current-state list at the administration's request."
 });
 
 applyPortalLanguage();
