@@ -346,8 +346,10 @@ test("attendance dashboard is available inside the warnings page and uses live a
   assert.match(api, /attendance_records/);
   assert.match(api, /is_active: "eq\.true"/);
   assert.match(api, /is_banned: "eq\.false"/);
-  assert.match(html, /id="warningTabAttendance"/);
-  assert.match(html, /id="warningViewAttendance"/);
+  assert.match(html, /id="attendanceNav"/);
+  assert.match(html, /id="page-attendance"/);
+  assert.doesNotMatch(html, /id="warningTabAttendance"/);
+  assert.doesNotMatch(html, /id="warningViewAttendance"/);
   assert.match(html, /fetch\('\/api\/warnings\?attendance=1'/);
   assert.match(html, /current_streak_days/);
   assert.match(html, /last_seven_days/);
