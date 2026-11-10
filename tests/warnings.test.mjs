@@ -55,7 +55,7 @@ test("manual disciplinary actions allow Warning 2 or dismissal without earlier w
   assert.doesNotMatch(manualUiHandler, /currentLevel/);
   assert.doesNotMatch(manualUiHandler, /لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني/);
   assert.doesNotMatch(manualUiHandler, /يجب إصدار الإنذارات بالترتيب/);
-  assert.match(manualUiHandler, /subject\\?\\.status==='dismissed'&&!restartingDismissed/);
+  assert.ok(manualUiHandler.includes("if(subject?.status==='dismissed'&&!restartingDismissed)"));
 
 
   const restartMigration = await readFile(new URL("../supabase/migrations/20261108091704_allow_warning_cycle_restart_after_dismissal.sql", import.meta.url), "utf8");
