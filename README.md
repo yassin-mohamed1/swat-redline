@@ -17,7 +17,7 @@ Secure staff command portal for S.W.A.T. REDLINE. The application is a static si
 - The browser talks to same-origin `/api/*` routes only. It must never receive the Supabase service-role key or Discord bot token.
 - `api/state.js` is the shared portal-state endpoint. Writes use an optimistic `updated_at` version check and preserve unknown keys for older browser sessions.
 - `api/audit/log.js` appends server-authenticated audit events. The server-owned audit log is not replaced by browser-submitted state.
-- `api/notifications/send.js` validates the selected record against shared state, creates a notification batch, posts to the configured Discord channel, and independently delivers DMs to the owner and opted-in active staff.
+- `api/notifications/send.js` validates the selected record against shared state, creates a notification batch, posts to the configured Discord channel, and independently delivers DMs to the owner and opted-in active staff. The separate `publish_site_notice` action publishes a saved official site notice to `DISCORD_NOTIFICATION_CHANNEL_ID` only; it does not use the warning channel or send DMs.
 - `lib/announcement-forwarder.js` forwards ordinary messages from the announcement channel to opted-in staff. Portal-generated announcement embeds are skipped here because the site notification endpoint already handles their DMs.
 - `lib/request-security.js` rejects cross-origin browser mutations. Safe GET/HEAD/OPTIONS requests are not blocked.
 - `api/admin/*` contains owner-only member, settings, and site-media operations.
@@ -58,6 +58,16 @@ The site notification route posts announcements to the owner-selected Announceme
 - `SUPABASE_SERVICE_ROLE_KEY`
 
 **Never** place `SUPABASE_SERVICE_ROLE_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_SECRET`, or `SESSION_SECRET` in frontend code, HTML, committed files, screenshots, or public issue reports.
+
+## Official site notices
+
+- Official notices are created and stored in the shared `app_state.siteNotices` collection before they can be published.
+- Each notice contains only its title and description as editable content. Publication status and the Discord message link are read from the server-side `discord_notification_batches` ledger.
+- The owner and Website Admin can create, delete unpublished drafts, and publish notices. Active portal members can view the notice archive and publication status.
+- Publishing uses `DISCORD_NOTIFICATION_CHANNEL_ID` and the existing owner-controlled channel-enable and SWAT-role-mention settings. It posts one embed to the notifications room only; it does not send member DMs.
+- Disciplinary notices remain isolated in `DISCORD_WARNINGS_CHANNEL_ID` through `/api/warnings.js`; the official site-notice publisher does not call that route or channel.
+- A notice UUID is used as the unique notification batch key to prevent accidental repeat publication. A failed publish can be retried; a sent or in-progress publication cannot be submitted again from the portal.
+- No new Supabase table or migration is required. The existing notification batch ledger records the Discord message ID and delivery state.
 
 ## Disciplinary warnings
 

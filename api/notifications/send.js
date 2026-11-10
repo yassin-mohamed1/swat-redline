@@ -5,6 +5,7 @@ import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 import { buildRuleDiscordMessages } from "../../lib/rules-discord.js";
+import { buildSiteNoticeDiscordPayload, isSiteNoticeId, normalizeSiteNoticeInput, siteNoticeBatchIsSent } from "../../lib/site-notices.js";
 
 const MAX_RECIPIENTS_PER_BATCH = 200;
 const MAX_NOTIFICATION_IMAGES = 4;
@@ -449,6 +450,274 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
   }
 }
 
+
+async function readSiteNoticeBatch(config, noticeId) {
+  const query = new URLSearchParams({
+    batch_key: "eq." + noticeId,
+    entity_type: "eq.announcement",
+    select: "id,batch_key,channel_status,channel_message_id,channel_error_code,created_at",
+    limit: "1"
+  });
+  const response = await supabaseRequest(config, "discord_notification_batches?" + query.toString());
+  if (!response.ok) {
+    console.error("Site notice publication status lookup failed:", response.status, (await response.text()).slice(0, 200));
+    throw Object.assign(new Error("تعذّر التحقق من حالة نشر التعميم."), { status: 502 });
+  }
+  return (await response.json())[0] || null;
+}
+
+async function getSiteNoticePublicationStatuses(user, url, res) {
+  const ids = String(url.searchParams.get("ids") || "").split(",").filter(Boolean);
+  if (!ids.length) return res.status(200).json({ ok: true, publications: {} });
+  if (ids.length > 100 || ids.some(id => !isSiteNoticeId(id))) {
+    return res.status(400).json({ error: "Invalid official notice IDs." });
+  }
+  const config = getConfig();
+  if (config.error === "bot_token_missing") {
+    return res.status(503).json({ error: "Discord bot is not connected." });
+  }
+  if (config.error) return res.status(503).json({ error: "Notification storage is not configured." });
+  if (!await isActiveStaffForNotifications(config, user)) {
+    return res.status(403).json({ error: "This staff account is inactive or could not be verified." });
+  }
+  const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
+  const stateResponse = await supabaseRequest(config, "app_state?" + stateQuery.toString());
+  if (!stateResponse.ok) {
+    console.error("Official notice archive lookup failed:", stateResponse.status, (await stateResponse.text()).slice(0, 200));
+    return res.status(502).json({ error: "Could not verify official notice IDs." });
+  }
+  const stateRows = await stateResponse.json();
+  const noticeIds = new Set((Array.isArray(stateRows[0]?.data?.siteNotices) ? stateRows[0].data.siteNotices : [])
+    .map(item => String(item?.id || "")));
+  const allowedIds = ids.filter(id => noticeIds.has(id));
+  if (!allowedIds.length) return res.status(200).json({ ok: true, publications: {} });
+  const query = new URLSearchParams({
+    batch_key: "in.(" + allowedIds.join(",") + ")",
+    entity_type: "eq.announcement",
+    select: "batch_key,channel_status,channel_message_id,channel_error_code,created_at"
+  });
+  const response = await supabaseRequest(config, "discord_notification_batches?" + query.toString());
+  if (!response.ok) {
+    console.error("Site notice publication status read failed:", response.status, (await response.text()).slice(0, 200));
+    return res.status(502).json({ error: "Could not read official notice publication statuses." });
+  }
+  const rows = await response.json();
+  const guildId = String(process.env.DISCORD_GUILD_ID || "");
+  const publications = {};
+  for (const row of rows) {
+    const messageId = String(row.channel_message_id || "");
+    const channelId = String(config.notificationChannelId || "");
+    publications[row.batch_key] = {
+      status: row.channel_status,
+      messageId: messageId || null,
+      channelId,
+      publishedAt: row.channel_status === "sent" ? row.created_at : null,
+      errorCode: row.channel_error_code || null,
+      messageUrl: messageId && /^\d{17,20}$/.test(guildId) && /^\d{17,20}$/.test(channelId)
+        ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
+        : null
+    };
+  }
+  return res.status(200).json({ ok: true, publications });
+}
+
+async function publishSavedSiteNotice(user, noticeId) {
+  const config = getConfig();
+  if (config.error === "bot_token_missing") {
+    throw Object.assign(new Error("Discord bot is not connected. Add DISCORD_BOT_TOKEN to Vercel."), { status: 503 });
+  }
+  if (config.error) throw Object.assign(new Error("Notification storage is not configured."), { status: 503 });
+  const channelId = String(config.notificationChannelId || "").trim();
+  if (!/^\d{17,20}$/.test(channelId)) {
+    throw Object.assign(new Error("روم SWAT - NOTIFICATION غير مضبوطة. راجع DISCORD_NOTIFICATION_CHANNEL_ID في Vercel."), { status: 503 });
+  }
+  if (!await isActiveStaffForNotifications(config, user)) {
+    throw Object.assign(new Error("حساب الإدارة غير نشط أو تعذّر التحقق منه."), { status: 403 });
+  }
+
+  const settingsQuery = new URLSearchParams({
+    key: "in.(notificationChannelEnabled,notificationRoleMentionDisabled)",
+    select: "key,value"
+  });
+  const settingsResponse = await supabaseRequest(config, "site_settings?" + settingsQuery.toString());
+  if (!settingsResponse.ok) {
+    console.error("Site notice delivery settings lookup failed:", settingsResponse.status, (await settingsResponse.text()).slice(0, 200));
+    throw Object.assign(new Error("تعذّر التحقق من إعدادات النشر. لم يتم إرسال التعميم."), { status: 502 });
+  }
+  const settings = new Map((await settingsResponse.json()).map(row => [row.key, row.value]));
+  if (settings.get("notificationChannelEnabled") !== true) {
+    throw Object.assign(new Error("النشر في روم SWAT - NOTIFICATION متوقف من إعدادات الموقع. فعّل السماح بالنشر أولًا."), { status: 409 });
+  }
+
+  const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
+  const stateResponse = await supabaseRequest(config, "app_state?" + stateQuery.toString());
+  if (!stateResponse.ok) {
+    console.error("Site notice state lookup failed:", stateResponse.status, (await stateResponse.text()).slice(0, 200));
+    throw Object.assign(new Error("تعذّر قراءة التعاميم المحفوظة في الموقع."), { status: 502 });
+  }
+  const stateRows = await stateResponse.json();
+  const notices = Array.isArray(stateRows[0]?.data?.siteNotices) ? stateRows[0].data.siteNotices : [];
+  const notice = notices.find(item => String(item?.id || "") === noticeId);
+  if (!notice) throw Object.assign(new Error("التعميم غير موجود في سجل الموقع. احفظه أولًا ثم أعد المحاولة."), { status: 404 });
+  let normalized;
+  try {
+    normalized = normalizeSiteNoticeInput(notice);
+  } catch (error) {
+    throw Object.assign(new Error(error.message || "بيانات التعميم غير صالحة."), { status: 400 });
+  }
+
+  let batch = await readSiteNoticeBatch(config, noticeId);
+  let batchId = null;
+  if (siteNoticeBatchIsSent(batch)) {
+    const messageId = String(batch.channel_message_id);
+    const guildId = String(process.env.DISCORD_GUILD_ID || "");
+    return {
+      alreadySent: true,
+      channelId,
+      messageId,
+      messageUrl: /^\d{17,20}$/.test(guildId)
+        ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
+        : null
+    };
+  }
+  if (batch?.channel_status === "pending") {
+    throw Object.assign(new Error("يوجد طلب نشر لهذا التعميم قيد التنفيذ بالفعل. حدّث القائمة قبل المحاولة مرة أخرى."), { status: 409 });
+  }
+  if (batch?.channel_status === "failed") {
+    const claim = await supabaseRequest(config,
+      "discord_notification_batches?id=eq." + encodeURIComponent(batch.id) + "&channel_status=eq.failed",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ channel_status: "pending", channel_error_code: null })
+      }
+    );
+    if (!claim.ok) {
+      console.error("Site notice retry claim failed:", claim.status, (await claim.text()).slice(0, 200));
+      throw Object.assign(new Error("تعذّر تجهيز إعادة نشر التعميم."), { status: 502 });
+    }
+    const claimedRows = await claim.json();
+    if (!claimedRows.length) {
+      throw Object.assign(new Error("يوجد طلب نشر آخر يعمل على هذا التعميم. حدّث القائمة."), { status: 409 });
+    }
+    batchId = batch.id;
+  } else {
+    const create = await supabaseRequest(config, "discord_notification_batches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({
+        batch_key: noticeId,
+        actor_discord_id: user.id,
+        entity_type: "announcement",
+        entity_id: noticeId,
+        total_recipients: 0
+      })
+    });
+    if (!create.ok) {
+      const detail = (await create.text()).slice(0, 250);
+      if (create.status === 409 || create.status === 23505) {
+        batch = await readSiteNoticeBatch(config, noticeId);
+        if (siteNoticeBatchIsSent(batch)) {
+          return { alreadySent: true, channelId, messageId: batch.channel_message_id || null };
+        }
+        throw Object.assign(new Error(batch?.channel_status === "pending"
+          ? "يوجد طلب نشر لهذا التعميم قيد التنفيذ بالفعل."
+          : "تعذّر حجز طلب نشر فريد لهذا التعميم. حدّث القائمة وحاول مرة أخرى."), { status: 409 });
+      }
+      console.error("Site notice batch creation failed:", create.status, detail);
+      throw Object.assign(new Error("تعذّر بدء تسجيل عملية نشر التعميم."), { status: 502 });
+    }
+    const createdRows = await create.json();
+    batchId = createdRows[0]?.id;
+    if (!batchId) throw Object.assign(new Error("لم يتم تأكيد إنشاء سجل النشر."), { status: 502 });
+  }
+
+  const roleMentionDisabled = settings.get("notificationRoleMentionDisabled") !== false;
+  const payload = buildSiteNoticeDiscordPayload({
+    ...normalized,
+    notificationRoleId: config.notificationRoleId,
+    roleMentionDisabled
+  });
+  let sentMessage;
+  try {
+    sentMessage = await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    if (!sentMessage?.id) throw Object.assign(new Error("Discord did not return a message ID."), { code: "message_id_missing" });
+  } catch (error) {
+    const code = String(error?.code || error?.status || error?.message || "discord_publish_failed").slice(0, 80);
+    await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batchId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ channel_status: "failed", channel_error_code: code })
+    }).catch(() => null);
+    const message = Number(error?.status) === 403
+      ? "البوت لا يملك صلاحية إرسال الرسائل أو التضمينات في روم SWAT - NOTIFICATION."
+      : Number(error?.status) === 404
+        ? "لم يتم العثور على روم SWAT - NOTIFICATION أو أن البوت لا يستطيع الوصول إليها."
+        : Number(error?.status) === 429
+          ? "Discord فرض حدًا مؤقتًا للإرسال. حاول مرة أخرى بعد انتهاء المهلة."
+          : "تعذّر نشر التعميم في Discord. رمز الخطأ: " + code;
+    throw Object.assign(new Error(message), { status: 502, code });
+  }
+
+  const messageId = String(sentMessage.id);
+  const savedBatch = await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batchId), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify({ channel_status: "sent", channel_message_id: messageId, channel_error_code: null })
+  });
+  if (!savedBatch.ok) {
+    console.error("Site notice sent but publication ledger update failed:", savedBatch.status, (await savedBatch.text()).slice(0, 200));
+  }
+
+  const actor = truncate(user.displayName || user.username || "S.W.A.T. Command", 100);
+  const auditEvent = {
+    actor_discord_id: user.id,
+    actor_name: actor,
+    action: "create",
+    entity_type: "site_notice_publication",
+    entity_id: noticeId,
+    details: {
+      type: "نشر تعميم رسمي على Discord",
+      detail: "نشر " + actor + " التعميم «" + normalized.title.slice(0, 180) + "» في روم SWAT - NOTIFICATION.",
+      channel_id: channelId,
+      channel_message_id: messageId
+    }
+  };
+  try {
+    const auditResponse = await supabaseRequest(config, "audit_logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(auditEvent)
+    });
+    if (auditResponse.ok) {
+      await forwardAuditToDiscord(user, {
+        action: auditEvent.action,
+        entity_type: auditEvent.entity_type,
+        entity_id: auditEvent.entity_id,
+        details: auditEvent.details
+      });
+    } else {
+      console.warn("Site notice publication audit insert failed:", auditResponse.status);
+    }
+  } catch (error) {
+    console.warn("Site notice publication audit failed:", error?.message || "unknown");
+  }
+
+  const guildId = String(process.env.DISCORD_GUILD_ID || "");
+  return {
+    alreadySent: false,
+    channelId,
+    messageId,
+    messageUrl: /^\d{17,20}$/.test(guildId)
+      ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
+      : null,
+    publicationRecorded: savedBatch.ok
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -464,6 +733,15 @@ export default async function handler(req, res) {
 
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized." });
+  const statusUrl = new URL(req.url, "https://swat-redline.vercel.app");
+  if (req.method === "GET" && statusUrl.searchParams.get("site_notice_status") === "1") {
+    try {
+      return await getSiteNoticePublicationStatuses(user, statusUrl, res);
+    } catch (error) {
+      return res.status(error.status || 500).json({ error: error.message || "Could not read official notice publication status." });
+    }
+  }
+
   let websiteAdminAccess = Boolean(user.isOwner);
   try {
     if (!websiteAdminAccess) {
@@ -525,6 +803,22 @@ export default async function handler(req, res) {
   const body = typeof req.body === "string"
     ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
     : (req.body || {});
+  if (body.action === "publish_site_notice") {
+    const noticeId = typeof body.noticeId === "string" ? body.noticeId.trim() : "";
+    if (!isSiteNoticeId(noticeId)) {
+      return res.status(400).json({ error: "معرّف التعميم غير صالح." });
+    }
+    try {
+      const result = await publishSavedSiteNotice(user, noticeId);
+      return res.status(200).json({ ok: true, ...result });
+    } catch (error) {
+      return res.status(error.status || 502).json({
+        error: error.message || "تعذّر نشر التعميم إلى Discord.",
+        code: error.code || null
+      });
+    }
+  }
+
   if (body.action === "publish_rule") {
     const ruleId = typeof body.ruleId === "string" ? body.ruleId.trim() : "";
     if (!ruleId || ruleId.length > 180) {

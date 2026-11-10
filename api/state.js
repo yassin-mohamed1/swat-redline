@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../lib/request-security.js";
 import { forwardAuditEventsToDiscord } from "../lib/audit-log.js";
+import { isWebsiteAdmin, requireActivePortalStaff } from "../lib/portal-admin.js";
 
 function cookies(header = "") {
   const out = {};
@@ -82,6 +83,7 @@ const STATE_COLLECTION_LABELS = {
   operations: "العمليات",
   reports: "التقارير",
   announcements: "الإعلانات والاجتماعات",
+  siteNotices: "التنبيهات والتعاميم الرسمية",
   rules: "القوانين والأوامر",
   dailyCommands: "الأوامر اليومية"
 };
@@ -214,7 +216,7 @@ export default async function handler(req, res) {
 
       // The audit feed is append-only through /api/audit/log; clients cannot rewrite it
       // by submitting a stale copy of the whole shared-state document.
-      const allowed = ["people", "cases", "investigations", "tasks", "operations", "reports", "announcements", "rules", "dailyCommands", "deletedRuleIds"];
+      const allowed = ["people", "cases", "investigations", "tasks", "operations", "reports", "announcements", "siteNotices", "rules", "dailyCommands", "deletedRuleIds"];
       const current = await readCurrentState(endpoint, serviceKey);
       if (!current) return res.status(503).json({ error: "The shared data record is unavailable." });
       if (current.updated_at !== expectedUpdatedAt) {
@@ -222,6 +224,57 @@ export default async function handler(req, res) {
           error: "The shared data changed in another session. Reload the page before saving to avoid overwriting another member's changes.",
           current_updated_at: current.updated_at
         });
+      }
+
+      // Official site notices are a privileged collection. Publication status
+      // is read from the server-side delivery ledger and is never persisted from
+      // the browser as part of the notice's editable content.
+      if (Object.prototype.hasOwnProperty.call(data, "siteNotices")) {
+        if (!Array.isArray(data.siteNotices)) {
+          return res.status(400).json({ error: "The official notices collection must be an array." });
+        }
+        if (data.siteNotices.length > 500) {
+          return res.status(400).json({ error: "The official notices archive has reached its safe record limit." });
+        }
+        const normalizeNotice = notice => ({
+          id: String(notice?.id || ""),
+          title: String(notice?.title || "").trim(),
+          description: String(notice?.description || "").trim(),
+          owner: String(notice?.owner || "").trim().slice(0, 120),
+          createdByDiscordId: notice?.createdByDiscordId ? String(notice.createdByDiscordId) : null,
+          createdAt: String(notice?.createdAt || "")
+        });
+        const incomingNotices = data.siteNotices.map(normalizeNotice);
+        const ids = new Set();
+        for (const notice of incomingNotices) {
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(notice.id) ||
+              ids.has(notice.id) || !notice.title || notice.title.length > 256 ||
+              !notice.description || notice.description.length > 4000 ||
+              !notice.createdAt || !Number.isFinite(Date.parse(notice.createdAt)) ||
+              (notice.createdByDiscordId && !/^\d{15,22}$/.test(notice.createdByDiscordId))) {
+            return res.status(400).json({ error: "An official notice contains an invalid ID, title, description, owner, or creation timestamp." });
+          }
+          ids.add(notice.id);
+        }
+        const previousNotices = Array.isArray(current.data?.siteNotices) ? current.data.siteNotices.map(normalizeNotice) : [];
+        const changedNotices = JSON.stringify(previousNotices) !== JSON.stringify(incomingNotices);
+        if (changedNotices) {
+          let canManageNotices = Boolean(user.isOwner);
+          try {
+            if (!canManageNotices) {
+              canManageNotices = await isWebsiteAdmin(user);
+              if (canManageNotices) await requireActivePortalStaff(user);
+            }
+          } catch (error) {
+            return res.status(error.status || 503).json({
+              error: error.message || "Could not verify official notice management access."
+            });
+          }
+          if (!canManageNotices) {
+            return res.status(403).json({ error: "Only the portal owner or Website Admin may manage official notices." });
+          }
+        }
+        safeData.siteNotices = incomingNotices;
       }
 
       // Merge keys that older open browser tabs do not know about instead of
