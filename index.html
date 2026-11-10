@@ -3956,6 +3956,32 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "تعذّر تأكيد حفظ التعميم على الموقع.":"Could not confirm that the notice was saved on the portal."
 });
 
+Object.assign(PORTAL_TRANSLATIONS, {
+ "اسم العضو المعروض":"Member display name",
+ "اسم العضو":"Member name",
+ "مستوى الإنذار":"Warning level",
+ "إلغاء الإجراء":"Void action",
+ "ملغي":"Voided",
+ "الإجراءات الملغاة":"Voided actions",
+ "سبب الإلغاء: ":"Void reason: ",
+ "أُلغي بواسطة: ":"Voided by: ",
+ "تعديل سجل التحذير":"Edit warning record",
+ "حفظ تعديل السجل":"Save record changes",
+ "يمكن تعديل سجلات الإنذار المكتملة فقط.":"Only completed warning records can be edited.",
+ "الإلغاء متاح لسجلات الإنذار المكتملة فقط.":"Only completed warning records can be voided.",
+ "سبب الإلغاء مطلوب.":"A void reason is required.",
+ "تم إلغاء الإجراء وتحديث حالة العضو مع الاحتفاظ بسجل التدقيق.":"The action was voided and the member state was updated. The audit history was preserved.",
+ "تم إلغاء السجل وتحديث حالة الموقع، لكن تعذّرت مزامنة رتبة Discord. راجع العضو من إدارة الحالات.":"The record was voided and the portal state updated, but Discord role sync failed. Review the member in State Management.",
+ "تم إلغاء السجل. تعذّر حذف بعض الرسائل القديمة من Discord؛ يمكنك حذفها يدويًا.":"The record was voided. Some old Discord messages could not be deleted; you can remove them manually.",
+ "سيتم وضع الإجراء كـ «ملغي» مع الاحتفاظ بسجله واسم من أصدره وسبب الإلغاء. إذا كان هذا آخر إنذار فعال، سيتم تحديث حالة العضو وإزالة رتبته من Discord. هل تريد المتابعة؟":"The action will be marked as voided while preserving its record, issuer, and void reason. If it is the latest active warning, the member state and Discord warning role will be updated. Continue?",
+ "اكتب سبب إلغاء ":"Enter a reason for voiding ",
+ "سبب التعديل مطلوب.":"An edit reason is required.",
+ "تم حفظ تعديل الاسم ومستوى الإنذار والسبب.":"The member name, warning level, and reason were updated.",
+ "تم حفظ السجل. راجع حالة مزامنة رسائل Discord.":"The record was saved. Review Discord message synchronization status.",
+ "تم حفظ السجل؛ لا توجد رسالة Discord سابقة لتحديثها.":"The record was saved; there was no existing Discord message to update.",
+ "تم حفظ السجل والحالة الحالية إذا كان هذا الإجراء هو الأحدث.":"The record and current state were updated when this was the latest action."
+});
+
 applyPortalLanguage();
 loadPublicSiteImages();
 initAuth();
