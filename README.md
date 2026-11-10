@@ -134,3 +134,15 @@ The checks cover:
 ## Operational limits
 
 Static checks and Vercel deployment status do not replace live browser/Discord testing. Notification batches are bounded to a single serverless request; a larger recipient group needs a durable queue/worker before increasing the limit.
+
+
+## SWAT Daily Attendance
+
+- The attendance sync runs as a Vercel API route called by a Supabase `pg_cron` job every minute. No always-on Railway worker is required.
+- The route is authenticated with the existing `ANNOUNCEMENT_SYNC_SECRET` and uses the existing Discord bot and Supabase service-role environment variables in Vercel.
+- It polls only attendance channel `1569735227146768434`, reads message author and timestamp metadata, and does not need message text.
+- Only non-bot members in the configured guild who hold `DISCORD_ROLE_ID` and have an active, non-banned `staff_profiles` record can be recorded.
+- The first message per member per Riyadh calendar day is stored in `attendance_records`; additional messages receive an already-recorded confirmation. The unique `(discord_user_id, attendance_date)` constraint makes this idempotent.
+- The scheduler uses a database lease and cursor so overlapping runs do not double-process messages. On its first run it records the latest existing message as a baseline; only later messages are treated as new attendance.
+- Attendance warnings, dismissals, role changes, and automatic removals are intentionally not part of this phase.
+- Apply `20261110165500_schedule_swat_attendance_poller.sql` only after `/api/notifications/send?task=attendance` is deployed to production.

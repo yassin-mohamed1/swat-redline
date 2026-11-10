@@ -23,3 +23,7 @@ jobs:
         run: node scripts/validate-source.mjs
       - name: Run security helper tests
         run: node --test tests/*.test.mjs
+      - name: Validate attendance scheduler source
+        run: |
+          node --check api/notifications/send.js
+          node --check lib/attendance-poller.js
