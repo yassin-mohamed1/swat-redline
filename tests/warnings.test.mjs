@@ -20,13 +20,27 @@ test("warnings API separates editor authorization from bot role execution", asyn
   assert.match(source, /warningValidityDays\(level\) \* 24 \* 60 \* 60 \* 1000/);
 });
 
-test("disciplinary ladder permits Warning 1, Warning 2, then Dismissal only", async () => {
+test("manual disciplinary actions allow Warning 2 or dismissal without earlier warnings", async () => {
   const migration = await readFile(new URL("../supabase/migrations/20261108083809_two_warnings_then_dismissal.sql", import.meta.url), "utf8");
   assert.match(migration, /action_type = 'warning' AND warning_level IN \(1, 2\)/);
   assert.match(migration, /action_type = 'dismissal' AND warning_level = 3/);
   assert.match(migration, /v_subject\.warning_level <> 2/);
 
+  const manualMigration = await readFile(new URL("../supabase/migrations/20261110230900_allow_manual_disciplinary_actions_out_of_order.sql", import.meta.url), "utf8");
+  assert.match(manualMigration, /p_action_type = 'warning' AND p_warning_level NOT IN \(1,2\)/);
+  assert.match(manualMigration, /p_action_type = 'dismissal' AND p_warning_level <> 3/);
+  assert.doesNotMatch(manualMigration, /warning_level_out_of_sequence/);
+  assert.doesNotMatch(manualMigration, /dismissal_requires_warning_two/);
+  assert.match(manualMigration, /v_subject\.status = 'dismissed'/);
+  assert.match(manualMigration, /p_action_type <> 'warning' OR p_warning_level <> 1/);
+
   const source = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const manualHandlerStart = source.indexOf('const actionType = body.action === "dismiss"');
+  const manualHandlerEnd = source.indexOf('const expiresAt = actionType === "warning"', manualHandlerStart);
+  assert.ok(manualHandlerStart >= 0 && manualHandlerEnd > manualHandlerStart);
+  const manualHandler = source.slice(manualHandlerStart, manualHandlerEnd);
+  assert.match(manualHandler, /WARNING_LEVELS\.includes\(level\)/);
+  assert.doesNotMatch(manualHandler, /warning_level_out_of_sequence|dismissal_requires_warning_two|current_warning_level/);
   assert.match(source, /const WARNING_LEVELS = \[1, 2\]/);
   assert.match(source, /actionType === "dismissal" && level === 3/);
 
