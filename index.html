@@ -1234,7 +1234,7 @@ html[dir="ltr"] .field label{text-align:left}
 <div id="assignmentBotNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div class="panel">
- <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو مضاف إلى الدليل يظهر هنا مع رتبته في Discord وكود النداء، حتى دون تسجيل دخول للموقع</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
+ <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو يظهر هنا مع رتب Discord والتعيين وكود النداء ورتبته الرسمية في المدينة، مع إمكانية نشر هويته في روم SWAT MEMBERS.</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
  <div class="panelbody">
   <div class="assignment-toolbar" style="margin-bottom:12px">
    <input id="assignmentSearch" class="assignment-input" style="flex:1;min-width:220px" placeholder="ابحث باسم العضو أو Discord ID أو كود النداء..." oninput="renderAssignmentRows()">
@@ -1242,7 +1242,7 @@ html[dir="ltr"] .field label{text-align:left}
     <option value="all">كل الأعضاء</option><option value="assigned">لديهم تعيين</option><option value="unassigned">بدون تعيين</option><option value="outside">ليسوا في السيرفر</option><option value="inactive">حسابات موقوفة</option>
    </select>
   </div>
-  <div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>رتبته الحالية في Discord</th><th>التعيين المسجل بالموقع</th><th>كود النداء</th><th>حالة الحساب</th><th>إدارة</th></tr></thead><tbody id="assignmentRows"><tr><td colspan="7">جارٍ تحميل الأعضاء...</td></tr></tbody></table></div>
+  <div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>رتبته الحالية في Discord</th><th>التعيين المسجل بالموقع</th><th>كود النداء</th><th>City Rank</th><th>حالة الحساب</th><th>هوية Discord</th><th>إدارة</th></tr></thead><tbody id="assignmentRows"><tr><td colspan="9">جارٍ تحميل الأعضاء...</td></tr></tbody></table></div>
   <div class="muted" style="margin-top:10px;line-height:1.8">يمكن إضافة عضو يدويًا باستخدام Discord ID دون تسجيل دخوله للموقع. يجب أن يكون العضو موجودًا بالفعل في سيرفر Discord حتى يستطيع البوت جلب اسمه وصورته وإدارة رتبته. لا يتم تعيين رتبة أو كود نداء دون اختيارك وحفظك.</div>
  </div>
 </div>
@@ -1262,6 +1262,20 @@ html[dir="ltr"] .field label{text-align:left}
     <label>الرتب التي تريد تعيينها</label>
     <div id="assignmentRankOptions" class="assignment-role-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))"></div>
     <div class="muted">يمكن اختيار أكثر من رتبة للشخص نفسه. الرتب غير المتاحة للبوت ستظهر مع سبب تعطيلها.</div>
+   </div>
+   <div class="assignment-field">
+    <label for="assignmentCityRank">الرتبة الرسمية في المدينة (City Rank)</label>
+    <select id="assignmentCityRank" class="assignment-input" style="width:100%">
+     <option value="">اختر رتبة المدينة</option>
+     <option value="swat_commander">S.W.A.T COMMANDER</option>
+     <option value="deputy_swat_commander">DEPUTY S.W.A.T COMMANDER</option>
+     <option value="swat_team_leader">S.W.A.T TEAM LEADER</option>
+     <option value="swat_supervisor">S.W.A.T SUPERVISOR</option>
+     <option value="swat_senior_operator">S.W.A.T SENIOR OPERATOR</option>
+     <option value="swat_operator">S.W.A.T OPERATOR</option>
+     <option value="swat_recruit">S.W.A.T RECRUIT</option>
+    </select>
+    <div class="muted">هذه رتبة العضو الرسمية في المدينة، مستقلة عن Discord Roles والصلاحيات الإدارية.</div>
    </div>
    <div class="assignment-field">
     <div class="assignment-toolbar" style="justify-content:space-between">
@@ -1544,7 +1558,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -2989,8 +3003,8 @@ function renderAssignmentRows(){
  const query=String(document.getElementById('assignmentSearch')?.value||'').trim().toLowerCase();
  const filter=document.getElementById('assignmentFilter')?.value||'all';
  const rows=assignmentData.members.filter(member=>{
-  const live=member.current_rank_roles||[],saved=member.assignment;
-  const search=[member.display_name,member.live_name,member.username,member.discord_user_id,saved?.callsign,...(saved?.rank_role_names||[]),saved?.rank_role_name].join(' ').toLowerCase().includes(query);
+  const live=member.current_rank_roles||[],saved=member.assignment,identity=member.identity;
+  const search=[member.display_name,member.live_name,member.username,member.discord_user_id,saved?.callsign,identity?.city_rank,identity?.city_rank_label,...(saved?.rank_role_names||[]),saved?.rank_role_name].join(' ').toLowerCase().includes(query);
   if(!search)return false;
   if(filter==='assigned')return saved?.status==='assigned';
   if(filter==='unassigned')return !saved||saved.status!=='assigned';
@@ -3001,6 +3015,7 @@ function renderAssignmentRows(){
  const count=document.getElementById('assignmentMemberCount');if(count)count.textContent=rows.length+' عضو';
  body.innerHTML=rows.map(member=>{
   const saved=member.assignment?.status==='assigned'?member.assignment:null;
+  const identity=member.identity||null;
   const live=member.current_rank_roles||[];
   const liveNames=live.map(role=>role.label||role.name).join('، ')||(member.role_data_source==='manual_snapshot'?'رتب من وقت الإضافة اليدوية':member.role_data_source==='last_login'?'رتب من آخر تسجيل دخول':member.in_guild===false?'خارج السيرفر':'لم يتم التحقق من الرتبة بعد');
   const savedRoleIds=saved?.rank_role_ids|| (saved?.rank_role_id?[saved.rank_role_id]:[]);
@@ -3011,9 +3026,16 @@ function renderAssignmentRows(){
   const accountColor=member.account_status==='banned'?'red':member.account_status==='inactive'?'gray':member.in_guild!==true?'orange':'green';
   const canEdit=member.in_guild!==false&&member.account_status==='active';
   const avatar=member.avatar_url?'<img src="'+assignmentEscape(member.avatar_url)+'" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">':'';
-  const action=canEdit?'<button class="btn" type="button" onclick="openAssignmentModal(\''+assignmentEscape(member.discord_user_id)+'\')">إدارة التعيين</button>':'<span class="muted">غير متاح</span>';
-  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+pendingRegistrationBadge(member)+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(member.discord_user_id)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+action+'</td></tr>';
- }).join('')||'<tr><td colspan="7"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
+  const memberId=String(member.discord_user_id||'');
+  const action=canEdit?'<button class="btn" type="button" onclick="openAssignmentModal(\''+assignmentEscape(memberId)+'\')">إدارة التعيين</button>':'<span class="muted">غير متاح</span>';
+  const cityRank=identity?.city_rank_label||'غير محددة';
+  const identityButton=!canEdit
+    ?'<span class="muted">غير متاح</span>'
+    :!identity?.city_rank
+      ?'<span class="muted">حدد City Rank أولًا</span>'
+      :'<button class="btn '+(identity.message_id?'':'primary')+'" type="button" '+(assignmentIdentityBusy.has(memberId)?'disabled ':'')+'onclick="publishMemberIdentity(\''+assignmentEscape(memberId)+'\')">'+(assignmentIdentityBusy.has(memberId)?'جارٍ الإرسال...':identity.message_id?'تحديث الهوية':'إرسال الهوية')+'</button>';
+  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+pendingRegistrationBadge(member)+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(memberId)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+(identity?.city_rank?'green':'gray')+'">'+assignmentEscape(cityRank)+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+identityButton+'</td><td>'+action+'</td></tr>';
+ }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
 }
 function openManualMemberModal(){
  if(!currentCanAdmin&&!currentCanManageAssignments){toast('ليس لديك صلاحية إضافة أفراد إلى الدليل.');return;}
@@ -3090,6 +3112,7 @@ function openAssignmentModal(id){
  const saved=member.assignment?.status==='assigned'?member.assignment:null;
  const selectedIds=saved?.rank_role_ids?.length?saved.rank_role_ids:(saved?.rank_role_id?[saved.rank_role_id]:[]);
  const savedNames=saved?.rank_role_names?.length?saved.rank_role_names:(saved?.rank_role_name?[saved.rank_role_name]:[]);
+ const cityRankSelect=document.getElementById('assignmentCityRank');if(cityRankSelect)cityRankSelect.value=member.identity?.city_rank||'';
  const name=document.getElementById('assignmentModalMember');
  if(name)name.textContent=(member.live_name||member.display_name||'عضو')+' • '+assignmentTargetId;
  const live=document.getElementById('assignmentLiveSummary');
@@ -3112,6 +3135,29 @@ function closeAssignmentModal(){const modal=document.getElementById('assignmentM
 function selectedAssignmentCallsign(){
  const value=document.getElementById('assignmentCallsignSelect')?.value||'';
  return value||null;
+}
+async function publishMemberIdentity(id){
+ if((!currentCanAdmin&&!currentCanManageAssignments)||!id)return;
+ const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
+ if(!member)return;
+ if(!member.identity?.city_rank){toast('اختار City Rank واحفظ التعيين أولًا.');return;}
+ if(assignmentIdentityBusy.has(String(id)))return;
+ assignmentIdentityBusy.add(String(id));
+ renderAssignmentRows();
+ try{
+  const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   action:'publish_member_identity',discord_user_id:String(id)
+  })});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر إرسال هوية العضو.');
+  toast(data.updated?'تم تحديث هوية العضو في روم SWAT MEMBERS.':'تم إرسال هوية العضو إلى روم SWAT MEMBERS.');
+  if(typeof loadAuditLog==='function')loadAuditLog();
+ }catch(error){
+  toast(error.message||'تعذّر إرسال هوية العضو.');
+ }finally{
+  assignmentIdentityBusy.delete(String(id));
+  await renderAssignments();
+ }
 }
 async function addNextCallsign(){
  if(!currentCanAdmin&&!currentCanManageAssignments){toast('ليس لديك صلاحية إضافة أكواد النداء.');return;}
@@ -3137,11 +3183,15 @@ async function submitStaffAssignment(action){
   if(!rankRoleIds.length){toast('اختار رتبة واحدة على الأقل.');return;}
   if(rankRoleIds.length>20){toast('الحد الأقصى 20 رتبة للفرد.');return;}
   callsign=selectedAssignmentCallsign();
+  const cityRank=document.getElementById('assignmentCityRank')?.value||'';
+  if(!['swat_commander','deputy_swat_commander','swat_team_leader','swat_supervisor','swat_senior_operator','swat_operator','swat_recruit'].includes(cityRank)){
+   toast('اختر الرتبة الرسمية للعضو في المدينة (City Rank).');return;
+  }
  }
  const roles=assignmentData.roles.filter(item=>rankRoleIds.includes(String(item.id)));
  const roleNames=roles.map(item=>item.name);
  const description=action==='assign'
-  ?'تعيين '+(member.live_name||member.display_name)+' بالرتب '+roleNames.join('، ')+(callsign?' مع كود النداء '+callsign:'')
+  ?'تعيين '+(member.live_name||member.display_name)+' بالرتب '+roleNames.join('، ')+(callsign?' مع كود النداء '+callsign:'')+' ورتبة المدينة '+(document.getElementById('assignmentCityRank')?.selectedOptions?.[0]?.textContent||'')
   :'إنهاء تعيين '+(member.live_name||member.display_name)+' وإزالة رتب التعيين الحالية';
  const confirmation=currentPortalLanguage()==='en'?'Confirm '+description+'?\n\nThe bot will update Discord roles and save the appointment. It will then try to send a DM. A DM delivery failure will not undo the appointment.':'هل تؤكد '+description+'؟\n\nسيقوم البوت بتحديث رتب Discord وحفظ التعيين، ثم سيحاول إرسال رسالة خاصة للعضو. إذا فشل الخاص، لن يتم إلغاء التعيين أو إزالة الرتب.';
  if(!confirm(confirmation))return;
@@ -3150,7 +3200,8 @@ async function submitStaffAssignment(action){
  const status=document.getElementById('assignmentActionStatus');if(status)status.textContent=currentPortalLanguage()==='en'?'Updating Discord roles and saving the appointment...':'جارٍ تحديث رتب Discord وحفظ التعيين...';
  try{
   const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-   action,discord_user_id:assignmentTargetId,rank_role_ids:rankRoleIds,callsign
+   action,discord_user_id:assignmentTargetId,rank_role_ids:rankRoleIds,callsign,
+   city_rank:action==='assign'?(document.getElementById('assignmentCityRank')?.value||''):null
   })});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok){
