@@ -480,8 +480,19 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
   if (!await isActiveStaffForNotifications(config, user)) {
     return res.status(403).json({ error: "This staff account is inactive or could not be verified." });
   }
+  const stateQuery = new URLSearchParams({ id: "eq.main", select: "data", limit: "1" });
+  const stateResponse = await supabaseRequest(config, "app_state?" + stateQuery.toString());
+  if (!stateResponse.ok) {
+    console.error("Official notice archive lookup failed:", stateResponse.status, (await stateResponse.text()).slice(0, 200));
+    return res.status(502).json({ error: "Could not verify official notice IDs." });
+  }
+  const stateRows = await stateResponse.json();
+  const noticeIds = new Set((Array.isArray(stateRows[0]?.data?.siteNotices) ? stateRows[0].data.siteNotices : [])
+    .map(item => String(item?.id || "")));
+  const allowedIds = ids.filter(id => noticeIds.has(id));
+  if (!allowedIds.length) return res.status(200).json({ ok: true, publications: {} });
   const query = new URLSearchParams({
-    batch_key: "in.(" + ids.join(",") + ")",
+    batch_key: "in.(" + allowedIds.join(",") + ")",
     entity_type: "eq.announcement",
     select: "batch_key,channel_status,channel_message_id,channel_error_code,created_at"
   });
