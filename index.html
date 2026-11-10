@@ -1276,6 +1276,7 @@ html[dir="ltr"] .field label{text-align:left}
      <option value="swat_recruit">S.W.A.T RECRUIT</option>
     </select>
     <div class="muted">هذه رتبة العضو الرسمية في المدينة، مستقلة عن Discord Roles والصلاحيات الإدارية.</div>
+    <button class="btn" type="button" id="saveCityRankButton" onclick="saveAssignmentCityRank()">حفظ City Rank فقط</button>
    </div>
    <div class="assignment-field">
     <div class="assignment-toolbar" style="justify-content:space-between">
@@ -3135,6 +3136,32 @@ function closeAssignmentModal(){const modal=document.getElementById('assignmentM
 function selectedAssignmentCallsign(){
  const value=document.getElementById('assignmentCallsignSelect')?.value||'';
  return value||null;
+}
+async function saveAssignmentCityRank(){
+ if((!currentCanAdmin&&!currentCanManageAssignments)||!assignmentTargetId)return;
+ const cityRank=document.getElementById('assignmentCityRank')?.value||'';
+ if(!['swat_commander','deputy_swat_commander','swat_team_leader','swat_supervisor','swat_senior_operator','swat_operator','swat_recruit'].includes(cityRank)){
+  toast('اختر الرتبة الرسمية للعضو في المدينة (City Rank).');return;
+ }
+ const button=document.getElementById('saveCityRankButton');
+ const status=document.getElementById('assignmentActionStatus');
+ if(button)button.disabled=true;
+ if(status)status.textContent='جارٍ حفظ رتبة المدينة فقط دون تغيير Discord Roles...';
+ try{
+  const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+   action:'save_city_rank',discord_user_id:assignmentTargetId,city_rank:cityRank
+  })});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر حفظ City Rank.');
+  if(status)status.textContent='تم حفظ City Rank. اضغط «إرسال الهوية» أو «تحديث الهوية» لنشر التغيير في Discord.';
+  toast('تم حفظ رتبة المدينة بشكل مستقل. لم يتم تغيير Discord Roles.');
+  await renderAssignments();
+ }catch(error){
+  if(status)status.textContent=error.message||'تعذّر حفظ City Rank.';
+  toast(error.message||'تعذّر حفظ City Rank.');
+ }finally{
+  if(button)button.disabled=false;
+ }
 }
 async function publishMemberIdentity(id){
  if((!currentCanAdmin&&!currentCanManageAssignments)||!id)return;
