@@ -1847,26 +1847,43 @@ async function saveSiteNotice(event){
 async function deleteSiteNotice(id){
  if(!currentCanManageWarnings){toast('لا تملك صلاحية حذف تعميم رسمي.');return;}
  const item=siteNotices.find(value=>String(value.id)===String(id));if(!item)return;
- if(item.discordStatus==='sent'||item.discordStatus==='pending'){toast('لا يمكن حذف تعميم تم نشره أو يجري نشره.');return;}
- if(!confirm('تأكيد حذف التعميم «'+item.title+'» من سجل الموقع؟'))return;
- const previous=siteNotices;
- siteNotices=siteNotices.filter(value=>String(value.id)!==String(id));
- save();clearTimeout(sharedSaveTimer);
- const persisted=await pushSharedState();
- if(!persisted){siteNotices=previous;save();return;}
- renderSiteNotices();
- log('حذف','حذف تعميم رسمي: '+item.title,item.id);
- toast('تم حذف التعميم من الموقع.');
+ if(item.discordStatus==='pending'){toast('لا يمكن حذف تعميم أثناء عملية نشره.');return;}
+ const confirmText=item.discordStatus==='sent'
+  ?'سيتم حذف التعميم من سجل الموقع وحذف رسالته المنشورة من روم 🔴 SWAT • WARNING. لا يمكن التراجع عن حذف رسالة Discord. هل تريد المتابعة؟'
+  :'تأكيد حذف التعميم «'+item.title+'» من سجل الموقع؟';
+ if(!confirm(confirmText))return;
+ try{
+  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'delete_site_notice',noticeId:String(id)})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر حذف التعميم.');
+  const previous=siteNotices;
+  siteNotices=siteNotices.filter(value=>String(value.id)!==String(id));
+  save();clearTimeout(sharedSaveTimer);
+  const persisted=await pushSharedState();
+  if(!persisted||sharedWriteConflict){
+   siteNotices=previous;save();renderSiteNotices(true);
+   toast(data.deletedFromDiscord?'تم حذف رسالة Discord، لكن فشل تحديث سجل الموقع. حدّث الصفحة وحاول حذف السجل مرة أخرى.':'تعذّر حذف سجل التعميم من الموقع.');
+   return;
+  }
+  renderSiteNotices();
+  log('حذف','حذف تعميم رسمي: '+item.title,item.id);
+  toast(data.deletedFromDiscord?'تم حذف التعميم من الموقع ورسالة Discord.':'تم حذف التعميم من الموقع.');
+ }catch(error){
+  toast(error.message||'تعذّر حذف التعميم.');
+ }
 }
-async function publishSiteNotice(id,button){
- if(!currentCanManageWarnings){toast('نشر التعاميم متاح للمالك وWebsite Admin فقط.');return;}
+async function publishSiteNotice(id,button,resend=false){
+ if(!currentCanManageWarnings){toast('النشر وإعادة الإرسال متاحان للمالك وWebsite Admin فقط.');return;}
  const item=siteNotices.find(value=>String(value.id)===String(id));if(!item)return;
- if(item.discordStatus==='sent'){toast('هذا التعميم منشور بالفعل.');return;}
+ if(item.discordStatus==='sent'&&!resend){toast('التعميم منشور بالفعل. استخدم زر إعادة الإرسال عند الحاجة.');return;}
  if(item.discordStatus==='pending'){toast('طلب نشر هذا التعميم قيد التنفيذ. حدّث القائمة بعد لحظة.');return;}
  if(button?.disabled)return;
- if(!confirm('سيتم نشر اسم التعميم ووصفه فقط في روم SWAT - NOTIFICATION. لن تُرسل رسائل خاصة للأعضاء. التحذيرات تستمر في روم التحذيرات المنفصلة. هل تريد النشر الآن؟'))return;
+ const confirmText=resend
+  ?'سيتم إرسال نسخة جديدة من التعميم إلى روم 🔴 SWAT • WARNING. الرسالة المنشورة السابقة ستظل موجودة. هل تريد إعادة الإرسال؟'
+  :'سيتم نشر اسم التعميم ووصفه فقط في روم 🔴 SWAT • WARNING. لن تُرسل رسائل خاصة للأعضاء. هل تريد النشر الآن؟';
+ if(!confirm(confirmText))return;
  const oldText=button?.textContent||'نشر على Discord';
- if(button){button.disabled=true;button.textContent='جارٍ النشر...';}
+ if(button){button.disabled=true;button.textContent=resend?'جارٍ إعادة الإرسال...':'جارٍ النشر...';}
  try{
   clearTimeout(sharedSaveTimer);
   if(sharedSyncBusy){
@@ -1876,29 +1893,21 @@ async function publishSiteNotice(id,button){
   }
   const saved=await pushSharedState();
   if(!saved||sharedWriteConflict)throw new Error(sharedLastSaveError||'تعذّر تأكيد حفظ التعميم على الموقع.');
-  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'publish_site_notice',noticeId:String(id)})});
+  const action=resend?'resend_site_notice':'publish_site_notice';
+  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action,noticeId:String(id)})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر نشر التعميم في Discord.');
-  item.discordStatus='sent';
-  item.discordMessageId=data.messageId||item.discordMessageId||null;
-  item.discordMessageUrl=data.messageUrl||item.discordMessageUrl||null;
-  item.discordPublishedAt=new Date().toISOString();
-  item.discordErrorCode=null;
-  localStorage.setItem('redline_site_notices',JSON.stringify(siteNotices));
-  siteNoticeStatusCheckedAt=Date.now();
+  await refreshSiteNoticeStatuses(true);
   renderSiteNotices(true);
-  if(data.publicationRecorded===false){
-   toast('تم إرسال التعميم إلى Discord، لكن تعذّر تأكيد سجل النشر. لن يسمح الموقع بإرساله مرة أخرى تلقائيًا.');
-  }else{
-   toast(data.alreadySent?'هذا التعميم منشور بالفعل؛ تم تحديث حالته في الموقع.':'تم نشر التعميم في روم SWAT - NOTIFICATION فقط.');
-  }
+  toast(data.publicationRecorded===false
+   ?'تم إرسال التعميم، لكن تعذّر تأكيد سجل النشر. راجع Discord قبل إعادة المحاولة.'
+   :resend?'تم إرسال نسخة جديدة من التعميم إلى روم 🔴 SWAT • WARNING.':'تم نشر التعميم في روم 🔴 SWAT • WARNING.');
  }catch(error){
   await refreshSiteNoticeStatuses(true);
-  item.discordErrorCode=String(error?.code||'').slice(0,80)||null;
   renderSiteNotices(true);
   toast(error.message||'تعذّر نشر التعميم.');
  }finally{
-  if(button&&!item.discordStatus?.startsWith('sent')){button.disabled=false;button.textContent=oldText;}
+  if(button){button.disabled=false;button.textContent=oldText;}
  }
 }
 
