@@ -234,7 +234,13 @@ test("member identity publishing sends one card and updates the stored Discord m
   assert.match(handler, /Number\(error\?\.status\)!==404/);
   assert.match(handler, /staff_member_identities\?discord_user_id=eq\./);
   assert.match(handler, /message_id:String\(message\.id\)/);
-  assert.match(handler, /allowed_mentions:\{parse:\[\]\}/);
+  assert.match(handler, /const discordMessagePayload=\{/);
+  assert.match(handler, /content:"<@"+targetId+">"/);
+  assert.match(handler, /allowed_mentions:\{parse:\[\],users:\[targetId\]\}/);
+  assert.match(handler, /body:JSON\.stringify\(discordMessagePayload\)/);
+  assert.equal((handler.match(/body:JSON\.stringify\(discordMessagePayload\)/g)||[]).length,2,
+    "the exact same targeted mention is included on both create and update");
+  assert.doesNotMatch(handler, /@everyone|@here/);
   assert.match(handler, /CITY_RANKS\.find/);
   assert.match(handler, /memberIdentityEmbed/);
   assert.match(handler, /assignment\?\.callsign/);
