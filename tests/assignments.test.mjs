@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { availableCallsigns, isDuplicateCallsignViolation } from "../lib/assignment-notifications.js";
 
 test("assignment and personnel APIs use the same warning manager role and enforce it server-side", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
@@ -188,4 +189,48 @@ test("Website Admin role stays visible but cannot be assigned through the appoin
   assert.match(api, /targetRoles\.some\(role=>!role\|\|!role\.assignable\)/);
   assert.match(html, /role\.unavailable_reason==='protected'/);
   assert.match(html, /رتبة WEBSITE ADMIN محمية ولا يمكن منحها من داخل الموقع/);
+});
+
+
+test("assignment callsign picker excludes codes held by other active assignments", async () => {
+  const available = availableCallsigns(
+    [
+      { callsign: "Alpha 1", is_active: true },
+      { callsign: "Alpha 2", is_active: true },
+      { callsign: "Alpha 3", is_active: false },
+      { callsign: "Alpha 4", is_active: true },
+      { callsign: "Alpha 2", is_active: true }
+    ],
+    [
+      { discord_user_id: "111111111111111", status: "assigned", callsign: "Alpha 1" },
+      { discord_user_id: "222222222222222", status: "assigned", callsign: "alpha 4" },
+      { discord_user_id: "333333333333333", status: "unassigned", callsign: null }
+    ]
+  );
+  assert.deepEqual(available, ["Alpha 2"]);
+
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(api, /const callsigns=availableCallsigns\(callsignRows,assignments\)/);
+  assert.match(api, /discord_user_id:"neq\."\+targetId/);
+  assert.match(html, /if\(saved\?\.callsign&&!options\.includes\(saved\.callsign\)\)options\.push\(saved\.callsign\)/);
+});
+
+test("unique callsign race is reported as a conflict rather than a generic database failure", async () => {
+  assert.equal(isDuplicateCallsignViolation({
+    code: "23505",
+    message: 'duplicate key value violates unique constraint "staff_assignments_callsign_unique_idx"'
+  }), true);
+  assert.equal(isDuplicateCallsignViolation({
+    code: "23505",
+    message: 'duplicate key value violates unique constraint "some_other_unique_idx"'
+  }), false);
+  assert.equal(isDuplicateCallsignViolation({
+    code: "409",
+    message: 'duplicate key value violates unique constraint "staff_assignments_callsign_unique_idx"'
+  }), false);
+
+  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  assert.match(api, /callsignConflict&&!rollbackFailed\?409:502/);
+  assert.match(api, /تم حجزه في تعيين آخر أثناء الحفظ/);
 });
