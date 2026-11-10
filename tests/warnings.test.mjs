@@ -26,7 +26,7 @@ test("manual disciplinary actions allow Warning 2 or dismissal without earlier w
   assert.match(migration, /action_type = 'dismissal' AND warning_level = 3/);
   assert.match(migration, /v_subject\.warning_level <> 2/);
 
-  const manualMigration = await readFile(new URL("../supabase/migrations/20261110230900_allow_manual_disciplinary_actions_out_of_order.sql", import.meta.url), "utf8");
+  const manualMigration = await readFile(new URL("../supabase/migrations/20261110205216_allow_manual_disciplinary_actions_out_of_order.sql", import.meta.url), "utf8");
   assert.match(manualMigration, /p_action_type = 'warning' AND p_warning_level NOT IN \(1,2\)/);
   assert.match(manualMigration, /p_action_type = 'dismissal' AND p_warning_level <> 3/);
   assert.doesNotMatch(manualMigration, /warning_level_out_of_sequence/);
