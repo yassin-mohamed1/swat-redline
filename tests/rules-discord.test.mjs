@@ -46,7 +46,7 @@ test("long laws are split without cutting Unicode surrogate pairs or exceeding D
     body
   }, "Website Admin");
   assert.ok(messages.length > 1);
-  assert.equal(sectionText(messages, "نص القانون"), body);
+  assert.equal(sectionText(messages, "القانون"), body);
   for (const message of messages) {
     assert.ok(message.embeds.length <= 10);
     assert.ok(message.embeds.reduce((sum, embed) => sum + embedLength(embed), 0) <= 6000);
