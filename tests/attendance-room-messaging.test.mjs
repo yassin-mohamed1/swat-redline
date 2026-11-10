@@ -17,15 +17,20 @@ test("attendance room composer is available from the daily attendance page", asy
   assert.match(html, /action:'publish_attendance_notice'/);
 });
 
-test("attendance room messages are sent only to the attendance channel with mentions disabled", async () => {
+test("attendance room messages ping only the configured SWAT role in the attendance channel", async () => {
   const api = await read("../api/notifications/send.js");
   assert.match(api, /body\.action === "publish_attendance_notice"/);
   assert.match(api, /process\.env\.ATTENDANCE_CHANNEL_ID \|\| "1569735227146768434"/);
   assert.match(api, /isActiveStaffForNotifications\(config, user\)/);
-  assert.match(api, /allowed_mentions: \{ parse: \[\] \}/);
+  assert.match(api, /const swatRoleId = String\(process\.env\.DISCORD_ROLE_ID \|\| ""\)\.trim\(\)/);
+  assert.match(api, /content: "<@&" \+ swatRoleId \+ ">"/);
+  assert.match(api, /allowed_mentions: \{ parse: \[\], roles: \[swatRoleId\], replied_user: false \}/);
+  assert.doesNotMatch(api, /allowed_mentions: \{ parse: \["everyone"\]/);
   assert.match(api, /entity_type: "attendance_channel_notice"/);
   assert.match(api, /DISCORD_GUILD_ID/);
   assert.match(api, /notice_description: description/);
+  assert.match(html, /منشن حقيقي لرتبة SWAT تلقائيًا/);
+  assert.match(html, /لا تكتب اسم الرتبة يدويًا/);
 });
 
 test("attendance room composer supports message categories and content limits", async () => {
