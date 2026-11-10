@@ -2310,10 +2310,9 @@ function renderWarningRecords(){
   const label=s.status==='dismissed'?'مفصول':level?warningLevelLabel(level):'بدون إنذار';
   const tag=s.status==='dismissed'?'red':level===2?'yellow':level===1?'gray':'green';
   const manageButton='<button class="btn" type="button" onclick="openWarningManage(\''+adminEscape(s.discord_user_id)+'\')">إدارة الحالة</button>';
-  const canArchive=level===0||s.status==='dismissed';
   const archiveButton=warningShowArchived
    ?'<button class="btn primary" type="button" onclick="restoreWarningSubject(\''+adminEscape(s.discord_user_id)+'\')">إعادة للقائمة</button>'
-   :'<button class="btn danger" type="button" '+(canArchive?'':'disabled title="لا يمكن إخفاء عضو لديه إنذار فعّال"')+' onclick="archiveWarningSubject(\''+adminEscape(s.discord_user_id)+'\')">إزالة من القائمة</button>';
+   :'<button class="btn danger" type="button" onclick="archiveWarningSubject(\''+adminEscape(s.discord_user_id)+'\')">إزالة من القائمة</button>';
   const archiveInfo=warningShowArchived?'<div class="muted" style="margin-top:4px">سبب الإزالة: '+adminEscape(s.archive_reason||'—')+' • بواسطة: '+adminEscape(s.archived_by_name||'—')+'</div>':'';
   return '<tr><td><b>'+adminEscape(s.display_name)+'</b>'+archiveInfo+'</td><td><code>'+adminEscape(s.discord_user_id)+'</code></td><td><span class="tag '+tag+'">'+adminEscape(label)+'</span></td><td>'+adminEscape(s.last_reason||'—')+'</td><td>'+adminEscape(fmtWarningDate(s.last_action_at||s.updated_at))+'</td><td>'+adminEscape(s.warning_expires_at?fmtWarningDate(s.warning_expires_at):'—')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+manageButton+archiveButton+'</div></td></tr>';
  }).join('')||'<tr><td colspan="7"><div class="empty">'+(warningShowArchived?'لا توجد أعضاء مؤرشفة.':'لا توجد سجلات مطابقة لهذا الاختيار.')+'</div></td></tr>';
@@ -2352,7 +2351,7 @@ async function archiveWarningSubject(id){
  const reason=window.prompt('اكتب سبب إزالة '+(subject.display_name||id)+' من قائمة الحالات الحالية:','إزالة سجل تجريبي من قائمة الحالات.');
  if(reason===null)return;
  if(!String(reason).trim()){toast('سبب الإزالة مطلوب.');return;}
- if(!confirm('سيختفي العضو من جدول الحالات الحالية والعدادات. لن يتم حذف سجل التحذيرات أو سجل التدقيق، ولن يتم تغيير رتب Discord. هل تريد المتابعة؟'))return;
+ if(!confirm('سيختفي العضو من جدول الحالات الحالية والعدادات فقط، حتى لو كان عليه إنذار فعّال. لن يتم حذف سجل التحذيرات أو تغيير حالة الإنذار أو رتب Discord. ويمكنك استعادته لاحقًا من الأعضاء المؤرشفين. هل تريد المتابعة؟'))return;
  try{
   const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'archive_subject',discord_user_id:String(id),reason:String(reason).trim()})});
   const data=await response.json().catch(()=>({}));
@@ -4040,7 +4039,7 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "إعادة للقائمة":"Restore to list",
  "سبب الإزالة: ":"Removal reason: ",
  "لا توجد أعضاء مؤرشفة.":"No archived members.",
- "لا يمكن إزالة عضو لديه إنذار فعّال.":"A member with an active warning cannot be removed from the list.",
+ "يمكن إزالة أي عضو من قائمة الحالات، حتى مع وجود إنذار فعّال.":"Any member can be removed from the current list, even with an active warning.",
  "سبب الإزالة مطلوب.":"A removal reason is required.",
  "تمت إزالة العضو من قائمة الحالات مع الاحتفاظ بسجله.":"The member was removed from the current list and the history was preserved.",
  "تمت إعادة العضو إلى قائمة الحالات الحالية.":"The member was restored to the current list.",
