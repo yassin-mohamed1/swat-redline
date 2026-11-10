@@ -134,3 +134,15 @@ The checks cover:
 ## Operational limits
 
 Static checks and Vercel deployment status do not replace live browser/Discord testing. Notification batches are bounded to a single serverless request; a larger recipient group needs a durable queue/worker before increasing the limit.
+
+
+## SWAT Attendance Bot (Railway Worker)
+
+- The always-on worker lives in `attendance-bot/` and uses Discord Gateway `GuildMessages`, `MessageContent`, and `GuildMembers` intents.
+- It listens only to the configured attendance channel (default: `1569735227146768434`) in the configured guild.
+- Only non-bot members holding `DISCORD_ROLE_ID` are eligible to register attendance.
+- The first message per member per Riyadh calendar day is stored in `attendance_records`; further messages on that same day are acknowledged as already registered.
+- Attendance is recorded through the server-only `record_swat_daily_attendance` RPC. The browser cannot access the table directly.
+- This release only collects daily attendance and acknowledges it. It does not issue disciplinary warnings, dismiss members, or remove roles.
+- Railway service root directory: `/attendance-bot`; build command: `bun install`; start command: `bun run index.ts`.
+- Railway environment variables: `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_ROLE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ATTENDANCE_CHANNEL_ID=1569735227146768434`.
