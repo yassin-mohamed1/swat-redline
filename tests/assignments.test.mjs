@@ -15,7 +15,8 @@ test("assignment and personnel APIs use the same warning manager role and enforc
   assert.match(warnings, /DISCORD_WARNING_MANAGER_ROLE_ID/);
   // Warnings now delegate manager authorization to the shared Website Admin verifier.
   assert.match(warnings, /user\.isOwner \|\| await isWebsiteAdmin\(user\)/);
-  assert.match(html, /currentCanManageAssignments=currentCanManageWarnings/);
+  assert.match(html, /currentCanManageAssignments=currentCanAdmin/);
+  assert.match(html, /currentCanManageWarnings=warningAccess\.ok/);
   assert.match(html, /currentCanAdmin\|\|currentCanManageAssignments/);
 });
 
