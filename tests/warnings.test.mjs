@@ -215,7 +215,7 @@ test("disciplinary status changes synchronize warning roles and save an immutabl
 
 test("disciplinary warning editing updates name, level and history even when Discord messages are missing", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../supabase/migrations/20261110143119_disciplinary_action_management.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261110143307_disciplinary_action_management.sql", import.meta.url), "utf8");
   assert.match(api, /body\.action === "edit_action"/);
   assert.match(api, /target_name: targetName/);
   assert.match(api, /p_warning_level: requestedLevel/);
@@ -244,7 +244,7 @@ test("warning page groups member states, new actions, and message history into s
 
 test("warning actions can be voided without hard-deleting their records", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../supabase/migrations/20261110143119_disciplinary_action_management.sql", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261110143307_disciplinary_action_management.sql", import.meta.url), "utf8");
   const start = api.indexOf('if (body.action === "void_action")');
   const end = api.indexOf('if (body.action === "edit_action")', start);
   const handler = api.slice(start, end);
