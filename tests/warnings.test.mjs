@@ -336,3 +336,19 @@ test("the warnings page hides archived subjects by default and offers manager re
   assert.ok(html.includes("action:'archive_subject'"));
   assert.ok(html.includes("action:'restore_subject'"));
 });
+
+
+test("attendance dashboard is available inside the warnings page and uses live attendance data", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(api, /params\.get\("attendance"\) === "1"/);
+  assert.match(api, /async function listAttendanceDashboard\(cfg\)/);
+  assert.match(api, /attendance_records/);
+  assert.match(api, /is_active: "eq\.true"/);
+  assert.match(api, /is_banned: "eq\.false"/);
+  assert.match(html, /id="warningTabAttendance"/);
+  assert.match(html, /id="warningViewAttendance"/);
+  assert.match(html, /fetch\('\/api\/warnings\?attendance=1'/);
+  assert.match(html, /current_streak_days/);
+  assert.match(html, /last_seven_days/);
+});
