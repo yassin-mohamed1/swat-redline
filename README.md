@@ -144,5 +144,5 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 - The first message per member per Riyadh calendar day is stored in `attendance_records`; further messages on that same day are acknowledged as already registered.
 - Attendance is recorded through the server-only `record_swat_daily_attendance` RPC. The browser cannot access the table directly.
 - This release only collects daily attendance and acknowledges it. It does not issue disciplinary warnings, dismiss members, or remove roles.
-- Railway service root directory: `/attendance-bot`; build command: `bun install`; start command: `bun run index.ts`.
+- Railway service root directory: `/attendance-bot`; runtime: Node.js 22+; build command: `npm install --omit=dev`; start command: `npm start`.
 - Railway environment variables: `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_ROLE_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ATTENDANCE_CHANNEL_ID=1569735227146768434`.
