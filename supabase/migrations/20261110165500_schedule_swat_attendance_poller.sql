@@ -1,11 +1,11 @@
--- Register the one-minute poller for the deployed Vercel attendance route.
--- Apply this migration only after /api/attendance/sync is live in production.
+-- Register the one-minute poller through the existing notifications serverless function.
+-- Apply this migration only after the updated function is deployed to production.
 SELECT cron.schedule(
   'swat-daily-attendance-poller',
   '* * * * *',
   $job$
     SELECT net.http_get(
-      url := 'https://swat-redline.vercel.app/api/attendance/sync',
+      url := 'https://swat-redline.vercel.app/api/notifications/send?task=attendance',
       headers := jsonb_build_object(
         'x-announcement-sync-secret',
         (SELECT decrypted_secret
