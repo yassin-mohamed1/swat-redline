@@ -80,12 +80,15 @@ test("publishing official notices uses only the configured notification channel 
   const end = api.indexOf("\nexport default async function handler", start);
   assert.ok(start >= 0 && end > start, "official notice publisher exists");
   const publisher = api.slice(start, end);
-  assert.match(publisher, /config\.notificationChannelId/);
+  assert.match(publisher, /getSiteNoticeChannelId\(\)/);
+  assert.match(api, /process\.env\.DISCORD_SITE_NOTICES_CHANNEL_ID/);
+  assert.doesNotMatch(publisher, /config\.notificationChannelId/);
   assert.match(publisher, /notificationChannelEnabled/);
   assert.match(publisher, /discord_notification_batches/);
   assert.match(publisher, /channel_status: "sent"/);
   assert.match(publisher, /channel_status: "failed"/);
   assert.doesNotMatch(publisher, /DISCORD_WARNINGS_CHANNEL_ID/);
+  assert.doesNotMatch(publisher, /DISCORD_NOTIFICATION_CHANNEL_ID/);
   assert.doesNotMatch(publisher, /deliverToRecipient|discord_user_id.*recipient|\/users\/@me\/channels/);
 
   const handler = api.slice(end);
@@ -159,4 +162,16 @@ test("shared state initializes safeData before validating and normalizing offici
   assert.ok(safeDataDeclaration >= 0 && noticeGuard > safeDataDeclaration);
   assert.ok(normalizedAssignment > noticeGuard);
   assert.ok(databaseWrite > normalizedAssignment);
+});
+
+
+test("official site notices have a dedicated channel target independent from warning and general notification routes", async () => {
+  const api = await read("../api/notifications/send.js");
+  const start = api.indexOf("async function publishSavedSiteNotice(");
+  const end = api.indexOf("\nexport default async function handler", start);
+  const publisher = api.slice(start, end);
+  assert.match(api, /function getSiteNoticeChannelId\(\)\s*\{\s*return String\(process\.env\.DISCORD_SITE_NOTICES_CHANNEL_ID \|\| ""\)\.trim\(\);\s*\}/);
+  assert.match(publisher, /const channelId = getSiteNoticeChannelId\(\)/);
+  assert.match(api, /const channelId = getSiteNoticeChannelId\(\)/);
+  assert.doesNotMatch(publisher, /config\.notificationChannelId/);
 });
