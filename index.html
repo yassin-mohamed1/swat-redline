@@ -2164,7 +2164,7 @@ async function sendRuleToDiscord(ruleId,destination,button){
 function normalizeRules(){rules=rules.map((r,i)=>Array.isArray(r)?({id:r[0]||'SOP-'+(i+1),title:r[1]||'بدون عنوان',description:r[2]||'',body:'',type:'notice'}):({...r,type:r.type||'notice',description:r.description||'',body:r.body||''}));dailyCommands=dailyCommands.map(c=>typeof c==='string'?({text:c}):c).filter(c=>c&&typeof c.text==='string')}
 function ruleMatchesSearch(rule,query){
  if(!query)return true;
- return [rule.id,rule.title,rule.description,rule.body].some(value=>String(value??'').toLocaleLowerCase().includes(query));
+ return [rule.id,rule.title,rule.body||rule.description].some(value=>String(value??'').toLocaleLowerCase().includes(query));
 }
 function renderRules(){
  normalizeRules();
@@ -2181,7 +2181,7 @@ function renderRules(){
   const sendButtons=currentCanAdmin?'<button type="button" class="btn rule-send-button" onclick="sendRuleToDiscord('+jsArg(r.id)+',\'city\',this)">Send to City Rules</button><button type="button" class="btn rule-send-button" onclick="sendRuleToDiscord('+jsArg(r.id)+',\'server\',this)">Send to Server Rules</button>':'';
   return '<article class="law-card rule-law-card"><div class="rule-card-heading"><div><div class="rule-card-kicker"><span class="tag red">قانون رسمي</span><span class="muted">'+esc(r.id||'بدون رقم مرجعي')+'</span></div><h4>'+esc(r.title||'قانون بدون عنوان')+'</h4></div></div>'+
    
-   '<section class="rule-card-section"><div class="rule-card-section-label">نص القانون</div><p class="'+(r.body?'':'rule-card-empty')+'">'+esc(r.body||'لم تتم إضافة نص لهذا القانون.')+'</p></section>'+
+   '<section class="rule-card-section"><div class="rule-card-section-label">القانون</div><p class="'+(r.body?'':'rule-card-empty')+'">'+esc(r.body||r.description||'لم تتم إضافة نص لهذا القانون.')+'</p></section>'+
    '<div class="rule-card-actions"><button type="button" class="btn" onclick="editRule('+i+')">تعديل</button>'+sendButtons+'<button type="button" class="btn danger" onclick="deleteRule('+i+')">حذف</button></div></article>';
  }).join('')||(query?'<div class="rules-empty-state">لا توجد قوانين تطابق البحث. جرّب كلمة أخرى أو رقم القانون.</div>':'<div class="rules-empty-state">لا توجد قوانين مضافة حتى الآن. استخدم «إضافة قانون» لإنشاء أول قانون رسمي.</div>');
  renderDailyCommands();
