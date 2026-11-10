@@ -30,7 +30,7 @@ test("Website Admin can use owner-level portal management APIs", async () => {
   assert.match(settings, /!user\.isOwner && !websiteAdmin/);
   assert.match(media, /!user\.isOwner && !websiteAdmin/);
   assert.match(warnings, /user\.isOwner \|\| await isWebsiteAdmin\(user\)/);
-  assert.match(notifications, /Website Admin permission required to inspect notification diagnostics/);
+  assert.match(notifications, /Website Admin permission required to send Discord notifications/);
   assert.match(session, /isWebsiteAdmin,\s*websiteAdminRoleId/);
 });
 

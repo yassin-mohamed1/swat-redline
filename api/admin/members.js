@@ -4,7 +4,7 @@ import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { handleDiscordRoleSync } from "../../lib/discord-role-sync.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
-import { newlyGrantedRoles } from "../../lib/assignment-notifications.js";
+import { newlyGrantedRoles, availableCallsigns, isDuplicateCallsignViolation } from "../../lib/assignment-notifications.js";
 
 const ASSIGNMENT_RANKS = [
   { key: "swatcommander", aliases: ["swatcommender"], label: "S.W.A.T COMMANDER" },
@@ -382,9 +382,7 @@ async function listAssignments(url,key,token,guildId,allowWebsiteAdminRole=false
       in_guild:inGuild,current_roles:currentRoles,current_rank_roles:currentRankRoles,role_data_source:roleDataSource,
       account_status:profile.is_banned?"banned":profile.is_active===false?"inactive":"active"};
   });
-  const callsigns=[...new Set(callsignRows.filter(row=>row?.is_active!==false).map(row=>String(row.callsign||"")).filter(value=>/^Alpha (0|[1-9][0-9]*)$/.test(value)))].sort((a,b)=>Number(a.slice(6))-Number(b.slice(6)));
-  for(const item of assignments)if(item.status==="assigned"&&item.callsign&&!callsigns.includes(item.callsign))callsigns.push(item.callsign);
-  callsigns.sort((a,b)=>Number(a.slice(6))-Number(b.slice(6)));
+  const callsigns=availableCallsigns(callsignRows,assignments);
   return {members,roles,callsigns,bot:{can_manage_roles:Boolean(guild?.canManageRoles),top_role:guild?.botTop?.name||"",top_role_position:Number(guild?.botTop?.position||0)},
     member_sync_warning:guildWarning};
 }
@@ -482,6 +480,16 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     const catalog=await supabase(url,key,"staff_callsigns?callsign=eq."+encodeURIComponent(callsign)+"&is_active=eq.true&select=callsign&limit=1");
     if(!catalog.ok)return send(res,503,{error:"تعذّر التحقق من قائمة أكواد النداء."});
     if(!(await catalog.json()).length)return send(res,409,{error:"كود النداء غير موجود في القائمة. أضفه من زر إضافة كود نداء جديد أولًا."});
+    const usedQuery=new URLSearchParams({
+      callsign:"eq."+callsign,
+      status:"eq.assigned",
+      discord_user_id:"neq."+targetId,
+      select:"discord_user_id",
+      limit:"1"
+    });
+    const usedResponse=await supabase(url,key,"staff_assignments?"+usedQuery.toString());
+    if(!usedResponse.ok)return send(res,503,{error:"تعذّر التحقق من توفر كود النداء. لم يتم تغيير رتب Discord."});
+    if((await usedResponse.json()).length)return send(res,409,{error:"كود النداء مستخدم بالفعل مع عضو آخر. حدّث القائمة واختر كودًا متاحًا."});
   }
   const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId);
   const displayName=assignmentMemberName(member,profile.display_name||"Discord member");
@@ -588,10 +596,13 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
       message:String(error?.message||"Unknown database error").slice(0,240)
     };
     console.error("Assignment database save failed:",JSON.stringify({...diagnostic,rollback_failed:rollbackFailed}));
+    const callsignConflict=isDuplicateCallsignViolation(error);
     const errorText=rollbackFailed
       ?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا."
-      :"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord.";
-    return send(res,502,{
+      :callsignConflict
+        ?"كود النداء تم حجزه في تعيين آخر أثناء الحفظ. لم يتم حفظ التعيين وتم التراجع عن تغيير الرتب؛ حدّث القائمة واختر كودًا آخر."
+        :"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord.";
+    return send(res,callsignConflict&&!rollbackFailed?409:502,{
       error:errorText,rollback_failed:rollbackFailed,
       database_diagnostic:diagnostic
     });
