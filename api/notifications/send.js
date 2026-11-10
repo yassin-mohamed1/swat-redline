@@ -884,6 +884,124 @@ async function publishSavedSiteNotice(user, noticeId, { allowResend = false } = 
   };
 }
 
+
+async function publishAttendanceChannelNotice(user, body) {
+  const config = getConfig();
+  if (config.error === "bot_token_missing") {
+    throw Object.assign(new Error("بوت Discord غير متصل حاليًا."), { status: 503 });
+  }
+  if (config.error) {
+    throw Object.assign(new Error("إعدادات الإرسال غير مكتملة."), { status: 503 });
+  }
+  if (!await isActiveStaffForNotifications(config, user)) {
+    throw Object.assign(new Error("الحساب غير نشط أو لا يملك صلاحية الإرسال."), { status: 403 });
+  }
+
+  const channelId = String(process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434").trim();
+  if (!/^\d{17,20}$/.test(channelId)) {
+    throw Object.assign(new Error("معرّف روم البصمة غير صالح."), { status: 503 });
+  }
+
+  const typeLabels = {
+    announcement: "إعلان",
+    notice: "تنبيه",
+    request: "طلب",
+    report: "تقرير إداري",
+    instructions: "تعليمات",
+    other: "رسالة إدارية"
+  };
+  const type = String(body.noticeType || "announcement").trim();
+  const typeLabel = typeLabels[type];
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const description = typeof body.description === "string" ? body.description.trim() : "";
+  if (!typeLabel) {
+    throw Object.assign(new Error("اختار نوع الرسالة أولًا."), { status: 400 });
+  }
+  if (!title || !description) {
+    throw Object.assign(new Error("اكتب عنوان الرسالة والوصف قبل الإرسال."), { status: 400 });
+  }
+  if (title.length > 200 || description.length > 4000) {
+    throw Object.assign(new Error("العنوان يجب ألا يتجاوز 200 حرف والوصف 4000 حرف."), { status: 400 });
+  }
+
+  const actorName = truncate(user.displayName || user.username || "S.W.A.T. Command", 100);
+  let sent;
+  try {
+    sent = await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages", {
+      method: "POST",
+      body: JSON.stringify({
+        embeds: [{
+          title: typeLabel + " • " + title,
+          description,
+          color: 0xD92735,
+          fields: [
+            { name: "القسم", value: "البصمة اليومية", inline: true },
+            { name: "المرسل", value: actorName, inline: true }
+          ],
+          footer: { text: "S.W.A.T. REDLINE • DAILY ATTENDANCE" },
+          timestamp: new Date().toISOString()
+        }],
+        allowed_mentions: { parse: [] }
+      })
+    });
+  } catch (error) {
+    const status = Number(error?.status || 0);
+    const message = status === 403
+      ? "البوت لا يملك صلاحية إرسال الرسائل أو تضمين الروابط في روم البصمة."
+      : status === 404
+        ? "لم يتم العثور على روم البصمة أو أن البوت لا يستطيع الوصول إليها."
+        : status === 429
+          ? "Discord فرض حدًا مؤقتًا للإرسال. انتظر قليلًا ثم أعد المحاولة."
+          : "تعذّر إرسال الرسالة إلى روم البصمة. رمز الخطأ: " + String(error?.code || status || "unknown");
+    throw Object.assign(new Error(message), { status: 502, code: error?.code || null });
+  }
+
+  const guildId = String(process.env.DISCORD_GUILD_ID || "");
+  const messageId = String(sent?.id || "");
+  const messageUrl = /^\d{17,20}$/.test(guildId) && /^\d{17,20}$/.test(messageId)
+    ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
+    : null;
+  const details = {
+    type: "رسالة في روم البصمة اليومية",
+    detail: actorName + " نشر " + typeLabel + " بعنوان «" + title.slice(0, 180) + "» في روم البصمة اليومية.",
+    channel_id: channelId,
+    channel_message_id: messageId || null,
+    notice_type: type,
+    notice_title: title,
+    notice_description: description
+  };
+  let auditRecorded = false;
+  try {
+    const auditResponse = await supabaseRequest(config, "audit_logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({
+        actor_discord_id: user.id,
+        actor_name: actorName,
+        action: "create",
+        entity_type: "attendance_channel_notice",
+        entity_id: messageId || crypto.randomUUID(),
+        details
+      })
+    });
+    auditRecorded = auditResponse.ok;
+    if (auditRecorded) {
+      await forwardAuditToDiscord(user, {
+        action: "create",
+        entity_type: "attendance_channel_notice",
+        entity_id: messageId || null,
+        details
+      });
+    } else {
+      console.warn("Attendance room notice audit write failed:", auditResponse.status);
+    }
+  } catch (error) {
+    console.warn("Attendance room notice audit failed:", error?.message || "unknown");
+  }
+
+  return { channelId, messageId, messageUrl, auditRecorded, type, title };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -1025,6 +1143,19 @@ export default async function handler(req, res) {
         messagesSent: Number(error.messagesSent || 0),
         partial: Boolean(error.partial),
         messageIds: Array.isArray(error.messageIds) ? error.messageIds : []
+      });
+    }
+  }
+
+
+  if (body.action === "publish_attendance_notice") {
+    try {
+      const result = await publishAttendanceChannelNotice(user, body);
+      return res.status(200).json({ ok: true, ...result });
+    } catch (error) {
+      return res.status(error.status || 502).json({
+        error: error.message || "تعذّر إرسال الرسالة إلى روم البصمة.",
+        code: error.code || null
       });
     }
   }
