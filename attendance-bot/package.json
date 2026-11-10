@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "start": "bun run index.ts"
+    "start": "node index.js"
   },
   "dependencies": {
     "discord.js": "^14.19.3"
