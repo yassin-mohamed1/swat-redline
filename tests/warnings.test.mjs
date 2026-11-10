@@ -310,7 +310,7 @@ test("disciplinary subjects can be archived from the current list without deleti
   assert.ok(start >= 0 && end > start);
   assert.ok(handler.includes('rpc(cfg, "set_disciplinary_subject_archive"'));
   assert.ok(handler.includes("p_actor_discord_id: user.id"));
-  assert.ok(handler.includes("cannot_archive_subject_with_active_warning"));
+  assert.ok(!handler.includes("cannot_archive_subject_with_active_warning"));
   assert.ok(api.includes('listData(cfg, params.get("include_archived") === "1")'));
   assert.ok(api.includes("is_archived=eq.false"));
   assert.ok(migration.includes("ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false"));
@@ -326,6 +326,10 @@ test("the warnings page hides archived subjects by default and offers manager re
   assert.ok(html.includes("let warningShowArchived=false"));
   assert.ok(html.includes("include_archived=1"));
   assert.ok(html.includes("Boolean(s.is_archived)!==warningShowArchived"));
+  assert.ok(!html.includes("لا يمكن إخفاء عضو لديه إنذار فعّال"));
+  assert.ok(!html.includes("const canArchive=level===0||s.status==='dismissed'"));
+  assert.ok(html.includes("حتى لو كان عليه إنذار فعّال"));
+
   assert.ok(html.includes("function toggleWarningArchivedView()"));
   assert.ok(html.includes("function archiveWarningSubject(id)"));
   assert.ok(html.includes("function restoreWarningSubject(id)"));
