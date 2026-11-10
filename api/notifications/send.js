@@ -455,20 +455,25 @@ function getSiteNoticeChannelId() {
   return String(process.env.DISCORD_SITE_NOTICES_CHANNEL_ID || "").trim();
 }
 
-async function readSiteNoticeBatch(config, noticeId) {
+async function readSiteNoticeBatches(config, noticeId) {
   const query = new URLSearchParams({
     entity_id: "eq." + noticeId,
     entity_type: "eq.announcement",
     select: "id,batch_key,entity_id,channel_status,channel_message_id,channel_error_code,created_at",
     order: "created_at.desc",
-    limit: "1"
+    limit: "1000"
   });
   const response = await supabaseRequest(config, "discord_notification_batches?" + query.toString());
   if (!response.ok) {
     console.error("Site notice publication status lookup failed:", response.status, (await response.text()).slice(0, 200));
-    throw Object.assign(new Error("تعذّر التحقق من حالة نشر التعميم."), { status: 502 });
+    throw Object.assign(new Error("تعذّر التحقق من سجل نشر التعميم."), { status: 502 });
   }
-  return (await response.json())[0] || null;
+  return await response.json();
+}
+
+async function readSiteNoticeBatch(config, noticeId) {
+  const batches = await readSiteNoticeBatches(config, noticeId);
+  return batches[0] || null;
 }
 
 async function getSiteNoticePublicationStatuses(user, url, res) {
@@ -541,7 +546,8 @@ async function readSavedSiteNoticeContext(config, noticeId) {
   const notices = Array.isArray(stateRows[0]?.data?.siteNotices) ? stateRows[0].data.siteNotices : [];
   const notice = notices.find(item => String(item?.id || "") === noticeId);
   if (!notice) throw Object.assign(new Error("التعميم غير موجود في سجل الموقع."), { status: 404 });
-  return { notice, batch: await readSiteNoticeBatch(config, noticeId) };
+  const batches = await readSiteNoticeBatches(config, noticeId);
+  return { notice, batch: batches[0] || null, batches };
 }
 
 async function writeSiteNoticeAudit(config, user, action, noticeId, title, details) {
@@ -575,48 +581,54 @@ async function updatePublishedSiteNotice(user, noticeId) {
   if (config.error === "bot_token_missing") throw Object.assign(new Error("Discord bot is not connected."), { status: 503 });
   if (config.error) throw Object.assign(new Error("Notification storage is not configured."), { status: 503 });
   const channelId = getSiteNoticeChannelId();
-  if (!/^\\d{17,20}$/.test(channelId)) throw Object.assign(new Error("روم التعميم غير مضبوطة."), { status: 503 });
+  if (!/^\d{17,20}$/.test(channelId)) throw Object.assign(new Error("روم التعميم غير مضبوطة."), { status: 503 });
   if (!await isActiveStaffForNotifications(config, user)) throw Object.assign(new Error("حساب الإدارة غير نشط أو تعذّر التحقق منه."), { status: 403 });
 
-  const { notice, batch } = await readSavedSiteNoticeContext(config, noticeId);
+  const { notice, batches } = await readSavedSiteNoticeContext(config, noticeId);
   const normalized = normalizeSiteNoticeInput(notice);
-  if (!siteNoticeBatchIsSent(batch)) return { updatedOnPortal: true, updatedOnDiscord: false, notPublished: true };
+  const liveBatches = batches.filter(siteNoticeBatchIsSent);
+  if (!liveBatches.length) return { updatedOnPortal: true, updatedOnDiscord: false, notPublished: true };
 
   const payload = buildSiteNoticeDiscordPayload({
     ...normalized,
     notificationRoleId: config.notificationRoleId,
     roleMentionDisabled: true
   });
-  try {
-    await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages/" + encodeURIComponent(batch.channel_message_id), {
-      method: "PATCH",
-      body: JSON.stringify({ embeds: payload.embeds })
-    });
-  } catch (error) {
-    const code = String(error?.code || error?.status || "discord_edit_failed").slice(0, 80);
-    await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ channel_error_code: "edit_" + code })
-    }).catch(() => null);
-    const message = Number(error?.status) === 404
-      ? "رسالة Discord الأصلية غير موجودة. التعديل محفوظ في الموقع، لكن الرسالة لم تعد موجودة في الروم."
-      : Number(error?.status) === 403
-        ? "البوت لا يملك صلاحية تعديل رسائل التعميم في روم 🔴 SWAT • WARNING."
-        : "تم حفظ التعديل في الموقع، لكن تعذّر تحديث رسالة Discord. يمكنك الضغط على تعديل ثم الحفظ لإعادة المحاولة.";
-    throw Object.assign(new Error(message), { status: 502, code });
+  let updatedCount = 0;
+  for (const batch of liveBatches) {
+    try {
+      await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages/" + encodeURIComponent(batch.channel_message_id), {
+        method: "PATCH",
+        body: JSON.stringify({ embeds: payload.embeds })
+      });
+      updatedCount++;
+      await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ channel_error_code: null })
+      }).catch(() => null);
+    } catch (error) {
+      const code = String(error?.code || error?.status || "discord_edit_failed").slice(0, 80);
+      await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ channel_error_code: "edit_" + code })
+      }).catch(() => null);
+      const message = Number(error?.status) === 404
+        ? "رسالة منشورة لم تعد موجودة في Discord. تم حفظ النص في الموقع، لكن لم يمكن تحديث كل النسخ المنشورة."
+        : Number(error?.status) === 403
+          ? "البوت لا يملك صلاحية تعديل رسائل التعميم في روم 🔴 SWAT • WARNING."
+          : "تم حفظ التعديل في الموقع، لكن تعذّر تحديث كل رسائل Discord. افتح التعميم وعدّل/احفظ مرة أخرى بعد حل الصلاحيات.";
+      throw Object.assign(new Error(message), { status: 502, code, updatedCount });
+    }
   }
 
-  await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify({ channel_error_code: null })
-  }).catch(() => null);
   await writeSiteNoticeAudit(config, user, "update", noticeId, normalized.title, {
     channel_id: channelId,
-    channel_message_id: batch.channel_message_id
+    messages_updated: updatedCount,
+    message_ids: liveBatches.map(batch => batch.channel_message_id)
   });
-  return { updatedOnPortal: true, updatedOnDiscord: true, channelId, messageId: batch.channel_message_id };
+  return { updatedOnPortal: true, updatedOnDiscord: true, updatedCount, channelId, messageId: liveBatches[0]?.channel_message_id || null };
 }
 
 async function deleteSiteNoticePublication(user, noticeId) {
@@ -624,28 +636,27 @@ async function deleteSiteNoticePublication(user, noticeId) {
   if (config.error === "bot_token_missing") throw Object.assign(new Error("Discord bot is not connected."), { status: 503 });
   if (config.error) throw Object.assign(new Error("Notification storage is not configured."), { status: 503 });
   const channelId = getSiteNoticeChannelId();
-  if (!/^\\d{17,20}$/.test(channelId)) throw Object.assign(new Error("روم التعميم غير مضبوطة."), { status: 503 });
+  if (!/^\d{17,20}$/.test(channelId)) throw Object.assign(new Error("روم التعميم غير مضبوطة."), { status: 503 });
   if (!await isActiveStaffForNotifications(config, user)) throw Object.assign(new Error("حساب الإدارة غير نشط أو تعذّر التحقق منه."), { status: 403 });
 
-  const { notice, batch } = await readSavedSiteNoticeContext(config, noticeId);
-  if (batch?.channel_status === "pending") {
+  const { notice, batches } = await readSavedSiteNoticeContext(config, noticeId);
+  if (batches.some(batch => batch.channel_status === "pending")) {
     throw Object.assign(new Error("لا يمكن حذف التعميم أثناء وجود عملية نشر قيد التنفيذ."), { status: 409 });
   }
-  let discordDeleted = false;
-  if (siteNoticeBatchIsSent(batch)) {
+  const liveBatches = batches.filter(siteNoticeBatchIsSent);
+  let deletedCount = 0;
+  for (const batch of liveBatches) {
     try {
       await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages/" + encodeURIComponent(batch.channel_message_id), {
         method: "DELETE"
       });
-      discordDeleted = true;
     } catch (error) {
       if (Number(error?.status) !== 404) {
         const message = Number(error?.status) === 403
           ? "البوت لا يملك صلاحية حذف الرسائل من روم 🔴 SWAT • WARNING."
-          : "تعذّر حذف رسالة Discord؛ لم يتم حذف سجل التعميم من الموقع.";
-        throw Object.assign(new Error(message), { status: 502, code: error?.code || error?.status || "discord_delete_failed" });
+          : "تعذّر حذف إحدى رسائل Discord؛ لم يتم حذف سجل التعميم من الموقع. يمكنك إعادة المحاولة.";
+        throw Object.assign(new Error(message), { status: 502, code: error?.code || error?.status || "discord_delete_failed", deletedCount });
       }
-      discordDeleted = true;
     }
 
     const ledgerUpdate = await supabaseRequest(config, "discord_notification_batches?id=eq." + encodeURIComponent(batch.id), {
@@ -655,15 +666,17 @@ async function deleteSiteNoticePublication(user, noticeId) {
     });
     if (!ledgerUpdate.ok) {
       console.error("Deleted official notice message but failed to update delivery ledger:", ledgerUpdate.status, (await ledgerUpdate.text()).slice(0, 200));
-      throw Object.assign(new Error("تم حذف رسالة Discord، لكن تعذّر تحديث سجل النشر. حدّث الصفحة قبل المحاولة مرة أخرى."), { status: 502 });
+      throw Object.assign(new Error("تم حذف رسالة Discord، لكن تعذّر تحديث سجل النشر. حدّث الصفحة قبل المحاولة مرة أخرى."), { status: 502, deletedCount });
     }
+    deletedCount++;
   }
+
   await writeSiteNoticeAudit(config, user, "delete", noticeId, notice.title, {
     channel_id: channelId,
-    channel_message_id: batch?.channel_message_id || null,
-    discord_deleted: discordDeleted
+    message_ids: liveBatches.map(batch => batch.channel_message_id),
+    discord_deleted_count: deletedCount
   });
-  return { deletedFromDiscord: discordDeleted };
+  return { deletedFromDiscord: deletedCount > 0, deletedCount };
 }
 
 async function publishSavedSiteNotice(user, noticeId, { allowResend = false } = {}) {
