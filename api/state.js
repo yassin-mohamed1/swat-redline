@@ -226,15 +226,38 @@ export default async function handler(req, res) {
         });
       }
 
-      // Official site notices are a privileged collection. Regular staff may
-      // continue editing the existing shared records, but only the owner or
-      // Website Admin may create, edit, or delete official notices.
+      // Official site notices are a privileged collection. Publication status
+      // is read from the server-side delivery ledger and is never persisted from
+      // the browser as part of the notice's editable content.
       if (Object.prototype.hasOwnProperty.call(data, "siteNotices")) {
         if (!Array.isArray(data.siteNotices)) {
           return res.status(400).json({ error: "The official notices collection must be an array." });
         }
-        const previousNotices = Array.isArray(current.data?.siteNotices) ? current.data.siteNotices : [];
-        const changedNotices = JSON.stringify(previousNotices) !== JSON.stringify(data.siteNotices);
+        if (data.siteNotices.length > 500) {
+          return res.status(400).json({ error: "The official notices archive has reached its safe record limit." });
+        }
+        const normalizeNotice = notice => ({
+          id: String(notice?.id || ""),
+          title: String(notice?.title || "").trim(),
+          description: String(notice?.description || "").trim(),
+          owner: String(notice?.owner || "").trim().slice(0, 120),
+          createdByDiscordId: notice?.createdByDiscordId ? String(notice.createdByDiscordId) : null,
+          createdAt: String(notice?.createdAt || "")
+        });
+        const incomingNotices = data.siteNotices.map(normalizeNotice);
+        const ids = new Set();
+        for (const notice of incomingNotices) {
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(notice.id) ||
+              ids.has(notice.id) || !notice.title || notice.title.length > 256 ||
+              !notice.description || notice.description.length > 4000 ||
+              !notice.createdAt || !Number.isFinite(Date.parse(notice.createdAt)) ||
+              (notice.createdByDiscordId && !/^\d{15,22}$/.test(notice.createdByDiscordId))) {
+            return res.status(400).json({ error: "An official notice contains an invalid ID, title, description, owner, or creation timestamp." });
+          }
+          ids.add(notice.id);
+        }
+        const previousNotices = Array.isArray(current.data?.siteNotices) ? current.data.siteNotices.map(normalizeNotice) : [];
+        const changedNotices = JSON.stringify(previousNotices) !== JSON.stringify(incomingNotices);
         if (changedNotices) {
           let canManageNotices = Boolean(user.isOwner);
           try {
@@ -250,21 +273,8 @@ export default async function handler(req, res) {
           if (!canManageNotices) {
             return res.status(403).json({ error: "Only the portal owner or Website Admin may manage official notices." });
           }
-          if (data.siteNotices.length > 500) {
-            return res.status(400).json({ error: "The official notices archive has reached its safe record limit." });
-          }
-          const ids = new Set();
-          for (const notice of data.siteNotices) {
-            const id = String(notice?.id || "");
-            const title = String(notice?.title || "").trim();
-            const description = String(notice?.description || "").trim();
-            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ||
-                ids.has(id) || !title || title.length > 256 || !description || description.length > 4000) {
-              return res.status(400).json({ error: "An official notice contains an invalid ID, title, description, or duplicate record." });
-            }
-            ids.add(id);
-          }
         }
+        safeData.siteNotices = incomingNotices;
       }
 
       // Merge keys that older open browser tabs do not know about instead of
