@@ -662,9 +662,13 @@ export default async function handler(req, res) {
 
       let rolesSynced = true;
       let roleSyncError = null;
-      if (result.was_current && result.subject_state?.status === "active") {
+      if (result.was_current) {
         try {
-          await syncWarningLevel(cfg, record.discord_user_id, Number(result.subject_state.warning_level || 0));
+          if (result.subject_state?.status === "dismissed") {
+            await updateMemberRoles(cfg, record.discord_user_id, 3, true);
+          } else {
+            await syncWarningLevel(cfg, record.discord_user_id, Number(result.subject_state?.warning_level || 0));
+          }
         } catch (error) {
           rolesSynced = false;
           roleSyncError = String(error.code || error.message || "warning_role_sync_failed").slice(0, 120);
@@ -771,7 +775,7 @@ export default async function handler(req, res) {
         : record.warning_expires_at || null;
 
       let roleResult = null;
-      if (wasCurrent && requestedLevel !== Number(record.warning_level)) {
+      if (wasCurrent) {
         try {
           roleResult = await syncWarningLevel(cfg, record.discord_user_id, requestedLevel);
         } catch (error) {
