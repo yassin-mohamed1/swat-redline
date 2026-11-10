@@ -323,6 +323,7 @@ async function listAttendanceDashboard(cfg) {
   });
   return {
     generated_at: now.toISOString(),
+    attendance_started_at: attendanceStartedAt,
     timezone: "Asia/Riyadh",
     channel_id: process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434",
     total_members: members.length,
