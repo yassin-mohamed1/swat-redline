@@ -299,3 +299,36 @@ test("warning history exposes edit and void actions for completed warnings, inde
   assert.match(renderer, /onclick="voidWarningAction/);
   assert.doesNotMatch(renderer, /a\.dm_channel_id&&a\.dm_message_id&&a\.channel_message_id/);
 });
+
+
+test("disciplinary subjects can be archived from the current list without deleting their history", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261110144840_archive_disciplinary_subjects.sql", import.meta.url), "utf8");
+  const start = api.indexOf('if (body.action === "archive_subject"');
+  const end = api.indexOf('if (body.action === "adjust_state")', start);
+  const handler = api.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(handler, /rpc\\(cfg, "set_disciplinary_subject_archive"/);
+  assert.match(handler, /p_actor_discord_id: user\\.id/);
+  assert.match(handler, /cannot_archive_subject_with_active_warning/);
+  assert.match(api, /listData\\(cfg, params\\.get\\("include_archived"\\) === "1"\\)/);
+  assert.match(api, /is_archived=eq\\.false/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\\.set_disciplinary_subject_archive/);
+  assert.match(migration, /INSERT INTO public\\.audit_logs/);
+  assert.match(migration, /is_archived = false/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\\.set_disciplinary_subject_archive/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\\.set_disciplinary_subject_archive[\\s\\S]*TO service_role/);
+});
+
+test("the warnings page hides archived subjects by default and offers manager restore", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /let warningShowArchived=false/);
+  assert.match(html, /include_archived=1/);
+  assert.match(html, /Boolean\\(s\\.is_archived\\)!==warningShowArchived/);
+  assert.match(html, /function toggleWarningArchivedView\\(\\)/);
+  assert.match(html, /function archiveWarningSubject\\(id\\)/);
+  assert.match(html, /function restoreWarningSubject\\(id\\)/);
+  assert.match(html, /action:'archive_subject'/);
+  assert.match(html, /action:'restore_subject'/);
+});
