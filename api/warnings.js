@@ -597,11 +597,8 @@ export default async function handler(req, res) {
         });
         return json(res, 200, { ok: true, is_archived: result.is_archived, before: result.before, after: result.after });
       } catch (error) {
-        const cannotArchiveActive = String(error.message || "").includes("cannot_archive_subject_with_active_warning");
-        return json(res, cannotArchiveActive ? 409 : error.status || 502, {
-          error: cannotArchiveActive
-            ? "لا يمكن إزالة عضو لديه إنذار فعّال. ألغِ الإنذار أو انتظر انتهاءه أولًا."
-            : error.message || "تعذّر تحديث ظهور العضو في قائمة الحالات."
+        return json(res, error.status || 502, {
+          error: error.message || "تعذّر تحديث ظهور العضو في قائمة الحالات."
         });
       }
     }
