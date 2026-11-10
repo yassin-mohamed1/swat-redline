@@ -2759,10 +2759,11 @@ async function submitWarningAction(action){
  const details=String(document.getElementById('warningDetails')?.value||'').trim();
  if(!/^\d{15,22}$/.test(id)){toast('أدخل معرّف مستخدم ديسكورد صحيحًا أو اختر عضوًا من القائمة.');return}
  if(!reason){toast('سبب الإجراء التأديبي مطلوب.');document.getElementById('warningReason')?.focus();return}
- const subject=warningSubjectFor(id),currentLevel=Number(subject?.warning_level||0);
+ const subject=warningSubjectFor(id);
  const restartingDismissed=Boolean(subject?.status==='dismissed'&&action==='issue'&&level===1);
- if(action==='dismiss'&&(level!==3||currentLevel!==2)){toast('لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.');return}
- if(action==='issue'&&(level>2||(!restartingDismissed&&currentLevel!==level-1))){toast('يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني. وبعد الفصل يمكن بدء دورة جديدة بالإنذار الأول.');return}
+ if(subject?.status==='dismissed'&&!restartingDismissed){toast('هذا العضو مفصول بالفعل. يمكن بدء دورة جديدة له بإصدار الإنذار الأول فقط.');return}
+ if(action==='dismiss'&&level!==3){toast('اختيار إجراء الفصل غير صالح.');return}
+ if(action==='issue'&&level!==1&&level!==2){toast('اختر الإنذار الأول أو الإنذار الثاني.');return}
  const label=action==='dismiss'?'فصل هذا العضو':restartingDismissed?'بدء دورة إنذارات جديدة بإصدار الإنذار الأول':'إصدار '+warningLevelLabel(level);
  const labelEnglish=action==='dismiss'?'dismiss this member':restartingDismissed?'start a new warning cycle by issuing Warning 1':'issue Warning '+level;
  const confirmation=currentPortalLanguage()==='ar'
