@@ -689,6 +689,52 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   });
 }
 
+async function handleSaveCityRank(url,key,user,body,res){
+  const targetId=String(body.discord_user_id||"");
+  const cityRank=CITY_RANKS.find(item=>item.key===String(body.city_rank||""));
+  if(!/^[0-9]{15,22}$/.test(targetId)||!cityRank)
+    return send(res,400,{error:"اختر عضوًا ورتبة مدينة صحيحة."});
+  const profileResponse=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,is_active,is_banned&limit=1");
+  if(!profileResponse.ok)return send(res,503,{error:"تعذّر التحقق من العضو قبل حفظ City Rank."});
+  const profile=(await profileResponse.json())[0]||null;
+  if(!profile)return send(res,404,{error:"هذا العضو غير موجود في دليل الأفراد."});
+  if(profile.is_active===false||profile.is_banned)
+    return send(res,409,{error:"لا يمكن تعيين City Rank لحساب موقوف أو محظور."});
+  const saved=await supabase(url,key,"staff_member_identities?on_conflict=discord_user_id",{
+    method:"POST",
+    headers:{Prefer:"resolution=merge-duplicates,return=representation"},
+    body:JSON.stringify({
+      discord_user_id:targetId,
+      city_rank:cityRank.key,
+      updated_at:new Date().toISOString()
+    })
+  });
+  if(!saved.ok){
+    const detail=(await saved.text()).slice(0,250);
+    console.error("Independent city rank save failed:",saved.status,detail);
+    return send(res,502,{error:"تعذّر حفظ City Rank في قاعدة البيانات."});
+  }
+  const rows=await saved.json().catch(()=>[]);
+  if(!Array.isArray(rows)||!rows.length)
+    return send(res,502,{error:"لم تؤكد قاعدة البيانات حفظ City Rank."});
+  const auditEvent={
+    actor_discord_id:user.id,
+    actor_name:user.displayName||user.username||"Portal manager",
+    action:"update",
+    entity_type:"staff_member_identity",
+    entity_id:targetId,
+    details:{
+      type:"تحديث رتبة المدينة",
+      detail:"تم حفظ رتبة المدينة "+cityRank.label+" للعضو.",
+      target_discord_id:targetId,
+      city_rank:cityRank.key
+    }
+  };
+  try{await forwardAuditToDiscord(user,auditEvent);}
+  catch(error){console.warn("City rank audit forwarding failed:",error?.code||error?.message||"unknown");}
+  return send(res,200,{ok:true,city_rank:cityRank.key,city_rank_label:cityRank.label});
+}
+
 async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
   if(!token||!/^[0-9]{15,22}$/.test(String(guildId||"")))
     return send(res,503,{error:"لم يتم إعداد اتصال بوت Discord والسيرفر."});
@@ -953,6 +999,8 @@ export default async function handler(req, res) {
         return await handleAddManualMember(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
       if(body.action==="add_next_callsign")
         return await handleAddNextCallsign(url,key,user,res);
+      if(body.action==="save_city_rank")
+        return await handleSaveCityRank(url,key,user,body,res);
       if(body.action==="publish_member_identity")
         return await handlePublishMemberIdentity(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
       return await handleAssignmentPost(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
