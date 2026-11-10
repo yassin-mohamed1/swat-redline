@@ -898,8 +898,12 @@ async function publishAttendanceChannelNotice(user, body) {
   }
 
   const channelId = String(process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434").trim();
+  const swatRoleId = String(process.env.DISCORD_ROLE_ID || "").trim();
   if (!/^\d{17,20}$/.test(channelId)) {
     throw Object.assign(new Error("معرّف روم البصمة غير صالح."), { status: 503 });
+  }
+  if (!/^\d{17,20}$/.test(swatRoleId)) {
+    throw Object.assign(new Error("معرّف رتبة SWAT غير مضبوط في إعدادات Discord."), { status: 503 });
   }
 
   const typeLabels = {
@@ -930,6 +934,7 @@ async function publishAttendanceChannelNotice(user, body) {
     sent = await discordRequest(config, "/channels/" + encodeURIComponent(channelId) + "/messages", {
       method: "POST",
       body: JSON.stringify({
+        content: "<@&" + swatRoleId + ">",
         embeds: [{
           title: typeLabel + " • " + title,
           description,
@@ -941,7 +946,7 @@ async function publishAttendanceChannelNotice(user, body) {
           footer: { text: "S.W.A.T. REDLINE • DAILY ATTENDANCE" },
           timestamp: new Date().toISOString()
         }],
-        allowed_mentions: { parse: [] }
+        allowed_mentions: { parse: [], roles: [swatRoleId], replied_user: false }
       })
     });
   } catch (error) {
