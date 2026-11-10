@@ -145,4 +145,4 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 - The first message per member per Riyadh calendar day is stored in `attendance_records`; additional messages receive an already-recorded confirmation. The unique `(discord_user_id, attendance_date)` constraint makes this idempotent.
 - The scheduler uses a database lease and cursor so overlapping runs do not double-process messages. On its first run it records the latest existing message as a baseline; only later messages are treated as new attendance.
 - Attendance warnings, dismissals, role changes, and automatic removals are intentionally not part of this phase.
-- Apply `20261110165500_schedule_swat_attendance_poller.sql` only after `/api/attendance/sync` is deployed to production.
+- Apply `20261110165500_schedule_swat_attendance_poller.sql` only after `/api/notifications/send?task=attendance` is deployed to production.
