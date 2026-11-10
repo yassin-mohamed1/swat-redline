@@ -242,7 +242,7 @@ test("member identity publishing sends one card and updates the stored Discord m
   const embedEnd = api.indexOf("\nasync function assignmentSendDm", embedStart);
   assert.ok(embedStart >= 0 && embedEnd > embedStart, "identity embed builder exists");
   const embedBuilder = api.slice(embedStart, embedEnd);
-  assert.match(embedBuilder, /description:"\\*\\*"\\+safeName\\+"\\*\\*"/);
+  assert.ok(embedBuilder.includes('description:"**"+safeName+"**"'));
   assert.match(embedBuilder, /thumbnail:\{url:avatar\}/);
   assert.match(embedBuilder, /inline:true/);
   assert.doesNotMatch(embedBuilder, /author:|title:|footer:|timestamp:/);
