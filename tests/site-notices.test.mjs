@@ -133,3 +133,17 @@ test("portal notice editor has exactly title and description fields and a separa
   assert.match(html, /التحذيرات تستمر في روم التحذيرات المنفصلة/);
   assert.match(html, /data:\{people,cases,investigations,tasks,operations,reports,announcements,siteNotices,/);
 });
+
+test("official notices appear in Warnings only and follow Warnings page access", async () => {
+  const html = await read("../index.html");
+  const warningsStart = html.indexOf('<section class="page" id="page-warnings">');
+  const announcementsStart = html.indexOf('<section class="page" id="page-announcements">');
+  const personnelStart = html.indexOf('<section class="page" id="page-personnel">');
+  const noticesStart = html.indexOf('id="siteNoticesPanel"');
+  const warningsNext = html.indexOf('<section class="page"', warningsStart + 20);
+  assert.ok(warningsStart >= 0 && noticesStart > warningsStart && noticesStart < warningsNext);
+  assert.doesNotMatch(html.slice(announcementsStart, personnelStart), /siteNoticesPanel/);
+  assert.match(html, /if\(page==='warnings'&&currentCanManageWarnings\)\{renderWarnings\(\);renderSiteNotices\(\);\}/);
+  assert.match(html, /function openSiteNoticeModal\(\)\{\s*if\(!currentCanManageWarnings\)/);
+  assert.match(html, /function publishSiteNotice\(id,button\)\{\s*if\(!currentCanManageWarnings\)/);
+});
