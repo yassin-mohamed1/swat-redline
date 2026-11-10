@@ -175,3 +175,56 @@ test("official site notices have a dedicated channel target independent from war
   assert.match(api, /const channelId = getSiteNoticeChannelId\(\)/);
   assert.doesNotMatch(publisher, /config\.notificationChannelId/);
 });
+
+test("published official notices expose edit, delete, resend, and open-message actions", async () => {
+  const html = await read("../index.html");
+  const start = html.indexOf("function renderSiteNotices(");
+  const end = html.indexOf("async function refreshSiteNoticeStatuses(", start);
+  const render = html.slice(start, end);
+  assert.ok(render.includes("const editButton="));
+  assert.ok(render.includes("const removeButton="));
+  assert.ok(render.includes("this,true"));
+  assert.ok(render.includes("فتح رسالة Discord"));
+});
+
+test("editing a published notice updates every stored Discord copy", async () => {
+  const api = await read("../api/notifications/send.js");
+  const start = api.indexOf("async function updatePublishedSiteNotice(");
+  const end = api.indexOf("async function deleteSiteNoticePublication(", start);
+  const edit = api.slice(start, end);
+  assert.ok(edit.includes("const liveBatches = batches.filter(siteNoticeBatchIsSent)"));
+  assert.ok(edit.includes('method: "PATCH"'));
+  assert.ok(edit.includes("body: JSON.stringify({ embeds: payload.embeds })"));
+  assert.ok(edit.includes("messages_updated: updatedCount"));
+  assert.equal(edit.includes('method: "POST"'), false);
+});
+
+test("deleting a notice removes every published Discord copy and records deleted status", async () => {
+  const api = await read("../api/notifications/send.js");
+  const start = api.indexOf("async function deleteSiteNoticePublication(");
+  const end = api.indexOf("async function publishSavedSiteNotice(", start);
+  const remove = api.slice(start, end);
+  assert.ok(remove.includes("const liveBatches = batches.filter(siteNoticeBatchIsSent)"));
+  assert.ok(remove.includes('method: "DELETE"'));
+  assert.ok(remove.includes('channel_status: "deleted"'));
+  assert.ok(remove.includes("discord_deleted_count: deletedCount"));
+  assert.ok(remove.includes('channel_status === "pending"'));
+});
+
+test("explicit resend creates a new notification batch instead of reusing the original key", async () => {
+  const api = await read("../api/notifications/send.js");
+  const start = api.indexOf("async function publishSavedSiteNotice(");
+  const end = api.indexOf("export default async function handler", start);
+  const publish = api.slice(start, end);
+  assert.ok(publish.includes("allowResend = false"));
+  assert.ok(publish.includes("siteNoticeBatchIsSent(batch) && !allowResend"));
+  assert.ok(publish.includes("batch?.batch_key ? crypto.randomUUID() : noticeId"));
+  assert.ok(api.includes('body.action === "edit_site_notice" || body.action === "delete_site_notice" || body.action === "resend_site_notice"'));
+});
+
+test("publication history is keyed by notice entity ID and shows only the latest delivery attempt", async () => {
+  const api = await read("../api/notifications/send.js");
+  assert.ok(api.includes('entity_id: "eq." + noticeId'));
+  assert.ok(api.includes('entity_id: "in.(" + allowedIds.join(",") + ")"'));
+  assert.ok(api.includes("if (!noticeId || publications[noticeId]) continue"));
+});
