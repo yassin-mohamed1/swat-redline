@@ -1127,6 +1127,10 @@ html[dir="ltr"] .field label{text-align:left}
 <section class="page" id="page-operations"><div class="sectionhead"><div><h2>العمليات</h2><div class="sub">سجل عمليات سيرفر FiveM</div></div><button class="btn primary" onclick="newOperation()">＋ إضافة عملية</button></div><div class="panel"><div class="panelhead"><h3>سجل العمليات</h3></div><div class="tablewrap"><table><thead><tr><th>الرقم</th><th>اسم العملية</th><th>المسؤول</th><th>الحالة</th><th>التوقيت</th><th>إجراءات</th></tr></thead><tbody id="operationRows"></tbody></table></div></div></section>
 <section class="page" id="page-announcements">
 <div class="sectionhead"><div><h2>الإعلانات</h2><div class="sub">إدارة الاجتماعات والإعلانات والتعاميم وطلبات الحضور والتدريب والسيناريوهات</div></div><button class="btn primary" type="button" onclick="openAnnouncementTypeModal()">＋ إضافة إعلان</button></div>
+<div class="panel" style="margin-bottom:14px" id="siteNoticesPanel">
+<div class="panelhead"><div><h3>التنبيهات والتعاميم الرسمية</h3><span class="sub">احفظ التعميم هنا أولًا، ثم انشره يدويًا في روم SWAT - NOTIFICATION. لا تُرسل رسائل خاصة من هذا المسار.</span></div><button class="btn primary" id="siteNoticeAddButton" type="button" onclick="openSiteNoticeModal()">＋ إضافة تعميم</button></div>
+<div class="panelbody"><p class="muted" style="margin:0 0 12px">هذا السجل هو المرجع الأساسي للتعاميم. الحفظ لا ينشر على Discord؛ النشر يتم فقط من زر التعميم بعد مراجعته. التحذيرات لها سجلها وقناتها المنفصلة.</p><div class="tablewrap"><table><thead><tr><th>التعميم</th><th>الوصف</th><th>بواسطة</th><th>تاريخ الإضافة</th><th>حالة Discord</th><th>الإجراء</th></tr></thead><tbody id="siteNoticeRows"></tbody></table></div></div>
+</div>
 <div class="panel"><div class="panelhead"><h3>سجل الإعلانات</h3><span class="sub">الإعلانات المحفوظة تظهر لجميع أعضاء البوابة</span></div><div class="tablewrap"><table><thead><tr><th>الرقم</th><th>النوع</th><th>اسم الإعلان والتفاصيل</th><th>المرسل</th><th>التاريخ والوقت</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="announcementRows"></tbody></table></div></div>
 </section>
 <section class="page" id="page-personnel">
@@ -1407,6 +1411,7 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="footer">S.W.A.T. REDLINE • COMMAND PORTAL • Prototype v0.1</div><div class="creator-credit"><span>BY YASIN NINJA</span><span class="creator-separator">•</span><span>DISCORD: yassin_ninja1</span></div></div></main></div><div id="siteGalleryLightbox" onclick="if(event.target===this)closeSiteGalleryImage()" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.88);align-items:center;justify-content:center;padding:20px"></div>
 <div class="modalback" id="investigationModalBack" onclick="if(event.target===this)closeInvestigationModal()"><div class="modal"><div class="modalhead"><div><h3 id="investigationModalTitle">إنشاء ملف تحرٍّ</h3><div class="sub">سجل المعلومات الأولية والأدلة دون تصنيف الشخص كمطلوب</div></div><button class="close" type="button" onclick="closeInvestigationModal()">×</button></div><form id="investigationForm"><div class="formgrid"><div class="field full"><label for="invSubjectType">نوع ملف التحري</label><select id="invSubjectType" onchange="updateInvestigationSubjectFields()"><option value="person">تحرٍّ عن شخص معروف أو مشتبه به</option><option value="unknown">واقعة مجهولة — هوية الشخص غير معروفة</option></select></div><div class="field"><label for="invName">اسم الشخص / وصفه (اختياري إذا كان مجهولًا)</label><input id="invName" maxlength="120" placeholder="اسم الشخص أو: شخص مجهول"></div><div class="field"><label for="invPlayerId">معرّف الشخص (اختياري)</label><input id="invPlayerId" maxlength="120" placeholder="معرّف داخل السيرفر"></div><div class="field full"><label for="invLinkedPersonId">ربط التحري بملف شخص موجود (اختياري)</label><select id="invLinkedPersonId"><option value="">بدون ربط</option></select><div class="uploadhint">اختيار ملف هنا يربط التحري بالشخص دون إنشاء نسخة مكررة من بياناته.</div></div><div class="field full"><label for="invTitle">عنوان الواقعة *</label><input id="invTitle" required maxlength="180" placeholder="اكتب عنوانًا مختصرًا للواقعة"></div><div class="field"><label for="invStatus">حالة التحري</label><select id="invStatus"><option>قيد التحقق</option><option>معلومات إضافية مطلوبة</option><option>أُحيل إلى قضية</option><option>أُغلق التحري</option></select></div><div class="field"><label for="invDate">تاريخ الواقعة (اختياري)</label><input id="invDate" type="date"></div><div class="field full"><label for="invIncident">ملخص الواقعة والمعلومات المتاحة *</label><textarea id="invIncident" rows="4" required placeholder="اكتب ما تم الإبلاغ عنه، وافصل بين الوقائع المؤكدة والمعلومات غير المتحقق منها."></textarea></div><div class="field"><label for="invLocation">مكان الواقعة</label><input id="invLocation" maxlength="240" placeholder="الموقع أو آخر مكان معروف"></div><div class="field"><label for="invTimeline">التوقيت والتسلسل الزمني</label><textarea id="invTimeline" rows="3" placeholder="متى بدأت الواقعة؟ وما الذي حدث بالترتيب؟"></textarea></div><div class="field full"><label for="invKnownDetails">كل المعلومات والتفاصيل المعروفة</label><textarea id="invKnownDetails" rows="4" placeholder="أوصاف، مركبات، ملابس، أرقام، حسابات، أساليب، أشياء مفقودة أو أي تفاصيل أخرى..."></textarea></div><div class="field full"><label for="invWitnesses">الشهود والإفادات والمصادر</label><textarea id="invWitnesses" rows="3" placeholder="من شاهد الواقعة؟ وما مصدر كل معلومة؟ وما الذي لم يتم التحقق منه؟"></textarea></div><div class="field full"><label for="invSuspectedPeople">أشخاص محتملون أو مشتبه بهم (اختياري)</label><textarea id="invSuspectedPeople" rows="3" placeholder="اكتب اسم أو وصف كل شخص، سبب الاشتباه، المعلومات المتاحة، وما يحتاج إلى تحقق. لا تعتبر الاشتباه دليل إدانة."></textarea></div><div class="field full"><label for="invNotes">ملاحظات وخطوات التحقق</label><textarea id="invNotes" rows="3" placeholder="الإفادات المطلوبة، الأسئلة المفتوحة، وما يلزم التحقق منه..."></textarea></div><div class="field full"><label for="invImages">الصورة الشخصية والصور والأدلة</label><input id="invImages" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple><div class="uploadhint">اختر صورًا متعددة (حتى 1.5MB للصورة). اكتب وصفًا ومصدرًا لكل صورة قبل الحفظ.</div><div id="invImagePreview" class="previewrow"></div></div></div><div class="modalactions"><button class="btn primary" type="submit">حفظ ملف التحري</button><button class="btn" type="button" onclick="closeInvestigationModal()">إلغاء</button></div></form></div></div><div class="modalback" id="announcementTypeModalBack" onclick="if(event.target===this)closeAnnouncementTypeModal()"><div class="modal" style="width:min(540px,100%)"><div class="modalhead"><div><h3>إضافة إعلان جديد</h3><div class="sub">اختر نوع الإعلان قبل إدخال التفاصيل</div></div><button class="close" type="button" onclick="closeAnnouncementTypeModal()">×</button></div><div class="field"><label for="announcementTypeSelect">نوع الإعلان</label><select id="announcementTypeSelect"><option value="meeting">اجتماع</option><option value="announcement">إعلان</option><option value="general">تعميم</option><option value="attendance">طلب حضور / تواجد</option><option value="training">تدريب</option><option value="scenario">سيناريو</option><option value="admin_notice">تنبيه إداري</option></select></div><div class="muted" style="margin-top:12px">بعد الاختيار، ستظهر خانات اسم الإعلان والوصف والموعد المناسب لنوعه.</div><div class="modalactions"><button class="btn primary" type="button" onclick="continueAnnouncementType()">متابعة</button><button class="btn" type="button" onclick="closeAnnouncementTypeModal()">إلغاء</button></div></div></div>
 <div class="modalback" id="announcementEditorBack" onclick="if(event.target===this)closeAnnouncementEditor()"><div class="modal"><div class="modalhead"><div><h3 id="announcementEditorTitle">إنشاء إعلان</h3><div class="sub" id="announcementEditorSubtitle">اكتب التفاصيل ثم احفظ الإعلان</div></div><button class="close" type="button" onclick="closeAnnouncementEditor()">×</button></div><form id="announcementForm" onsubmit="saveAnnouncement(event)"><div class="formgrid"><div class="field full"><label for="announcementTitle" id="announcementTitleLabel">اسم الإعلان *</label><input id="announcementTitle" maxlength="180" required placeholder="اكتب اسم الإعلان"></div><div class="field full"><label for="announcementDescription" id="announcementDescriptionLabel">وصف الإعلان *</label><textarea id="announcementDescription" rows="5" maxlength="10000" required placeholder="اكتب تفاصيل الإعلان كاملة..."></textarea></div><div class="field full"><label for="announcementDateTime" id="announcementDateTimeLabel">تاريخ ووقت الإعلان</label><input id="announcementDateTime" type="datetime-local"><div class="uploadhint" id="announcementDateTimeHint">يمكن ترك الموعد فارغًا إذا لم يكن الإعلان مرتبطًا بموعد محدد.</div></div></div><div class="modalactions"><button class="btn primary" type="submit">حفظ الإعلان</button><button class="btn" type="button" onclick="closeAnnouncementEditor()">إلغاء</button></div></form></div></div>
+<div class="modalback" id="siteNoticeModalBack" onclick="if(event.target===this)closeSiteNoticeModal()"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="siteNoticeModalTitle" style="width:min(620px,100%)"><div class="modalhead"><div><h3 id="siteNoticeModalTitle">إضافة تعميم رسمي</h3><div class="sub">اكتب الاسم والوصف، ثم احفظه في الموقع قبل نشره.</div></div><button class="close" type="button" onclick="closeSiteNoticeModal()">×</button></div><form id="siteNoticeForm" onsubmit="saveSiteNotice(event)"><div class="formgrid"><div class="field full"><label for="siteNoticeTitle">اسم التعميم *</label><input id="siteNoticeTitle" maxlength="256" required placeholder="اكتب اسم التعميم"></div><div class="field full"><label for="siteNoticeDescription">وصف التعميم *</label><textarea id="siteNoticeDescription" rows="7" maxlength="4000" required placeholder="اكتب نص التعميم والتعليمات والتفاصيل..."></textarea><div class="uploadhint">سيتم نشر الاسم والوصف فقط في روم الإشعارات. لن يُرسل هذا التعميم في رسائل خاصة.</div></div></div><div class="modalactions"><button class="btn primary" id="siteNoticeSaveButton" type="submit">حفظ التعميم</button><button class="btn" type="button" onclick="closeSiteNoticeModal()">إلغاء</button></div></form></div></div>
 <div class="modalback" id="operationModalBack" onclick="if(event.target===this)closeOperationModal()"><div class="modal"><div class="modalhead"><div><h3 id="operationModalTitle">إضافة عملية جديدة</h3><div class="sub">أدخل بيانات العملية ووقت بدايتها</div></div><button class="close" type="button" onclick="closeOperationModal()">×</button></div><form id="operationForm" onsubmit="saveOperation(event)"><div class="formgrid"><div class="field full"><label for="operationName">اسم العملية *</label><input id="operationName" maxlength="180" required placeholder="مثال: مداهمة موقع مشتبه به"></div><div class="field full"><label for="operationDescription">وصف مختصر للعملية *</label><input id="operationDescription" maxlength="300" required placeholder="اكتب ملخصًا واضحًا عن هدف العملية"></div><div class="field full"><label for="operationDetails">تفاصيل العملية *</label><textarea id="operationDetails" rows="5" maxlength="10000" required placeholder="اكتب خطة العملية، التعليمات، الأفراد المطلوبين، والملاحظات المهمة..."></textarea></div><div class="field full"><label for="operationStartMode">وقت بدء العملية *</label><select id="operationStartMode" onchange="toggleOperationScheduledTime()"><option value="now">الآن — تبدأ فورًا</option><option value="scheduled">تحديد موعد لاحق</option></select><div class="uploadhint">اختر «الآن» لاعتبار العملية جارية فور الحفظ، أو حدّد موعدًا لتظهر كعملية مجدولة.</div></div><div class="field full" id="operationScheduledField" hidden><label for="operationStartAt">تاريخ ووقت بدء العملية *</label><input id="operationStartAt" type="datetime-local"><div class="uploadhint">سيُعرض الموعد بتوقيت الرياض في سجل العمليات والتنبيه.</div></div></div><div class="modalactions"><button class="btn primary" id="operationSaveButton" type="submit">حفظ العملية</button><button class="btn" type="button" onclick="closeOperationModal()">إلغاء</button></div></form></div></div><div class="modalback" id="caseModalBack" onclick="if(event.target===this)closeCaseModal()"><div class="modal"><div class="modalhead"><div><h3 id="caseModalTitle">إنشاء قضية جديدة</h3><div class="sub">سجل مستقل يمكن ربطه بملف شخص موجود</div></div><button class="close" type="button" onclick="closeCaseModal()">×</button></div><form id="caseForm" onsubmit="saveCase(event)"><div class="formgrid">
 <div class="field full"><label for="caseTitle">عنوان القضية *</label><input id="caseTitle" maxlength="220" required placeholder="مثال: قضية سرقة المركبة رقم 245"></div>
 <div class="field"><label for="caseType">نوع القضية *</label><select id="caseType"><option value="criminal">جنائية داخل RP</option><option value="disciplinary">انضباطية</option><option value="administrative">إدارية</option><option value="incident">واقعة</option><option value="other">أخرى</option></select></div>
@@ -1433,9 +1438,9 @@ html[dir="ltr"] .field label{text-align:left}
 <script>
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
-if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
+if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
-let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;
+let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
   localStorage.setItem('redline_cases',JSON.stringify(cases));
@@ -1445,6 +1450,7 @@ function save(){
   localStorage.setItem('redline_operations',JSON.stringify(operations));
   localStorage.setItem('redline_reports',JSON.stringify(reports));
   localStorage.setItem('redline_announcements',JSON.stringify(announcements));
+  localStorage.setItem('redline_site_notices',JSON.stringify(siteNotices));
   localStorage.setItem('redline_rules',JSON.stringify(rules));
   localStorage.setItem('redline_deleted_rule_ids',JSON.stringify(deletedRuleIds));
   localStorage.setItem('redline_daily_commands',JSON.stringify(dailyCommands));
@@ -1459,7 +1465,7 @@ async function pushSharedState(){
   if(sharedSyncBusy){sharedWriteQueued=true;return false;}
   sharedSyncBusy=true;sharedLastSaveError=null;
   try{
-    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:sharedUpdatedAt,data:{people,cases,investigations,tasks,operations,reports,announcements,rules,dailyCommands,deletedRuleIds}})});
+    const response=await fetch('/api/state',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_updated_at:sharedUpdatedAt,data:{people,cases,investigations,tasks,operations,reports,announcements,siteNotices,rules,dailyCommands,deletedRuleIds}})});
     const result=await response.json().catch(()=>({}));
     if(response.status===409){
       sharedWriteConflict=true;
@@ -1509,10 +1515,10 @@ async function pullSharedState(initial=false){
     if(!result.data)return;
     if(!initial&&result.updated_at&&result.updated_at===sharedUpdatedAt)return;
     const cloud=result.data;
-    const keys=['people','cases','investigations','tasks','operations','reports','announcements','rules','dailyCommands','deletedRuleIds'];
+    const keys=['people','cases','investigations','tasks','operations','reports','announcements','siteNotices','rules','dailyCommands','deletedRuleIds'];
     const cloudCount=keys.reduce((n,k)=>n+(Array.isArray(cloud[k])?cloud[k].length:0),0);
     const hasCloudSnapshot=keys.some(k=>Array.isArray(cloud[k]));
-    const localCount=people.length+cases.length+investigations.length+tasks.length+operations.length+reports.length+announcements.length+rules.length+dailyCommands.length;
+    const localCount=people.length+cases.length+investigations.length+tasks.length+operations.length+reports.length+announcements.length+siteNotices.length+rules.length+dailyCommands.length;
     let repairedReportAuthors=false;
     sharedUpdatedAt=result.updated_at||null;
     // If the shared snapshot contains only empty collections, preserve and
@@ -1532,6 +1538,7 @@ async function pullSharedState(initial=false){
       operations=Array.isArray(cloud.operations)?cloud.operations:[];
       reports=Array.isArray(cloud.reports)?cloud.reports:[];
       announcements=Array.isArray(cloud.announcements)?cloud.announcements:[];
+      siteNotices=Array.isArray(cloud.siteNotices)?cloud.siteNotices:[];
       repairedReportAuthors=repairLegacyReportAuthors();
       if(Array.isArray(cloud.rules)){rules=cloud.rules;localStorage.setItem('redline_rules',JSON.stringify(rules));}
       if(Array.isArray(cloud.deletedRuleIds)){deletedRuleIds=cloud.deletedRuleIds;localStorage.setItem('redline_deleted_rule_ids',JSON.stringify(deletedRuleIds));}
@@ -1543,6 +1550,7 @@ async function pullSharedState(initial=false){
       localStorage.setItem('redline_operations',JSON.stringify(operations));
       localStorage.setItem('redline_reports',JSON.stringify(reports));
       localStorage.setItem('redline_announcements',JSON.stringify(announcements));
+      localStorage.setItem('redline_site_notices',JSON.stringify(siteNotices));
       localStorage.setItem('redline_rules',JSON.stringify(rules));
       if(typeof renderAll==='function')renderAll();
     }
@@ -1550,7 +1558,7 @@ async function pullSharedState(initial=false){
     sharedSyncReady=true;
     if(repairedReportAuthors)await pushSharedState();
     // Migrate the owner's existing local daily orders once, if the shared record predates this field.
-    if(initial&&currentIsOwner&&(!Array.isArray(cloud.cases)||!Array.isArray(cloud.deletedRuleIds)||!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations)||!Array.isArray(cloud.announcements))){await pushSharedState();}
+    if(initial&&currentIsOwner&&(!Array.isArray(cloud.cases)||!Array.isArray(cloud.deletedRuleIds)||!Array.isArray(cloud.dailyCommands)||!Array.isArray(cloud.investigations)||!Array.isArray(cloud.announcements)||!Array.isArray(cloud.siteNotices))){await pushSharedState();}
   }catch(e){console.warn('Shared sync unavailable',e);}
 }
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -1692,6 +1700,160 @@ function renderAnnouncements(){
   return '<tr><td><code>'+esc(item.id)+'</code></td><td><span class="tag gray">'+esc(item.typeLabel||ANNOUNCEMENT_TYPES[item.type]||'إعلان')+'</span></td><td><b>'+esc(item.title||'بدون عنوان')+'</b><div class="muted" style="max-width:340px;white-space:normal">'+esc(shortDescription)+'</div></td><td>'+esc(item.owner||'غير محدد')+'</td><td>'+esc(formatAnnouncementDate(item.dateTime))+'</td><td>'+status+'</td><td>'+portalNotificationButton('announcement',item.id)+' <button class="btn danger" onclick="deleteAnnouncement('+jsArg(item.id)+')">حذف</button></td></tr>';
  }).join('')||'<tr><td colspan="7" class="empty">لا توجد إعلانات محفوظة حتى الآن. اضغط «إضافة إعلان» لإنشاء أول إعلان.</td></tr>';
 }
+function renderSiteNotices(skipStatusRefresh=false){
+ const body=document.getElementById('siteNoticeRows');if(!body)return;
+ const addButton=document.getElementById('siteNoticeAddButton');
+ if(addButton)addButton.hidden=!currentCanAdmin;
+ const rows=[...siteNotices].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+ body.innerHTML=rows.map(item=>{
+  const status=item.discordStatus||'not_published';
+  const sent=status==='sent';
+  const pending=status==='pending';
+  const failed=status==='failed';
+  const badge=sent?'<span class="tag green">تم النشر في روم الإشعارات</span>':pending?'<span class="tag orange">جارٍ تأكيد النشر</span>':failed?'<span class="tag red">تعذّر النشر</span>':'<span class="tag gray">محفوظ على الموقع</span>';
+  const publishButton=sent
+    ?(item.discordMessageUrl?'<a class="btn" href="'+esc(item.discordMessageUrl)+'" target="_blank" rel="noopener">فتح رسالة Discord ↗</a>':'<button class="btn" type="button" disabled>تم النشر</button>')
+    :pending?'<button class="btn" type="button" disabled>جارٍ النشر...</button>'
+    :currentCanAdmin?'<button class="btn primary" type="button" onclick="publishSiteNotice('+jsArg(item.id)+',this)">'+(failed?'إعادة المحاولة':'نشر على Discord')+'</button>':'<span class="muted">—</span>';
+  const removeButton=currentCanAdmin&&!sent&&!pending?'<button class="btn danger" type="button" onclick="deleteSiteNotice('+jsArg(item.id)+')">حذف</button>':'';
+  const description=String(item.description||'');
+  const shortDescription=description.length>190?description.slice(0,187)+'…':description;
+  return '<tr><td><b>'+esc(item.title||'بدون عنوان')+'</b></td><td style="max-width:380px;white-space:normal">'+esc(shortDescription)+'</td><td>'+esc(item.owner||'غير محدد')+'</td><td>'+esc(formatAnnouncementDate(item.createdAt))+'</td><td>'+badge+(failed&&item.discordErrorCode?'<div class="muted" style="font-size:10px">Code: '+esc(item.discordErrorCode)+'</div>':'')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+publishButton+removeButton+'</div></td></tr>';
+ }).join('')||'<tr><td colspan="6" class="empty">لا توجد تعاميم رسمية حتى الآن. اضغط «إضافة تعميم» لإنشاء أول تعميم.</td></tr>';
+ if(!skipStatusRefresh)refreshSiteNoticeStatuses();
+}
+async function refreshSiteNoticeStatuses(force=false){
+ if(siteNoticeStatusRefreshBusy||!siteNotices.length||(!force&&Date.now()-siteNoticeStatusCheckedAt<15000))return;
+ const ids=siteNotices.map(item=>String(item?.id||'')).filter(id=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id));
+ if(!ids.length)return;
+ siteNoticeStatusRefreshBusy=true;
+ try{
+  const response=await fetch('/api/notifications/send?site_notice_status=1&ids='+encodeURIComponent(ids.join(',')),{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل حالة نشر التعاميم.');
+  const publications=data.publications||{};
+  siteNotices=siteNotices.map(item=>{
+   const publication=publications[String(item.id||'')];
+   if(!publication)return {...item,discordStatus:'not_published',discordMessageId:null,discordMessageUrl:null,discordErrorCode:null};
+   return {
+    ...item,
+    discordStatus:publication.status||'not_published',
+    discordMessageId:publication.messageId||null,
+    discordMessageUrl:publication.messageUrl||null,
+    discordErrorCode:publication.errorCode||null,
+    discordPublishedAt:publication.publishedAt||null
+   };
+  });
+  localStorage.setItem('redline_site_notices',JSON.stringify(siteNotices));
+  siteNoticeStatusCheckedAt=Date.now();
+  renderSiteNotices(true);
+ }catch(error){
+  console.warn('Official notice status refresh failed:',error?.message||'unknown');
+  siteNoticeStatusCheckedAt=Date.now();
+ }finally{
+  siteNoticeStatusRefreshBusy=false;
+ }
+}
+function openSiteNoticeModal(){
+ if(!currentCanAdmin){toast('إضافة التعاميم الرسمية متاحة للمالك وWebsite Admin فقط.');return;}
+ const form=document.getElementById('siteNoticeForm');
+ form?.reset();
+ document.getElementById('siteNoticeModalBack').classList.add('open');
+ setTimeout(()=>document.getElementById('siteNoticeTitle')?.focus(),50);
+}
+function closeSiteNoticeModal(){
+ document.getElementById('siteNoticeModalBack')?.classList.remove('open');
+ document.getElementById('siteNoticeForm')?.reset();
+}
+async function saveSiteNotice(event){
+ event.preventDefault();
+ if(!currentCanAdmin){toast('لا تملك صلاحية إضافة تعميم رسمي.');return;}
+ if(!sharedSyncReady){toast('قاعدة البيانات المشتركة لا تزال تُحمّل. حاول مرة أخرى بعد لحظة.');return;}
+ const title=document.getElementById('siteNoticeTitle').value.trim();
+ const description=document.getElementById('siteNoticeDescription').value.trim();
+ if(!title||!description){toast('اكتب اسم التعميم ووصفه أولًا.');return;}
+ if(title.length>256||description.length>4000){toast('تجاوز الاسم أو الوصف الحد المسموح.');return;}
+ const item={id:crypto.randomUUID(),title,description,owner:currentUser||'Discord user',createdByDiscordId:currentUserId,createdAt:new Date().toISOString()};
+ siteNotices.unshift(item);
+ save();
+ clearTimeout(sharedSaveTimer);
+ if(sharedSyncBusy){
+  sharedWriteQueued=true;
+  for(let i=0;i<120&&(sharedSyncBusy||sharedWriteQueued);i++)await new Promise(resolve=>setTimeout(resolve,50));
+  if(sharedSyncBusy||sharedWriteQueued){
+   siteNotices=siteNotices.filter(value=>value.id!==item.id);save();
+   toast('لا يزال حفظ سجل آخر جاريًا. حاول مرة أخرى بعد لحظة.');
+   return;
+  }
+ }
+ const persisted=await pushSharedState();
+ if(!persisted){
+  siteNotices=siteNotices.filter(value=>value.id!==item.id);save();
+  return;
+ }
+ closeSiteNoticeModal();
+ renderSiteNotices();
+ log('إضافة','إنشاء تعميم رسمي: '+item.title,item.id);
+ toast(currentPortalLanguage()==='en'?'Notice saved on the portal. It has not been posted to Discord yet.':'تم حفظ التعميم على الموقع. لم يتم نشره على Discord بعد.');
+}
+async function deleteSiteNotice(id){
+ if(!currentCanAdmin){toast('لا تملك صلاحية حذف تعميم رسمي.');return;}
+ const item=siteNotices.find(value=>String(value.id)===String(id));if(!item)return;
+ if(item.discordStatus==='sent'||item.discordStatus==='pending'){toast('لا يمكن حذف تعميم تم نشره أو يجري نشره.');return;}
+ if(!confirm('تأكيد حذف التعميم «'+item.title+'» من سجل الموقع؟'))return;
+ const previous=siteNotices;
+ siteNotices=siteNotices.filter(value=>String(value.id)!==String(id));
+ save();clearTimeout(sharedSaveTimer);
+ const persisted=await pushSharedState();
+ if(!persisted){siteNotices=previous;save();return;}
+ renderSiteNotices();
+ log('حذف','حذف تعميم رسمي: '+item.title,item.id);
+ toast('تم حذف التعميم من الموقع.');
+}
+async function publishSiteNotice(id,button){
+ if(!currentCanAdmin){toast('نشر التعاميم متاح للمالك وWebsite Admin فقط.');return;}
+ const item=siteNotices.find(value=>String(value.id)===String(id));if(!item)return;
+ if(item.discordStatus==='sent'){toast('هذا التعميم منشور بالفعل.');return;}
+ if(item.discordStatus==='pending'){toast('طلب نشر هذا التعميم قيد التنفيذ. حدّث القائمة بعد لحظة.');return;}
+ if(button?.disabled)return;
+ if(!confirm('سيتم نشر اسم التعميم ووصفه فقط في روم SWAT - NOTIFICATION. لن تُرسل رسائل خاصة للأعضاء. التحذيرات تستمر في روم التحذيرات المنفصلة. هل تريد النشر الآن؟'))return;
+ const oldText=button?.textContent||'نشر على Discord';
+ if(button){button.disabled=true;button.textContent='جارٍ النشر...';}
+ try{
+  clearTimeout(sharedSaveTimer);
+  if(sharedSyncBusy){
+   sharedWriteQueued=true;
+   for(let i=0;i<120&&(sharedSyncBusy||sharedWriteQueued);i++)await new Promise(resolve=>setTimeout(resolve,50));
+   if(sharedSyncBusy||sharedWriteQueued)throw new Error('لا يزال حفظ البيانات المشتركة جاريًا. حاول مرة أخرى بعد لحظة.');
+  }
+  const saved=await pushSharedState();
+  if(!saved||sharedWriteConflict)throw new Error(sharedLastSaveError||'تعذّر تأكيد حفظ التعميم على الموقع.');
+  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'publish_site_notice',noticeId:String(id)})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر نشر التعميم في Discord.');
+  item.discordStatus='sent';
+  item.discordMessageId=data.messageId||item.discordMessageId||null;
+  item.discordMessageUrl=data.messageUrl||item.discordMessageUrl||null;
+  item.discordPublishedAt=new Date().toISOString();
+  item.discordErrorCode=null;
+  localStorage.setItem('redline_site_notices',JSON.stringify(siteNotices));
+  siteNoticeStatusCheckedAt=Date.now();
+  renderSiteNotices(true);
+  if(data.publicationRecorded===false){
+   toast('تم إرسال التعميم إلى Discord، لكن تعذّر تأكيد سجل النشر. لن يسمح الموقع بإرساله مرة أخرى تلقائيًا.');
+  }else{
+   toast(data.alreadySent?'هذا التعميم منشور بالفعل؛ تم تحديث حالته في الموقع.':'تم نشر التعميم في روم SWAT - NOTIFICATION فقط.');
+  }
+ }catch(error){
+  await refreshSiteNoticeStatuses(true);
+  item.discordErrorCode=String(error?.code||'').slice(0,80)||null;
+  renderSiteNotices(true);
+  toast(error.message||'تعذّر نشر التعميم.');
+ }finally{
+  if(button&&!item.discordStatus?.startsWith('sent')){button.disabled=false;button.textContent=oldText;}
+ }
+}
+
 function openAnnouncementTypeModal(){document.getElementById('announcementTypeModalBack').classList.add('open')}
 function closeAnnouncementTypeModal(){document.getElementById('announcementTypeModalBack').classList.remove('open')}
 function continueAnnouncementType(){
@@ -2989,7 +3151,7 @@ function go(page){
  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+page)?.classList.add('active');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='records')showRecordTab(tab||activeRecordTab||'people');
- if(page==='announcements')renderAnnouncements();if(page==='reports')renderReports();if(page==='audit'&&currentCanAdmin)renderAudit();
+ if(page==='announcements'){renderAnnouncements();renderSiteNotices();}if(page==='reports')renderReports();if(page==='audit'&&currentCanAdmin)renderAudit();
  if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings)renderWarnings();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();}
  if(page==='gallery')renderSiteGallery();applySiteSettings();window.scrollTo({top:0,behavior:'smooth'})
 }document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)go(b.dataset.page)});
@@ -3097,7 +3259,7 @@ let H=pad*2+blocks.reduce((n,b)=>n+b.height+18,0);temp.width=W;temp.height=H;ctx
 let y=pad;for(let b of blocks){ctx.textBaseline='top';if(b.type==='brand'){ctx.fillStyle='#f12b39';ctx.font='bold 48px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y);ctx.fillStyle='#ed2635';ctx.fillRect(pad,y+61,inner,4)}else if(b.type==='title'){ctx.fillStyle='#fff';ctx.font='bold 68px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y)}else if(b.type==='name'){ctx.fillStyle='#fff';ctx.font='bold 54px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y,inner)}else if(b.type==='meta'){ctx.fillStyle='#22252b';ctx.fillRect(pad,y,inner,b.height-15);ctx.fillStyle='#ff4b56';ctx.font='bold 32px Arial';ctx.textAlign='left';ctx.fillText('CASE ID: '+p.id,pad+22,y+18);ctx.fillText('STATUS: '+caseStatusLabel(p),pad+22,y+68);ctx.fillText('PRIORITY: '+(p.priority||'غير محدد'),pad+22,y+118);ctx.fillStyle='#eee';ctx.font='29px Arial';ctx.fillText('عدد الأدلة: '+imgs.length,pad+22,y+164)}else if(b.type==='section'||b.type==='evidence-title'){ctx.fillStyle=b.type==='section'?'#ff3545':'#fff';ctx.font='bold 38px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y);ctx.fillStyle='#ed2635';ctx.fillRect(pad,y+45,inner,3)}else if(b.type==='text'){ctx.fillStyle='#f0f0f0';ctx.font=b.font;ctx.textAlign='right';ctx.direction='rtl';for(let j=0;j<b.lines.length;j++)ctx.fillText(b.lines[j],W-pad,y+j*b.lineH,inner);ctx.direction='ltr'}else if(b.type==='image'){let im=b.img,h=b.height-20,scale=Math.min(inner/im.width,h/im.height),iw=im.width*scale,ih=im.height*scale;ctx.fillStyle='#fff';ctx.fillRect(pad,y,inner,h+12);ctx.drawImage(im,pad+(inner-iw)/2,y+(h-ih)/2,iw,ih)}else if(b.type==='footer'){ctx.fillStyle='#a9abb2';ctx.font='27px Arial';ctx.textAlign='left';ctx.fillText(b.text,pad,y)}y+=b.height+18}
 let a=document.createElement('a');a.download='case-file-'+String(p.id).replace(/[^a-z0-9_-]/gi,'_')+'.png';a.href=temp.toDataURL('image/png');a.click();log('تصدير','تنزيل صورة كاملة للملف '+p.name,p.id);toast('تم تنزيل صورة الملف كاملة')
 }
-function exportAll(){const bundle={exportedAt:new Date().toISOString(),people,cases,investigations,operations,reports,announcements,rules,tasks,dailyCommands};downloadBlob(JSON.stringify(bundle,null,2),'swat-redline-records.json','application/json');log('تصدير','تم تصدير جميع سجلات البوابة','ALL');toast('تم تنزيل نسخة JSON الكاملة')}function downloadAudit(){downloadBlob(JSON.stringify(audit,null,2),'redline-audit-log.json','application/json');toast('تم تنزيل سجل النشاط')}
+function exportAll(){const bundle={exportedAt:new Date().toISOString(),people,cases,investigations,operations,reports,announcements,siteNotices,rules,tasks,dailyCommands};downloadBlob(JSON.stringify(bundle,null,2),'swat-redline-records.json','application/json');log('تصدير','تم تصدير جميع سجلات البوابة','ALL');toast('تم تنزيل نسخة JSON الكاملة')}function downloadAudit(){downloadBlob(JSON.stringify(audit,null,2),'redline-audit-log.json','application/json');toast('تم تنزيل سجل النشاط')}
 function toggleTask(i,v){tasks[i].done=v;save();log('تعديل',(v?'إكمال':'إعادة فتح')+' المهمة: '+tasks[i].text,'TASK-'+(i+1));renderTasks()}function addTask(){let t=prompt('اكتب المهمة الجديدة:');if(!t)return;tasks.unshift({text:t,done:false});save();log('إضافة','إضافة مهمة: '+t,'TASK-NEW');renderTasks();toast('تمت إضافة المهمة')}
 function newOperation(){
  const form=document.getElementById('operationForm');if(!form)return;
@@ -3632,6 +3794,53 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "لم تُرسل رسائل خاصة؛ لا يوجد مستلم فعّل استقبال تنبيهات الخاص.":"No private messages were sent because no recipient has enabled private alerts.",
  "تم النشر في الروم؛ لم تصل نسخة خاصة لأن المالك أوقف استقبالها.":"Posted in the channel; no private copy was sent because the owner opted out.",
  "فشل النشر في الروم، ولم تُرسل نسخة خاصة لأن المالك أوقف استقبالها.":"Channel posting failed; no private copy was sent because the owner opted out."
+});
+
+Object.assign(PORTAL_TRANSLATIONS, {
+ "التنبيهات والتعاميم الرسمية":"Official notices and circulars",
+ "احفظ التعميم هنا أولًا، ثم انشره يدويًا في روم SWAT - NOTIFICATION. لا تُرسل رسائل خاصة من هذا المسار.":"Save the notice here first, then manually publish it to the SWAT - NOTIFICATION channel. This flow does not send DMs.",
+ "＋ إضافة تعميم":"＋ Add notice",
+ "هذا السجل هو المرجع الأساسي للتعاميم. الحفظ لا ينشر على Discord؛ النشر يتم فقط من زر التعميم بعد مراجعته. التحذيرات لها سجلها وقناتها المنفصلة.":"This is the source of truth for official notices. Saving does not post to Discord; publish only after review. Warnings keep their separate log and channel.",
+ "التعميم":"Notice",
+ "وصف التعميم":"Notice description",
+ "بواسطة":"Created by",
+ "تاريخ الإضافة":"Created",
+ "حالة Discord":"Discord status",
+ "الإجراء":"Action",
+ "تم النشر في روم الإشعارات":"Published in the notifications channel",
+ "جارٍ تأكيد النشر":"Publication is being confirmed",
+ "تعذّر النشر":"Publication failed",
+ "محفوظ على الموقع":"Saved on the portal",
+ "فتح رسالة Discord ↗":"Open Discord message ↗",
+ "جارٍ النشر...":"Publishing...",
+ "إعادة المحاولة":"Retry",
+ "نشر على Discord":"Publish to Discord",
+ "لا توجد تعاميم رسمية حتى الآن. اضغط «إضافة تعميم» لإنشاء أول تعميم.":"No official notices yet. Select “Add notice” to create the first one.",
+ "إضافة تعميم رسمي":"Add official notice",
+ "اكتب الاسم والوصف، ثم احفظه في الموقع قبل نشره.":"Enter a title and description, then save it on the portal before publishing.",
+ "اسم التعميم *":"Notice title *",
+ "اكتب اسم التعميم":"Enter the notice title",
+ "اكتب وصف التعميم والتعليمات والتفاصيل...":"Enter the notice, instructions, and details...",
+ "سيتم نشر الاسم والوصف فقط في روم الإشعارات. لن يُرسل هذا التعميم في رسائل خاصة.":"Only the title and description will be published in the notifications channel. This notice will not be sent by DM.",
+ "حفظ التعميم":"Save notice",
+ "إضافة التعاميم الرسمية متاحة للمالك وWebsite Admin فقط.":"Only the owner and Website Admin can add official notices.",
+ "لا تملك صلاحية إضافة تعميم رسمي.":"You are not allowed to add an official notice.",
+ "لا تملك صلاحية حذف تعميم رسمي.":"You are not allowed to delete an official notice.",
+ "لا تملك صلاحية نشر تعميم رسمي.":"You are not allowed to publish an official notice.",
+ "تم حفظ التعميم على الموقع. لم يتم نشره على Discord بعد.":"The notice was saved on the portal. It has not been posted to Discord yet.",
+ "تعذّر تحميل حالة نشر التعاميم.":"Could not load notice publication status.",
+ "لا يمكن حذف تعميم تم نشره أو يجري نشره.":"A published or pending notice cannot be deleted.",
+ "حذف تعميم رسمي: ":"Delete official notice: ",
+ "إنشاء تعميم رسمي: ":"Create official notice: ",
+ "تم حذف التعميم من الموقع.":"The notice was deleted from the portal.",
+ "نشر التعاميم متاح للمالك وWebsite Admin فقط.":"Only the owner and Website Admin can publish notices.",
+ "هذا التعميم منشور بالفعل.":"This notice has already been published.",
+ "طلب نشر هذا التعميم قيد التنفيذ. حدّث القائمة بعد لحظة.":"This notice is already being published. Refresh the list shortly.",
+ "سيتم نشر اسم التعميم ووصفه فقط في روم SWAT - NOTIFICATION. لن تُرسل رسائل خاصة للأعضاء. التحذيرات تستمر في روم التحذيرات المنفصلة. هل تريد النشر الآن؟":"Only the notice title and description will be posted to SWAT - NOTIFICATION. No member DMs will be sent. Warnings continue to use their separate warning channel. Publish now?",
+ "تم إرسال التعميم إلى Discord، لكن تعذّر تأكيد سجل النشر. لن يسمح الموقع بإرساله مرة أخرى تلقائيًا.":"The notice was sent to Discord, but its publication record could not be confirmed. The portal will not automatically send it again.",
+ "هذا التعميم منشور بالفعل؛ تم تحديث حالته في الموقع.":"This notice was already published; its portal status has been refreshed.",
+ "تم نشر التعميم في روم SWAT - NOTIFICATION فقط.":"The notice was published to SWAT - NOTIFICATION only.",
+ "تعذّر تأكيد حفظ التعميم على الموقع.":"Could not confirm that the notice was saved on the portal."
 });
 
 applyPortalLanguage();
