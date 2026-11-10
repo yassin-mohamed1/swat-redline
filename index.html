@@ -1299,6 +1299,22 @@ html[dir="ltr"] .field label{text-align:left}
 #page-warnings .warning-summary .panel{padding:14px}
 #page-warnings .warning-summary strong{font-size:27px}
 @media(max-width:760px){#page-warnings .warning-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+#page-warnings .attendance-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}
+#page-warnings .attendance-summary .panel{padding:14px}
+#page-warnings .attendance-summary strong{font-size:27px}
+#page-warnings .attendance-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+#page-warnings .attendance-toolbar input,#page-warnings .attendance-toolbar select{background:#101216;color:#e8e9ec;border:1px solid #353a43;border-radius:8px;padding:10px 12px;min-height:42px}
+#page-warnings .attendance-table{min-width:1050px}
+#page-warnings .attendance-name{font-weight:700}
+#page-warnings .attendance-meta{font-size:10px;color:#9299a4;margin-top:4px}
+#page-warnings .attendance-badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;font-size:10px;font-weight:700;white-space:nowrap}
+#page-warnings .attendance-badge.present{background:#103328;color:#68e5b3}
+#page-warnings .attendance-badge.absent{background:#25282d;color:#c7cbd2}
+#page-warnings .attendance-badge.warn{background:#3b2710;color:#ffc06c}
+#page-warnings .attendance-badge.dismissed{background:#351015;color:#ff6872}
+@media(max-width:760px){#page-warnings .attendance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 </style>
 <div class="sectionhead">
  <div><h2>التحذيرات</h2><div class="sub">إدارة الحالات التأديبية، الرسائل الرسمية، وسجل الإجراءات</div></div>
@@ -1318,6 +1334,7 @@ html[dir="ltr"] .field label{text-align:left}
  <button class="btn active" id="warningTabMembers" type="button" onclick="showWarningView('members')">إدارة الحالات</button>
  <button class="btn" id="warningTabCreate" type="button" onclick="showWarningView('create')">＋ إجراء جديد</button>
  <button class="btn" id="warningTabHistory" type="button" onclick="showWarningView('history')">سجل الإجراءات والرسائل</button>
+ <button class="btn" id="warningTabAttendance" type="button" onclick="showWarningView('attendance')">البصمة اليومية</button>
 </div>
 
 <div id="warningViewMembers">
@@ -1370,6 +1387,41 @@ html[dir="ltr"] .field label{text-align:left}
     <input id="warningHistorySearch" class="warning-input" style="flex:1;min-width:220px" placeholder="ابحث في سجل الإجراءات..." oninput="renderWarningHistory()">
    </div>
    <div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>العضو</th><th>الإجراء</th><th>السبب</th><th>صدر بواسطة</th><th>الخاص</th><th>القناة</th><th>الانتهاء</th><th>إدارة الإجراء</th></tr></thead><tbody id="warningHistoryRows"><tr><td colspan="9">جارٍ تحميل سجل الإجراءات...</td></tr></tbody></table></div>
+  </div>
+ </div>
+</div>
+
+<div id="warningViewAttendance" style="display:none">
+ <div class="attendance-summary">
+  <div class="panel"><div class="muted">الأعضاء النشطون</div><strong id="attendanceMemberCount">0</strong></div>
+  <div class="panel"><div class="muted">سجلوا اليوم</div><strong id="attendanceTodayCount">0</strong></div>
+  <div class="panel"><div class="muted">لم يسجلوا اليوم</div><strong id="attendanceMissingCount">0</strong></div>
+  <div class="panel"><div class="muted">غياب أسبوع أو أكثر</div><strong id="attendanceWeekAbsentCount">0</strong></div>
+ </div>
+ <div class="panel">
+  <div class="panelhead">
+   <div><h3>سجل البصمة اليومية</h3><span class="sub" id="attendanceUpdatedAt">تُحسب الأيام بتوقيت الرياض</span></div>
+   <button class="btn" type="button" onclick="renderAttendance()">↻ تحديث الحضور</button>
+  </div>
+  <div class="panelbody">
+   <div class="attendance-toolbar">
+    <input id="attendanceSearch" type="search" placeholder="ابحث باسم العضو أو Discord ID..." style="flex:1;min-width:220px" oninput="renderAttendanceRows()">
+    <select id="attendanceFilter" onchange="setAttendanceFilter(this.value)">
+     <option value="all">كل الأعضاء</option>
+     <option value="present">سجلوا اليوم</option>
+     <option value="missing">لم يسجلوا اليوم</option>
+     <option value="warning1">الإنذار الأول</option>
+     <option value="warning2">الإنذار الثاني</option>
+     <option value="dismissed">مفصولون</option>
+    </select>
+   </div>
+   <div class="tablewrap">
+    <table class="attendance-table">
+     <thead><tr><th>العضو</th><th>حضور اليوم</th><th>آخر بصمة</th><th>من آخر بصمة</th><th>آخر 7 أيام</th><th>الالتزام المتواصل</th><th>إجمالي أيام الحضور</th><th>حالة التحذير</th></tr></thead>
+     <tbody id="attendanceRows"><tr><td colspan="8">افتح تبويب البصمة لتحميل البيانات.</td></tr></tbody>
+    </table>
+   </div>
+   <div class="muted" style="margin-top:10px;line-height:1.8">يعرض السجل الأعضاء النشطين المسجلين في البوابة. البصمة اليومية تُحتسب مرة واحدة فقط لكل عضو في اليوم، وأي رسالة أخرى في اليوم نفسه تظهر كمحاولة مكررة دون زيادة عدد أيام الحضور.</div>
   </div>
  </div>
 </div>
@@ -1443,7 +1495,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLoadBusy=false;let attendanceRecordFilter='all';let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -2268,8 +2320,8 @@ async function renderWarnings(){
  }finally{warningLoadBusy=false;}
 }
 function showWarningView(view){
- const selected=['members','create','history'].includes(view)?view:'members';
- ['members','create','history'].forEach(key=>{
+ const selected=['members','create','history','attendance'].includes(view)?view:'members';
+ ['members','create','history','attendance'].forEach(key=>{
   const panel=document.getElementById('warningView'+key[0].toUpperCase()+key.slice(1));
   const tab=document.getElementById('warningTab'+key[0].toUpperCase()+key.slice(1));
   if(panel)panel.style.display=selected===key?'block':'none';
@@ -2277,7 +2329,82 @@ function showWarningView(view){
  });
  if(selected==='create')refreshWarningForm();
  if(selected==='history')renderWarningHistory();
+ if(selected==='attendance')renderAttendance();
 }
+
+function attendanceDuration(days){
+ const value=Math.max(0,Number(days)||0);
+ if(value<1)return 'أقل من يوم';
+ const weeks=Math.floor(value/7),remaining=value%7;
+ if(weeks&&remaining)return weeks+' أسبوع و'+remaining+' يوم';
+ if(weeks)return weeks+' أسبوع';
+ return value+' يوم';
+}
+function attendanceWarningBadge(member){
+ if(member.warning_status==='dismissed')return '<span class="attendance-badge dismissed">فصل</span>';
+ if(Number(member.warning_level)===2)return '<span class="attendance-badge warn">الإنذار الثاني</span>';
+ if(Number(member.warning_level)===1)return '<span class="attendance-badge warn">الإنذار الأول</span>';
+ return '<span class="attendance-badge present">بدون إنذار</span>';
+}
+function setAttendanceFilter(value){
+ attendanceRecordFilter=['all','present','missing','warning1','warning2','dismissed'].includes(value)?value:'all';
+ renderAttendanceRows();
+}
+async function renderAttendance(){
+ if(!currentCanManageWarnings||attendanceLoadBusy)return;
+ attendanceLoadBusy=true;
+ const body=document.getElementById('attendanceRows');
+ if(body)body.innerHTML='<tr><td colspan="8">جارٍ تحميل سجل البصمة...</td></tr>';
+ try{
+  const response=await fetch('/api/warnings?attendance=1',{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل بيانات الحضور.');
+  attendanceData={members:Array.isArray(data.members)?data.members:[],generated_at:data.generated_at||null};
+  const rows=attendanceData.members;
+  const today=rows.filter(member=>member.today_present).length;
+  const missing=rows.length-today;
+  const absentWeek=rows.filter(member=>Number(member.days_since_last)>=7&&member.warning_status!=='dismissed').length;
+  const set=(id,value)=>{const node=document.getElementById(id);if(node)node.textContent=String(value)};
+  set('attendanceMemberCount',rows.length);
+  set('attendanceTodayCount',today);
+  set('attendanceMissingCount',missing);
+  set('attendanceWeekAbsentCount',absentWeek);
+  const updated=document.getElementById('attendanceUpdatedAt');
+  if(updated)updated.textContent='آخر تحديث: '+fmtWarningDate(data.generated_at)+' • توقيت الرياض';
+  renderAttendanceRows();
+ }catch(error){
+  if(body)body.innerHTML='<tr><td colspan="8">'+adminEscape(error.message||'تعذّر تحميل بيانات الحضور.')+'</td></tr>';
+ }finally{attendanceLoadBusy=false;}
+}
+function renderAttendanceRows(){
+ const body=document.getElementById('attendanceRows');if(!body)return;
+ const query=String(document.getElementById('attendanceSearch')?.value||'').trim().toLowerCase();
+ const rows=attendanceData.members.filter(member=>{
+  const search=(String(member.display_name||'')+' '+String(member.username||'')+' '+String(member.discord_user_id||'')).toLowerCase();
+  if(query&&!search.includes(query))return false;
+  if(attendanceRecordFilter==='present'&&!member.today_present)return false;
+  if(attendanceRecordFilter==='missing'&&member.today_present)return false;
+  if(attendanceRecordFilter==='warning1'&&Number(member.warning_level)!==1)return false;
+  if(attendanceRecordFilter==='warning2'&&Number(member.warning_level)!==2)return false;
+  if(attendanceRecordFilter==='dismissed'&&member.warning_status!=='dismissed')return false;
+  return true;
+ });
+ body.innerHTML=rows.map(member=>{
+  const todayTag=member.today_present
+   ?'<span class="attendance-badge present">تم التسجيل اليوم</span>'
+   :'<span class="attendance-badge absent">لم يسجل اليوم</span>';
+  const last=member.last_attendance_at?fmtWarningDate(member.last_attendance_at):'لم يسجل من قبل';
+  const days=Number(member.days_since_last)||0;
+  const absence=days>=7?'<span class="attendance-badge warn">'+adminEscape(attendanceDuration(days))+'</span>':adminEscape(attendanceDuration(days));
+  return '<tr><td><div class="attendance-name">'+adminEscape(member.display_name||member.username||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(member.discord_user_id)+'</code></div></td>'+
+   '<td>'+todayTag+'</td><td>'+adminEscape(last)+'</td><td>'+absence+'</td>'+
+   '<td><b>'+adminEscape(member.last_seven_days||0)+'</b> / 7</td>'+
+   '<td><b>'+adminEscape(member.current_streak_days||0)+'</b> يوم</td>'+
+   '<td><b>'+adminEscape(member.total_days||0)+'</b> يوم</td>'+
+   '<td>'+attendanceWarningBadge(member)+'</td></tr>';
+ }).join('')||'<tr><td colspan="8"><div class="empty">لا توجد أعضاء مطابقة لبحثك.</div></td></tr>';
+}
+
 function toggleWarningArchivedView(){
  if(!currentCanManageWarnings)return;
  warningShowArchived=!warningShowArchived;
@@ -3888,6 +4015,31 @@ function portalTranslateText(value){
  }
  return text.replace(/(.*?) الخطورة/g,(m,p)=>p+' priority');
 }
+
+Object.assign(PORTAL_TRANSLATIONS, {
+ "البصمة اليومية":"Daily Attendance",
+ "سجل البصمة اليومية":"Daily Attendance Ledger",
+ "سجلوا اليوم":"Stamped Today",
+ "لم يسجلوا اليوم":"Not Stamped Today",
+ "الأعضاء النشطون":"Active Members",
+ "غياب أسبوع أو أكثر":"Absent for 7+ Days",
+ "تحديث الحضور":"Refresh Attendance",
+ "ابحث باسم العضو أو Discord ID...":"Search by member name or Discord ID...",
+ "كل الأعضاء":"All Members",
+ "حضور اليوم":"Today's Attendance",
+ "آخر بصمة":"Last Stamp",
+ "من آخر بصمة":"Since Last Stamp",
+ "آخر 7 أيام":"Last 7 Days",
+ "الالتزام المتواصل":"Current Streak",
+ "إجمالي أيام الحضور":"Total Attendance Days",
+ "حالة التحذير":"Warning Status",
+ "تم التسجيل اليوم":"Stamped Today",
+ "لم يسجل من قبل":"Never stamped",
+ "بدون إنذار":"No Warning",
+ "فصل":"Dismissed",
+ "تحديث البيانات":"Refresh Data"
+});
+
 function currentPortalLanguage(){return localStorage.getItem('swat-language-preference')==='ar'?'ar':'en'}
 function applyPortalLanguage(){
  const lang=currentPortalLanguage();
