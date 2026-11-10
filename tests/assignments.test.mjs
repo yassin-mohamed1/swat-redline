@@ -238,6 +238,16 @@ test("member identity publishing sends one card and updates the stored Discord m
   assert.match(handler, /CITY_RANKS\.find/);
   assert.match(handler, /memberIdentityEmbed/);
   assert.match(handler, /assignment\?\.callsign/);
+  const embedStart = api.indexOf("function memberIdentityEmbed(");
+  const embedEnd = api.indexOf("\\nasync function assignmentSendDm", embedStart);
+  assert.ok(embedStart >= 0 && embedEnd > embedStart, "identity embed builder exists");
+  const embedBuilder = api.slice(embedStart, embedEnd);
+  assert.match(embedBuilder, /description:"\\*\\*"\\+safeName\\+"\\*\\*"/);
+  assert.match(embedBuilder, /thumbnail:\{url:avatar\}/);
+  assert.match(embedBuilder, /inline:true/);
+  assert.doesNotMatch(embedBuilder, /author:|title:|footer:|timestamp:/);
+  assert.match(embedBuilder, /CITY RANK/);
+  assert.match(embedBuilder, /CALL SIGN/);
   assert.match(api, /SWAT_MEMBERS_CHANNEL_ID = "1561489833505849505"/);
   assert.match(html, /id="assignmentRows"/);
   assert.match(html, /City Rank/);
