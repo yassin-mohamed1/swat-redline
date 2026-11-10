@@ -25,5 +25,5 @@ jobs:
         run: node --test tests/*.test.mjs
       - name: Validate attendance scheduler source
         run: |
-          node --check api/attendance/sync.js
+          node --check api/notifications/send.js
           node --check lib/attendance-poller.js
