@@ -502,7 +502,7 @@ async function getSiteNoticePublicationStatuses(user, url, res) {
       channelId,
       publishedAt: row.channel_status === "sent" ? row.created_at : null,
       errorCode: row.channel_error_code || null,
-      messageUrl: messageId && /^\\d{17,20}$/.test(guildId) && /^\\d{17,20}$/.test(channelId)
+      messageUrl: messageId && /^\d{17,20}$/.test(guildId) && /^\d{17,20}$/.test(channelId)
         ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
         : null
     };
@@ -517,7 +517,7 @@ async function publishSavedSiteNotice(user, noticeId) {
   }
   if (config.error) throw Object.assign(new Error("Notification storage is not configured."), { status: 503 });
   const channelId = String(config.notificationChannelId || "").trim();
-  if (!/^\\d{17,20}$/.test(channelId)) {
+  if (!/^\d{17,20}$/.test(channelId)) {
     throw Object.assign(new Error("روم SWAT - NOTIFICATION غير مضبوطة. راجع DISCORD_NOTIFICATION_CHANNEL_ID في Vercel."), { status: 503 });
   }
   if (!await isActiveStaffForNotifications(config, user)) {
@@ -564,7 +564,7 @@ async function publishSavedSiteNotice(user, noticeId) {
       alreadySent: true,
       channelId,
       messageId,
-      messageUrl: /^\\d{17,20}$/.test(guildId)
+      messageUrl: /^\d{17,20}$/.test(guildId)
         ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
         : null
     };
@@ -700,7 +700,7 @@ async function publishSavedSiteNotice(user, noticeId) {
     alreadySent: false,
     channelId,
     messageId,
-    messageUrl: /^\\d{17,20}$/.test(guildId)
+    messageUrl: /^\d{17,20}$/.test(guildId)
       ? "https://discord.com/channels/" + guildId + "/" + channelId + "/" + messageId
       : null,
     publicationRecorded: savedBatch.ok
@@ -722,6 +722,15 @@ export default async function handler(req, res) {
 
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized." });
+  const statusUrl = new URL(req.url, "https://swat-redline.vercel.app");
+  if (req.method === "GET" && statusUrl.searchParams.get("site_notice_status") === "1") {
+    try {
+      return await getSiteNoticePublicationStatuses(user, statusUrl, res);
+    } catch (error) {
+      return res.status(error.status || 500).json({ error: error.message || "Could not read official notice publication status." });
+    }
+  }
+
   let websiteAdminAccess = Boolean(user.isOwner);
   try {
     if (!websiteAdminAccess) {
@@ -736,14 +745,6 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
-    const statusUrl = new URL(req.url, "https://swat-redline.vercel.app");
-    if (statusUrl.searchParams.get("site_notice_status") === "1") {
-      try {
-        return await getSiteNoticePublicationStatuses(user, statusUrl, res);
-      } catch (error) {
-        return res.status(error.status || 500).json({ error: error.message || "Could not read official notice publication status." });
-      }
-    }
     const token = process.env.DISCORD_BOT_TOKEN;
     const guildId = process.env.DISCORD_GUILD_ID;
     if (!token || !guildId) {
