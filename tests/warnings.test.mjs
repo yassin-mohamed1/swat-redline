@@ -48,6 +48,15 @@ test("manual disciplinary actions allow Warning 2 or dismissal without earlier w
   assert.match(html, /<option value="3">الفصل<\/option>/);
   assert.doesNotMatch(html, /<option value="3">Warning 3<\/option>/);
   assert.match(html, /الأعضاء المفصولون/);
+  const manualUiStart = html.indexOf("async function submitWarningAction(action)");
+  const manualUiEnd = html.indexOf("\\n}\\n", manualUiStart);
+  assert.ok(manualUiStart >= 0 && manualUiEnd > manualUiStart);
+  const manualUiHandler = html.slice(manualUiStart, manualUiEnd);
+  assert.doesNotMatch(manualUiHandler, /currentLevel/);
+  assert.doesNotMatch(manualUiHandler, /لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني/);
+  assert.doesNotMatch(manualUiHandler, /يجب إصدار الإنذارات بالترتيب/);
+  assert.match(manualUiHandler, /subject\\?\\.status==='dismissed'&&!restartingDismissed/);
+
 
   const restartMigration = await readFile(new URL("../supabase/migrations/20261108091704_allow_warning_cycle_restart_after_dismissal.sql", import.meta.url), "utf8");
   assert.match(restartMigration, /v_subject\.status = 'dismissed'/);
