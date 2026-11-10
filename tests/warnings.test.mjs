@@ -323,12 +323,12 @@ test("disciplinary subjects can be archived from the current list without deleti
 
 test("the warnings page hides archived subjects by default and offers manager restore", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /let warningShowArchived=false/);
-  assert.match(html, /include_archived=1/);
-  assert.match(html, /Boolean\\(s\\.is_archived\\)!==warningShowArchived/);
-  assert.match(html, /function toggleWarningArchivedView\\(\\)/);
-  assert.match(html, /function archiveWarningSubject\\(id\\)/);
-  assert.match(html, /function restoreWarningSubject\\(id\\)/);
-  assert.match(html, /action:'archive_subject'/);
-  assert.match(html, /action:'restore_subject'/);
+  assert.ok(html.includes("let warningShowArchived=false"));
+  assert.ok(html.includes("include_archived=1"));
+  assert.ok(html.includes("Boolean(s.is_archived)!==warningShowArchived"));
+  assert.ok(html.includes("function toggleWarningArchivedView()"));
+  assert.ok(html.includes("function archiveWarningSubject(id)"));
+  assert.ok(html.includes("function restoreWarningSubject(id)"));
+  assert.ok(html.includes("action:'archive_subject'"));
+  assert.ok(html.includes("action:'restore_subject'"));
 });
