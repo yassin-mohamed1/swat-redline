@@ -1127,10 +1127,7 @@ html[dir="ltr"] .field label{text-align:left}
 <section class="page" id="page-operations"><div class="sectionhead"><div><h2>العمليات</h2><div class="sub">سجل عمليات سيرفر FiveM</div></div><button class="btn primary" onclick="newOperation()">＋ إضافة عملية</button></div><div class="panel"><div class="panelhead"><h3>سجل العمليات</h3></div><div class="tablewrap"><table><thead><tr><th>الرقم</th><th>اسم العملية</th><th>المسؤول</th><th>الحالة</th><th>التوقيت</th><th>إجراءات</th></tr></thead><tbody id="operationRows"></tbody></table></div></div></section>
 <section class="page" id="page-announcements">
 <div class="sectionhead"><div><h2>الإعلانات</h2><div class="sub">إدارة الاجتماعات والإعلانات والتعاميم وطلبات الحضور والتدريب والسيناريوهات</div></div><button class="btn primary" type="button" onclick="openAnnouncementTypeModal()">＋ إضافة إعلان</button></div>
-<div class="panel" style="margin-bottom:14px" id="siteNoticesPanel">
-<div class="panelhead"><div><h3>التنبيهات والتعاميم الرسمية</h3><span class="sub">احفظ التعميم هنا أولًا، ثم انشره يدويًا في روم SWAT - NOTIFICATION. لا تُرسل رسائل خاصة من هذا المسار.</span></div><button class="btn primary" id="siteNoticeAddButton" type="button" onclick="openSiteNoticeModal()">＋ إضافة تعميم</button></div>
-<div class="panelbody"><p class="muted" style="margin:0 0 12px">هذا السجل هو المرجع الأساسي للتعاميم. الحفظ لا ينشر على Discord؛ النشر يتم فقط من زر التعميم بعد مراجعته. التحذيرات لها سجلها وقناتها المنفصلة.</p><div class="tablewrap"><table><thead><tr><th>التعميم</th><th>الوصف</th><th>بواسطة</th><th>تاريخ الإضافة</th><th>حالة Discord</th><th>الإجراء</th></tr></thead><tbody id="siteNoticeRows"></tbody></table></div></div>
-</div>
+
 <div class="panel"><div class="panelhead"><h3>سجل الإعلانات</h3><span class="sub">الإعلانات المحفوظة تظهر لجميع أعضاء البوابة</span></div><div class="tablewrap"><table><thead><tr><th>الرقم</th><th>النوع</th><th>اسم الإعلان والتفاصيل</th><th>المرسل</th><th>التاريخ والوقت</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="announcementRows"></tbody></table></div></div>
 </section>
 <section class="page" id="page-personnel">
@@ -1306,6 +1303,10 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="sectionhead">
  <div><h2>التحذيرات</h2><div class="sub">إدارة الحالات التأديبية، الرسائل الرسمية، وسجل الإجراءات</div></div>
  <button class="btn" type="button" onclick="renderWarnings()">↻ تحديث البيانات</button>
+</div>
+<div class="panel" style="margin-bottom:14px" id="siteNoticesPanel">
+<div class="panelhead"><div><h3>التنبيهات والتعاميم الرسمية</h3><span class="sub">احفظ التعميم هنا أولًا، ثم انشره يدويًا في روم SWAT - NOTIFICATION. لا تُرسل رسائل خاصة من هذا المسار.</span></div><button class="btn primary" id="siteNoticeAddButton" type="button" onclick="openSiteNoticeModal()">＋ إضافة تعميم</button></div>
+<div class="panelbody"><p class="muted" style="margin:0 0 12px">هذا السجل هو المرجع الأساسي للتعاميم. الحفظ لا ينشر على Discord؛ النشر يتم فقط من زر التعميم بعد مراجعته. التحذيرات لها سجلها وقناتها المنفصلة.</p><div class="tablewrap"><table><thead><tr><th>التعميم</th><th>الوصف</th><th>بواسطة</th><th>تاريخ الإضافة</th><th>حالة Discord</th><th>الإجراء</th></tr></thead><tbody id="siteNoticeRows"></tbody></table></div></div>
 </div>
 <div class="warning-summary">
  <div class="panel"><div class="muted">الإنذار الأول</div><strong id="warningCount1">0</strong></div>
@@ -1703,7 +1704,7 @@ function renderAnnouncements(){
 function renderSiteNotices(skipStatusRefresh=false){
  const body=document.getElementById('siteNoticeRows');if(!body)return;
  const addButton=document.getElementById('siteNoticeAddButton');
- if(addButton)addButton.hidden=!currentCanAdmin;
+ if(addButton)addButton.hidden=!currentCanManageWarnings;
  const rows=[...siteNotices].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
  body.innerHTML=rows.map(item=>{
   const status=item.discordStatus||'not_published';
@@ -1714,8 +1715,8 @@ function renderSiteNotices(skipStatusRefresh=false){
   const publishButton=sent
     ?(item.discordMessageUrl?'<a class="btn" href="'+esc(item.discordMessageUrl)+'" target="_blank" rel="noopener">فتح رسالة Discord ↗</a>':'<button class="btn" type="button" disabled>تم النشر</button>')
     :pending?'<button class="btn" type="button" disabled>جارٍ النشر...</button>'
-    :currentCanAdmin?'<button class="btn primary" type="button" onclick="publishSiteNotice('+jsArg(item.id)+',this)">'+(failed?'إعادة المحاولة':'نشر على Discord')+'</button>':'<span class="muted">—</span>';
-  const removeButton=currentCanAdmin&&!sent&&!pending?'<button class="btn danger" type="button" onclick="deleteSiteNotice('+jsArg(item.id)+')">حذف</button>':'';
+    :currentCanManageWarnings?'<button class="btn primary" type="button" onclick="publishSiteNotice('+jsArg(item.id)+',this)">'+(failed?'إعادة المحاولة':'نشر على Discord')+'</button>':'<span class="muted">—</span>';
+  const removeButton=currentCanManageWarnings&&!sent&&!pending?'<button class="btn danger" type="button" onclick="deleteSiteNotice('+jsArg(item.id)+')">حذف</button>':'';
   const description=String(item.description||'');
   const shortDescription=description.length>190?description.slice(0,187)+'…':description;
   return '<tr><td><b>'+esc(item.title||'بدون عنوان')+'</b></td><td style="max-width:380px;white-space:normal">'+esc(shortDescription)+'</td><td>'+esc(item.owner||'غير محدد')+'</td><td>'+esc(formatAnnouncementDate(item.createdAt))+'</td><td>'+badge+(failed&&item.discordErrorCode?'<div class="muted" style="font-size:10px">Code: '+esc(item.discordErrorCode)+'</div>':'')+'</td><td><div class="actions" style="flex-wrap:wrap;gap:6px">'+publishButton+removeButton+'</div></td></tr>';
@@ -1755,7 +1756,7 @@ async function refreshSiteNoticeStatuses(force=false){
  }
 }
 function openSiteNoticeModal(){
- if(!currentCanAdmin){toast('إضافة التعاميم الرسمية متاحة للمالك وWebsite Admin فقط.');return;}
+ if(!currentCanManageWarnings){toast('إضافة التعاميم الرسمية متاحة للمالك وWebsite Admin فقط.');return;}
  const form=document.getElementById('siteNoticeForm');
  form?.reset();
  document.getElementById('siteNoticeModalBack').classList.add('open');
@@ -1767,7 +1768,7 @@ function closeSiteNoticeModal(){
 }
 async function saveSiteNotice(event){
  event.preventDefault();
- if(!currentCanAdmin){toast('لا تملك صلاحية إضافة تعميم رسمي.');return;}
+ if(!currentCanManageWarnings){toast('لا تملك صلاحية إضافة تعميم رسمي.');return;}
  if(!sharedSyncReady){toast('قاعدة البيانات المشتركة لا تزال تُحمّل. حاول مرة أخرى بعد لحظة.');return;}
  const title=document.getElementById('siteNoticeTitle').value.trim();
  const description=document.getElementById('siteNoticeDescription').value.trim();
@@ -1797,7 +1798,7 @@ async function saveSiteNotice(event){
  toast(currentPortalLanguage()==='en'?'Notice saved on the portal. It has not been posted to Discord yet.':'تم حفظ التعميم على الموقع. لم يتم نشره على Discord بعد.');
 }
 async function deleteSiteNotice(id){
- if(!currentCanAdmin){toast('لا تملك صلاحية حذف تعميم رسمي.');return;}
+ if(!currentCanManageWarnings){toast('لا تملك صلاحية حذف تعميم رسمي.');return;}
  const item=siteNotices.find(value=>String(value.id)===String(id));if(!item)return;
  if(item.discordStatus==='sent'||item.discordStatus==='pending'){toast('لا يمكن حذف تعميم تم نشره أو يجري نشره.');return;}
  if(!confirm('تأكيد حذف التعميم «'+item.title+'» من سجل الموقع؟'))return;
@@ -1811,7 +1812,7 @@ async function deleteSiteNotice(id){
  toast('تم حذف التعميم من الموقع.');
 }
 async function publishSiteNotice(id,button){
- if(!currentCanAdmin){toast('نشر التعاميم متاح للمالك وWebsite Admin فقط.');return;}
+ if(!currentCanManageWarnings){toast('نشر التعاميم متاح للمالك وWebsite Admin فقط.');return;}
  const item=siteNotices.find(value=>String(value.id)===String(id));if(!item)return;
  if(item.discordStatus==='sent'){toast('هذا التعميم منشور بالفعل.');return;}
  if(item.discordStatus==='pending'){toast('طلب نشر هذا التعميم قيد التنفيذ. حدّث القائمة بعد لحظة.');return;}
@@ -3151,8 +3152,8 @@ function go(page){
  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+page)?.classList.add('active');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='records')showRecordTab(tab||activeRecordTab||'people');
- if(page==='announcements'){renderAnnouncements();renderSiteNotices();}if(page==='reports')renderReports();if(page==='audit'&&currentCanAdmin)renderAudit();
- if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings)renderWarnings();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();}
+ if(page==='announcements')renderAnnouncements();if(page==='reports')renderReports();if(page==='audit'&&currentCanAdmin)renderAudit();
+ if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings){renderWarnings();renderSiteNotices();}if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();}
  if(page==='gallery')renderSiteGallery();applySiteSettings();window.scrollTo({top:0,behavior:'smooth'})
 }document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)go(b.dataset.page)});
 function openModal(){document.getElementById('viewContent')?.remove();document.getElementById('editContent')?.remove();document.getElementById('personForm').style.display='';document.getElementById('personForm').reset();pendingImages=[];document.getElementById('imagePreview').innerHTML='';document.getElementById('modalTitle').textContent='إضافة ملف شخص / قضية';document.getElementById('modalBack').classList.add('open')}function closeModal(){document.getElementById('modalBack').classList.remove('open')}document.getElementById('fImages').addEventListener('change',async e=>{pendingImages=[];pendingImageDescriptions=[];let files=[...e.target.files];for(let f of files){if(!f.type.startsWith('image/'))continue;if(f.size>1.5*1024*1024){toast('الصورة أكبر من 1.5MB في النموذج التجريبي');continue}let data=await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)});pendingImages.push(data);pendingImageDescriptions.push('')}document.getElementById('imagePreview').innerHTML=pendingImages.map((src,i)=>'<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:start;width:100%;margin:8px 0;padding:8px;border:1px solid #30343b;border-radius:8px"><img src="'+src+'" alt="صورة '+(i+1)+'" style="width:76px;height:76px;object-fit:cover;border-radius:6px"><div><label for="fImageDesc'+i+'" style="display:block;margin-bottom:6px">وصف الصورة '+(i+1)+'</label><textarea id="fImageDesc'+i+'" rows="2" placeholder="اكتب وصف هذه الصورة أو الدليل..." style="width:100%;min-height:60px"></textarea></div></div>').join('')});
