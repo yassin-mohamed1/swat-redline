@@ -338,7 +338,7 @@ test("the warnings page hides archived subjects by default and offers manager re
 });
 
 
-test("attendance dashboard is available inside the warnings page and uses live attendance data", async () => {
+test("attendance dashboard is a separate page directly below warnings", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(api, /params\.get\("attendance"\) === "1"/);
