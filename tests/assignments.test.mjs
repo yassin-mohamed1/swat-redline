@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+const read = (relativePath, encoding = "utf8") => readFile(new URL(relativePath, import.meta.url), encoding);
+
 test("assignment and personnel APIs use the same warning manager role and enforce it server-side", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const warnings = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
