@@ -49,7 +49,7 @@ test("manual disciplinary actions allow Warning 2 or dismissal without earlier w
   assert.doesNotMatch(html, /<option value="3">Warning 3<\/option>/);
   assert.match(html, /الأعضاء المفصولون/);
   const manualUiStart = html.indexOf("async function submitWarningAction(action)");
-  const manualUiEnd = html.indexOf("\\n}\\n", manualUiStart);
+  const manualUiEnd = html.indexOf("\n}\n", manualUiStart);
   assert.ok(manualUiStart >= 0 && manualUiEnd > manualUiStart);
   const manualUiHandler = html.slice(manualUiStart, manualUiEnd);
   assert.doesNotMatch(manualUiHandler, /currentLevel/);
