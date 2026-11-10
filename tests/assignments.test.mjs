@@ -195,7 +195,7 @@ test("Website Admin role stays visible but cannot be assigned through the appoin
 test("city rank is independent from Discord roles and is saved through the member identity record", async () => {
   const api = await read("../api/admin/members.js", "utf8");
   const html = await read("../index.html", "utf8");
-  const migration = await read("../supabase/migrations/20261111000100_staff_member_identities.sql", "utf8");
+  const migration = await read("../supabase/migrations/20261110231505_staff_member_identities.sql", "utf8");
   const start = api.indexOf("async function handleSaveCityRank(");
   const end = api.indexOf("\nasync function handlePublishMemberIdentity(", start);
   assert.ok(start >= 0 && end > start, "independent City Rank handler exists");
@@ -223,7 +223,7 @@ test("city rank is independent from Discord roles and is saved through the membe
 test("member identity publishing sends one card and updates the stored Discord message instead of duplicating it", async () => {
   const api = await read("../api/admin/members.js", "utf8");
   const html = await read("../index.html", "utf8");
-  const migration = await read("../supabase/migrations/20261111000100_staff_member_identities.sql", "utf8");
+  const migration = await read("../supabase/migrations/20261110231505_staff_member_identities.sql", "utf8");
   const start = api.indexOf("async function handlePublishMemberIdentity(");
   const end = api.indexOf("\nasync function handleAddNextCallsign(", start);
   assert.ok(start >= 0 && end > start, "identity publisher exists");
