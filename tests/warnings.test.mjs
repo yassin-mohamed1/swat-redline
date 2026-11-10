@@ -354,3 +354,35 @@ test("attendance dashboard is a separate page directly below warnings", async ()
   assert.match(html, /current_streak_days/);
   assert.match(html, /last_seven_days/);
 });
+
+
+test("automatic attendance discipline reuses the existing warning ladder at 7, 14, and 21 days", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261110175528_attendance_disciplinary_automation.sql", import.meta.url), "utf8");
+  assert.match(api, /async function processAutomaticAttendanceDiscipline\(cfg\)/);
+  assert.match(api, /absence\.days < stage \* 7/);
+  assert.match(api, /applyAutomaticAttendanceAction\(/);
+  assert.match(api, /begin_disciplinary_action/);
+  assert.match(api, /complete_disciplinary_action_v2/);
+  assert.match(api, /updateMemberRoles\(cfg,discordUserId,level,actionType==="dismissal"\)/);
+  assert.match(api, /await sendDirectNotice/);
+  assert.match(api, /await sendAnnouncement/);
+  assert.match(api, /processAutomaticAttendanceDiscipline\(cronCfg\)/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.attendance_discipline_claims/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.claim_swat_attendance_discipline/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.complete_swat_attendance_discipline/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.claim_swat_attendance_discipline/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.claim_swat_attendance_discipline[\s\S]*TO service_role/);
+});
+
+test("attendance roster checks live SWAT roles and keeps dismissed members in history", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(api, /const swatRoleId = process\.env\.DISCORD_ROLE_ID/);
+  assert.match(api, /member\.roles\.includes\(cfg\.swatRoleId\)/);
+  assert.match(api, /subject\?\.status === "dismissed"/);
+  assert.match(api, /is_swat_member/);
+  assert.match(api, /absence_started_at/);
+  assert.match(html, /const activeRows=rows\.filter\(member=>member\.is_swat_member\)/);
+  assert.match(html, /منذ انضمام العضو:/);
+});

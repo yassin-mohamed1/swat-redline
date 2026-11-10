@@ -1429,7 +1429,7 @@ html[dir="ltr"] .field label{text-align:left}
 <section class="page" id="page-rules"><div class="sectionhead"><div><h2>القوانين والأوامر</h2><div class="sub">مكتبة S.W.A.T. للقوانين واللوائح والتعاميم والأوامر اليومية</div></div></div><div class="rules-library-toolbar"><div class="rules-library-search"><span aria-hidden="true">⌕</span><input id="rulesSearch" type="search" autocomplete="off" placeholder="ابحث في رقم القانون أو العنوان أو الوصف أو النص..." oninput="renderRules()"></div><div class="rules-library-summary" id="rulesLibraryStats">جارٍ تجهيز مكتبة القوانين...</div></div><div class="grid"><div class="panel"><div class="panelhead"><h3>دليل القسم والتعاميم</h3><button class="btn primary" onclick="newRule('notice')">＋ إضافة تعميم أو دليل</button></div><div class="panelbody" id="rulesList"></div></div><div class="panel"><div class="panelhead"><h3>أوامر اليوم</h3><button class="btn primary" onclick="newDailyCommand()">＋ إضافة أمر</button></div><div class="panelbody" id="dailyCommandsList"></div></div></div><div class="panel" style="margin-top:14px"><div class="panelhead"><h3>قوانين القسم</h3><div class="actions"><span class="sub">القوانين التي تضيفها ستظهر هنا</span><button class="btn primary" onclick="newRule('law')">＋ إضافة قانون</button></div></div><div class="panelbody" id="lawsList"></div></div><div id="ruleEditorBack" class="rule-editor-back" hidden><div class="rule-editor"><div class="panelhead"><h3 id="ruleEditorHeading">إضافة قانون</h3><button class="btn" type="button" onclick="closeRuleEditor()">إغلاق ×</button></div><form id="ruleEditorForm"><div class="field"><label id="ruleTitleLabel" for="ruleTitle">عنوان القانون</label><input id="ruleTitle" maxlength="160" placeholder="مثال: قانون استخدام القوة"></div><div class="field" id="ruleDescriptionField"><label id="ruleDescriptionLabel" for="ruleDescription">وصف القانون</label><textarea id="ruleDescription" rows="2" placeholder="اكتب وصفًا مختصرًا للقانون"></textarea></div><div class="field"><label id="ruleBodyLabel" for="ruleBody">نص القانون / القانون عبارة عن إيه؟</label><textarea id="ruleBody" rows="6" placeholder="اكتب نص القانون بالتفصيل..."></textarea></div><div class="modalactions"><button id="ruleSaveButton" class="btn primary" type="submit">حفظ القانون</button><button class="btn" type="button" onclick="closeRuleEditor()">إلغاء</button></div></form></div></div></section>
 <section class="page" id="page-attendance">
 <div class="sectionhead">
- <div><h2>البصمة اليومية</h2><div class="sub">متابعة حضور أفراد S.W.A.T. REDLINE من روم البصمة في Discord</div></div>
+ <div><h2>البصمة اليومية</h2><div class="sub">متابعة حاملي رتبة SWAT الحالية مع سجل المفصولين من روم البصمة في Discord</div></div>
  <button class="btn" type="button" onclick="renderAttendance()">↻ تحديث البيانات</button>
 </div>
 <div id="attendanceContainer">
@@ -1462,7 +1462,7 @@ html[dir="ltr"] .field label{text-align:left}
      <tbody id="attendanceRows"><tr><td colspan="8">افتح تبويب البصمة لتحميل البيانات.</td></tr></tbody>
     </table>
    </div>
-   <div class="muted" style="margin-top:10px;line-height:1.8">يعرض السجل الأعضاء النشطين المسجلين في البوابة. يبدأ حساب الغياب من تاريخ تفعيل نظام البصمة أو تاريخ انضمام العضو، أيهما أحدث. البصمة اليومية تُحتسب مرة واحدة فقط لكل عضو في اليوم.</div>
+   <div class="muted" style="margin-top:10px;line-height:1.8">يعرض السجل حاملي رتبة SWAT الحالية بعد التحقق من Discord مباشرة، ويُبقي المفصولين ظاهرين لسجلهم التأديبي. يبدأ حساب الغياب من آخر بصمة، أو من تاريخ تفعيل النظام/انضمام العضو أيهما أحدث. تُحتسب بصمة واحدة يوميًا.</div>
   </div>
  </div>
 </div>
@@ -2366,11 +2366,12 @@ async function renderAttendance(){
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل بيانات الحضور.');
   attendanceData={members:Array.isArray(data.members)?data.members:[],generated_at:data.generated_at||null,attendance_started_at:data.attendance_started_at||null};
   const rows=attendanceData.members;
-  const today=rows.filter(member=>member.today_present).length;
-  const missing=rows.length-today;
-  const absentWeek=rows.filter(member=>Number(member.days_since_last)>=7&&member.warning_status!=='dismissed').length;
+  const activeRows=rows.filter(member=>member.is_swat_member);
+  const today=activeRows.filter(member=>member.today_present).length;
+  const missing=activeRows.length-today;
+  const absentWeek=activeRows.filter(member=>Number(member.days_since_last)>=7).length;
   const set=(id,value)=>{const node=document.getElementById(id);if(node)node.textContent=String(value)};
-  set('attendanceMemberCount',rows.length);
+  set('attendanceMemberCount',activeRows.length);
   set('attendanceTodayCount',today);
   set('attendanceMissingCount',missing);
   set('attendanceWeekAbsentCount',absentWeek);
@@ -2401,7 +2402,7 @@ function renderAttendanceRows(){
   const last=member.last_attendance_at?fmtWarningDate(member.last_attendance_at):'لم يسجل بعد';
   const days=Number(member.days_since_last)||0;
   const duration=member.has_ever_attended===false
-   ?'منذ بدء النظام: '+attendanceDuration(days)
+   ?(member.absence_baseline==='member_registration'?'منذ انضمام العضو: ':'منذ بدء النظام: ')+attendanceDuration(days)
    :attendanceDuration(days);
   const absence=days>=7?'<span class="attendance-badge warn">'+adminEscape(duration)+'</span>':adminEscape(duration);
   return '<tr><td><div class="attendance-name">'+adminEscape(member.display_name||member.username||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(member.discord_user_id)+'</code></div></td>'+

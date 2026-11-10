@@ -41,18 +41,20 @@ function config() {
   const managerRoleId = process.env.DISCORD_WARNING_MANAGER_ROLE_ID;
   const botRoleId = process.env.DISCORD_BOT_ROLE_ID;
   const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
+  const swatRoleId = process.env.DISCORD_ROLE_ID;
   const warningRoles = {
     1: process.env.DISCORD_WARNING_ROLE_1_ID,
     2: process.env.DISCORD_WARNING_ROLE_2_ID
   };
   if (!base || !key || !token || !guildId || !channelId || !managerRoleId ||
+      !/^\d{15,22}$/.test(String(swatRoleId || "")) ||
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
     return { error: "لم يتم إعداد نظام التحذيرات بالكامل." };
   }
   if (!/^\d{17,20}$/.test(String(notificationRoleId || ""))) {
     return { error: "تعذر تحديد رتبة SWAT الخاصة بمنشن الإعلانات. راجع إعداد DISCORD_NOTIFICATION_ROLE_ID." };
   }
-  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, notificationRoleId, warningRoles };
+  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, notificationRoleId, warningRoles, swatRoleId };
 }
 async function db(cfg, path, init = {}) {
   return fetch(cfg.base + "/rest/v1/" + path, { ...init, headers: {
@@ -206,33 +208,52 @@ function dateOrdinal(value) {
   if (!match) return null;
   return Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000);
 }
-async function attendanceRows(cfg, offset) {
+async function attendanceRows(cfg, offset, discordUserIds = null) {
   const query = new URLSearchParams({
     select: "discord_user_id,attendance_date,first_seen_at",
     order: "attendance_date.desc,first_seen_at.desc",
     limit: "1000",
     offset: String(offset)
   });
+  if (Array.isArray(discordUserIds) && discordUserIds.length) {
+    query.set("discord_user_id", "in.(" + discordUserIds.map(id => '"' + String(id) + '"').join(",") + ")");
+  }
   const response = await db(cfg, "attendance_records?" + query.toString());
   if (!response.ok) throw new Error("تعذّر تحميل سجل البصمات.");
   return response.json();
 }
+async function mapConcurrent(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
+    while (true) {
+      const index = next++;
+      if (index >= items.length) return;
+      results[index] = await worker(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+async function getGuildMemberOrNull(cfg, discordUserId) {
+  try {
+    return await discord(cfg, "/guilds/" + encodeURIComponent(cfg.guildId) + "/members/" + encodeURIComponent(discordUserId));
+  } catch (error) {
+    if (Number(error?.status) === 404) return null;
+    throw error;
+  }
+}
 async function listAttendanceDashboard(cfg) {
   const staffQuery = new URLSearchParams({
     select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned,created_at",
-    is_active: "eq.true",
-    is_banned: "eq.false",
-    order: "display_name.asc",
-    limit: "1000"
+    is_banned: "eq.false", order: "display_name.asc", limit: "1000"
   });
   const subjectQuery = new URLSearchParams({
-    select: "discord_user_id,warning_level,status,last_reason,last_action_at,warning_expires_at",
-    limit: "1000"
+    select: "discord_user_id,warning_level,status,last_reason,last_action_at,warning_expires_at", limit: "1000"
   });
   const attendanceStateQuery = new URLSearchParams({
     channel_id: "eq." + (process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434"),
-    select: "initialized_at",
-    limit: "1"
+    select: "initialized_at", limit: "1"
   });
   const [staffResponse, subjectResponse, stateResponse] = await Promise.all([
     db(cfg, "staff_profiles?" + staffQuery.toString()),
@@ -242,13 +263,25 @@ async function listAttendanceDashboard(cfg) {
   if (!staffResponse.ok || !subjectResponse.ok || !stateResponse.ok) {
     throw new Error("تعذّر تحميل الأعضاء أو حالات التحذيرات أو بداية نظام البصمة.");
   }
-  const staff = await staffResponse.json();
+  const allStaff = await staffResponse.json();
   const subjects = await subjectResponse.json();
   const stateRows = await stateResponse.json();
+  const subjectById = new Map(subjects.map(subject => [String(subject.discord_user_id), subject]));
   const attendanceStartedAt = stateRows[0]?.initialized_at || new Date().toISOString();
+  const candidates = allStaff.filter(profile => profile.is_banned !== true &&
+    (profile.is_active === true || subjectById.get(String(profile.discord_user_id))?.status === "dismissed"));
+  const membership = await mapConcurrent(candidates, 8, async profile => {
+    const id = String(profile.discord_user_id);
+    const subject = subjectById.get(id) || null;
+    if (profile.is_active !== true) return { profile, subject, is_swat_member: false };
+    const member = await getGuildMemberOrNull(cfg, id);
+    return { profile, subject, is_swat_member: Boolean(member && Array.isArray(member.roles) && member.roles.includes(cfg.swatRoleId)) };
+  });
+  const visible = membership.filter(item => item.is_swat_member || item.subject?.status === "dismissed");
+  const visibleIds = visible.map(item => String(item.profile.discord_user_id));
   const recordsByMember = new Map();
-  for (let offset = 0, page = 0; page < 50; page++, offset += 1000) {
-    const rows = await attendanceRows(cfg, offset);
+  for (let offset = 0, page = 0; visibleIds.length && page < 50; page++, offset += 1000) {
+    const rows = await attendanceRows(cfg, offset, visibleIds);
     for (const row of rows) {
       const id = String(row.discord_user_id || "");
       if (!id) continue;
@@ -258,77 +291,48 @@ async function listAttendanceDashboard(cfg) {
     if (rows.length < 1000) break;
     if (page === 49) throw new Error("سجل البصمات أكبر من الحد المسموح للتحميل؛ يلزم تقسيم التقرير.");
   }
-  const subjectById = new Map(subjects.map(subject => [String(subject.discord_user_id), subject]));
-  const now = new Date();
-  const today = riyadhDateKey(now);
-  const todayOrdinal = dateOrdinal(today);
-  const weekStartOrdinal = todayOrdinal - 6;
-  const members = staff.map(profile => {
+  const now = new Date(), nowMs = now.getTime();
+  const today = riyadhDateKey(now), todayOrdinal = dateOrdinal(today), weekStartOrdinal = todayOrdinal - 6;
+  const members = visible.map(({profile,subject,is_swat_member}) => {
     const id = String(profile.discord_user_id);
     const stamps = recordsByMember.get(id) || [];
     const unique = new Map();
     for (const stamp of stamps) {
-      const date = String(stamp.attendance_date || "").slice(0, 10);
-      if (date && !unique.has(date)) unique.set(date, stamp);
+      const date = String(stamp.attendance_date || "").slice(0,10);
+      if (date && !unique.has(date)) unique.set(date,stamp);
     }
-    const daily = [...unique.entries()].sort((a, b) => dateOrdinal(b[0]) - dateOrdinal(a[0]));
-    const last = daily[0]?.[1] || null;
-    const first = daily[daily.length - 1]?.[1] || null;
+    const daily = [...unique.entries()].sort((a,b)=>dateOrdinal(b[0])-dateOrdinal(a[0]));
+    const last = daily[0]?.[1] || null, first = daily[daily.length-1]?.[1] || null;
     const lastDate = daily[0]?.[0] || null;
-    const registeredAt = profile.created_at || now.toISOString();
-    const firstEligibleDate = [
-      dateOrdinal(riyadhDateKey(attendanceStartedAt)),
-      dateOrdinal(riyadhDateKey(registeredAt))
-    ].filter(value => value !== null);
-    const graceStartOrdinal = firstEligibleDate.length ? Math.max(...firstEligibleDate) : todayOrdinal;
-    const baselineOrdinal = lastDate ? dateOrdinal(lastDate) : graceStartOrdinal;
-    const daysSinceLast = baselineOrdinal === null ? 0 : Math.max(0, todayOrdinal - baselineOrdinal);
-    const weekCount = daily.filter(([date]) => {
-      const ordinal = dateOrdinal(date);
-      return ordinal !== null && ordinal >= weekStartOrdinal && ordinal <= todayOrdinal;
-    }).length;
-    let streak = 0;
-    let previousOrdinal = null;
-    for (const [date] of daily) {
-      const ordinal = dateOrdinal(date);
-      if (ordinal === null) continue;
-      if (previousOrdinal === null) streak = 1;
-      else if (previousOrdinal - ordinal === 1) streak++;
-      else break;
-      previousOrdinal = ordinal;
-    }
-    const subject = subjectById.get(id) || null;
+    const registeredMs = Date.parse(profile.created_at || now.toISOString());
+    const systemMs = Date.parse(attendanceStartedAt);
+    const baselineMs = last ? Date.parse(last.first_seen_at) : Math.max(
+      Number.isFinite(registeredMs)?registeredMs:nowMs,
+      Number.isFinite(systemMs)?systemMs:nowMs
+    );
+    const safeBaselineMs = Number.isFinite(baselineMs) ? Math.min(baselineMs,nowMs) : nowMs;
+    const daysSinceLast = Math.max(0,Math.floor((nowMs-safeBaselineMs)/86400000));
+    const absenceStartedAt = last?.first_seen_at || new Date(safeBaselineMs).toISOString();
+    const absenceBaseline = last ? "last_attendance" : registeredMs > systemMs ? "member_registration" : "system_activation";
+    const weekCount = daily.filter(([date])=>{const ordinal=dateOrdinal(date);return ordinal!==null&&ordinal>=weekStartOrdinal&&ordinal<=todayOrdinal;}).length;
+    let streak=0,previousOrdinal=null;
+    for(const [date] of daily){const ordinal=dateOrdinal(date);if(ordinal===null)continue;if(previousOrdinal===null)streak=1;else if(previousOrdinal-ordinal===1)streak++;else break;previousOrdinal=ordinal;}
     return {
-      discord_user_id: id,
-      display_name: profile.display_name || profile.username || "Discord member",
-      username: profile.username || "",
-      avatar_url: profile.avatar_url || null,
-      registered_at: profile.created_at || null,
-      today_present: lastDate === today,
-      has_ever_attended: Boolean(last),
-      last_attendance_at: last?.first_seen_at || null,
-      last_attendance_date: lastDate,
-      first_attendance_at: first?.first_seen_at || null,
-      days_since_last: daysSinceLast,
-      weeks_since_last: Math.floor(daysSinceLast / 7),
-      last_seven_days: weekCount,
-      total_days: daily.length,
-      current_streak_days: streak,
-      warning_level: Number(subject?.warning_level || 0),
-      warning_status: subject?.status || "clear",
-      warning_reason: subject?.last_reason || null,
-      warning_updated_at: subject?.last_action_at || null,
-      warning_expires_at: subject?.warning_expires_at || null
+      discord_user_id:id,display_name:profile.display_name||profile.username||"Discord member",username:profile.username||"",
+      avatar_url:profile.avatar_url||null,registered_at:profile.created_at||null,is_swat_member,is_dismissed:subject?.status==="dismissed",
+      today_present:lastDate===today,has_ever_attended:Boolean(last),last_attendance_at:last?.first_seen_at||null,
+      last_attendance_date:lastDate,first_attendance_at:first?.first_seen_at||null,absence_started_at:absenceStartedAt,
+      absence_baseline:absenceBaseline,days_since_last:daysSinceLast,weeks_since_last:Math.floor(daysSinceLast/7),
+      last_seven_days:weekCount,total_days:daily.length,current_streak_days:streak,
+      warning_level:Number(subject?.warning_level||0),warning_status:subject?.status||"clear",
+      warning_reason:subject?.last_reason||null,warning_updated_at:subject?.last_action_at||null,
+      warning_expires_at:subject?.warning_expires_at||null
     };
   });
-  return {
-    generated_at: now.toISOString(),
-    attendance_started_at: attendanceStartedAt,
-    timezone: "Asia/Riyadh",
-    channel_id: process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434",
-    total_members: members.length,
-    members
-  };
+  const activeSwat=members.filter(member=>member.is_swat_member);
+  return {generated_at:now.toISOString(),attendance_started_at:attendanceStartedAt,timezone:"Asia/Riyadh",
+    channel_id:process.env.ATTENDANCE_CHANNEL_ID||"1569735227146768434",total_members:activeSwat.length,
+    visible_members:members.length,dismissed_members:members.filter(member=>member.is_dismissed).length,members};
 }
 
 async function listData(cfg, includeArchived = false) {
@@ -376,6 +380,135 @@ function cronAuthorized(req) {
   const a = Buffer.from(expected), b = Buffer.from(supplied);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+async function latestAttendanceForMember(cfg, discordUserId) {
+  const q=new URLSearchParams({discord_user_id:"eq."+String(discordUserId),select:"attendance_date,first_seen_at",order:"attendance_date.desc,first_seen_at.desc",limit:"1"});
+  const r=await db(cfg,"attendance_records?"+q.toString());
+  if(!r.ok)throw new Error("تعذّر التحقق من آخر بصمة للعضو.");
+  return (await r.json())[0]||null;
+}
+async function currentDisciplinaryState(cfg, discordUserId) {
+  const q=new URLSearchParams({discord_user_id:"eq."+String(discordUserId),select:"discord_user_id,warning_level,status,last_reason,last_action_at,warning_expires_at",limit:"1"});
+  const r=await db(cfg,"disciplinary_subjects?"+q.toString());
+  if(!r.ok)throw new Error("تعذّر تحميل حالة التحذيرات الحالية.");
+  return (await r.json())[0]||{warning_level:0,status:"clear"};
+}
+function elapsedAbsenceDays(lastAttendance, profileCreatedAt, systemStartedAt, now=new Date()) {
+  const lastMs=lastAttendance?Date.parse(lastAttendance.first_seen_at):NaN;
+  const createdMs=Date.parse(profileCreatedAt||now.toISOString()), startedMs=Date.parse(systemStartedAt||now.toISOString());
+  const baselineMs=Number.isFinite(lastMs)?lastMs:Math.max(Number.isFinite(createdMs)?createdMs:now.getTime(),Number.isFinite(startedMs)?startedMs:now.getTime());
+  return {days:Math.max(0,Math.floor(Math.max(0,now.getTime()-baselineMs)/86400000)),startedAt:new Date(Math.min(baselineMs,now.getTime())).toISOString()};
+}
+async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, absenceDays, absenceStartedAt) {
+  const actionType=stage===3?"dismissal":"warning", level=stage===3?3:stage;
+  const target=await getGuildMemberOrNull(cfg,discordUserId);
+  if(!target)return {skipped:"member_left_server"};
+  if(!Array.isArray(target.roles)||!target.roles.includes(cfg.swatRoleId))return {skipped:"swat_role_removed"};
+  if(discordUserId===process.env.DISCORD_OWNER_ID)return {skipped:"protected_owner"};
+  const targetName=discordName(target);
+  const targetProfile={id:discordUserId,name:targetName,avatarUrl:discordAvatarUrl(target,cfg.guildId)};
+  const reason=stage===1?"عدم تسجيل الحضور اليومي لمدة 7 أيام متتالية.":stage===2?"عدم تسجيل الحضور اليومي لمدة 14 يومًا متتالية.":"الفصل التلقائي بسبب عدم تسجيل الحضور اليومي لمدة 21 يومًا متتالية.";
+  const details="آخر بصمة/بداية احتساب الغياب: "+formatRiyadhDate(absenceStartedAt)+". مدة الغياب المحسوبة: "+absenceDays+" يومًا. الإجراء صادر تلقائيًا من نظام البصمة اليومية في S.W.A.T. REDLINE.";
+  const dmAllowed=await memberPrivateNotificationsEnabled(cfg,discordUserId);
+  const start=await rpc(cfg,"begin_disciplinary_action",{
+    p_request_id:crypto.randomUUID(),p_discord_user_id:discordUserId,p_target_name:targetName,
+    p_username:target.user?.username||"",p_avatar_url:targetProfile.avatarUrl,p_action_type:actionType,
+    p_warning_level:level,p_reason:reason,p_details:details,p_actor_discord_id:actor.id,p_actor_name:actor.displayName
+  });
+  if(start.duplicate){if(start.status==="completed")return {duplicate:true,action_id:start.action_id};throw new Error("disciplinary_action_already_pending");}
+  const expiresAt=actionType==="warning"?new Date(Date.now()+warningValidityDays(level)*86400000).toISOString():null;
+  let roleResult;
+  try{roleResult=await updateMemberRoles(cfg,discordUserId,level,actionType==="dismissal");}
+  catch(error){
+    await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:"failed",p_dm_status:"failed",p_dm_channel_id:null,p_dm_message_id:null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:String(error.code||error.message||"role_sync_failed").slice(0,120)});
+    throw error;
+  }
+  let dmResult=null;
+  if(dmAllowed){
+    try{dmResult=await sendDirectNotice(cfg,discordUserId,disciplinaryNoticeEmbed(actionType,level,targetProfile,reason,details,actor.displayName,start.action_id,expiresAt));}
+    catch(error){
+      let rollbackFailed=false;try{await restoreMemberRoles(cfg,discordUserId,roleResult.originalRoles);}catch{rollbackFailed=true;}
+      await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:rollbackFailed?"succeeded":"failed",p_dm_status:"failed",p_dm_channel_id:null,p_dm_message_id:null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:(rollbackFailed?"dm_rollback_failed:":"dm_failed:")+String(error.code||error.message||"dm_delivery_failed").slice(0,100)});
+      throw error;
+    }
+  }
+  let channelMessage;
+  try{channelMessage=await sendAnnouncement(cfg,announcementEmbed(actionType,level,targetProfile,reason,details,actor.displayName,start.action_id,expiresAt),discordUserId);}
+  catch(error){
+    let rollbackFailed=false;try{await restoreMemberRoles(cfg,discordUserId,roleResult.originalRoles);}catch{rollbackFailed=true;}
+    if(dmResult){try{await deleteDirectNotice(cfg,dmResult);}catch{}}
+    await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:rollbackFailed?"succeeded":"failed",p_dm_status:dmResult?"failed":"skipped",p_dm_channel_id:dmResult?.channelId||null,p_dm_message_id:dmResult?.messageId||null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:(rollbackFailed?"announcement_rollback_failed:":"announcement_failed:")+String(error.code||error.message||"channel_delivery_failed").slice(0,100)});
+    throw error;
+  }
+  const completionInput={p_action_id:start.action_id,p_role_sync_status:"succeeded",p_dm_status:dmResult?"sent":"skipped",p_dm_channel_id:dmResult?.channelId||null,p_dm_message_id:dmResult?.messageId||null,p_channel_status:"sent",p_channel_message_id:channelMessage.id||null,p_warning_expires_at:expiresAt,p_error_code:null};
+  let completion;
+  try{completion=await rpc(cfg,"complete_disciplinary_action_v2",completionInput);}catch{completion=await rpc(cfg,"complete_disciplinary_action_v2",completionInput);}
+  try{
+    await forwardAuditToDiscord(actor,{action:actionType==="dismissal"?"delete":"create",entity_type:"disciplinary_action",entity_id:start.action_id,details:{
+      type:actionType==="dismissal"?"فصل تلقائي بسبب الغياب":"تحذير تلقائي بسبب الغياب",
+      detail:(actionType==="dismissal"?"تم فصل ":"تم إصدار إنذار تلقائي للمستخدم ")+targetName+(actionType==="warning"?" • المستوى "+level:"")+" بسبب الغياب عن البصمة.",
+      target_discord_id:discordUserId,automatic_attendance_action:true,absence_days:absenceDays
+    }});
+  }catch(error){console.error("Automatic attendance audit forwarding failed:",error?.message||"unknown");}
+  return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmResult?"sent":"skipped",channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0};
+}
+async function processAutomaticAttendanceDiscipline(cfg) {
+  const dashboard=await listAttendanceDashboard(cfg);
+  const candidates=dashboard.members.filter(member=>member.is_swat_member&&Number(member.days_since_last)>=7&&member.discord_user_id!==process.env.DISCORD_OWNER_ID)
+    .sort((a,b)=>Number(b.days_since_last)-Number(a.days_since_last)).slice(0,8);
+  if(!candidates.length)return {ok:true,scanned:dashboard.total_members,due:0,processed:0,warnings:0,dismissed:0,failed:0};
+  const botUser=await discord(cfg,"/users/@me");
+  const actor={id:botUser.id,displayName:"S.W.A.T. REDLINE • Attendance Automation"};
+  let processed=0,warnings=0,dismissed=0,failed=0;
+  const results=[];
+  for(const candidate of candidates){
+    for(let stage=1;stage<=3&&processed<8;stage++){
+      const [latestStamp]=await Promise.all([latestAttendanceForMember(cfg,candidate.discord_user_id)]);
+      const absence=elapsedAbsenceDays(latestStamp,candidate.registered_at,dashboard.attendance_started_at,new Date());
+      if(absence.days<stage*7)break;
+      const eventKey="attendance:"+candidate.discord_user_id+":"+stage+":"+absence.startedAt;
+      const claim=await rpc(cfg,"claim_swat_attendance_discipline",{p_event_key:eventKey,p_discord_user_id:candidate.discord_user_id,p_stage:stage});
+      if(!claim.claimed){
+        if(claim.status==="completed")continue;
+        break;
+      }
+      try{
+        const currentMember=await getGuildMemberOrNull(cfg,candidate.discord_user_id);
+        if(!currentMember||!Array.isArray(currentMember.roles)||!currentMember.roles.includes(cfg.swatRoleId)){
+          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});break;
+        }
+        const freshSubject=await currentDisciplinaryState(cfg,candidate.discord_user_id);
+        const currentLevel=freshSubject.status==="dismissed"?0:Number(freshSubject.warning_level||0);
+        if(stage<=2&&currentLevel>=stage){
+          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});continue;
+        }
+        if((stage<=2&&currentLevel!==stage-1)||(stage===3&&currentLevel<2))throw new Error("attendance_disciplinary_sequence_mismatch");
+        const finalStamp=await latestAttendanceForMember(cfg,candidate.discord_user_id);
+        const finalAbsence=elapsedAbsenceDays(finalStamp,candidate.registered_at,dashboard.attendance_started_at,new Date());
+        if(finalAbsence.days<stage*7||finalAbsence.startedAt!==absence.startedAt){
+          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});break;
+        }
+        const action=await applyAutomaticAttendanceAction(cfg,actor,candidate.discord_user_id,stage,finalAbsence.days,finalAbsence.startedAt);
+        if(action.skipped){
+          await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});break;
+        }
+        await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:true,p_error_code:null});
+        processed++;if(stage===3)dismissed++;else warnings++;
+        results.push({discord_user_id:candidate.discord_user_id,stage,action_type:action.action_type,action_id:action.action_id,dm_status:action.dm_status});
+        // Run at most one new disciplinary step per member per cron pass.
+        break;
+      }catch(error){
+        failed++;
+        const code=String(error.code||error.detail||error.message||"attendance_disciplinary_failed").slice(0,120);
+        try{await rpc(cfg,"complete_swat_attendance_discipline",{p_event_key:eventKey,p_success:false,p_error_code:code});}
+        catch(claimError){console.error("Attendance discipline claim release failed:",claimError?.detail||claimError?.message||"unknown");}
+        results.push({discord_user_id:candidate.discord_user_id,stage,status:"retry_scheduled",error:code});
+        break;
+      }
+    }
+  }
+  return {ok:failed===0,scanned:dashboard.total_members,due:candidates.length,processed,warnings,dismissed,failed,results};
+}
+
 async function processExpiredWarningRoles(cfg) {
   const due = await rpc(cfg, "claim_expired_warning_roles", { p_limit: 25 });
   if (!Array.isArray(due) || due.length === 0) {
@@ -672,10 +805,16 @@ export default async function handler(req, res) {
     const cronCfg = config();
     if (cronCfg.error) return json(res, 503, { error: cronCfg.error });
     try {
-      return json(res, 200, await processExpiredWarningRoles(cronCfg));
+      const expiry = await processExpiredWarningRoles(cronCfg);
+      const attendance = await processAutomaticAttendanceDiscipline(cronCfg);
+      return json(res, 200, {
+        ok: expiry.ok !== false && attendance.ok !== false,
+        warning_role_expiry: expiry,
+        attendance_discipline: attendance
+      });
     } catch (error) {
-      console.error("Warning expiry cron failed:", error?.detail || error?.message || "unknown");
-      return json(res, 502, { error: "فشلت معالجة انتهاء صلاحية الإنذارات." });
+      console.error("Warning/attendance automation cron failed:", error?.detail || error?.message || "unknown");
+      return json(res, 502, { error: "فشلت معالجة انتهاء صلاحية الإنذارات أو إجراءات الغياب التلقائية." });
     }
   }
   const user = readSession(req);
