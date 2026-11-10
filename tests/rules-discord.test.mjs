@@ -95,7 +95,10 @@ test("rules publishing shares the existing notification function and stays withi
   assert.match(api, /requireActivePortalStaff\(user\)/);
   assert.match(api, /user\.isOwner/);
   assert.match(api, /DISCORD_NOTIFICATION_ROLE_ID/);
-  assert.match(api, /allowed_mentions: first && destination === "city"\s*\? \{ parse: \[\], roles: \[config\.notificationRoleId\] \}/);
+  assert.match(api, /content: first \? "<@&" \+ config\.notificationRoleId/);
+  assert.match(api, /allowed_mentions: first\s*\? \{ parse: \[\], roles: \[config\.notificationRoleId\] \}/);
+  assert.match(api, /roleMentioned: true/);
+  assert.doesNotMatch(api, /first && destination === "city"/);
   assert.match(api, /item\.type === "law"/);
   assert.match(api, /new URLSearchParams\(\{ id: "eq\.main", select: "data", limit: "1" \}\)/);
   assert.match(api, /body\.action === "publish_rule"/);
