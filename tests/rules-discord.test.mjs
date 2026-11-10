@@ -16,14 +16,18 @@ function embedLength(embed) {
   return total;
 }
 
-function sectionText(messages, label) {
-  return messages.flatMap(message => message.embeds || [])
-    .filter(embed => String(embed.title || "").startsWith(label))
-    .map(embed => embed.description || "")
-    .join("");
+function ruleBodyFromMessages(messages) {
+  const embeds = messages.flatMap(message => message.embeds || []);
+  const first = String(embeds[0]?.description || "").split("**القانون**\n")[1] || "";
+  const continuations = embeds.slice(1).map(embed => {
+    const description = String(embed.description || "");
+    const newline = description.indexOf("\n");
+    return newline < 0 ? "" : description.slice(newline + 1);
+  });
+  return [first, ...continuations].join("");
 }
 
-test("S.W.A.T. rules Discord messages use only law name and law text", () => {
+test("a normal law is delivered as one Discord embed with its name and full text together", () => {
   const rule = {
     id: "LAW-000123",
     type: "law",
@@ -31,12 +35,15 @@ test("S.W.A.T. rules Discord messages use only law name and law text", () => {
     body: "النص الكامل للقانون\n1- أول بند\n2- ثاني بند\n\nلا يتم حذف المسافات الأخيرة.  "
   };
   const messages = buildRuleDiscordMessages(rule, "Yassin_Ninja", new Date("2026-11-09T19:00:00.000Z"));
-  assert.equal(sectionText(messages, "اسم القانون"), rule.title);
-  assert.equal(sectionText(messages, "القانون"), rule.body);
-  assert.ok(!messages.flatMap(message => message.embeds).some(embed => /وصف القانون|عنوان القانون|نص القانون/.test(embed.title || "")));
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].embeds.length, 1);
+  const embed = messages[0].embeds[0];
+  assert.ok(embed.description.includes("**اسم القانون**\n" + rule.title));
+  assert.ok(embed.description.includes("**القانون**\n" + rule.body));
+  assert.ok(!/وصف القانون|عنوان القانون|نص القانون/.test(embed.description));
 });
 
-test("long laws are split without cutting Unicode surrogate pairs or exceeding Discord embed limits", () => {
+test("only very long laws continue across identically styled single-embed messages", () => {
   const body = ("قاعدة S.W.A.T. 🚔🛡️\n".repeat(1400)) + "نهاية النص — END";
   const messages = buildRuleDiscordMessages({
     id: "LAW-LONG",
@@ -46,18 +53,17 @@ test("long laws are split without cutting Unicode surrogate pairs or exceeding D
     body
   }, "Website Admin");
   assert.ok(messages.length > 1);
-  assert.equal(sectionText(messages, "القانون"), body);
+  assert.ok(messages.every(message => message.embeds.length === 1));
+  assert.equal(ruleBodyFromMessages(messages), body);
   for (const message of messages) {
-    assert.ok(message.embeds.length <= 10);
-    assert.ok(message.embeds.reduce((sum, embed) => sum + embedLength(embed), 0) <= 6000);
-    for (const embed of message.embeds) {
-      assert.ok(String(embed.description || "").length <= 4096);
-      assert.ok(embedLength(embed) <= 6000);
-    }
+    const embed = message.embeds[0];
+    assert.ok(String(embed.description || "").length <= 4096);
+    assert.ok(embedTextLength(embed) <= 6000);
+    assert.ok(embed.title.includes("S.W.A.T. REDLINE"));
   }
 });
 
-test("optional empty rule fields do not prevent creating a Discord rules announcement", () => {
+test("empty law content still produces one clean embed with placeholders", () => {
   const messages = buildRuleDiscordMessages({
     id: "LAW-EMPTY",
     type: "law",
@@ -66,8 +72,9 @@ test("optional empty rule fields do not prevent creating a Discord rules announc
     body: ""
   }, "Owner");
   assert.equal(messages.length, 1);
-  assert.ok(messages[0].embeds[0].title.includes("S.W.A.T. REDLINE"));
-  assert.ok(messages[0].embeds[0].fields.some(field => field.name === "المحتوى"));
+  assert.equal(messages[0].embeds.length, 1);
+  assert.ok(messages[0].embeds[0].description.includes("**اسم القانون**\nبدون اسم"));
+  assert.ok(messages[0].embeds[0].description.includes("لم تتم إضافة نص القانون بعد."));
 });
 
 test("rules publishing shares the existing notification function and stays within Hobby limits", async () => {
@@ -128,7 +135,7 @@ test("rules publishing supports two isolated Discord destinations", async () => 
     id: "CITY-LAW-01", type: "law", title: "City Code", body: "Follow city rules."
   }, "Website Admin");
   assert.match(serverMessages[0].embeds[0].title, /SERVER RULES/);
-  assert.match(serverMessages[0].embeds[0].fields.find(field => field.name === "القسم").value, /SERVER RULES/);
+  assert.match(serverMessages[0].embeds[0].footer.text, /SERVER RULES/);
   assert.match(cityMessages[0].embeds[0].title, /OFFICIAL CITY RULES/);
-  assert.match(cityMessages[0].embeds[0].fields.find(field => field.name === "القسم").value, /S\.W\.A\.T\. CITY RULES/);
+  assert.match(cityMessages[0].embeds[0].footer.text, /S\.W\.A\.T\. CITY RULES/);
 });
