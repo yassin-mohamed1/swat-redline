@@ -1758,46 +1758,90 @@ async function refreshSiteNoticeStatuses(force=false){
   siteNoticeStatusRefreshBusy=false;
  }
 }
-function openSiteNoticeModal(){
- if(!currentCanManageWarnings){toast('إضافة التعاميم الرسمية متاحة للمالك وWebsite Admin فقط.');return;}
+function openSiteNoticeModal(id=null){
+ if(!currentCanManageWarnings){toast('إضافة وتعديل التعاميم الرسمية متاحان للمالك وWebsite Admin فقط.');return;}
  const form=document.getElementById('siteNoticeForm');
  form?.reset();
+ editingSiteNoticeId=id?String(id):null;
+ const item=editingSiteNoticeId?siteNotices.find(value=>String(value.id)===editingSiteNoticeId):null;
+ if(editingSiteNoticeId&&!item){toast('التعميم غير موجود. حدّث الصفحة.');editingSiteNoticeId=null;return;}
+ document.getElementById('siteNoticeModalTitle').textContent=item?'تعديل التعميم الرسمي':'إضافة تعميم رسمي';
+ document.getElementById('siteNoticeModalSubtitle').textContent=item?'عدّل الاسم والوصف. إذا كان منشورًا، سيتم تحديث رسالته الأصلية في Discord.':'اكتب الاسم والوصف، ثم احفظه في الموقع قبل نشره.';
+ document.getElementById('siteNoticeSaveButton').textContent=item?'حفظ التعديلات':'حفظ التعميم';
+ document.getElementById('siteNoticeTitle').value=item?.title||'';
+ document.getElementById('siteNoticeDescription').value=item?.description||'';
  document.getElementById('siteNoticeModalBack').classList.add('open');
  setTimeout(()=>document.getElementById('siteNoticeTitle')?.focus(),50);
 }
 function closeSiteNoticeModal(){
  document.getElementById('siteNoticeModalBack')?.classList.remove('open');
  document.getElementById('siteNoticeForm')?.reset();
+ editingSiteNoticeId=null;
+ document.getElementById('siteNoticeModalTitle').textContent='إضافة تعميم رسمي';
+ document.getElementById('siteNoticeModalSubtitle').textContent='اكتب الاسم والوصف، ثم احفظه في الموقع قبل نشره.';
+ document.getElementById('siteNoticeSaveButton').textContent='حفظ التعميم';
 }
 async function saveSiteNotice(event){
  event.preventDefault();
- if(!currentCanManageWarnings){toast('لا تملك صلاحية إضافة تعميم رسمي.');return;}
+ if(!currentCanManageWarnings){toast('لا تملك صلاحية إدارة التعاميم الرسمية.');return;}
  if(!sharedSyncReady){toast('قاعدة البيانات المشتركة لا تزال تُحمّل. حاول مرة أخرى بعد لحظة.');return;}
  const title=document.getElementById('siteNoticeTitle').value.trim();
  const description=document.getElementById('siteNoticeDescription').value.trim();
  if(!title||!description){toast('اكتب اسم التعميم ووصفه أولًا.');return;}
  if(title.length>256||description.length>4000){toast('تجاوز الاسم أو الوصف الحد المسموح.');return;}
- const item={id:crypto.randomUUID(),title,description,owner:currentUser||'Discord user',createdByDiscordId:currentUserId,createdAt:new Date().toISOString()};
- siteNotices.unshift(item);
+ const editingId=editingSiteNoticeId;
+ const item=editingId?siteNotices.find(value=>String(value.id)===editingId):null;
+ if(editingId&&!item){toast('التعميم غير موجود. حدّث الصفحة.');return;}
+ if(item?.discordStatus==='pending'){toast('لا يمكن تعديل تعميم أثناء نشره.');return;}
+ const previous=item?{...item}:null;
+ if(item){
+  item.title=title;
+  item.description=description;
+ }else{
+  siteNotices.unshift({
+   id:crypto.randomUUID(),title,description,
+   owner:currentUser||'Discord user',
+   createdByDiscordId:currentUserId,
+   createdAt:new Date().toISOString()
+  });
+ }
+ const savedItem=item||siteNotices[0];
  save();
  clearTimeout(sharedSaveTimer);
- if(sharedSyncBusy){
-  sharedWriteQueued=true;
-  for(let i=0;i<120&&(sharedSyncBusy||sharedWriteQueued);i++)await new Promise(resolve=>setTimeout(resolve,50));
-  if(sharedSyncBusy||sharedWriteQueued){
-   siteNotices=siteNotices.filter(value=>value.id!==item.id);save();
-   toast('لا يزال حفظ سجل آخر جاريًا. حاول مرة أخرى بعد لحظة.');
-   return;
+ try{
+  if(sharedSyncBusy){
+   sharedWriteQueued=true;
+   for(let i=0;i<120&&(sharedSyncBusy||sharedWriteQueued);i++)await new Promise(resolve=>setTimeout(resolve,50));
+   if(sharedSyncBusy||sharedWriteQueued)throw new Error('لا يزال حفظ سجل آخر جاريًا. حاول مرة أخرى بعد لحظة.');
   }
+  const persisted=await pushSharedState();
+  if(!persisted||sharedWriteConflict)throw new Error(sharedLastSaveError||'تعذّر تأكيد حفظ التعميم على الموقع.');
+ }catch(error){
+  if(item&&previous)Object.assign(item,previous);
+  else siteNotices=siteNotices.filter(value=>value!==savedItem);
+  save();renderSiteNotices(true);toast(error.message||'فشل حفظ التعميم.');return;
  }
- const persisted=await pushSharedState();
- if(!persisted){
-  siteNotices=siteNotices.filter(value=>value.id!==item.id);save();
+ if(item){
+  try{
+   const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({action:'edit_site_notice',noticeId:String(item.id)})});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||'تم حفظ التعميم في الموقع، لكن تعذّر تحديث رسالة Discord.');
+   item.discordErrorCode=null;
+   closeSiteNoticeModal();
+   renderSiteNotices(true);
+   log('تعديل','تعديل تعميم رسمي: '+item.title,item.id);
+   toast(data.updatedOnDiscord?'تم تعديل التعميم على الموقع وتحديث رسالته الأصلية في Discord.':'تم حفظ تعديلات التعميم على الموقع.');
+  }catch(error){
+   closeSiteNoticeModal();
+   await refreshSiteNoticeStatuses(true);
+   renderSiteNotices(true);
+   toast(error.message||'تم حفظ التعميم في الموقع، لكن تعذّر تحديث Discord.');
+  }
   return;
  }
  closeSiteNoticeModal();
  renderSiteNotices();
- log('إضافة','إنشاء تعميم رسمي: '+item.title,item.id);
+ log('إضافة','إنشاء تعميم رسمي: '+savedItem.title,savedItem.id);
  toast(currentPortalLanguage()==='en'?'Notice saved on the portal. It has not been posted to Discord yet.':'تم حفظ التعميم على الموقع. لم يتم نشره على Discord بعد.');
 }
 async function deleteSiteNotice(id){
