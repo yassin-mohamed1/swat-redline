@@ -299,3 +299,36 @@ test("warning history exposes edit and void actions for completed warnings, inde
   assert.match(renderer, /onclick="voidWarningAction/);
   assert.doesNotMatch(renderer, /a\.dm_channel_id&&a\.dm_message_id&&a\.channel_message_id/);
 });
+
+
+test("disciplinary subjects can be archived from the current list without deleting their history", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../supabase/migrations/20261110144840_archive_disciplinary_subjects.sql", import.meta.url), "utf8");
+  const start = api.indexOf('if (body.action === "archive_subject"');
+  const end = api.indexOf('if (body.action === "adjust_state")', start);
+  const handler = api.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(handler.includes('rpc(cfg, "set_disciplinary_subject_archive"'));
+  assert.ok(handler.includes("p_actor_discord_id: user.id"));
+  assert.ok(handler.includes("cannot_archive_subject_with_active_warning"));
+  assert.ok(api.includes('listData(cfg, params.get("include_archived") === "1")'));
+  assert.ok(api.includes("is_archived=eq.false"));
+  assert.ok(migration.includes("ADD COLUMN IF NOT EXISTS is_archived boolean NOT NULL DEFAULT false"));
+  assert.ok(migration.includes("CREATE OR REPLACE FUNCTION public.set_disciplinary_subject_archive"));
+  assert.ok(migration.includes("INSERT INTO public.audit_logs"));
+  assert.ok(migration.includes("is_archived = false"));
+  assert.ok(migration.includes("REVOKE ALL ON FUNCTION public.set_disciplinary_subject_archive"));
+  assert.ok(migration.includes("GRANT EXECUTE ON FUNCTION public.set_disciplinary_subject_archive"));
+});
+
+test("the warnings page hides archived subjects by default and offers manager restore", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.ok(html.includes("let warningShowArchived=false"));
+  assert.ok(html.includes("include_archived=1"));
+  assert.ok(html.includes("Boolean(s.is_archived)!==warningShowArchived"));
+  assert.ok(html.includes("function toggleWarningArchivedView()"));
+  assert.ok(html.includes("function archiveWarningSubject(id)"));
+  assert.ok(html.includes("function restoreWarningSubject(id)"));
+  assert.ok(html.includes("action:'archive_subject'"));
+  assert.ok(html.includes("action:'restore_subject'"));
+});

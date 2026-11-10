@@ -193,10 +193,13 @@ async function warningDiagnostics(cfg, user) {
       canViewChannel: bit(10), canSendMessages: bit(11), canEmbedLinks: bit(14) }
   };
 }
-async function listData(cfg) {
+async function listData(cfg, includeArchived = false) {
+  const subjectQuery =
+    "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,is_archived,archived_at,archived_by_name,archive_reason,created_at,updated_at&order=updated_at.desc" +
+    (includeArchived ? "" : "&is_archived=eq.false");
   const [staffResponse, subjectResponse, actionResponse] = await Promise.all([
     db(cfg, "staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&order=display_name.asc"),
-    db(cfg, "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,created_at,updated_at&order=updated_at.desc"),
+    db(cfg, subjectQuery),
     db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_channel_id,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,voided_at,void_reason,voided_by_discord_id,voided_by_name,completed_at,created_at&order=created_at.desc&limit=500")
   ]);
   if (!staffResponse.ok || !subjectResponse.ok || !actionResponse.ok) throw new Error("تعذّر تحميل سجلات التحذيرات.");
@@ -553,7 +556,7 @@ export default async function handler(req, res) {
       return json(res, 200, { authorized: true });
     }
     if (req.method === "GET") {
-      const data = await listData(cfg);
+      const data = await listData(cfg, params.get("include_archived") === "1");
       return json(res, 200, data);
     }
     if (req.method !== "POST") {
@@ -562,6 +565,46 @@ export default async function handler(req, res) {
     }
     if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+
+    if (body.action === "archive_subject" || body.action === "restore_subject") {
+      const targetId = String(body.discord_user_id || "");
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const shouldArchive = body.action === "archive_subject";
+      if (!/^\d{15,22}$/.test(targetId) || !reason || reason.length > 1000) {
+        return json(res, 400, { error: "راجع معرّف العضو وسبب إزالة العضو من القائمة." });
+      }
+      if (targetId === process.env.DISCORD_OWNER_ID) {
+        return json(res, 403, { error: "لا يمكن إزالة مالك السيرفر المحمي من قائمة الحالات." });
+      }
+      try {
+        const result = await rpc(cfg, "set_disciplinary_subject_archive", {
+          p_discord_user_id: targetId,
+          p_is_archived: shouldArchive,
+          p_reason: reason,
+          p_actor_discord_id: user.id,
+          p_actor_name: user.displayName
+        });
+        await forwardAuditToDiscord(user, {
+          action: "update",
+          entity_type: "disciplinary_subject",
+          entity_id: targetId,
+          details: {
+            type: shouldArchive ? "إزالة عضو من قائمة الحالات" : "استعادة عضو إلى قائمة الحالات",
+            detail: (shouldArchive ? "تمت إزالة " : "تمت استعادة ") + targetId + (shouldArchive ? " من قائمة الحالات الحالية مع الاحتفاظ بالتاريخ." : " إلى قائمة الحالات الحالية."),
+            target_discord_id: targetId,
+            reason
+          }
+        });
+        return json(res, 200, { ok: true, is_archived: result.is_archived, before: result.before, after: result.after });
+      } catch (error) {
+        const cannotArchiveActive = String(error.message || "").includes("cannot_archive_subject_with_active_warning");
+        return json(res, cannotArchiveActive ? 409 : error.status || 502, {
+          error: cannotArchiveActive
+            ? "لا يمكن إزالة عضو لديه إنذار فعّال. ألغِ الإنذار أو انتظر انتهاءه أولًا."
+            : error.message || "تعذّر تحديث ظهور العضو في قائمة الحالات."
+        });
+      }
+    }
 
     if (body.action === "adjust_state") {
       const targetId = String(body.discord_user_id || "");
