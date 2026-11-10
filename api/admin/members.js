@@ -16,6 +16,17 @@ const ASSIGNMENT_RANKS = [
   { key: "swatrecruit", label: "S.W.A.T RECRUIT" }
 ];
 
+const CITY_RANKS = [
+  { key: "swat_commander", label: "S.W.A.T COMMANDER" },
+  { key: "deputy_swat_commander", label: "DEPUTY S.W.A.T COMMANDER" },
+  { key: "swat_team_leader", label: "S.W.A.T TEAM LEADER" },
+  { key: "swat_supervisor", label: "S.W.A.T SUPERVISOR" },
+  { key: "swat_senior_operator", label: "S.W.A.T SENIOR OPERATOR" },
+  { key: "swat_operator", label: "S.W.A.T OPERATOR" },
+  { key: "swat_recruit", label: "S.W.A.T RECRUIT" }
+];
+const SWAT_MEMBERS_CHANNEL_ID = "1561489833505849505";
+
 function parseCookies(header = "") {
   const out = {};
   for (const part of header.split(";")) {
@@ -176,6 +187,45 @@ function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor
     timestamp:new Date().toISOString()
   };
 }
+
+function memberIdentityEmbed({name,avatar,cityRank,callsign}) {
+  const safeName=String(name||"S.W.A.T. Member")
+    .replace(/[\\_*~|`>]/g,"\\function assignmentEmbed({assigned,name,discordId,avatar,rankName,callsign,actor,reference}) {
+  return {
+    color:assigned?0xD92735:0x737B87,
+    author:{name:"S.W.A.T. REDLINE • PERSONNEL COMMAND"},
+    title:assigned?"🎖️ OFFICIAL APPOINTMENT":"📋 APPOINTMENT ENDED",
+    description:assigned
+      ?"تم اعتماد تعيينك الجديد في S.W.A.T. REDLINE من خلال بوابة القيادة."
+      :"تم إنهاء تعيينك الحالي في S.W.A.T. REDLINE وإزالة رتبة التعيين من حسابك.",
+    ...(avatar?{thumbnail:{url:avatar}}:{}),
+    fields:[
+      {name:"العضو",value:String(name||"Discord member").slice(0,180),inline:true},
+      {name:"Discord ID",value:discordId,inline:true},
+      {name:assigned?"الرتب الجديدة":"الرتبة",value:assigned?(String(rankName||"").trim().slice(0,100)||"لم تتم إضافة رتب جديدة في هذا التحديث."):"تم إنهاء التعيين",inline:true},
+      {name:"كود النداء",value:assigned?(callsign||"لم يتم تعيين كود نداء"):"تم إلغاء كود النداء السابق",inline:true},
+      {name:"صدر بواسطة",value:String(actor||"S.W.A.T. REDLINE Command").slice(0,120),inline:true},
+      {name:"الرقم المرجعي",value:reference,inline:false}
+    ],
+    footer:{text:"S.W.A.T. REDLINE • PERSONNEL & APPOINTMENTS"},
+    timestamp:new Date().toISOString()
+  };
+}")
+    .slice(0,180);
+  return {
+    color:0xD92735,
+    author:{name:"S.W.A.T. REDLINE • OFFICIAL MEMBERS"},
+    title:"🛡️ S.W.A.T. MEMBER IDENTITY",
+    description:"**"+safeName+"**",
+    ...(avatar?{thumbnail:{url:avatar}}:{}),
+    fields:[
+      {name:"CITY RANK",value:String(cityRank||"غير محدد").slice(0,100),inline:true},
+      {name:"CALL SIGN",value:String(callsign||"غير محدد").slice(0,80),inline:true}
+    ],
+    footer:{text:"S.W.A.T. REDLINE • MEMBERS DIRECTORY"},
+    timestamp:new Date().toISOString()
+  };
+}
 async function assignmentSendDm(token,targetId,embed) {
   let dm;
   try {
@@ -332,16 +382,19 @@ async function assignmentMember(token,guildId,id) {
 }
 async function listAssignments(url,key,token,guildId,allowWebsiteAdminRole=false) {
   if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
-  const [profileResponse,assignmentResponse,callsignResponse]=await Promise.all([
+  const [profileResponse,assignmentResponse,callsignResponse,identityResponse]=await Promise.all([
     supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,registration_source,last_login,login_count,created_at&order=display_name.asc"),
     supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,rank_role_ids,rank_role_names,callsign,status,assigned_by_name,updated_at"),
-    supabase(url,key,"staff_callsigns?select=callsign&is_active=eq.true&order=callsign.asc")
+    supabase(url,key,"staff_callsigns?select=callsign&is_active=eq.true&order=callsign.asc"),
+    supabase(url,key,"staff_member_identities?select=discord_user_id,city_rank,channel_id,message_id,published_at")
   ]);
   if(!profileResponse.ok)throw new Error("تعذّر تحميل أعضاء الموقع المسجلين.");
   if(!assignmentResponse.ok)throw new Error("تعذّر تحميل سجل التعيينات.");
   if(!callsignResponse.ok)throw new Error("تعذّر تحميل قائمة أكواد النداء.");
-  const profiles=await profileResponse.json(),assignments=await assignmentResponse.json(),callsignRows=await callsignResponse.json();
+  if(!identityResponse.ok)throw new Error("تعذّر تحميل هويات الأعضاء. تأكد من تطبيق تحديث قاعدة البيانات.");
+  const profiles=await profileResponse.json(),assignments=await assignmentResponse.json(),callsignRows=await callsignResponse.json(),identities=await identityResponse.json();
   const byAssignment=new Map(assignments.map(item=>[String(item.discord_user_id),item]));
+  const byIdentity=new Map(identities.map(item=>[String(item.discord_user_id),item]));
   let guild=null,guildWarning="";
   try { guild=await assignmentGuildContext(token,guildId); }
   catch(error) {
@@ -378,7 +431,9 @@ async function listAssignments(url,key,token,guildId,allowWebsiteAdminRole=false
     const currentRankRoles=roles.filter(role=>currentRoles.includes(role.id));
     const rawAssignment=byAssignment.get(id)||null;
     const assignment=rawAssignment?{...rawAssignment,rank_role_ids:Array.isArray(rawAssignment.rank_role_ids)&&rawAssignment.rank_role_ids.length?rawAssignment.rank_role_ids:(rawAssignment.rank_role_id?[rawAssignment.rank_role_id]:[]),rank_role_names:Array.isArray(rawAssignment.rank_role_names)&&rawAssignment.rank_role_names.length?rawAssignment.rank_role_names:(rawAssignment.rank_role_name?[rawAssignment.rank_role_name]:[])}:null;
-    return {...profile,assignment,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
+    const identity=byIdentity.get(id)||null;
+    const cityRank=CITY_RANKS.find(item=>item.key===identity?.city_rank)||null;
+    return {...profile,assignment,identity:identity?{...identity,city_rank_label:cityRank?.label||""}:null,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
       in_guild:inGuild,current_roles:currentRoles,current_rank_roles:currentRankRoles,role_data_source:roleDataSource,
       account_status:profile.is_banned?"banned":profile.is_active===false?"inactive":"active"};
   });
@@ -477,6 +532,9 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
   if(action==="assign"&&targetRoles.some(role=>!role||!role.assignable))
     return send(res,409,{error:"إحدى الرتب المختارة غير قابلة للتعيين. راجع ترتيب رتبة البوت أو صلاحياتها."});
   const rankNames=targetRoles.map(role=>role.name);
+  const cityRank=action==="assign"?CITY_RANKS.find(item=>item.key===String(body.city_rank||""))||null:null;
+  if(action==="assign"&&!cityRank)
+    return send(res,400,{error:"اختر الرتبة الرسمية للعضو في المدينة (City Rank)."});
   const callsign=action==="assign"?assignmentCallsign(body.callsign):null;
   if(action==="assign"&&callsign){
     const catalog=await supabase(url,key,"staff_callsigns?callsign=eq."+encodeURIComponent(callsign)+"&is_active=eq.true&select=callsign&limit=1");
@@ -601,10 +659,26 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     await forwardAuditToDiscord(user,{action:action==="remove"?"delete":previousAssignment?"update":"create",
       entity_type:"staff_assignment",entity_id:targetId,
       details:{type:action==="remove"?"إنهاء تعيين فرد":previousAssignment?"تعديل تعيين فرد":"تعيين فرد",
-        detail:action==="remove"?"تم إنهاء تعيين "+displayName:"تم تعيين "+displayName+" بالرتب "+rankNames.join("، ")+(callsign?" • "+callsign:""),
+        detail:action==="remove"?"تم إنهاء تعيين "+displayName:"تم تعيين "+displayName+" بالرتب "+rankNames.join("، ")+(callsign?" • "+callsign:"")+(cityRank?" • رتبة المدينة: "+cityRank.label:""),
         target_discord_id:targetId}});
   }catch(auditError){
     console.error("Assignment audit forward failed:",auditError?.code||auditError?.message||"unknown");
+  }
+
+  let cityRankSaved=false;
+  if(action==="assign"){
+    const identitySave=await supabase(url,key,"staff_member_identities?on_conflict=discord_user_id",{
+      method:"POST",
+      headers:{Prefer:"resolution=merge-duplicates,return=representation"},
+      body:JSON.stringify({discord_user_id:targetId,city_rank:cityRank.key,updated_at:new Date().toISOString()})
+    });
+    if(!identitySave.ok){
+      const detail=(await identitySave.text()).slice(0,300);
+      console.error("City rank persistence failed after assignment:",identitySave.status,detail);
+      return send(res,502,{ok:false,assignment_saved:true,city_rank_saved:false,
+        error:"تم حفظ تعيين Discord، لكن تعذّر حفظ City Rank. حدّث الصفحة وأعد حفظ الرتبة الرسمية."});
+    }
+    cityRankSaved=true;
   }
 
   const dmAllowed=profile.notifications_enabled!==false;
@@ -627,10 +701,127 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     console.info("Assignment DM skipped because the member disabled private notifications.");
   }
   return send(res,200,{
-    ok:true,action,assignment:savedResult,dm_status:dmStatus,
+    ok:true,action,assignment:savedResult,city_rank:cityRank?.key||null,city_rank_saved:action==="assign"?cityRankSaved:true,dm_status:dmStatus,
     ...(dmStatus==="skipped"?{dm_skipped_reason:"recipient_opted_out"}:{}),
     ...(dmFailure?{dm_error_code:dmFailure.code,dm_error_stage:dmFailure.stage,dm_message:dmFailure.message,dm_message_en:dmFailure.message_en}:{}),
     reference
+  });
+}
+
+async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
+  if(!token||!/^[0-9]{15,22}$/.test(String(guildId||"")))
+    return send(res,503,{error:"لم يتم إعداد اتصال بوت Discord والسيرفر."});
+  const targetId=String(body.discord_user_id||"");
+  if(!/^[0-9]{15,22}$/.test(targetId))
+    return send(res,400,{error:"اختر عضوًا صحيحًا لإرسال الهوية."});
+  const [profileResponse,identityResponse,assignmentResponse]=await Promise.all([
+    supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&limit=1"),
+    supabase(url,key,"staff_member_identities?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=city_rank,channel_id,message_id&limit=1"),
+    supabase(url,key,"staff_assignments?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=callsign,status&limit=1")
+  ]);
+  if(!profileResponse.ok||!identityResponse.ok||!assignmentResponse.ok)
+    return send(res,503,{error:"تعذّر قراءة بيانات العضو والهوية من قاعدة البيانات."});
+  const profile=(await profileResponse.json())[0]||null;
+  const identity=(await identityResponse.json())[0]||null;
+  const assignment=(await assignmentResponse.json())[0]||null;
+  if(!profile)return send(res,404,{error:"هذا العضو غير موجود في دليل الأفراد."});
+  if(profile.is_active===false||profile.is_banned)
+    return send(res,409,{error:"لا يمكن نشر هوية حساب موقوف أو محظور."});
+  const cityRank=CITY_RANKS.find(item=>item.key===identity?.city_rank);
+  if(!cityRank)return send(res,409,{error:"حدد City Rank واحفظ التعيين أولًا قبل إرسال الهوية."});
+  let member;
+  try{member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId);}
+  catch(error){
+    const status=Number(error?.status||0);
+    return send(res,status===404?409:502,{error:status===404?"هذا العضو غير موجود حاليًا في سيرفر Discord.":"تعذّر جلب صورة واسم العضو من Discord."});
+  }
+  const name=assignmentMemberName(member,profile.display_name||"S.W.A.T. Member");
+  const avatar=assignmentAvatar(member,guildId)||profile.avatar_url||null;
+  const embed=memberIdentityEmbed({name,avatar,cityRank:cityRank.label,callsign:assignment?.callsign||null});
+  let message=null,updated=false;
+  if(identity?.message_id&&identity?.channel_id===SWAT_MEMBERS_CHANNEL_ID){
+    try{
+      message=await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages/"+encodeURIComponent(identity.message_id),{
+        method:"PATCH",
+        body:JSON.stringify({embeds:[embed],allowed_mentions:{parse:[]}})
+      });
+      updated=true;
+    }catch(error){
+      if(Number(error?.status)!==404){
+        const status=Number(error?.status||0);
+        const description=status===403
+          ?"البوت لا يملك صلاحية تعديل رسائل روم SWAT MEMBERS."
+          :status===429
+            ?"Discord فرض حدًا مؤقتًا على إرسال الهوية. حاول مرة أخرى بعد انتهاء المهلة."
+            :"تعذّر تحديث رسالة الهوية الحالية في Discord.";
+        return send(res,502,{error:description,discord_code:String(error?.code||status||"unknown")});
+      }
+    }
+  }
+  if(!message?.id){
+    try{
+      message=await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages",{
+        method:"POST",
+        body:JSON.stringify({embeds:[embed],allowed_mentions:{parse:[]}})
+      });
+      updated=false;
+    }catch(error){
+      const status=Number(error?.status||0);
+      const description=status===403
+        ?"البوت لا يملك صلاحية إرسال الرسائل أو Embed Links في روم SWAT MEMBERS."
+        :status===404
+          ?"لم يتم العثور على روم SWAT MEMBERS أو أن البوت لا يستطيع الوصول إليه."
+          :status===429
+            ?"Discord فرض حدًا مؤقتًا على إرسال الهوية. حاول مرة أخرى بعد انتهاء المهلة."
+            :"تعذّر إرسال هوية العضو إلى Discord.";
+      return send(res,502,{error:description,discord_code:String(error?.code||status||"unknown")});
+    }
+  }
+  if(!message?.id)return send(res,502,{error:"Discord لم يؤكد إنشاء أو تحديث رسالة الهوية."});
+  const saved=await supabase(url,key,"staff_member_identities?discord_user_id=eq."+encodeURIComponent(targetId),{
+    method:"PATCH",
+    headers:{Prefer:"return=representation"},
+    body:JSON.stringify({
+      channel_id:SWAT_MEMBERS_CHANNEL_ID,
+      message_id:String(message.id),
+      published_at:new Date().toISOString(),
+      updated_at:new Date().toISOString()
+    })
+  });
+  if(!saved.ok){
+    const detail=(await saved.text()).slice(0,250);
+    console.error("Member identity message ID could not be saved:",saved.status,detail);
+    if(!updated){
+      try{await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages/"+encodeURIComponent(String(message.id)),{method:"DELETE"});}
+      catch(deleteError){console.warn("Orphaned member identity cleanup failed:",deleteError?.code||deleteError?.status||"unknown");}
+    }
+    return send(res,502,{error:"تم إرسال الهوية، لكن تعذّر حفظ معرّف الرسالة. لم يتم تأكيد النشر في الموقع؛ راجع صلاحية قاعدة البيانات قبل إعادة المحاولة."});
+  }
+  const auditEvent={
+    actor_discord_id:user.id,
+    actor_name:user.displayName||user.username||"Portal manager",
+    action:updated?"update":"create",
+    entity_type:"staff_member_identity",
+    entity_id:targetId,
+    details:{
+      type:updated?"تحديث هوية عضو":"نشر هوية عضو",
+      detail:(updated?"تم تحديث":"تم نشر")+" هوية "+name+" • "+cityRank.label+" • "+(assignment?.callsign||"بدون كود نداء"),
+      target_discord_id:targetId,
+      channel_id:SWAT_MEMBERS_CHANNEL_ID,
+      message_id:String(message.id)
+    }
+  };
+  try{await forwardAuditToDiscord(user,auditEvent);}
+  catch(error){console.warn("Member identity audit forwarding failed:",error?.code||error?.message||"unknown");}
+  return send(res,200,{
+    ok:true,
+    updated,
+    message_id:String(message.id),
+    channel_id:SWAT_MEMBERS_CHANNEL_ID,
+    message_url:"https://discord.com/channels/"+guildId+"/"+SWAT_MEMBERS_CHANNEL_ID+"/"+message.id,
+    city_rank:cityRank.key,
+    city_rank_label:cityRank.label,
+    callsign:assignment?.callsign||null
   });
 }
 
@@ -781,6 +972,8 @@ export default async function handler(req, res) {
         return await handleAddManualMember(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
       if(body.action==="add_next_callsign")
         return await handleAddNextCallsign(url,key,user,res);
+      if(body.action==="publish_member_identity")
+        return await handlePublishMemberIdentity(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
       return await handleAssignmentPost(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
     }
     if (req.method !== "PATCH") {
