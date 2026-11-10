@@ -761,12 +761,17 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
   const name=assignmentMemberName(member,profile.display_name||"S.W.A.T. Member");
   const avatar=assignmentAvatar(member,guildId)||profile.avatar_url||null;
   const embed=memberIdentityEmbed({name,avatar,cityRank:cityRank.label,callsign:assignment?.callsign||null});
+  const discordMessagePayload={
+    content:"<@"+targetId+">",
+    embeds:[embed],
+    allowed_mentions:{parse:[],users:[targetId]}
+  };
   let message=null,updated=false;
   if(identity?.message_id&&identity?.channel_id===SWAT_MEMBERS_CHANNEL_ID){
     try{
       message=await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages/"+encodeURIComponent(identity.message_id),{
         method:"PATCH",
-        body:JSON.stringify({embeds:[embed],allowed_mentions:{parse:[]}})
+        body:JSON.stringify(discordMessagePayload)
       });
       updated=true;
     }catch(error){
@@ -785,7 +790,7 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
     try{
       message=await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages",{
         method:"POST",
-        body:JSON.stringify({embeds:[embed],allowed_mentions:{parse:[]}})
+        body:JSON.stringify(discordMessagePayload)
       });
       updated=false;
     }catch(error){
