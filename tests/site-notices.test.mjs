@@ -222,9 +222,10 @@ test("explicit resend creates a new notification batch instead of reusing the or
   assert.ok(api.includes('body.action === "edit_site_notice" || body.action === "delete_site_notice" || body.action === "resend_site_notice"'));
 });
 
-test("publication history is keyed by notice entity ID and shows only the latest delivery attempt", async () => {
+test("publication history is keyed by notice entity ID and preserves a live copy when a newer resend fails", async () => {
   const api = await read("../api/notifications/send.js");
   assert.ok(api.includes('entity_id: "eq." + noticeId'));
   assert.ok(api.includes('entity_id: "in.(" + allowedIds.join(",") + ")"'));
-  assert.ok(api.includes("if (!noticeId || publications[noticeId]) continue"));
+  assert.ok(api.includes("candidate.status === \"sent\" && existing.status !== \"sent\""));
+  assert.ok(api.includes("existing.status === \"sent\" && !existing.errorCode && candidate.errorCode"));
 });
