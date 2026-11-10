@@ -12,7 +12,7 @@ SELECT cron.schedule(
            FROM vault.decrypted_secrets
           WHERE name = 'swat_announcement_sync_secret')
       ),
-      timeout_milliseconds := 15000
+      timeout_milliseconds := 55000
     ) AS request_id;
   $job$
 );
