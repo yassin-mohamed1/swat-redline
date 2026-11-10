@@ -92,6 +92,8 @@ test("publishing official notices uses only the configured notification channel 
   assert.match(handler, /body\.action === "publish_site_notice"/);
   assert.match(handler, /if \(!websiteAdminAccess\)/);
   assert.match(api, /req\.method === "GET" && statusUrl\.searchParams\.get\("site_notice_status"\) === "1"/);
+  assert.match(api, /const noticeIds = new Set/);
+  assert.match(api, /const allowedIds = ids\.filter\(id => noticeIds\.has\(id\)\)/);
 });
 
 test("regular staff can read notice publication status but cannot publish notices", async () => {
