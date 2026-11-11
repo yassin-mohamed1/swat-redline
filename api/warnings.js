@@ -1093,18 +1093,25 @@ export default async function handler(req, res) {
       }
       const selected = new Set(selectedIds);
       const updatedAt = new Date().toISOString();
-      const rows = currentSwat.map(profile => {
+      // Only persist state transitions (or an explicitly supplied reason change).
+      // In particular, do not refresh timestamps for unchanged non-exempt staff:
+      // their absence clock must never reset when somebody else's exemption is saved.
+      const rows = currentSwat.flatMap(profile => {
         const id = String(profile.discord_user_id);
         const enabled = selected.has(id);
         const previous = existingById.get(id);
-        return {
+        const wasEnabled = previous?.enabled === true;
+        const reasonChanged = enabled && Boolean(reason) && reason !== String(previous?.reason || "");
+        if (!previous && !enabled) return [];
+        if (wasEnabled === enabled && !reasonChanged) return [];
+        return [{
           discord_user_id: id,
           enabled,
           reason: enabled ? (reason || previous?.reason || "") : (previous?.reason || ""),
           created_by_discord_id: user.id,
           created_by_name: user.displayName,
           updated_at: updatedAt
-        };
+        }];
       });
       if (rows.length) {
         const saveResponse = await db(cfg, "attendance_exemptions?on_conflict=discord_user_id", {
@@ -1157,18 +1164,29 @@ export default async function handler(req, res) {
         return json(res, 409, { error: "العضو لا يحمل رتبة S.W.A.T الحالية في Discord." });
       }
       const now = new Date().toISOString();
-      const writeResponse = await db(cfg, "attendance_exemptions?on_conflict=discord_user_id", {
-        method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-        body: JSON.stringify({
-          discord_user_id: targetId,
-          reason,
-          enabled,
-          created_by_discord_id: user.id,
-          created_by_name: user.displayName,
-          updated_at: now
-        })
-      });
+      const writeResponse = enabled
+        ? await db(cfg, "attendance_exemptions?on_conflict=discord_user_id", {
+            method: "POST",
+            headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+            body: JSON.stringify({
+              discord_user_id: targetId,
+              reason,
+              enabled: true,
+              created_by_discord_id: user.id,
+              created_by_name: user.displayName,
+              updated_at: now
+            })
+          })
+        : await db(cfg, "attendance_exemptions?discord_user_id=eq." + targetId + "&enabled=eq.true", {
+            method: "PATCH",
+            headers: { Prefer: "return=representation" },
+            body: JSON.stringify({
+              enabled: false,
+              created_by_discord_id: user.id,
+              created_by_name: user.displayName,
+              updated_at: now
+            })
+          });
       if (!writeResponse.ok) {
         console.error("Attendance exemption save failed:", writeResponse.status, (await writeResponse.text()).slice(0,300));
         return json(res, 502, { error: "تعذّر حفظ إعداد الإعفاء." });
