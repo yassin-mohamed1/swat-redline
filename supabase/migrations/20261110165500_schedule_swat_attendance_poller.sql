@@ -2,7 +2,7 @@
 -- Apply this migration only after the updated function is deployed to production.
 SELECT cron.schedule(
   'swat-daily-attendance-poller',
-  '* * * * *',
+  '5 seconds',
   $job$
     SELECT net.http_get(
       url := 'https://swat-redline.vercel.app/api/notifications/send?task=attendance',
