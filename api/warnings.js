@@ -958,6 +958,27 @@ async function sendAnnouncement(cfg, embed, targetId) {
     })
   });
 }
+async function appendAttendanceAdminAudit(cfg, user, event) {
+  const row = await db(cfg, "audit_logs", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      actor_discord_id: user.id,
+      actor_name: user.displayName,
+      action: event.action || "update",
+      entity_type: event.entity_type || "attendance",
+      entity_id: event.entity_id || null,
+      details: event.details || {}
+    })
+  });
+  if (!row.ok) {
+    console.error("Attendance administration audit append failed:", row.status);
+    return false;
+  }
+  await forwardAuditToDiscord(user, event);
+  return true;
+}
+
 async function appendAudit(cfg, user, action, subjectId, actionId, extra) {
   const r = await db(cfg, "audit_logs", {
     method: "POST", headers: { Prefer: "return=minimal" },
@@ -1096,7 +1117,7 @@ export default async function handler(req, res) {
           return json(res, 502, { error: "تعذّر حفظ إعدادات الإعفاء." });
         }
       }
-      await forwardAuditToDiscord(user, {
+      await appendAttendanceAdminAudit(cfg, user, {
         action: "update",
         entity_type: "attendance_exemptions",
         entity_id: "swat-members",
@@ -1152,7 +1173,7 @@ export default async function handler(req, res) {
         console.error("Attendance exemption save failed:", writeResponse.status, (await writeResponse.text()).slice(0,300));
         return json(res, 502, { error: "تعذّر حفظ إعداد الإعفاء." });
       }
-      await forwardAuditToDiscord(user, {
+      await appendAttendanceAdminAudit(cfg, user, {
         action: "update",
         entity_type: "attendance_exemption",
         entity_id: targetId,
@@ -1209,7 +1230,7 @@ export default async function handler(req, res) {
         return json(res, 502, { error: "تعذّر تسجيل طلب الإجازة." });
       }
       const created = (await insertResponse.json())[0];
-      await forwardAuditToDiscord(user, {
+      await appendAttendanceAdminAudit(cfg, user, {
         action: "create",
         entity_type: "attendance_leave_request",
         entity_id: created?.id || targetId,
