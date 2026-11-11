@@ -2596,9 +2596,9 @@ function renderAttendanceRows(){
  });
  body.innerHTML=rows.map(member=>{
   const todayTag=member.is_attendance_exempt
-   ?'<span class="attendance-badge exempt">معفى من البصمة</span>'
+   ?'<span class="attendance-badge exempt">معفى من البصمة</span>'+(member.today_present?' <span class="attendance-badge present">سجل اليوم</span>':'')
    :member.is_on_approved_leave
-    ?'<span class="attendance-badge leave">إجازة معتمدة</span>'
+    ?'<span class="attendance-badge leave">إجازة معتمدة</span>'+(member.today_present?' <span class="attendance-badge present">سجل اليوم</span>':'')
     :member.today_present
      ?'<span class="attendance-badge present">تم التسجيل اليوم</span>'
      :'<span class="attendance-badge absent">لم يسجل اليوم</span>';
