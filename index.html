@@ -1328,6 +1328,24 @@ html[dir="ltr"] .field label{text-align:left}
 #page-attendance .attendance-badge.absent{background:#25282d;color:#c7cbd2}
 #page-attendance .attendance-badge.warn{background:#3b2710;color:#ffc06c}
 #page-attendance .attendance-badge.dismissed{background:#351015;color:#ff6872}
+#page-attendance .attendance-badge.exempt{background:#252d3b;color:#a9c5ff}
+#page-attendance .attendance-badge.leave{background:#2e2538;color:#d5b4ff}
+#page-attendance .attendance-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-inline-start:4px;border-radius:10px;background:#333b46;color:#e7eaf0;font-size:10px}
+#page-attendance .attendance-admin-modal{width:min(850px,100%)}
+#page-attendance .attendance-admin-list{display:grid;gap:7px;max-height:42vh;overflow:auto}
+#page-attendance .attendance-admin-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #333944;border-radius:9px;background:#0e1116}
+#page-attendance .attendance-admin-item label{display:flex;align-items:center;gap:9px;cursor:pointer;min-width:0}
+#page-attendance .attendance-admin-item input{width:17px;height:17px;accent-color:#45d6a2}
+#page-attendance .attendance-admin-name{font-weight:700}
+#page-attendance .attendance-admin-meta{font-size:10px;color:#8f98a6;margin-top:3px;overflow-wrap:anywhere}
+#page-attendance .attendance-leave-create{padding:14px;border:1px solid #343a44;border-radius:10px;background:#0e1116}
+#page-attendance .attendance-leave-create h4{margin:0 0 12px}
+#page-attendance .attendance-leave-table{min-width:760px}
+#page-attendance .attendance-leave-actions{display:flex;gap:6px;flex-wrap:wrap}
+#page-attendance .attendance-leave-status{display:inline-flex;padding:4px 8px;border-radius:5px;font-size:10px;font-weight:700}
+#page-attendance .attendance-leave-status.pending{background:#382d18;color:#ffd18a}
+#page-attendance .attendance-leave-status.approved{background:#103328;color:#68e5b3}
+#page-attendance .attendance-leave-status.rejected{background:#351015;color:#ff8a91}
 @media(max-width:760px){#page-attendance .attendance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 </style>
@@ -1446,6 +1464,8 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="sectionhead">
  <div><h2>البصمة اليومية</h2><div class="sub">متابعة حاملي رتبة SWAT الحالية مع سجل المفصولين من روم البصمة في Discord</div></div>
  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+  <button class="btn" type="button" onclick="openAttendanceLeaveModal()">▣ الإجازات <span id="attendancePendingLeaveCount" class="attendance-count">0</span></button>
+  <button class="btn" type="button" onclick="openAttendanceSettingsModal()">⚙ إعدادات البصمة</button>
   <button class="btn primary" type="button" onclick="openAttendanceMessageModal()">✉ إرسال رسالة للروم</button>
   <button class="btn" type="button" onclick="renderAttendance()">↻ تحديث البيانات</button>
  </div>
@@ -1456,6 +1476,7 @@ html[dir="ltr"] .field label{text-align:left}
   <div class="panel"><div class="muted">سجلوا اليوم</div><strong id="attendanceTodayCount">0</strong></div>
   <div class="panel"><div class="muted">لم يسجلوا اليوم</div><strong id="attendanceMissingCount">0</strong></div>
   <div class="panel"><div class="muted">غياب أسبوع أو أكثر</div><strong id="attendanceWeekAbsentCount">0</strong></div>
+  <div class="panel"><div class="muted">معفون من البصمة</div><strong id="attendanceExemptCount">0</strong></div>
  </div>
  <div class="panel">
   <div class="panelhead">
@@ -1472,6 +1493,8 @@ html[dir="ltr"] .field label{text-align:left}
      <option value="warning1">الإنذار الأول</option>
      <option value="warning2">الإنذار الثاني</option>
      <option value="dismissed">مفصولون</option>
+     <option value="exempt">المعفون من البصمة</option>
+     <option value="leave">في إجازة معتمدة</option>
     </select>
    </div>
    <div class="tablewrap">
@@ -1480,11 +1503,65 @@ html[dir="ltr"] .field label{text-align:left}
      <tbody id="attendanceRows"><tr><td colspan="8">افتح تبويب البصمة لتحميل البيانات.</td></tr></tbody>
     </table>
    </div>
-   <div class="muted" style="margin-top:10px;line-height:1.8">يعرض السجل حاملي رتبة SWAT الحالية بعد التحقق من Discord مباشرة، ويُبقي المفصولين ظاهرين لسجلهم التأديبي. يبدأ حساب الغياب من آخر بصمة، أو من تاريخ تفعيل النظام/انضمام العضو أيهما أحدث. تُحتسب بصمة واحدة يوميًا.</div>
+   <div class="muted" style="margin-top:10px;line-height:1.8">يعرض السجل حاملي رتبة SWAT الحالية بعد التحقق من Discord مباشرة، ويُبقي المفصولين ظاهرين لسجلهم التأديبي. الإعفاء والإجازة المعتمدة يوقفان حساب الغياب خلال فترة سريانهما، مع استمرار تسجيل أي بصمة يرسلها العضو. تُحتسب بصمة واحدة يوميًا.</div>
   </div>
  </div>
 </div>
 
+<div class="modalback" id="attendanceSettingsModalBack" onclick="if(event.target===this)closeAttendanceSettingsModal()">
+ <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="attendanceSettingsTitle">
+  <div class="modalhead">
+   <div><h3 id="attendanceSettingsTitle">إعدادات البصمة</h3><div class="sub">حدد الأعضاء الذين لا يُطلب منهم تسجيل بصمة يومية</div></div>
+   <button class="close" type="button" onclick="closeAttendanceSettingsModal()">×</button>
+  </div>
+  <div class="field">
+   <label for="attendanceExemptionSearch">البحث عن عضو</label>
+   <input id="attendanceExemptionSearch" type="search" placeholder="الاسم أو Discord ID..." oninput="renderAttendanceExemptionRows()">
+  </div>
+  <div class="field" style="margin-top:12px">
+   <label for="attendanceExemptionReason">سبب الإعفاء (اختياري)</label>
+   <input id="attendanceExemptionReason" maxlength="1000" placeholder="مثال: منصب قيادي — لا يتطلب بصمة يومية">
+  </div>
+  <div id="attendanceExemptionRows" class="attendance-admin-list" style="margin-top:14px">
+   <div class="empty">جارٍ تحميل الأعضاء...</div>
+  </div>
+  <div id="attendanceSettingsStatus" class="muted" aria-live="polite" style="min-height:20px;margin-top:10px"></div>
+  <div class="modalactions">
+   <button class="btn primary" id="attendanceExemptionSaveButton" type="button" onclick="saveAttendanceExemptions()">حفظ الإعدادات</button>
+   <button class="btn" type="button" onclick="closeAttendanceSettingsModal()">إغلاق</button>
+  </div>
+ </div>
+</div>
+
+<div class="modalback" id="attendanceLeaveModalBack" onclick="if(event.target===this)closeAttendanceLeaveModal()">
+ <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="attendanceLeaveTitle">
+  <div class="modalhead">
+   <div><h3 id="attendanceLeaveTitle">إدارة الإجازات</h3><div class="sub">تسجيل الطلبات ومراجعتها؛ الإجازة المعتمدة توقف احتساب الغياب خلال مدتها</div></div>
+   <button class="close" type="button" onclick="closeAttendanceLeaveModal()">×</button>
+  </div>
+  <div class="attendance-leave-create">
+   <h4>تسجيل طلب إجازة</h4>
+   <div class="formgrid">
+    <div class="field full"><label for="attendanceLeaveMember">العضو *</label><select id="attendanceLeaveMember" required><option value="">اختر عضوًا...</option></select></div>
+    <div class="field"><label for="attendanceLeaveStart">من تاريخ *</label><input id="attendanceLeaveStart" type="date" required></div>
+    <div class="field"><label for="attendanceLeaveEnd">إلى تاريخ *</label><input id="attendanceLeaveEnd" type="date" required></div>
+    <div class="field full"><label for="attendanceLeaveReason">سبب الإجازة / تفاصيل الطلب *</label><textarea id="attendanceLeaveReason" rows="3" maxlength="1000" placeholder="اكتب سبب الطلب أو التفاصيل التي وصلت من العضو..." required></textarea></div>
+   </div>
+   <div class="modalactions"><button class="btn primary" id="attendanceLeaveCreateButton" type="button" onclick="createAttendanceLeaveRequest()">＋ تسجيل الطلب</button></div>
+  </div>
+  <div class="panelhead" style="margin-top:18px">
+   <div><h4>طلبات الإجازة</h4><span class="sub" id="attendanceLeaveUpdatedAt">الطلبات المعلقة والسابقة</span></div>
+   <button class="btn" type="button" onclick="loadAttendanceLeaveRequests()">↻ تحديث</button>
+  </div>
+  <div class="tablewrap">
+   <table class="attendance-table attendance-leave-table">
+    <thead><tr><th>العضو</th><th>المدة</th><th>السبب</th><th>الحالة</th><th>قرار الإدارة</th></tr></thead>
+    <tbody id="attendanceLeaveRows"><tr><td colspan="5">جارٍ تحميل الطلبات...</td></tr></tbody>
+   </table>
+  </div>
+  <div id="attendanceLeaveStatus" class="muted" aria-live="polite" style="min-height:20px;margin-top:10px"></div>
+ </div>
+</div>
 
 </section>
 <section class="page" id="page-audit"><div class="sectionhead"><div><h2>سجل النشاط الإداري</h2><div class="sub">تتبّع إجراءات الأعضاء في سجل إداري مشترك</div></div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="audit-discord-status" title="مؤشر واجهة فقط؛ لا يمثل فحص اتصال مباشر"><span class="audit-discord-dot"></span><span>Discord • Linked</span></span><button class="btn" onclick="downloadAudit()">تنزيل سجل النشاط</button></div></div><div class="notice">الأحداث القديمة قد تكون من السجل المحلي السابق. أما الأحداث الجديدة فتُحفظ على الخادم وترتبط بهوية حساب Discord، ولا يمكن تعديلها من واجهة الأعضاء.</div><div class="panel" style="margin-top:14px"><div class="panelhead"><h3>آخر الأحداث</h3><div class="logFilters"><input id="auditSearch" placeholder="ابحث في النشاط..." oninput="renderAudit()"><select id="auditType" onchange="renderAudit()"><option value="all">كل الأحداث</option><option value="إضافة">إضافة</option><option value="تعديل">تعديل</option><option value="حذف">حذف</option><option value="قبض">قبض</option><option value="تصدير">تصدير</option></select></div></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>المستخدم</th><th>الحدث</th><th>التفاصيل</th><th>المرجع</th></tr></thead><tbody id="auditRows"></tbody></table></div></div></section>
@@ -1559,7 +1636,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -2462,12 +2539,14 @@ function attendanceDuration(days){
 }
 function attendanceWarningBadge(member){
  if(member.warning_status==='dismissed')return '<span class="attendance-badge dismissed">فصل</span>';
+ if(member.is_attendance_exempt)return '<span class="attendance-badge exempt">معفى</span>';
+ if(member.is_on_approved_leave)return '<span class="attendance-badge leave">إجازة</span>';
  if(Number(member.warning_level)===2)return '<span class="attendance-badge warn">الإنذار الثاني</span>';
  if(Number(member.warning_level)===1)return '<span class="attendance-badge warn">الإنذار الأول</span>';
  return '<span class="attendance-badge present">بدون إنذار</span>';
 }
 function setAttendanceFilter(value){
- attendanceRecordFilter=['all','present','missing','warning1','warning2','dismissed'].includes(value)?value:'all';
+ attendanceRecordFilter=['all','present','missing','warning1','warning2','dismissed','exempt','leave'].includes(value)?value:'all';
  renderAttendanceRows();
 }
 async function renderAttendance(){
@@ -2480,16 +2559,18 @@ async function renderAttendance(){
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل بيانات الحضور.');
   attendanceData={members:Array.isArray(data.members)?data.members:[],generated_at:data.generated_at||null,attendance_started_at:data.attendance_started_at||null};
-  const rows=attendanceData.members;
-  const activeRows=rows.filter(member=>member.is_swat_member);
+  const activeRows=attendanceData.members.filter(member=>member.is_swat_member);
+  const obligatedRows=activeRows.filter(member=>!member.is_attendance_exempt&&!member.is_on_approved_leave);
   const today=activeRows.filter(member=>member.today_present).length;
-  const missing=activeRows.length-today;
-  const absentWeek=activeRows.filter(member=>Number(member.days_since_last)>=7).length;
+  const missing=obligatedRows.filter(member=>!member.today_present).length;
+  const absentWeek=obligatedRows.filter(member=>Number(member.days_since_last)>=7).length;
+  const exempt=activeRows.filter(member=>member.is_attendance_exempt).length;
   const set=(id,value)=>{const node=document.getElementById(id);if(node)node.textContent=String(value)};
   set('attendanceMemberCount',activeRows.length);
   set('attendanceTodayCount',today);
   set('attendanceMissingCount',missing);
   set('attendanceWeekAbsentCount',absentWeek);
+  set('attendanceExemptCount',exempt);
   const updated=document.getElementById('attendanceUpdatedAt');
   if(updated)updated.textContent='آخر تحديث: '+fmtWarningDate(data.generated_at)+' • بداية النظام: '+fmtWarningDate(data.attendance_started_at);
   renderAttendanceRows();
@@ -2504,22 +2585,34 @@ function renderAttendanceRows(){
   const search=(String(member.display_name||'')+' '+String(member.username||'')+' '+String(member.discord_user_id||'')).toLowerCase();
   if(query&&!search.includes(query))return false;
   if(attendanceRecordFilter==='present'&&!member.today_present)return false;
-  if(attendanceRecordFilter==='missing'&&member.today_present)return false;
+  if(attendanceRecordFilter==='missing'&&(member.today_present||member.is_attendance_exempt||member.is_on_approved_leave))return false;
   if(attendanceRecordFilter==='warning1'&&Number(member.warning_level)!==1)return false;
   if(attendanceRecordFilter==='warning2'&&Number(member.warning_level)!==2)return false;
   if(attendanceRecordFilter==='dismissed'&&member.warning_status!=='dismissed')return false;
+  if(attendanceRecordFilter==='exempt'&&!member.is_attendance_exempt)return false;
+  if(attendanceRecordFilter==='leave'&&!member.is_on_approved_leave)return false;
   return true;
  });
  body.innerHTML=rows.map(member=>{
-  const todayTag=member.today_present
-   ?'<span class="attendance-badge present">تم التسجيل اليوم</span>'
-   :'<span class="attendance-badge absent">لم يسجل اليوم</span>';
+  const todayTag=member.is_attendance_exempt
+   ?'<span class="attendance-badge exempt">معفى من البصمة</span>'
+   :member.is_on_approved_leave
+    ?'<span class="attendance-badge leave">إجازة معتمدة</span>'
+    :member.today_present
+     ?'<span class="attendance-badge present">تم التسجيل اليوم</span>'
+     :'<span class="attendance-badge absent">لم يسجل اليوم</span>';
   const last=member.last_attendance_at?fmtWarningDate(member.last_attendance_at):'لم يسجل بعد';
   const days=Number(member.days_since_last)||0;
-  const duration=member.has_ever_attended===false
-   ?(member.absence_baseline==='member_registration'?'منذ انضمام العضو: ':'منذ بدء النظام: ')+attendanceDuration(days)
-   :attendanceDuration(days);
-  const absence=days>=7?'<span class="attendance-badge warn">'+adminEscape(duration)+'</span>':adminEscape(duration);
+  const duration=member.is_attendance_exempt
+   ?'غير مطالب بالبصمة'
+   :member.is_on_approved_leave
+    ?'إجازة معتمدة حتى '+adminEscape(member.approved_leave_end_date||'')
+    :member.has_ever_attended===false
+     ?(member.absence_baseline==='member_registration'?'منذ انضمام العضو: ':'منذ بدء النظام: ')+attendanceDuration(days)
+     :attendanceDuration(days);
+  const absence=(days>=7&&!member.is_attendance_exempt&&!member.is_on_approved_leave)
+   ?'<span class="attendance-badge warn">'+adminEscape(duration)+'</span>'
+   :adminEscape(duration);
   return '<tr><td><div class="attendance-name">'+adminEscape(member.display_name||member.username||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(member.discord_user_id)+'</code></div></td>'+
    '<td>'+todayTag+'</td><td>'+adminEscape(last)+'</td><td>'+absence+'</td>'+
    '<td><span dir="ltr"><b>'+adminEscape(member.last_seven_days||0)+'</b> / 7</span></td>'+
@@ -2527,6 +2620,132 @@ function renderAttendanceRows(){
    '<td><b>'+adminEscape(member.total_days||0)+'</b> يوم</td>'+
    '<td>'+attendanceWarningBadge(member)+'</td></tr>';
  }).join('')||'<tr><td colspan="8"><div class="empty">لا توجد أعضاء مطابقة لبحثك.</div></td></tr>';
+}
+function openAttendanceSettingsModal(){
+ if(!currentCanManageWarnings){toast('لا تملك صلاحية إدارة إعفاءات البصمة.');return;}
+ document.getElementById('attendanceSettingsModalBack')?.classList.add('open');
+ renderAttendanceExemptionRows();
+ setTimeout(()=>document.getElementById('attendanceExemptionSearch')?.focus(),40);
+}
+function closeAttendanceSettingsModal(){
+ if(attendanceExemptionSaveBusy)return;
+ document.getElementById('attendanceSettingsModalBack')?.classList.remove('open');
+}
+function renderAttendanceExemptionRows(){
+ const container=document.getElementById('attendanceExemptionRows');if(!container)return;
+ const search=String(document.getElementById('attendanceExemptionSearch')?.value||'').trim().toLowerCase();
+ const members=attendanceData.members.filter(member=>member.is_swat_member).filter(member=>
+  (String(member.display_name||'')+' '+String(member.username||'')+' '+String(member.discord_user_id||'')).toLowerCase().includes(search)
+ );
+ container.innerHTML=members.map(member=>
+  '<div class="attendance-admin-item"><label><input class="attendance-exemption-toggle" type="checkbox" data-member-id="'+adminEscape(member.discord_user_id)+'" '+(member.is_attendance_exempt?'checked':'')+'><span><div class="attendance-admin-name">'+adminEscape(member.display_name||member.username||'عضو')+'</div><div class="attendance-admin-meta"><code>'+adminEscape(member.discord_user_id)+'</code>'+(member.attendance_exemption_reason?' • '+adminEscape(member.attendance_exemption_reason):'')+'</div></span></label><span class="attendance-badge '+(member.is_attendance_exempt?'exempt':'absent')+'">'+(member.is_attendance_exempt?'معفى':'مطالب بالبصمة')+'</span></div>'
+ ).join('')||'<div class="empty">لا يوجد أعضاء نشطون يحملون رتبة S.W.A.T.</div>';
+}
+async function saveAttendanceExemptions(){
+ if(!currentCanManageWarnings||attendanceExemptionSaveBusy)return;
+ const button=document.getElementById('attendanceExemptionSaveButton');
+ const status=document.getElementById('attendanceSettingsStatus');
+ const selected=[...document.querySelectorAll('.attendance-exemption-toggle:checked')].map(node=>node.dataset.memberId).filter(Boolean);
+ const reason=String(document.getElementById('attendanceExemptionReason')?.value||'').trim();
+ attendanceExemptionSaveBusy=true;if(button)button.disabled=true;if(status)status.textContent='جارٍ حفظ الإعفاءات...';
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save_attendance_exemptions',discord_user_ids:selected,reason})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر حفظ الإعفاءات.');
+  toast('تم حفظ إعفاء '+(data.exempt_count||0)+' عضو من البصمة.');
+  document.getElementById('attendanceSettingsModalBack')?.classList.remove('open');
+  await renderAttendance();
+ }catch(error){if(status)status.textContent=error.message||'تعذّر حفظ الإعدادات.';toast(error.message||'تعذّر حفظ الإعدادات.');}
+ finally{attendanceExemptionSaveBusy=false;if(button)button.disabled=false;}
+}
+function openAttendanceLeaveModal(){
+ if(!currentCanManageWarnings){toast('لا تملك صلاحية إدارة طلبات الإجازة.');return;}
+ document.getElementById('attendanceLeaveModalBack')?.classList.add('open');
+ const memberSelect=document.getElementById('attendanceLeaveMember');
+ if(memberSelect){
+  const previous=memberSelect.value;
+  memberSelect.innerHTML='<option value="">اختر عضوًا...</option>'+attendanceData.members.filter(member=>member.is_swat_member).map(member=>
+   '<option value="'+adminEscape(member.discord_user_id)+'">'+adminEscape(member.display_name||member.username||'عضو')+' — '+adminEscape(member.discord_user_id)+'</option>'
+  ).join('');
+  if(attendanceData.members.some(member=>String(member.discord_user_id)===previous))memberSelect.value=previous;
+ }
+ loadAttendanceLeaveRequests();
+}
+function closeAttendanceLeaveModal(){
+ if(attendanceLeaveSaveBusy)return;
+ document.getElementById('attendanceLeaveModalBack')?.classList.remove('open');
+}
+async function loadAttendanceLeaveRequests(){
+ if(!currentCanManageWarnings||attendanceLeaveLoadBusy)return;
+ attendanceLeaveLoadBusy=true;
+ const body=document.getElementById('attendanceLeaveRows');
+ if(body)body.innerHTML='<tr><td colspan="5">جارٍ تحميل الطلبات...</td></tr>';
+ try{
+  const response=await fetch('/api/warnings?leave_requests=1',{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل طلبات الإجازة.');
+  attendanceLeaveRequests=Array.isArray(data.requests)?data.requests:[];
+  const pending=attendanceLeaveRequests.filter(item=>item.status==='pending').length;
+  const badge=document.getElementById('attendancePendingLeaveCount');if(badge)badge.textContent=String(pending);
+  const updated=document.getElementById('attendanceLeaveUpdatedAt');if(updated)updated.textContent='عدد الطلبات المعلقة: '+pending;
+  renderAttendanceLeaveRows();
+ }catch(error){if(body)body.innerHTML='<tr><td colspan="5">'+adminEscape(error.message||'تعذّر تحميل الطلبات.')+'</td></tr>';}
+ finally{attendanceLeaveLoadBusy=false;}
+}
+function attendanceLeaveDate(value){
+ if(!value)return '—';
+ const date=new Date(String(value).slice(0,10)+'T12:00:00+03:00');
+ return Number.isNaN(date.getTime())?String(value):new Intl.DateTimeFormat('ar-SA',{timeZone:'Asia/Riyadh',day:'numeric',month:'short',year:'numeric'}).format(date);
+}
+function renderAttendanceLeaveRows(){
+ const body=document.getElementById('attendanceLeaveRows');if(!body)return;
+ body.innerHTML=attendanceLeaveRequests.map(item=>{
+  const statusLabel=item.status==='pending'?'معلق':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
+  const actions=item.status==='pending'
+   ?'<div class="attendance-leave-actions"><button class="btn primary" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'approved\')">قبول</button><button class="btn danger" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'rejected\')">رفض</button></div>'
+   :'<span class="muted">'+adminEscape(item.reviewed_by_name||'—')+'</span>'+(item.review_note?'<div class="attendance-admin-meta">'+adminEscape(item.review_note)+'</div>':'');
+  return '<tr><td><div class="attendance-name">'+adminEscape(item.display_name||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(item.discord_user_id)+'</code></div></td>'+
+   '<td>'+adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div></td>'+
+   '<td>'+adminEscape(item.reason||'—')+'</td><td><span class="attendance-leave-status '+adminEscape(item.status)+'">'+statusLabel+'</span></td><td>'+actions+'</td></tr>';
+ }).join('')||'<tr><td colspan="5"><div class="empty">لا توجد طلبات إجازة حتى الآن.</div></td></tr>';
+}
+async function createAttendanceLeaveRequest(){
+ if(!currentCanManageWarnings||attendanceLeaveSaveBusy)return;
+ const targetId=String(document.getElementById('attendanceLeaveMember')?.value||'');
+ const startDate=String(document.getElementById('attendanceLeaveStart')?.value||'');
+ const endDate=String(document.getElementById('attendanceLeaveEnd')?.value||'');
+ const reason=String(document.getElementById('attendanceLeaveReason')?.value||'').trim();
+ const status=document.getElementById('attendanceLeaveStatus');
+ if(!targetId||!startDate||!endDate||endDate<startDate||reason.length<3){if(status)status.textContent='اختر العضو والفترة واكتب سببًا واضحًا للإجازة.';return;}
+ attendanceLeaveSaveBusy=true;
+ const button=document.getElementById('attendanceLeaveCreateButton');if(button)button.disabled=true;if(status)status.textContent='جارٍ تسجيل طلب الإجازة...';
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_attendance_leave',discord_user_id:targetId,start_date:startDate,end_date:endDate,reason})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تسجيل الطلب.');
+  document.getElementById('attendanceLeaveReason').value='';
+  toast('تم تسجيل طلب الإجازة بنجاح.');
+  await loadAttendanceLeaveRequests();
+  await renderAttendance();
+ }catch(error){if(status)status.textContent=error.message||'تعذّر تسجيل الطلب.';toast(error.message||'تعذّر تسجيل الطلب.');}
+ finally{attendanceLeaveSaveBusy=false;if(button)button.disabled=false;}
+}
+async function reviewAttendanceLeave(id,statusValue){
+ if(!currentCanManageWarnings||attendanceLeaveSaveBusy)return;
+ const item=attendanceLeaveRequests.find(request=>String(request.id)===String(id));
+ if(!item)return;
+ if(!confirm(statusValue==='approved'?'تأكيد الموافقة على الإجازة؟':'تأكيد رفض طلب الإجازة؟'))return;
+ const note=statusValue==='rejected'?String(prompt('سبب الرفض (اختياري):')||'').trim():'';
+ attendanceLeaveSaveBusy=true;
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'review_attendance_leave',id,status:statusValue,review_note:note})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّرت مراجعة الطلب.');
+  toast(statusValue==='approved'?'تمت الموافقة على الإجازة.':'تم رفض طلب الإجازة.');
+  await loadAttendanceLeaveRequests();
+  await renderAttendance();
+ }catch(error){toast(error.message||'تعذّرت مراجعة الطلب.');}
+ finally{attendanceLeaveSaveBusy=false;}
 }
 
 function toggleWarningArchivedView(){
@@ -4410,6 +4629,46 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "إزالة سجل تجريبي من قائمة الحالات.":"Remove a test record from the current list.",
  "سيختفي العضو من جدول الحالات الحالية والعدادات. لن يتم حذف سجل التحذيرات أو سجل التدقيق، ولن يتم تغيير رتب Discord. هل تريد المتابعة؟":"The member will disappear from the current-state table and counters. Warning and audit history will not be deleted, and Discord roles will not change. Continue?",
  "إعادة العضو إلى قائمة الحالات الحالية بطلب الإدارة.":"Restore the member to the current-state list at the administration's request."
+});
+
+Object.assign(PORTAL_TRANSLATIONS, {
+ "إعدادات البصمة":"Attendance Settings",
+ "حدد الأعضاء الذين لا يُطلب منهم تسجيل بصمة يومية":"Select members who are exempt from daily attendance",
+ "البحث عن عضو":"Search members",
+ "سبب الإعفاء (اختياري)":"Exemption reason (optional)",
+ "مثال: منصب قيادي — لا يتطلب بصمة يومية":"Example: Leadership position — daily attendance not required",
+ "حفظ الإعدادات":"Save settings",
+ "حفظ إعفاء ":"Save exemption for ",
+ "معفى":"Exempt",
+ "مطالب بالبصمة":"Attendance required",
+ "غير مطالب بالبصمة":"Attendance not required",
+ "معفى من البصمة":"Exempt from attendance",
+ "الإجازات المعتمدة":"Approved leave",
+ "إدارة الإجازات":"Leave management",
+ "تسجيل الطلب":"Create request",
+ "تسجيل طلب إجازة":"Create leave request",
+ "طلبات الإجازة":"Leave requests",
+ "الطلبات المعلقة والسابقة":"Pending and previous requests",
+ "من تاريخ *":"Start date *",
+ "إلى تاريخ *":"End date *",
+ "سبب الإجازة / تفاصيل الطلب *":"Leave reason / request details *",
+ "اختر عضوًا...":"Select a member...",
+ "المدة":"Period",
+ "السبب":"Reason",
+ "الحالة":"Status",
+ "قرار الإدارة":"Admin decision",
+ "معلق":"Pending",
+ "مقبول":"Approved",
+ "مرفوض":"Rejected",
+ "قبول":"Approve",
+ "رفض":"Reject",
+ "إجازة معتمدة":"Approved leave",
+ "في إجازة معتمدة":"On approved leave",
+ "إلى ":"To ",
+ "لا توجد طلبات إجازة حتى الآن.":"No leave requests yet.",
+ "لا يوجد أعضاء نشطون يحملون رتبة S.W.A.T.":"No active S.W.A.T. members found.",
+ "المعفون من البصمة":"Attendance exemptions",
+ "غير مطالبين بالبصمة":"Exempt from attendance"
 });
 
 applyPortalLanguage();
