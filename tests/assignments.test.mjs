@@ -235,7 +235,7 @@ test("member identity publishing sends one card and updates the stored Discord m
   assert.match(handler, /staff_member_identities\?discord_user_id=eq\./);
   assert.match(handler, /message_id:String\(message\.id\)/);
   assert.match(handler, /const discordMessagePayload=\{/);
-  assert.match(handler, /content:"<@"+targetId+">"/);
+  assert.ok(handler.includes('content:"<@"+targetId+">"'));
   assert.match(handler, /allowed_mentions:\{parse:\[\],users:\[targetId\]\}/);
   assert.match(handler, /body:JSON\.stringify\(discordMessagePayload\)/);
   assert.equal((handler.match(/body:JSON\.stringify\(discordMessagePayload\)/g)||[]).length,2,
