@@ -1193,9 +1193,13 @@ export default async function handler(req, res) {
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
       const startDate = String(body.start_date || "");
       const endDate = String(body.end_date || "");
+      const isValidDate = value => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(value + "T00:00:00.000Z");
+        return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0,10) === value;
+      };
       if (!/^\d{15,22}$/.test(targetId) || reason.length < 3 || reason.length > 1000 ||
-          !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
-          endDate < startDate) {
+          !isValidDate(startDate) || !isValidDate(endDate) || endDate < startDate) {
         return json(res, 400, { error: "راجع العضو وسبب الإجازة وتاريخ البداية والنهاية." });
       }
       const profileQuery = new URLSearchParams({
