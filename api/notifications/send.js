@@ -5,6 +5,7 @@ import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
+import { handleSavedDiscordMessageRequest } from "../../lib/saved-discord-messages.js";
 import { buildRuleDiscordMessages } from "../../lib/rules-discord.js";
 import { buildSiteNoticeDiscordPayload, isSiteNoticeId, normalizeSiteNoticeInput, siteNoticeBatchIsSent } from "../../lib/site-notices.js";
 
@@ -1056,6 +1057,13 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
+    const savedMessageAction = statusUrl.searchParams.get("action") || "";
+    if (savedMessageAction.startsWith("saved_message_")) {
+      const config = getConfig();
+      if (config.error === "bot_token_missing") return res.status(503).json({ error: "بوت Discord غير متصل." });
+      if (config.error) return res.status(503).json({ error: "قاعدة البيانات غير مضبوطة." });
+      return handleSavedDiscordMessageRequest(req, res, user, config, savedMessageAction, {});
+    }
     const token = process.env.DISCORD_BOT_TOKEN;
     const guildId = process.env.DISCORD_GUILD_ID;
     if (!token || !guildId) {
@@ -1103,6 +1111,12 @@ export default async function handler(req, res) {
   const body = typeof req.body === "string"
     ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
     : (req.body || {});
+  if (String(body.action || "").startsWith("saved_message_")) {
+    const config = getConfig();
+    if (config.error === "bot_token_missing") return res.status(503).json({ error: "بوت Discord غير متصل." });
+    if (config.error) return res.status(503).json({ error: "قاعدة البيانات غير مضبوطة." });
+    return handleSavedDiscordMessageRequest(req, res, user, config, String(body.action), body);
+  }
   if (body.action === "edit_site_notice" || body.action === "delete_site_notice" || body.action === "resend_site_notice") {
     const noticeId = typeof body.noticeId === "string" ? body.noticeId.trim() : "";
     if (!isSiteNoticeId(noticeId)) return res.status(400).json({ error: "معرّف التعميم غير صالح." });
