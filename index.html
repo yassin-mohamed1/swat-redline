@@ -3911,9 +3911,10 @@ async function saveDiscordNotificationPreference(enabled){
 }
 
 function discordMessagesApiUrl(action,id=''){
- const params=new URLSearchParams({action});
+ const names={list:'saved_message_list',channels:'saved_message_channels',content:'saved_message_content'};
+ const params=new URLSearchParams({action:names[action]||action});
  if(id)params.set('id',String(id));
- return '/api/discord-messages?'+params.toString();
+ return '/api/notifications/send?'+params.toString();
 }
 function setDiscordMessagesStatus(message,isError=false){
  const node=document.getElementById('discordSavedMessagesStatus');
@@ -4056,7 +4057,7 @@ async function saveDiscordMessage(event){
  discordMessageSaveBusy=true;button.disabled=true;button.textContent='جارٍ رفع النص وحفظه...';status.textContent='جارٍ تجهيز ملف النص الكامل ورفعه بأمان...';
  let uploadedPath='';
  try{
-  const uploadUrlResponse=await fetch('/api/discord-messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upload_url'})});
+  const uploadUrlResponse=await fetch('/api/discord-messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_upload_url'})});
   const uploadData=await uploadUrlResponse.json().catch(()=>({}));
   if(!uploadUrlResponse.ok)throw new Error(uploadData.error||'تعذّر تجهيز رفع النص.');
   uploadedPath=uploadData.path;
@@ -4065,7 +4066,7 @@ async function saveDiscordMessage(event){
   if(!uploadResponse.ok)throw new Error('فشل رفع النص الكامل إلى التخزين الخاص. رمز الخطأ: '+uploadResponse.status);
   status.textContent='تم رفع النص؛ جارٍ حفظ سجل الرسالة...';
   const saveResponse=await fetch('/api/discord-messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-   action:'save',id:discordMessageEditingId||undefined,title,storage_path:uploadedPath,
+   action:'saved_message_save',id:discordMessageEditingId||undefined,title,storage_path:uploadedPath,
    content_preview:content.slice(0,500),content_chars:content.length,content_bytes:file.size
   })});
   const saveData=await saveResponse.json().catch(()=>({}));
@@ -4085,7 +4086,7 @@ async function deleteDiscordSavedMessage(id,button){
  if(!confirm('هل تريد حذف الرسالة من سجل الموقع؟ لن تُحذف الرسائل التي سبق إرسالها في Discord.'))return;
  const old=button?.textContent||'حذف';if(button){button.disabled=true;button.textContent='جارٍ الحذف...';}
  try{
-  const response=await fetch('/api/discord-messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id})});
+  const response=await fetch('/api/discord-messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_delete',id})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر حذف الرسالة.');
   await loadDiscordSavedMessages();toast('تم حذف الرسالة من الموقع.');
@@ -4101,7 +4102,7 @@ async function sendSavedDiscordMessage(id,button){
  if(!confirm('إرسال «'+(row?.title||'الرسالة')+'» إلى القناة المحددة بواسطة بوت S.W.A.T. REDLINE؟'))return;
  const old=button?.textContent||'إرسال ↗';if(button){button.disabled=true;button.textContent='جارٍ الإرسال...';}
  try{
-  const response=await fetch('/api/discord-messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'send',id,channel_id:channelId})});
+  const response=await fetch('/api/discord-messages',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_send',id,channel_id:channelId})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر إرسال الرسالة.');
   await loadDiscordSavedMessages();
