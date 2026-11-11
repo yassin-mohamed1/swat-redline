@@ -1315,7 +1315,7 @@ html[dir="ltr"] .field label{text-align:left}
 #page-warnings .warning-summary strong{font-size:27px}
 @media(max-width:760px){#page-warnings .warning-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-#page-attendance .attendance-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}
+#page-attendance .attendance-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:15px}
 #page-attendance .attendance-summary .panel{padding:14px}
 #page-attendance .attendance-summary strong{font-size:27px}
 #page-attendance .attendance-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
@@ -2574,6 +2574,7 @@ async function renderAttendance(){
   const updated=document.getElementById('attendanceUpdatedAt');
   if(updated)updated.textContent='آخر تحديث: '+fmtWarningDate(data.generated_at)+' • بداية النظام: '+fmtWarningDate(data.attendance_started_at);
   renderAttendanceRows();
+  loadAttendanceLeaveRequests();
  }catch(error){
   if(body)body.innerHTML='<tr><td colspan="8">'+adminEscape(error.message||'تعذّر تحميل بيانات الحضور.')+'</td></tr>';
  }finally{attendanceLoadBusy=false;}
