@@ -1035,6 +1035,81 @@ export default async function handler(req, res) {
     if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
 
+    if (body.action === "save_attendance_exemptions") {
+      const selectedIds = Array.isArray(body.discord_user_ids)
+        ? [...new Set(body.discord_user_ids.map(value => String(value || "")))]
+        : null;
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      if (!selectedIds || selectedIds.length > 100 || selectedIds.some(id => !/^\d{15,22}$/.test(id)) ||
+          reason.length > 1000) {
+        return json(res, 400, { error: "قائمة الأعضاء أو سبب الإعفاء غير صالح." });
+      }
+      const staffQuery = new URLSearchParams({
+        select: "discord_user_id,display_name,username,is_active,is_banned",
+        is_active: "eq.true",
+        is_banned: "eq.false",
+        order: "display_name.asc",
+        limit: "1000"
+      });
+      const [staffResponse, existingResponse] = await Promise.all([
+        db(cfg, "staff_profiles?" + staffQuery.toString()),
+        db(cfg, "attendance_exemptions?select=discord_user_id,reason&limit=1000")
+      ]);
+      if (!staffResponse.ok || !existingResponse.ok) {
+        return json(res, 503, { error: "تعذّر تحميل الأعضاء أو إعدادات الإعفاء الحالية." });
+      }
+      const [staffRows, existingRows] = await Promise.all([staffResponse.json(), existingResponse.json()]);
+      const existingById = new Map(existingRows.map(row => [String(row.discord_user_id), row]));
+      const membership = await mapConcurrent(staffRows, 8, async profile => {
+        const member = await getGuildMemberOrNull(cfg, profile.discord_user_id);
+        return member && Array.isArray(member.roles) && member.roles.includes(cfg.swatRoleId)
+          ? profile : null;
+      });
+      const currentSwat = membership.filter(Boolean);
+      const currentIds = new Set(currentSwat.map(profile => String(profile.discord_user_id)));
+      if (selectedIds.some(id => !currentIds.has(id))) {
+        return json(res, 409, { error: "تغيرت عضوية أحد الأشخاص في رتبة S.W.A.T. حدّث القائمة ثم أعد الحفظ." });
+      }
+      const selected = new Set(selectedIds);
+      const updatedAt = new Date().toISOString();
+      const rows = currentSwat.map(profile => {
+        const id = String(profile.discord_user_id);
+        const enabled = selected.has(id);
+        const previous = existingById.get(id);
+        return {
+          discord_user_id: id,
+          enabled,
+          reason: enabled ? (reason || previous?.reason || "") : (previous?.reason || ""),
+          created_by_discord_id: user.id,
+          created_by_name: user.displayName,
+          updated_at: updatedAt
+        };
+      });
+      if (rows.length) {
+        const saveResponse = await db(cfg, "attendance_exemptions?on_conflict=discord_user_id", {
+          method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+          body: JSON.stringify(rows)
+        });
+        if (!saveResponse.ok) {
+          console.error("Attendance exemptions batch save failed:", saveResponse.status, (await saveResponse.text()).slice(0,300));
+          return json(res, 502, { error: "تعذّر حفظ إعدادات الإعفاء." });
+        }
+      }
+      await forwardAuditToDiscord(user, {
+        action: "update",
+        entity_type: "attendance_exemptions",
+        entity_id: "swat-members",
+        details: {
+          type: "تحديث قائمة المعفيين من البصمة",
+          detail: "تم تحديث إعدادات إعفاء البصمة. عدد المعفيين الحالي: " + selected.size + ".",
+          exempt_member_ids: selectedIds,
+          exempt_count: selected.size
+        }
+      });
+      return json(res, 200, { ok: true, exempt_count: selected.size, managed_members: rows.length });
+    }
+
     if (body.action === "set_attendance_exemption") {
       const targetId = String(body.discord_user_id || "");
       const enabled = body.enabled === true;
