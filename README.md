@@ -138,11 +138,14 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 
 ## SWAT Daily Attendance
 
-- The attendance sync runs as a Vercel API route called by a Supabase `pg_cron` job every minute. No always-on Railway worker is required.
+- The attendance sync runs as a Vercel API route called by a Supabase `pg_cron` job every 5 seconds. No always-on Railway worker is required.
 - The route is authenticated with the existing `ANNOUNCEMENT_SYNC_SECRET` and uses the existing Discord bot and Supabase service-role environment variables in Vercel.
 - It polls only attendance channel `1569735227146768434`, reads message author and timestamp metadata, and does not need message text.
 - Only non-bot members in the configured guild who hold `DISCORD_ROLE_ID` and have an active, non-banned `staff_profiles` record can be recorded.
 - The first message per member per Riyadh calendar day is stored in `attendance_records`; additional messages receive an already-recorded confirmation. The unique `(discord_user_id, attendance_date)` constraint makes this idempotent.
-- The scheduler uses a database lease and cursor so overlapping runs do not double-process messages. On its first run it records the latest existing message as a baseline; only later messages are treated as new attendance.
+- A unique lease token protects each poller run. The lease is renewed every 5 seconds, expires after 18 seconds without a successful heartbeat, and prevents stale runs from releasing a newer lock or advancing its cursor.
+- Each run processes at most 5 messages, uses bounded Discord/Supabase request timeouts, and leaves unprocessed messages for the next poll.
+- The scheduler uses a database cursor so overlapping runs do not double-process messages. On its first run it records the latest existing message as a baseline; only later messages are treated as new attendance.
 - Attendance warnings, dismissals, role changes, and automatic removals are intentionally not part of this phase.
 - Apply `20261110165500_schedule_swat_attendance_poller.sql` only after `/api/notifications/send?task=attendance` is deployed to production.
+- Apply `20261111034000_swat_attendance_lease_recovery.sql` before deploying the version of `lib/attendance-poller.js` that uses the versioned lease RPCs.
