@@ -2,7 +2,7 @@
 create table if not exists public.discord_saved_messages (
   id uuid primary key default gen_random_uuid(),
   title text not null check (char_length(btrim(title)) between 1 and 256),
-  storage_path text not null unique check (storage_path ~ '^messages/[0-9a-f-]{36}\\.txt$'),
+  storage_path text not null unique check (storage_path ~ '^messages/[0-9a-f-]{36}\.txt$'),
   content_preview text not null default '',
   content_chars bigint not null default 0 check (content_chars >= 0),
   content_bytes bigint not null default 0 check (content_bytes >= 0),
