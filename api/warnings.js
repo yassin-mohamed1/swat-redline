@@ -255,18 +255,31 @@ async function listAttendanceDashboard(cfg) {
     channel_id: "eq." + (process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434"),
     select: "initialized_at", limit: "1"
   });
-  const [staffResponse, subjectResponse, stateResponse] = await Promise.all([
+  const [staffResponse, subjectResponse, stateResponse, exemptionResponse, leaveResponse] = await Promise.all([
     db(cfg, "staff_profiles?" + staffQuery.toString()),
     db(cfg, "disciplinary_subjects?" + subjectQuery.toString()),
-    db(cfg, "attendance_sync_state?" + attendanceStateQuery.toString())
+    db(cfg, "attendance_sync_state?" + attendanceStateQuery.toString()),
+    db(cfg, "attendance_exemptions?select=discord_user_id,enabled,reason,updated_at&limit=1000"),
+    db(cfg, "attendance_leave_requests?status=eq.approved&select=discord_user_id,start_date,end_date&order=end_date.desc&limit=2000")
   ]);
-  if (!staffResponse.ok || !subjectResponse.ok || !stateResponse.ok) {
-    throw new Error("تعذّر تحميل الأعضاء أو حالات التحذيرات أو بداية نظام البصمة.");
+  if (!staffResponse.ok || !subjectResponse.ok || !stateResponse.ok ||
+      !exemptionResponse.ok || !leaveResponse.ok) {
+    throw new Error("تعذّر تحميل الأعضاء أو حالات التحذيرات أو إعدادات واستثناءات البصمة.");
   }
   const allStaff = await staffResponse.json();
   const subjects = await subjectResponse.json();
   const stateRows = await stateResponse.json();
+  const exemptionRows = await exemptionResponse.json();
+  const approvedLeaveRows = await leaveResponse.json();
   const subjectById = new Map(subjects.map(subject => [String(subject.discord_user_id), subject]));
+  const exemptionById = new Map(exemptionRows.map(row => [String(row.discord_user_id), row]));
+  const leavesById = new Map();
+  for (const leave of approvedLeaveRows) {
+    const id = String(leave.discord_user_id || "");
+    if (!id) continue;
+    if (!leavesById.has(id)) leavesById.set(id, []);
+    leavesById.get(id).push(leave);
+  }
   const attendanceStartedAt = stateRows[0]?.initialized_at || new Date().toISOString();
   const candidates = allStaff.filter(profile => profile.is_banned !== true &&
     (profile.is_active === true || subjectById.get(String(profile.discord_user_id))?.status === "dismissed"));
@@ -306,20 +319,53 @@ async function listAttendanceDashboard(cfg) {
     const lastDate = daily[0]?.[0] || null;
     const registeredMs = Date.parse(profile.created_at || now.toISOString());
     const systemMs = Date.parse(attendanceStartedAt);
-    const baselineMs = last ? Date.parse(last.first_seen_at) : Math.max(
+    const originalBaselineMs = last ? Date.parse(last.first_seen_at) : Math.max(
       Number.isFinite(registeredMs)?registeredMs:nowMs,
       Number.isFinite(systemMs)?systemMs:nowMs
     );
+    const exemption = exemptionById.get(id) || null;
+    const isAttendanceExempt = exemption?.enabled === true;
+    const leaveRows = leavesById.get(id) || [];
+    const currentLeave = leaveRows.find(leave =>
+      String(leave.start_date || "") <= today && String(leave.end_date || "") >= today
+    ) || null;
+    const latestLeaveEnd = leaveRows
+      .map(leave => String(leave.end_date || ""))
+      .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today)
+      .sort()
+      .at(-1) || null;
+    let baselineMs = Number.isFinite(originalBaselineMs) ? originalBaselineMs : nowMs;
+    if (latestLeaveEnd) {
+      const leaveEndMs = Date.parse(latestLeaveEnd + "T20:59:59.999Z");
+      if (Number.isFinite(leaveEndMs)) baselineMs = Math.max(baselineMs, leaveEndMs);
+    }
+    if (exemption && exemption.enabled === false) {
+      const exemptionEndedMs = Date.parse(exemption.updated_at || "");
+      if (Number.isFinite(exemptionEndedMs)) baselineMs = Math.max(baselineMs, exemptionEndedMs);
+    }
+    const isOnApprovedLeave = Boolean(currentLeave);
+    if (isAttendanceExempt || isOnApprovedLeave) baselineMs = nowMs;
     const safeBaselineMs = Number.isFinite(baselineMs) ? Math.min(baselineMs,nowMs) : nowMs;
-    const daysSinceLast = Math.max(0,Math.floor((nowMs-safeBaselineMs)/86400000));
-    const absenceStartedAt = last?.first_seen_at || new Date(safeBaselineMs).toISOString();
-    const absenceBaseline = last ? "last_attendance" : registeredMs > systemMs ? "member_registration" : "system_activation";
+    const daysSinceLast = (isAttendanceExempt || isOnApprovedLeave)
+      ? 0
+      : Math.max(0,Math.floor((nowMs-safeBaselineMs)/86400000));
+    const absenceStartedAt = (isAttendanceExempt || isOnApprovedLeave)
+      ? null
+      : (last?.first_seen_at || new Date(safeBaselineMs).toISOString());
+    const absenceBaseline = isAttendanceExempt ? "exempt"
+      : isOnApprovedLeave ? "approved_leave"
+      : last ? "last_attendance"
+      : latestLeaveEnd ? "approved_leave_end"
+      : (exemption?.enabled === false ? "exemption_ended"
+      : registeredMs > systemMs ? "member_registration" : "system_activation");
     const weekCount = daily.filter(([date])=>{const ordinal=dateOrdinal(date);return ordinal!==null&&ordinal>=weekStartOrdinal&&ordinal<=todayOrdinal;}).length;
     let streak=0,previousOrdinal=null;
     for(const [date] of daily){const ordinal=dateOrdinal(date);if(ordinal===null)continue;if(previousOrdinal===null)streak=1;else if(previousOrdinal-ordinal===1)streak++;else break;previousOrdinal=ordinal;}
     return {
       discord_user_id:id,display_name:profile.display_name||profile.username||"Discord member",username:profile.username||"",
       avatar_url:profile.avatar_url||null,registered_at:profile.created_at||null,is_swat_member,is_dismissed:subject?.status==="dismissed",
+      is_attendance_exempt:isAttendanceExempt,attendance_exemption_reason:exemption?.reason||null,
+      is_on_approved_leave:isOnApprovedLeave,approved_leave_end_date:currentLeave?.end_date||null,
       today_present:lastDate===today,has_ever_attended:Boolean(last),last_attendance_at:last?.first_seen_at||null,
       last_attendance_date:lastDate,first_attendance_at:first?.first_seen_at||null,absence_started_at:absenceStartedAt,
       absence_baseline:absenceBaseline,days_since_last:daysSinceLast,weeks_since_last:Math.floor(daysSinceLast/7),
@@ -332,7 +378,20 @@ async function listAttendanceDashboard(cfg) {
   const activeSwat=members.filter(member=>member.is_swat_member);
   return {generated_at:now.toISOString(),attendance_started_at:attendanceStartedAt,timezone:"Asia/Riyadh",
     channel_id:process.env.ATTENDANCE_CHANNEL_ID||"1569735227146768434",total_members:activeSwat.length,
-    visible_members:members.length,dismissed_members:members.filter(member=>member.is_dismissed).length,members};
+    visible_members:members.length,dismissed_members:members.filter(member=>member.is_dismissed).length,
+    exempt_members:activeSwat.filter(member=>member.is_attendance_exempt).length,members};
+}
+
+async function isAttendanceExempt(cfg, discordUserId) {
+  const q = new URLSearchParams({
+    discord_user_id: "eq." + String(discordUserId),
+    enabled: "eq.true",
+    select: "discord_user_id",
+    limit: "1"
+  });
+  const response = await db(cfg, "attendance_exemptions?" + q.toString());
+  if (!response.ok) throw new Error("تعذّر إعادة التحقق من إعفاء العضو من البصمة.");
+  return (await response.json()).length > 0;
 }
 
 async function listData(cfg, includeArchived = false) {
@@ -454,7 +513,8 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
 async function processAutomaticAttendanceDiscipline(cfg) {
   const dashboard = await listAttendanceDashboard(cfg);
   const candidates = dashboard.members
-    .filter(member => member.is_swat_member && member.discord_user_id !== process.env.DISCORD_OWNER_ID)
+    .filter(member => member.is_swat_member && !member.is_attendance_exempt && !member.is_on_approved_leave &&
+      member.discord_user_id !== process.env.DISCORD_OWNER_ID)
     .map(member => {
       const dismissed = member.warning_status === "dismissed";
       const currentLevel = dismissed ? 0 : Number(member.warning_level || 0);
@@ -533,6 +593,30 @@ async function processAutomaticAttendanceDiscipline(cfg) {
           Date.now() - lastActionMs < 7 * 86400000) {
         await rpc(cfg, "complete_swat_attendance_discipline", {
           p_event_key: eventKey, p_success: false, p_error_code: "next_disciplinary_stage_not_due"
+        });
+        continue;
+      }
+
+      // Re-check exemptions and approved leave immediately before any disciplinary change.
+      if (await isAttendanceExempt(cfg, candidate.discord_user_id)) {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: true, p_error_code: null
+        });
+        continue;
+      }
+      const liveLeaveQuery = new URLSearchParams({
+        discord_user_id: "eq." + candidate.discord_user_id,
+        status: "eq.approved",
+        start_date: "lte." + riyadhDateKey(new Date()),
+        end_date: "gte." + riyadhDateKey(new Date()),
+        select: "id",
+        limit: "1"
+      });
+      const liveLeaveResponse = await db(cfg, "attendance_leave_requests?" + liveLeaveQuery.toString());
+      if (!liveLeaveResponse.ok) throw new Error("تعذّر التحقق من الإجازة الحالية قبل الإجراء التأديبي.");
+      if ((await liveLeaveResponse.json()).length) {
+        await rpc(cfg, "complete_swat_attendance_discipline", {
+          p_event_key: eventKey, p_success: true, p_error_code: null
         });
         continue;
       }
@@ -930,6 +1014,16 @@ export default async function handler(req, res) {
       const data = await listAttendanceDashboard(cfg);
       return json(res, 200, data);
     }
+    if (req.method === "GET" && params.get("leave_requests") === "1") {
+      const q = new URLSearchParams({
+        select: "id,discord_user_id,display_name,reason,start_date,end_date,status,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,created_at",
+        order: "created_at.desc",
+        limit: "500"
+      });
+      const response = await db(cfg, "attendance_leave_requests?" + q.toString());
+      if (!response.ok) throw new Error("تعذّر تحميل طلبات الإجازة.");
+      return json(res, 200, { requests: await response.json() });
+    }
     if (req.method === "GET") {
       const data = await listData(cfg, params.get("include_archived") === "1");
       return json(res, 200, data);
@@ -940,6 +1034,161 @@ export default async function handler(req, res) {
     }
     if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+
+    if (body.action === "set_attendance_exemption") {
+      const targetId = String(body.discord_user_id || "");
+      const enabled = body.enabled === true;
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      if (!/^\d{15,22}$/.test(targetId) || reason.length > 1000) {
+        return json(res, 400, { error: "راجع معرّف العضو وسبب الإعفاء." });
+      }
+      if (targetId === process.env.DISCORD_OWNER_ID) {
+        return json(res, 403, { error: "لا يمكن تغيير حالة إعفاء المالك المحمي." });
+      }
+      const profileQuery = new URLSearchParams({
+        discord_user_id: "eq." + targetId,
+        select: "discord_user_id,display_name,username,is_active,is_banned",
+        limit: "1"
+      });
+      const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
+      if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من ملف العضو." });
+      const profile = (await profileResponse.json())[0];
+      if (!profile || profile.is_active !== true || profile.is_banned === true) {
+        return json(res, 404, { error: "لا يمكن إدارة الإعفاء إلا لعضو S.W.A.T نشط." });
+      }
+      const discordMember = await getGuildMemberOrNull(cfg, targetId);
+      if (!discordMember || !Array.isArray(discordMember.roles) || !discordMember.roles.includes(cfg.swatRoleId)) {
+        return json(res, 409, { error: "العضو لا يحمل رتبة S.W.A.T الحالية في Discord." });
+      }
+      const now = new Date().toISOString();
+      const writeResponse = await db(cfg, "attendance_exemptions?on_conflict=discord_user_id", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+        body: JSON.stringify({
+          discord_user_id: targetId,
+          reason,
+          enabled,
+          created_by_discord_id: user.id,
+          created_by_name: user.displayName,
+          updated_at: now
+        })
+      });
+      if (!writeResponse.ok) {
+        console.error("Attendance exemption save failed:", writeResponse.status, (await writeResponse.text()).slice(0,300));
+        return json(res, 502, { error: "تعذّر حفظ إعداد الإعفاء." });
+      }
+      await forwardAuditToDiscord(user, {
+        action: "update",
+        entity_type: "attendance_exemption",
+        entity_id: targetId,
+        details: {
+          type: enabled ? "تفعيل إعفاء البصمة" : "إلغاء إعفاء البصمة",
+          detail: (enabled ? "تم إعفاء " : "تم إلغاء إعفاء ") + (profile.display_name || profile.username || targetId) + " من إلزامية البصمة.",
+          target_discord_id: targetId,
+          enabled,
+          reason
+        }
+      });
+      return json(res, 200, { ok: true, discord_user_id: targetId, enabled });
+    }
+
+    if (body.action === "create_attendance_leave") {
+      const targetId = String(body.discord_user_id || "");
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const startDate = String(body.start_date || "");
+      const endDate = String(body.end_date || "");
+      if (!/^\d{15,22}$/.test(targetId) || reason.length < 3 || reason.length > 1000 ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
+          endDate < startDate) {
+        return json(res, 400, { error: "راجع العضو وسبب الإجازة وتاريخ البداية والنهاية." });
+      }
+      const profileQuery = new URLSearchParams({
+        discord_user_id: "eq." + targetId,
+        select: "discord_user_id,display_name,username,is_active,is_banned",
+        limit: "1"
+      });
+      const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
+      if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من ملف العضو." });
+      const profile = (await profileResponse.json())[0];
+      if (!profile || profile.is_active !== true || profile.is_banned === true) {
+        return json(res, 404, { error: "لا يمكن تسجيل إجازة إلا لعضو S.W.A.T نشط." });
+      }
+      const discordMember = await getGuildMemberOrNull(cfg, targetId);
+      if (!discordMember || !Array.isArray(discordMember.roles) || !discordMember.roles.includes(cfg.swatRoleId)) {
+        return json(res, 409, { error: "العضو لا يحمل رتبة S.W.A.T الحالية في Discord." });
+      }
+      const insertResponse = await db(cfg, "attendance_leave_requests", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          discord_user_id: targetId,
+          display_name: profile.display_name || profile.username || "SWAT Member",
+          reason,
+          start_date: startDate,
+          end_date: endDate,
+          status: "pending"
+        })
+      });
+      if (!insertResponse.ok) {
+        console.error("Attendance leave creation failed:", insertResponse.status, (await insertResponse.text()).slice(0,300));
+        return json(res, 502, { error: "تعذّر تسجيل طلب الإجازة." });
+      }
+      const created = (await insertResponse.json())[0];
+      await forwardAuditToDiscord(user, {
+        action: "create",
+        entity_type: "attendance_leave_request",
+        entity_id: created?.id || targetId,
+        details: {
+          type: "تسجيل طلب إجازة",
+          detail: "تم تسجيل طلب إجازة لـ " + (profile.display_name || profile.username || targetId) + ".",
+          target_discord_id: targetId,
+          start_date: startDate,
+          end_date: endDate
+        }
+      });
+      return json(res, 200, { ok: true, request: created });
+    }
+
+    if (body.action === "review_attendance_leave") {
+      const requestId = String(body.id || "");
+      const status = String(body.status || "");
+      const note = typeof body.review_note === "string" ? body.review_note.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId) ||
+          !["approved","rejected"].includes(status) || note.length > 1000) {
+        return json(res, 400, { error: "بيانات مراجعة الإجازة غير صحيحة." });
+      }
+      const updateResponse = await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.pending", {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          status,
+          reviewed_by_discord_id: user.id,
+          reviewed_by_name: user.displayName,
+          review_note: note || null,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (!updateResponse.ok) {
+        console.error("Attendance leave review failed:", updateResponse.status, (await updateResponse.text()).slice(0,300));
+        return json(res, 502, { error: "تعذّر حفظ قرار الإجازة." });
+      }
+      const updated = (await updateResponse.json())[0];
+      if (!updated) return json(res, 409, { error: "تمت مراجعة هذا الطلب بالفعل أو لم يعد موجودًا." });
+      await forwardAuditToDiscord(user, {
+        action: "update",
+        entity_type: "attendance_leave_request",
+        entity_id: requestId,
+        details: {
+          type: status === "approved" ? "قبول طلب إجازة" : "رفض طلب إجازة",
+          detail: (status === "approved" ? "تمت الموافقة على إجازة " : "تم رفض إجازة ") + updated.display_name + ".",
+          target_discord_id: updated.discord_user_id,
+          status,
+          review_note: note
+        }
+      });
+      return json(res, 200, { ok: true, request: updated });
+    }
 
     if (body.action === "archive_subject" || body.action === "restore_subject") {
       const targetId = String(body.discord_user_id || "");
