@@ -3968,7 +3968,7 @@ function buildDiscordMessageChannelOptions(){
  }
  const uncategorized=channels.filter(channel=>!channel.parent_id||!categories.some(category=>String(category.id)===String(channel.parent_id)));
  if(uncategorized.length)groups.push('<optgroup label="قنوات أخرى">'+uncategorized.map(channel=>'<option value="'+esc(channel.id)+'">'+esc(channel.name)+' · '+esc(channel.type_label||'قناة')+'</option>').join('')+'</optgroup>');
- return '<option value="">اختر قناة الإرسال...</option>'+groups.join('')||'<option value="">لا توجد قنوات ظاهرة للبوت</option>';
+ return '<option value="">اختر قناة الإرسال...</option>'+(groups.join('')||'<option value="" disabled>لا توجد قنوات ظاهرة للبوت</option>');
 }
 function renderDiscordSavedMessages(){
  const list=document.getElementById('discordSavedMessageList');
@@ -4052,6 +4052,7 @@ async function saveDiscordMessage(event){
  const button=document.getElementById('discordMessageSaveButton');
  const status=document.getElementById('discordMessageSaveStatus');
  const oldLabel=button.textContent;
+ const wasEditing=Boolean(discordMessageEditingId);
  discordMessageSaveBusy=true;button.disabled=true;button.textContent='جارٍ رفع النص وحفظه...';status.textContent='جارٍ تجهيز ملف النص الكامل ورفعه بأمان...';
  let uploadedPath='';
  try{
@@ -4071,7 +4072,7 @@ async function saveDiscordMessage(event){
   if(!saveResponse.ok)throw new Error(saveData.error||'تعذّر حفظ سجل الرسالة.');
   closeDiscordMessageModal();
   await loadDiscordSavedMessages();
-  toast(discordMessageEditingId?'تم تحديث الرسالة المحفوظة.':'تم حفظ الرسالة. اختر القناة لإرسالها.');
+  toast(wasEditing?'تم تحديث الرسالة المحفوظة.':'تم حفظ الرسالة. اختر القناة لإرسالها.');
  }catch(error){
   status.textContent=error.message||'تعذّر حفظ الرسالة.';
   toast(error.message||'تعذّر حفظ الرسالة.');
