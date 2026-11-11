@@ -322,8 +322,8 @@ async function sendSavedMessage(config, user, messageId, channelId) {
     throw Object.assign(new Error(message), { status: 502, code: error?.code || status || null });
   }
 
-  const sentMessageId = String(sent?.id || sent?.message?.id || "");
-  const sentChannelId = String(sent?.channel_id || sent?.id || channelId);
+  const sentMessageId = String(sent?.message?.id || sent?.id || "");
+  const sentChannelId = String(sent?.channel_id || (useForumThread ? sent?.id : "") || channelId);
   const actor = String(user.displayName || user.username || "S.W.A.T. Admin").slice(0, 100);
   try {
     await dbRequest(config, "discord_saved_messages?id=eq." + encodeURIComponent(messageId), {
@@ -489,6 +489,15 @@ export default async function handler(req, res) {
       }
       const rows = await response.json();
       return res.status(201).json({ ok: true, message: normalizeMessageRow(rows[0]) });
+    }
+
+    if (action === "discard_upload") {
+      const storagePath = String(body.storage_path || "");
+      if (!/^messages\/[0-9a-f-]{36}\.txt$/i.test(storagePath)) {
+        return res.status(400).json({ error: "مسار الملف غير صالح." });
+      }
+      const removed = await removeStoredContent(config, storagePath);
+      return res.status(200).json({ ok: true, removed });
     }
 
     if (action === "delete") {
