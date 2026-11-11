@@ -1636,7 +1636,7 @@ html[dir="ltr"] .field label{text-align:left}
 const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&q=80'];
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
-let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -2623,6 +2623,7 @@ function renderAttendanceRows(){
 }
 function openAttendanceSettingsModal(){
  if(!currentCanManageWarnings){toast('لا تملك صلاحية إدارة إعفاءات البصمة.');return;}
+ attendanceExemptionSelection=new Set(attendanceData.members.filter(member=>member.is_swat_member&&member.is_attendance_exempt).map(member=>String(member.discord_user_id)));
  document.getElementById('attendanceSettingsModalBack')?.classList.add('open');
  renderAttendanceExemptionRows();
  setTimeout(()=>document.getElementById('attendanceExemptionSearch')?.focus(),40);
@@ -2637,15 +2638,25 @@ function renderAttendanceExemptionRows(){
  const members=attendanceData.members.filter(member=>member.is_swat_member).filter(member=>
   (String(member.display_name||'')+' '+String(member.username||'')+' '+String(member.discord_user_id||'')).toLowerCase().includes(search)
  );
- container.innerHTML=members.map(member=>
-  '<div class="attendance-admin-item"><label><input class="attendance-exemption-toggle" type="checkbox" data-member-id="'+adminEscape(member.discord_user_id)+'" '+(member.is_attendance_exempt?'checked':'')+'><span><div class="attendance-admin-name">'+adminEscape(member.display_name||member.username||'عضو')+'</div><div class="attendance-admin-meta"><code>'+adminEscape(member.discord_user_id)+'</code>'+(member.attendance_exemption_reason?' • '+adminEscape(member.attendance_exemption_reason):'')+'</div></span></label><span class="attendance-badge '+(member.is_attendance_exempt?'exempt':'absent')+'">'+(member.is_attendance_exempt?'معفى':'مطالب بالبصمة')+'</span></div>'
- ).join('')||'<div class="empty">لا يوجد أعضاء نشطون يحملون رتبة S.W.A.T.</div>';
+ container.innerHTML=members.map(member=>{
+  const enabled=attendanceExemptionSelection.has(String(member.discord_user_id));
+  return '<div class="attendance-admin-item"><label><input class="attendance-exemption-toggle" type="checkbox" data-member-id="'+adminEscape(member.discord_user_id)+'" '+(enabled?'checked':'')+' onchange="toggleAttendanceExemptionSelection(this)"><span><div class="attendance-admin-name">'+adminEscape(member.display_name||member.username||'عضو')+'</div><div class="attendance-admin-meta"><code>'+adminEscape(member.discord_user_id)+'</code>'+(member.attendance_exemption_reason?' • '+adminEscape(member.attendance_exemption_reason):'')+'</div></span></label><span class="attendance-badge '+(enabled?'exempt':'absent')+'">'+(enabled?'معفى':'مطالب بالبصمة')+'</span></div>';
+ }).join('')||'<div class="empty">لا يوجد أعضاء نشطون يحملون رتبة S.W.A.T.</div>';
+}
+function toggleAttendanceExemptionSelection(checkbox){
+ const id=String(checkbox?.dataset?.memberId||'');
+ if(!id)return;
+ if(checkbox.checked)attendanceExemptionSelection.add(id);
+ else attendanceExemptionSelection.delete(id);
+ const member=attendanceData.members.find(row=>String(row.discord_user_id)===id);
+ const badge=checkbox.closest('.attendance-admin-item')?.querySelector('.attendance-badge');
+ if(badge){badge.className='attendance-badge '+(checkbox.checked?'exempt':'absent');badge.textContent=checkbox.checked?'معفى':'مطالب بالبصمة';}
 }
 async function saveAttendanceExemptions(){
  if(!currentCanManageWarnings||attendanceExemptionSaveBusy)return;
  const button=document.getElementById('attendanceExemptionSaveButton');
  const status=document.getElementById('attendanceSettingsStatus');
- const selected=[...document.querySelectorAll('.attendance-exemption-toggle:checked')].map(node=>node.dataset.memberId).filter(Boolean);
+ const selected=[...attendanceExemptionSelection];
  const reason=String(document.getElementById('attendanceExemptionReason')?.value||'').trim();
  attendanceExemptionSaveBusy=true;if(button)button.disabled=true;if(status)status.textContent='جارٍ حفظ الإعفاءات...';
  try{
