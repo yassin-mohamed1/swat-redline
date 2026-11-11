@@ -329,11 +329,11 @@ async function listAttendanceDashboard(cfg) {
     const currentLeave = leaveRows.find(leave =>
       String(leave.start_date || "") <= today && String(leave.end_date || "") >= today
     ) || null;
-    const latestLeaveEnd = leaveRows
+    const leaveEndDates = leaveRows
       .map(leave => String(leave.end_date || ""))
       .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today)
-      .sort()
-      .at(-1) || null;
+      .sort();
+    const latestLeaveEnd = leaveEndDates.length ? leaveEndDates[leaveEndDates.length - 1] : null;
     let baselineMs = Number.isFinite(originalBaselineMs) ? originalBaselineMs : nowMs;
     if (latestLeaveEnd) {
       const leaveEndMs = Date.parse(latestLeaveEnd + "T20:59:59.999Z");
