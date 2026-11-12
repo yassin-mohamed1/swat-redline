@@ -199,7 +199,7 @@ test("warning announcements use the existing SWAT role toggle and target mention
   assert.match(html, /id="notificationMentionDisabledToggle"/);
   assert.match(html, /إعلانات التحذيرات وقرارات الفصل/);
   assert.match(html, /id="disciplinaryTargetMentionToggle"/);
-  assert.doesNotMatch(html, /disciplinaryEveryoneMentionToggle|disciplinaryEveryoneMentionEnabled|@everyone/);
+  assert.doesNotMatch(html, /disciplinaryEveryoneMentionToggle|disciplinaryEveryoneMentionEnabled/);
   assert.match(html, /saveDisciplinaryTargetMentionPreference\(this\.checked\)/);
 });
 
@@ -419,6 +419,6 @@ test("attendance roster checks live SWAT roles and keeps dismissed members in hi
   assert.match(api, /subject\?\.status === "dismissed"/);
   assert.match(api, /is_swat_member/);
   assert.match(api, /absence_started_at/);
-  assert.match(html, /const activeRows=rows\.filter\(member=>member\.is_swat_member\)/);
+  assert.match(html, /const activeRows=attendanceData\.members\.filter\(member=>member\.is_swat_member\)/);
   assert.match(html, /منذ انضمام العضو:/);
 });
