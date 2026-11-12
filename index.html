@@ -5101,12 +5101,23 @@ async function openDiscordMessageModal(id=null){
  const form=document.getElementById('discordMessageForm');
  form?.reset();
  discordMessageEditingId=id?String(id):null;
+ const delivery=savedMessageDeliveryFor(discordMessageEditingId||'');
+ document.getElementById('discordMessageDeliveryMode').value=delivery.mode;
+ document.getElementById('discordMessageDmRecipient').value=delivery.recipientId;
  document.getElementById('discordMessageModalTitle').textContent=discordMessageEditingId?'تعديل الرسالة المحفوظة':'إرسال رسالة جديدة';
- document.getElementById('discordMessageModalSubtitle').textContent=discordMessageEditingId?'عدّل العنوان أو النص ثم احفظ التغييرات.':'اكتب اسم الرسالة ومحتواها ثم احفظها في سجل الرسائل.';
+ document.getElementById('discordMessageModalSubtitle').textContent=discordMessageEditingId?'عدّل العنوان أو النص أو جهة الإرسال ثم احفظ التغييرات.':'اكتب الرسالة وحدد هل ستُرسل في القنوات أو في الخاص أو في الاثنين معًا.';
  document.getElementById('discordMessageSaveButton').textContent=discordMessageEditingId?'حفظ التعديلات':'حفظ الرسالة';
  document.getElementById('discordMessageSaveStatus').textContent=discordMessageEditingId?'جارٍ تحميل النص الكامل...':'';
  document.getElementById('discordMessageModalBack').hidden=false;
- if(!discordMessageEditingId){updateDiscordMessageCounter();setTimeout(()=>document.getElementById('discordMessageTitle')?.focus(),40);return;}
+ await loadDiscordDmRecipients();
+ document.getElementById('discordMessageDeliveryMode').value=delivery.mode;
+ document.getElementById('discordMessageDmRecipient').value=delivery.recipientId;
+ updateDiscordMessageDeliveryFields();
+ if(!discordMessageEditingId){
+  updateDiscordMessageCounter();
+  setTimeout(()=>document.getElementById('discordMessageTitle')?.focus(),40);
+  return;
+ }
  try{
   const response=await fetch(discordMessagesApiUrl('content',discordMessageEditingId),{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
@@ -5129,19 +5140,36 @@ function closeDiscordMessageModal(){
  document.getElementById('discordMessageSaveStatus').textContent='';
  document.getElementById('discordMessageTitle').value='';
  document.getElementById('discordMessageContent').value='';
+ document.getElementById('discordMessageDeliveryMode').value='channels';
+ document.getElementById('discordMessageDmRecipient').value='';
  discordMessageEditingId=null;
  updateDiscordMessageCounter();
+ updateDiscordMessageDeliveryFields();
 }
 async function saveDiscordMessage(event){
  event.preventDefault();
  if(!currentCanManageWarnings||discordMessageSaveBusy)return;
  const title=document.getElementById('discordMessageTitle').value.trim();
  const content=document.getElementById('discordMessageContent').value;
- 
+ const deliveryMode=document.getElementById('discordMessageDeliveryMode').value||'channels';
+ const recipientId=String(document.getElementById('discordMessageDmRecipient').value||'');
  const button=document.getElementById('discordMessageSaveButton');
  const status=document.getElementById('discordMessageSaveStatus');
  const oldLabel=button.textContent;
  const wasEditing=Boolean(discordMessageEditingId);
+ if(discordDeliveryModeUsesDm(deliveryMode)&&!discordDmRecipientsState.loaded)await loadDiscordDmRecipients();
+ if(discordDeliveryModeUsesDm(deliveryMode)){
+  if(!discordDmRecipientsState.dm_enabled){toast('إرسال الرسائل الخاصة متوقف من إعدادات الموقع الحالية. لم يتم تغييرها.');return;}
+  if(discordDeliveryModeIsSingle(deliveryMode)&&!discordDmRecipientsState.recipients.some(item=>String(item.discord_user_id)===recipientId)){
+   toast('اختر عضوًا نشطًا فعّل استقبال رسائل البوت.');return;
+  }
+  if(discordDeliveryModeIsBulk(deliveryMode)){
+   if(!discordDmRecipientsState.broadcast_enabled){toast('الإرسال الجماعي غير مفعّل في إعدادات البوت؛ اختر عضوًا واحدًا بدلًا من ذلك.');return;}
+   if(!discordDmRecipientsState.recipient_count||discordDmRecipientsState.recipient_count>discordDmRecipientsState.max_recipients){
+    toast('عدد الأعضاء المؤهلين غير مناسب لدفعة واحدة. لم يتم إرسال أي رسالة.');return;
+   }
+  }
+ }
  discordMessageSaveBusy=true;button.disabled=true;button.textContent='جارٍ رفع النص وحفظه...';status.textContent='جارٍ تجهيز ملف النص الكامل ورفعه بأمان...';
  let uploadedPath='';
  try{
@@ -5159,9 +5187,11 @@ async function saveDiscordMessage(event){
   })});
   const saveData=await saveResponse.json().catch(()=>({}));
   if(!saveResponse.ok)throw new Error(saveData.error||'تعذّر حفظ سجل الرسالة.');
+  const savedId=String(saveData.message?.id||discordMessageEditingId||'');
+  if(savedId)discordSavedMessageDelivery[savedId]={mode:deliveryMode,recipientId};
   closeDiscordMessageModal();
   await loadDiscordSavedMessages();
-  toast(wasEditing?'تم تحديث الرسالة المحفوظة.':'تم حفظ الرسالة. اختر القناة لإرسالها.');
+  toast(wasEditing?'تم تحديث الرسالة ووجهة الإرسال.':'تم حفظ الرسالة. راجع الوجهة والقنوات ثم اضغط إرسال.');
  }catch(error){
   status.textContent=error.message||'تعذّر حفظ الرسالة.';
   toast(error.message||'تعذّر حفظ الرسالة.');
