@@ -6496,6 +6496,47 @@ Object.assign(PORTAL_TRANSLATIONS,{
  "تم تسجيل الدخول":"Signed in",
  "تم تسجيل الخروج":"Signed out"
 });
+Object.assign(PORTAL_TRANSLATIONS,{
+ "جهة الإرسال":"Delivery destination",
+ "إرسال في قنوات Discord فقط":"Discord channels only",
+ "رسائل خاصة لكل الأعضاء المؤهلين":"Direct message to all eligible members",
+ "رسالة خاصة لعضو محدد":"Direct message to one selected member",
+ "قنوات Discord + رسائل خاصة لكل الأعضاء المؤهلين":"Discord channels + direct messages to all eligible members",
+ "قنوات Discord + رسالة خاصة لعضو محدد":"Discord channels + direct message to one selected member",
+ "العضو المستهدف":"Target member",
+ "جارٍ تحميل الأعضاء المؤهلين...":"Loading eligible members...",
+ "الرسائل الخاصة متوقفة من إعدادات الموقع":"Direct messages are disabled in site settings",
+ "لا يوجد أعضاء فعّلوا استقبال الخاص":"No members have enabled direct messages",
+ "اختر عضوًا...":"Select a member...",
+ "مستلمو الرسائل الخاصة":"Direct-message recipients",
+ "إرسال الخاص متوقف من إعدادات الموقع الحالية. لم يتم تغيير الإعدادات.":"Direct messages are disabled in the current site settings. No settings were changed.",
+ "الإرسال الجماعي غير مفعّل حاليًا في إعدادات البوت. يمكنك اختيار عضو واحد بدلًا من ذلك.":"Bulk delivery is disabled in the current bot settings. You can select one member instead.",
+ "اختر عضوًا نشطًا فعّل استقبال الرسائل الخاصة.":"Choose an active member who opted in to direct messages.",
+ "حدد جهة إرسال صحيحة.":"Select a valid delivery destination.",
+ "حدد طريقة مستلمي الرسائل الخاصة بشكل صحيح.":"Select a valid direct-message recipient mode.",
+ "حدد قناة واحدة على الأقل لإرسال الرسالة في Discord.":"Select at least one Discord channel.",
+ "وجهة الإرسال: ":"Delivery destination: ",
+ "القنوات المحددة: ":"Selected channels: ",
+ "المستلمون: ":"Recipients: ",
+ "كل الأعضاء النشطين الذين فعّلوا استقبال الخاص.":"All active members who opted in to direct messages.",
+ "بدون منشن":"No mentions",
+ "بدون أزرار":"No buttons",
+ "القنوات: تم الإرسال بنجاح إلى ":"Channels: Successfully sent to ",
+ "القنوات: نجح ":"Channels: sent to ",
+ "، وفشل ":"; failed: ",
+ "الرسائل الخاصة: نجح ":"Direct messages: sent ",
+ " وفشل ":"; failed ",
+ "الرسائل الخاصة: فشل الإرسال (":"Direct messages: delivery failed (",
+ "قنوات Discord فقط":"Discord channels only",
+ "خاص لكل الأعضاء المؤهلين":"DM all eligible members",
+ "خاص لعضو محدد":"DM one selected member",
+ "قنوات + خاص لكل الأعضاء":"Channels + DMs to all eligible members",
+ "قنوات + خاص لعضو محدد":"Channels + DM to one selected member",
+ "إعادة الإرسال ↻":"Resend ↻",
+ "إرسال ↗":"Send ↗",
+ "جارٍ الإرسال":"Sending",
+ "إرسال الرسائل":"Send messages"
+});
 portalTranslationEntries.splice(0,portalTranslationEntries.length,...Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length));
 
 applyPortalLanguage();
