@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>S.W.A.T. REDLINE | Command</title>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>S.W.A.T. REDLINE | Command</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Kufi+Arabic:wght@400;500;600;700;800;900&family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -6102,7 +6102,9 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "رسالة إدارية أخرى":"Other Admin Message"
 });
 
-function currentPortalLanguage(){return localStorage.getItem('swat-language-preference')==='ar'?'ar':'en'}
+/* Each full page load starts in Arabic; the manual English choice lasts only until reload. */
+let portalLanguagePreference='ar';
+function currentPortalLanguage(){return portalLanguagePreference}
 function applyPortalLanguage(){
  const lang=currentPortalLanguage();
  document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
@@ -6134,7 +6136,7 @@ function applyPortalLanguage(){
 }
 function togglePortalLanguage(){
  const nextLanguage=currentPortalLanguage()==='ar'?'en':'ar';
- localStorage.setItem('swat-language-preference',nextLanguage);
+ portalLanguagePreference=nextLanguage;
  applyPortalLanguage();
  log('تعديل',nextLanguage==='en'?'Changed interface language to English':'تم تغيير لغة الواجهة إلى العربية','PORTAL-LANGUAGE');
  if(currentCanManageWarnings&&document.getElementById('page-warnings')?.classList.contains('active'))renderWarnings();
