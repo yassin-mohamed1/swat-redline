@@ -1768,7 +1768,7 @@ html[dir="ltr"] .field label{text-align:left}
     <div class="field full"><label for="discordMessageContent">نص الرسالة (اختياري)</label><textarea class="message-editor-input message-editor-textarea" id="discordMessageContent" placeholder="اكتب النص أو اتركه فارغًا..." oninput="updateDiscordMessageCounter()"></textarea>
      <div class="message-editor-counter"><span id="discordMessageCharCount">0 حرف</span><span id="discordMessageByteCount">0 بايت</span></div>
     </div>
-    <div class="field full"><div class="message-editor-help">لن نضع حدًا للحروف داخل الموقع. إذا كان النص أطول من حد عرض Discord داخل الـEmbed (4096 حرفًا)، سيُرسل في ملف TXT واحد مرفق مع نفس الرسالة. النص لن يُقسم إلى عدة رسائل. ويمكنك ترك الاسم والنص فارغين؛ سيستخدم النظام عنوانًا ونصًا افتراضيين.</div></div>
+    <div class="field full"><div class="message-editor-help">يمكنك ترك الاسم فارغًا لإرسال الرسالة بدون عنوان. إذا تركت النص فارغًا سيستخدم النظام نص الإشعار الافتراضي. إذا كان النص أطول من حد عرض Discord، فسيُرسل في ملف TXT واحد مرفق مع نفس الرسالة دون تقسيمه إلى عدة رسائل.</div></div>
    </div>
    <div id="discordMessageSaveStatus" class="muted" aria-live="polite" style="margin-top:10px;min-height:20px"></div>
    <div class="modalactions">
@@ -4603,7 +4603,7 @@ async function sendSavedDiscordMessage(id,button){
  const channelNames=channelIds.map(channelId=>discordSavedChannels?.channels?.find(channel=>String(channel.id)===String(channelId))?.name||channelId);
  const hasBroadPing=mentions.some(item=>item.kind==='everyone'||item.kind==='here');
  const isResend=Number(row?.send_count||0)>0;
- let confirmation=(isResend?'إعادة إرسال ':'إرسال ')+'«'+(row?.title||'رسالة من S.W.A.T.')+'» إلى '+channelIds.length+' قناة بواسطة بوت S.W.A.T. REDLINE؟';
+ let confirmation=(isResend?'إعادة إرسال ':'إرسال ')+'«'+(row?.title||'بدون عنوان')+'» إلى '+channelIds.length+' قناة بواسطة بوت S.W.A.T. REDLINE؟';
  confirmation+='\n\nالقنوات المحددة: '+channelNames.join('، ');
  confirmation+='\n\nالمنشنات المختارة: '+(mentionNames||'بدون منشن');
  confirmation+='\n\nأزرار الروابط: '+(linkButtons.length?linkButtons.map(item=>item.label).join('، '):'بدون أزرار');
