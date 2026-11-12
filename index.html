@@ -4680,6 +4680,7 @@ async function loadDiscordSavedMessages(){
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل الرسائل.');
   discordSavedMessages=Array.isArray(data.messages)?data.messages:[];
   renderDiscordSavedMessages();
+  if(!discordDmRecipientsState.loaded)await loadDiscordDmRecipients();
   setDiscordMessagesStatus('');
  }catch(error){
   setDiscordMessagesStatus(error.message||'تعذّر تحميل الرسائل.',true);
@@ -5005,7 +5006,7 @@ function toggleDiscordMessageChannel(messageId,channelId){
  discordMessageChannelSelections[messageId]=selected.includes(id)?selected.filter(value=>value!==id):[...selected,id];
  renderDiscordChannelPicker(messageId);
  const button=document.getElementById('discordSend_'+messageId);
- if(button)button.hidden=discordMessageChannelSelections[messageId].length===0;
+ if(button)button.hidden=!savedMessageDeliveryReady(messageId);
 }
 function setDiscordMessageChannels(messageId,checked){
  const channels=Array.isArray(discordSavedChannels?.channels)?discordSavedChannels.channels:[];
