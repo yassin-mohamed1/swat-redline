@@ -16,6 +16,19 @@ test("Arabic-English phrase index refreshes after the final translation dictiona
   assert.match(html, /togglePortalLanguage\(\)/);
 });
 
+test("saved-message delivery destination controls have English translations", async () => {
+  const html = await read("index.html");
+  for (const phrase of [
+    '"جهة الإرسال":"Delivery destination"',
+    '"رسالة خاصة لعضو محدد":"Direct message to one selected member"',
+    '"القنوات المحددة: ":"Selected channels: "',
+    '"إرسال الخاص متوقف من إعدادات الموقع الحالية. لم يتم تغيير الإعدادات.":"Direct messages are disabled in the current site settings. No settings were changed."'
+  ]) assert.ok(html.includes(phrase), "missing delivery translation: " + phrase);
+  const lastMap = html.indexOf('"إعادة الإرسال ↻":"Resend ↻"');
+  const indexRefresh = html.indexOf("portalTranslationEntries.splice(0,portalTranslationEntries.length");
+  assert.ok(lastMap >= 0 && indexRefresh > lastMap, "delivery translations must be indexed before first language apply");
+});
+
 test("page views and language changes are sent through the audit API", async () => {
   const html = await read("index.html");
   const auditApi = await read("api/audit/log.js");
