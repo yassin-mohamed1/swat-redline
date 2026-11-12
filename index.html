@@ -1147,10 +1147,11 @@ body{
  display:grid!important;
  grid-template-columns:292px minmax(0,1fr)!important;
  min-height:100vh!important;
- background:
+ background-color:#090e16!important;
+ background-image:
   radial-gradient(ellipse at 78% 0%,rgba(75,143,255,.10),transparent 35%),
   radial-gradient(ellipse at 0% 78%,rgba(241,40,53,.08),transparent 33%),
-  linear-gradient(140deg,#090e16,#080a10 65%,#0d0c12)!important;
+  linear-gradient(140deg,#090e16,#080a10 65%,#0d0c12); /* Keep normal priority so saved user wallpaper wins. */
  isolation:isolate;
 }
 .app:before{
@@ -1291,10 +1292,11 @@ html[dir="ltr"] .nav button.active{box-shadow:inset -3px 0 #ff3948,0 9px 25px rg
  display:flex!important;align-items:center!important;justify-content:space-between!important;gap:24px!important;
  min-height:285px!important;padding:clamp(30px,3.7vw,54px)!important;
  border:1px solid rgba(241,40,53,.45)!important;border-radius:26px!important;
- background:
+ background-color:#111a28!important;
+ background-image:
   radial-gradient(ellipse at 83% 4%,rgba(75,143,255,.28),transparent 39%),
   radial-gradient(ellipse at 5% 110%,rgba(241,40,53,.26),transparent 42%),
-  linear-gradient(125deg,#111a28 0%,#1a111b 54%,#090e17 100%)!important;
+  linear-gradient(125deg,#111a28 0%,#1a111b 54%,#090e17 100%); /* Preserve the banner URL applied inline from saved site settings. */
  box-shadow:0 30px 80px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.1)!important;
 }
 .hero:before{
