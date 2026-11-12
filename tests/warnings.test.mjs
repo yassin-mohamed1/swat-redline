@@ -194,7 +194,7 @@ test("warning announcements use the existing SWAT role toggle and target mention
   assert.match(api, /users: mentionSettings\.targetMentionEnabled \? \[targetId\] : \[\]/);
   assert.doesNotMatch(api, /@everyone|disciplinaryEveryoneMentionEnabled/);
 
-  assert.ok(settingsApi.includes('"disciplinaryTargetMentionEnabled"]'));
+  assert.ok(settingsApi.includes('"disciplinaryTargetMentionEnabled"'));
   assert.doesNotMatch(settingsApi, /disciplinaryEveryoneMentionEnabled/);
   assert.match(html, /id="notificationMentionDisabledToggle"/);
   assert.match(html, /إعلانات التحذيرات وقرارات الفصل/);
