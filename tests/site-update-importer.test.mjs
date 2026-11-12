@@ -14,6 +14,9 @@ test("site update center is nested inside the admin-only settings container", as
   assert.match(html, /validateSiteUpdatePackage/);
   assert.match(html, /function renderSiteCustomMenus/);
   assert.match(html, /customMenuItems/);
+  assert.match(html, /link\.target='_blank'/);
+  assert.match(html, /noopener noreferrer/);
+  assert.match(html, /new URL\(button\.url\)/);
 });
 
 test("settings API validates the imported visual settings", async () => {
@@ -25,4 +28,6 @@ test("settings API validates the imported visual settings", async () => {
   assert.match(api, /Invalid image URL/);
   assert.match(api, /gallery\.length > 40/);
   assert.match(api, /Invalid custom menu item/);
+  assert.match(api, /Invalid custom menu button/);
+  assert.match(api, /Custom menu buttons require a valid HTTPS URL/);
 });
