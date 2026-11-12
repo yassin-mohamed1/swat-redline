@@ -64,7 +64,7 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "customMenuItems"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
@@ -81,6 +81,22 @@ export default async function handler(req, res) {
         if (!plainObject(value) || Object.keys(value).length > 500) return res.status(400).json({ error: "Invalid style overrides" });
         for (const [selector, styles] of Object.entries(value)) {
           if (!selector.trim() || selector.length > 300 || !plainObject(styles) || Object.keys(styles).some(key => !["color", "backgroundColor"].includes(key)) || Object.values(styles).some(color => typeof color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(color))) return res.status(400).json({ error: "Invalid style override entry" });
+        }
+      }
+      if (k === "customMenuItems") {
+        if (!Array.isArray(value) || value.length > 12) return res.status(400).json({ error: "Invalid custom menu list" });
+        const ids = new Set();
+        for (const item of value) {
+          const itemKeys = plainObject(item) ? Object.keys(item) : [];
+          if (!plainObject(item) || itemKeys.some(key => !["id", "label", "icon", "description", "content"].includes(key)) ||
+              typeof item.id !== "string" || !/^[a-z0-9-]{2,40}$/.test(item.id) || ids.has(item.id) ||
+              typeof item.label !== "string" || !item.label.trim() || item.label.length > 40 ||
+              (item.icon !== undefined && (typeof item.icon !== "string" || item.icon.length > 8)) ||
+              (item.description !== undefined && (typeof item.description !== "string" || item.description.length > 160)) ||
+              (item.content !== undefined && (typeof item.content !== "string" || item.content.length > 6000))) {
+            return res.status(400).json({ error: "Invalid custom menu item" });
+          }
+          ids.add(item.id);
         }
       }
       if (k === "siteImages") {
