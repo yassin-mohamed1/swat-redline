@@ -6410,7 +6410,6 @@ Object.assign(PORTAL_TRANSLATIONS,{
 
 /* Refresh the phrase index after all translation dictionaries have been registered.
    Earlier code built this array before several page-specific dictionaries were appended. */
-portalTranslationEntries.splice(0,portalTranslationEntries.length,...Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length));
 Object.assign(PORTAL_TRANSLATIONS,{
  "عرض":"View",
  "عرض الصفحات":"Page views",
@@ -6462,6 +6461,7 @@ Object.assign(PORTAL_TRANSLATIONS,{
  "لا توجد أحداث":"No events",
  "كل العمليات":"All actions"
 });
+portalTranslationEntries.splice(0,portalTranslationEntries.length,...Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length));
 
 applyPortalLanguage();
 loadPublicSiteImages();
