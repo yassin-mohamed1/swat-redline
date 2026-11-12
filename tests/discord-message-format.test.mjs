@@ -1,25 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildDiscordMessageEmbed,
-  DISCORD_EMBED_DESCRIPTION_LIMIT,
+  buildDiscordMessageContent,
+  DISCORD_MESSAGE_CONTENT_LIMIT,
   safeDiscordMessageFilename
 } from "../lib/discord-message-format.js";
 
-test("short saved text is rendered fully inside one branded Discord embed", () => {
-  const body = "SWAT message\nSecond line";
-  const result = buildDiscordMessageEmbed({ title: "Voice Activated", content: body });
+test("short saved text is sent as a full-width standard Discord message with a large heading", () => {
+  const body = "SWAT message\\nSecond line";
+  const result = buildDiscordMessageContent({ title: "Voice Activated", content: body });
   assert.equal(result.useAttachment, false);
-  assert.equal(result.embed.title, "Voice Activated");
-  assert.equal(result.embed.description, body);
-  assert.equal(result.embed.color, 0xD92735);
+  assert.equal(result.content, "# 🔴 Voice Activated\\n\\n" + body);
+  assert.equal(result.fileContent, body);
+  assert.equal("embed" in result, false);
 });
 
-test("long saved text stays one message and uses one text attachment", () => {
-  const body = "A".repeat(DISCORD_EMBED_DESCRIPTION_LIMIT + 1);
-  const result = buildDiscordMessageEmbed({ title: "Long Notice", content: body });
+test("long saved text is attached in one file when standard message content exceeds 2000 characters", () => {
+  const body = "A".repeat(DISCORD_MESSAGE_CONTENT_LIMIT);
+  const result = buildDiscordMessageContent({ title: "Long Notice", content: body });
   assert.equal(result.useAttachment, true);
-  assert.equal(result.embed.description, "المحتوى الكامل مرفق في ملف نصي واحد مع هذه الرسالة.");
+  assert.match(result.content, /^# 🔴 Long Notice/);
+  assert.equal(result.fileContent, body);
   assert.equal(result.filename, "Long-Notice.txt");
 });
 
@@ -31,8 +32,7 @@ test("message filenames are safe for Discord attachments", () => {
 });
 
 test("empty title and body receive a branded fallback instead of an invalid blank embed", () => {
-  const result = buildDiscordMessageEmbed({ title: "", content: "" });
+  const result = buildDiscordMessageContent({ title: "", content: "" });
   assert.equal(result.useAttachment, false);
-  assert.equal(result.embed.title, "رسالة من S.W.A.T.");
-  assert.equal(result.embed.description, "إشعار إداري من S.W.A.T. REDLINE.");
+  assert.equal(result.content, "# 🔴 رسالة من S.W.A.T.\\n\\nإشعار إداري من S.W.A.T. REDLINE.");
 });
