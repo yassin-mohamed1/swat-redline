@@ -72,7 +72,27 @@ export default async function handler(req, res) {
       if (raw.length > 120000) return res.status(413).json({ error: "A setting is too large" });
       if (k.endsWith("Color") && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) return res.status(400).json({ error: "Invalid color value" });
       if (["notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled"].includes(k) && typeof value !== "boolean") return res.status(400).json({ error: k + " must be a boolean" });
-      if ((k === "textOverrides" || k === "styleOverrides") && (!value || typeof value !== "object" || Array.isArray(value))) return res.status(400).json({ error: "Invalid overrides" });
+      const plainObject = (input) => Boolean(input) && typeof input === "object" && !Array.isArray(input) && (Object.getPrototypeOf(input) === Object.prototype || Object.getPrototypeOf(input) === null);
+      if (k === "textOverrides") {
+        if (!plainObject(value) || Object.keys(value).length > 500) return res.status(400).json({ error: "Invalid text overrides" });
+        for (const [selector, text] of Object.entries(value)) if (selector.length > 500 || !/^.{1,480}\|text\|\d+$/.test(selector) || typeof text !== "string" || text.length > 2000) return res.status(400).json({ error: "Invalid text override entry" });
+      }
+      if (k === "styleOverrides") {
+        if (!plainObject(value) || Object.keys(value).length > 500) return res.status(400).json({ error: "Invalid style overrides" });
+        for (const [selector, styles] of Object.entries(value)) {
+          if (!selector.trim() || selector.length > 300 || !plainObject(styles) || Object.keys(styles).some(key => !["color", "backgroundColor"].includes(key)) || Object.values(styles).some(color => typeof color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(color))) return res.status(400).json({ error: "Invalid style override entry" });
+        }
+      }
+      if (k === "siteImages") {
+        const allowedImageKeys = new Set(["logo", "logoSidebar", "logoLoading", "logoLogin", "banner", "background", "gallery"]);
+        const safeImageUrl = (url) => typeof url === "string" && url.length <= 2048 && (url === "" || url.startsWith("/") || /^https:\/\//i.test(url));
+        if (!plainObject(value) || Object.keys(value).some(key => !allowedImageKeys.has(key))) return res.status(400).json({ error: "Invalid site images" });
+        for (const key of ["logo", "logoSidebar", "logoLoading", "logoLogin", "banner", "background"]) if (key in value && !safeImageUrl(value[key])) return res.status(400).json({ error: "Invalid image URL" });
+        if ("gallery" in value) {
+          if (!Array.isArray(value.gallery) || value.gallery.length > 40) return res.status(400).json({ error: "Invalid site image gallery" });
+          for (const image of value.gallery) if (!plainObject(image) || typeof image.title !== "string" || image.title.length > 100 || !safeImageUrl(image.url) || !image.url) return res.status(400).json({ error: "Invalid gallery image" });
+        }
+      }
       rows.push({ key: k, value, updated_by: user.id, updated_at: new Date().toISOString() });
     }
     if (!rows.length) return res.status(400).json({ error: "No supported settings supplied" });
