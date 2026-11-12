@@ -4906,6 +4906,12 @@ async function initAuth(){
       await loadAuditLog();
       renderAll();
     }else{
+      // Do not leave previously cached command records readable on a shared browser.
+      ['redline_people','redline_cases','redline_investigations','redline_audit','redline_tasks',
+       'redline_operations','redline_reports','redline_announcements','redline_site_notices',
+       'redline_rules','redline_deleted_rule_ids','redline_daily_commands'].forEach(key=>localStorage.removeItem(key));
+      people=[];cases=[];investigations=[];audit=[];tasks=[];operations=[];reports=[];announcements=[];
+      siteNotices=[];rules=[];deletedRuleIds=[];dailyCommands=[];
       sharedSyncReady=false;
       renderDashboard();
       renderSiteGallery();
