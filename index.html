@@ -5793,7 +5793,7 @@ async function loadSiteCodeCenterStatus(){
  if(!currentIsOwner){if(textNode)textNode.textContent='مركز البرمجة مخصص لمالك الموقع فقط.';if(publish)publish.disabled=true;return}
  if(textNode)textNode.textContent='جاري فحص ربط GitHub...';
  try{
-  const response=await fetch('/api/admin/code-updates',{credentials:'same-origin',cache:'no-store'});
+  const response=await fetch('/api/admin/settings?code_center=1',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذر فحص ربط GitHub.');
   siteCodeCenterConnected=Boolean(data.connected);
@@ -5814,7 +5814,7 @@ async function previewSiteCodePackage(){
  try{pkg=JSON.parse(input.value)}catch{preview.style.display='block';preview.textContent='صيغة JSON غير صحيحة. راجع الأقواس والفواصل وعلامات الاقتباس.';status.textContent='فشل الفحص.';previewedSiteCodePackage=null;return}
  status.textContent='جاري فحص الحزمة على الخادم...';
  try{
-  const response=await fetch('/api/admin/code-updates',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'validate',package:pkg})});
+  const response=await fetch('/api/admin/settings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'validate',package:pkg})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'الحزمة غير صالحة.');
   previewedSiteCodePackage=pkg;siteCodeCenterConnected=Boolean(data.connected);
@@ -5836,7 +5836,7 @@ async function publishSiteCodePackage(){
  if(!confirm('سيتم تسجيل '+count+' تغيير ملف مباشرة على فرع main، وبعدها يبدأ نشر الموقع الأساسي عبر Vercel. هل تريد المتابعة؟'))return;
  publish.disabled=true;status.textContent='جاري تسجيل التعديلات على GitHub main...';
  try{
-  const response=await fetch('/api/admin/code-updates',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'apply',package:previewedSiteCodePackage})});
+  const response=await fetch('/api/admin/settings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'apply',package:previewedSiteCodePackage})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذر نشر حزمة المشروع.');
   status.textContent='تم تسجيل التعديلات على main. بدأ Vercel نشر Production. Commit: '+String(data.commitSha||'');
