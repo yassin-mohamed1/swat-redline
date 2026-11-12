@@ -48,7 +48,7 @@ test("unselected mentions are not parsed and invalid IDs are rejected", () => {
 test("Discord role and member mention lists are limited to 100 each", () => {
   const roles = Array.from({ length: 101 }, (_, index) => ({
     kind: "role",
-    id: String(100000000000000000 + index)
+    id: "1111111111111111" + String(index).padStart(2, "0")
   }));
   assert.throws(() => normalizeMentionSelections(roles), /100 رتبة و100 عضو/);
 });
