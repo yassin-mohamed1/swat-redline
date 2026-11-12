@@ -5027,28 +5027,61 @@ function renderDiscordSavedMessages(){
  }
  list.innerHTML=discordSavedMessages.map(item=>{
   const id=esc(item.id);
+  const delivery=savedMessageDeliveryFor(item.id);
+  const mode=delivery.mode;
+  const usesChannels=discordDeliveryModeUsesChannels(mode);
+  const usesDm=discordDeliveryModeUsesDm(mode);
+  const isBulk=discordDeliveryModeIsBulk(mode);
+  const isSingle=discordDeliveryModeIsSingle(mode);
   const preview=String(item.content_preview||'');
   const chars=Number(item.content_chars||0).toLocaleString('en-US');
   const bytes=Number(item.content_bytes||0).toLocaleString('en-US');
   const lastSent=item.last_sent_at?'آخر إرسال: '+formatAnnouncementDate(item.last_sent_at):'لم تُرسل بعد';
   const sentCount=Number(item.send_count||0);
+  const dmStatus=!discordDmRecipientsState.dm_enabled
+   ? 'إرسال الخاص متوقف من إعدادات الموقع.'
+   : isBulk&&!discordDmRecipientsState.broadcast_enabled
+    ? 'الإرسال الجماعي غير مفعّل في إعدادات البوت.'
+    : isBulk&&Number(discordDmRecipientsState.recipient_count||0)>Number(discordDmRecipientsState.max_recipients||200)
+     ? 'عدد المؤهلين يتجاوز الحد الآمن للدفعة.'
+     : isBulk
+      ? 'سيتم الإرسال إلى '+Number(discordDmRecipientsState.recipient_count||0)+' عضوًا مفعّلًا لاستقبال الخاص.'
+      : 'اختر عضوًا واحدًا من قائمة الحسابات المفعّلة لاستقبال الخاص.';
+  const recipientControl=usesDm
+   ? isSingle
+    ? '<div class="saved-message-control"><label>العضو المستهدف</label><select class="message-editor-input" id="discordDmRecipient_'+id+'" onchange="setSavedMessageDmRecipient('+jsArg(item.id)+',this.value)">'+renderDiscordDmRecipientOptions(delivery.recipientId)+'</select></div>'
+    : '<div class="saved-message-control"><label>مستلمو الرسائل الخاصة</label><div class="mention-info" style="padding:10px;background:#0b0d11;border:1px solid #343b46;border-radius:8px">'+esc(dmStatus)+'</div></div>'
+   : '';
+  const channelControl='<div class="saved-message-control" id="discordChannelControl_'+id+'" style="'+(usesChannels?'':'display:none')+'"><label>قنوات الإرسال</label><div class="mention-picker"><div class="mention-selected" id="discordChannelSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordChannelToggle_'+id+'" onclick="toggleDiscordChannelPicker('+jsArg(item.id)+')">اختيار قنوات الإرسال</button><div class="mention-dropdown" id="discordChannelDropdown_'+id+'" hidden></div></div></div>';
+  const mentionControl='<div class="saved-message-control" id="discordMentionControl_'+id+'" style="'+(usesChannels?'':'display:none')+'"><label>المنشنات الاختيارية</label><div class="mention-picker"><div class="mention-selected" id="discordMentionSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordMentionToggle_'+id+'" onclick="toggleDiscordMentionPicker('+jsArg(item.id)+')">اختيار المنشنات</button><div class="mention-dropdown" id="discordMentionDropdown_'+id+'" hidden></div><div class="mention-info">يمكنك تحديد عدة رتب أو أعضاء أو إشارات قنوات. إشارة القناة لا ترسل تنبيهًا.</div></div></div>';
+  const linkControl='<div class="saved-message-control"><label>أزرار الروابط</label><div class="saved-link-button-list">'+(Array.isArray(item.link_buttons)&&item.link_buttons.length?item.link_buttons.map((link,index)=>'<div class="saved-link-button-item"><div style="min-width:0"><div class="saved-link-button-name"><span>↗ '+esc(link.label)+'</span></div><span class="saved-link-button-url">'+esc(link.url)+'</span></div><div class="saved-link-button-actions"><button type="button" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+','+index+')">تعديل</button><button type="button" class="delete" onclick="removeDiscordLinkButton('+jsArg(item.id)+','+index+')">×</button></div></div>').join(''):'<div class="mention-info">لا توجد أزرار روابط مضافة.</div>')+'</div><button type="button" class="saved-link-button-add" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+')">＋ إنشاء زرار رابط</button>'+(Array.isArray(item.link_buttons)&&item.link_buttons.length>=25?'<div class="saved-link-button-limit">وصلت للحد الأقصى 25 زرار.</div>':'')+'</div>';
+  const modeOptions=[
+   ['channels','قنوات Discord فقط'],
+   ['dm_all','خاص لكل الأعضاء المؤهلين'],
+   ['dm_single','خاص لعضو محدد'],
+   ['both_all','قنوات + خاص لكل الأعضاء'],
+   ['both_single','قنوات + خاص لعضو محدد']
+  ];
+  const options=modeOptions.map(([value,label])=>'<option value="'+value+'"'+(mode===value?' selected':'')+'>'+label+'</option>').join('');
   return '<article class="saved-message-card">'+
    '<div class="saved-message-head"><div style="min-width:0"><div class="saved-message-title">'+esc(item.title||'رسالة بدون اسم')+'</div><div class="saved-message-meta">بواسطة '+esc(item.created_by_name||'الإدارة')+' • '+chars+' حرف • '+bytes+' بايت</div></div><span class="tag gray">قالب محفوظ</span></div>'+
    '<div class="saved-message-preview '+(!preview?'empty-preview':'')+'">'+esc(preview||'لا يوجد نص محفوظ؛ سيظهر نص افتراضي عند الإرسال.')+(Number(item.content_chars||0)>preview.length?'\n…':'')+'</div>'+
    '<div class="saved-message-delivery"><div class="saved-message-controls">'+
-    '<div class="saved-message-control"><label>قنوات الإرسال</label><div class="mention-picker"><div class="mention-selected" id="discordChannelSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordChannelToggle_'+id+'" onclick="toggleDiscordChannelPicker('+jsArg(item.id)+')">اختيار قنوات الإرسال</button><div class="mention-dropdown" id="discordChannelDropdown_'+id+'" hidden></div></div></div>'+
-    '<div class="saved-message-control"><label>المنشنات الاختيارية</label><div class="mention-picker"><div class="mention-selected" id="discordMentionSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordMentionToggle_'+id+'" onclick="toggleDiscordMentionPicker('+jsArg(item.id)+')">اختيار المنشنات</button><div class="mention-dropdown" id="discordMentionDropdown_'+id+'" hidden></div><div class="mention-info">يمكنك تحديد عدة رتب أو أعضاء أو إشارات قنوات. إشارة القناة لا ترسل تنبيهًا.</div></div></div>'+
-    '<div class="saved-message-control"><label>أزرار الروابط</label><div class="saved-link-button-list">'+(Array.isArray(item.link_buttons)&&item.link_buttons.length?item.link_buttons.map((link,index)=>'<div class="saved-link-button-item"><div style="min-width:0"><div class="saved-link-button-name"><span>↗ '+esc(link.label)+'</span></div><span class="saved-link-button-url">'+esc(link.url)+'</span></div><div class="saved-link-button-actions"><button type="button" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+','+index+')">تعديل</button><button type="button" class="delete" onclick="removeDiscordLinkButton('+jsArg(item.id)+','+index+')">×</button></div></div>').join(''):'<div class="mention-info">لا توجد أزرار روابط مضافة.</div>')+'</div><button type="button" class="saved-link-button-add" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+')">＋ إنشاء زرار رابط</button>'+(Array.isArray(item.link_buttons)&&item.link_buttons.length>=25?'<div class="saved-link-button-limit">وصلت للحد الأقصى 25 زرار.</div>':'')+'</div>'+
-   '</div><button id="discordSend_'+id+'" class="btn primary mention-send" type="button" hidden onclick="sendSavedDiscordMessage('+jsArg(item.id)+',this)">'+(sentCount?'إعادة إرسال ↻':'إرسال ↗')+'</button></div>'+
+    '<div class="saved-message-control"><label>جهة الإرسال</label><select class="message-editor-input" id="discordDeliveryMode_'+id+'" onchange="setSavedMessageDeliveryMode('+jsArg(item.id)+',this.value)">'+options+'</select></div>'+
+    recipientControl+channelControl+mentionControl+linkControl+
+   '</div><button id="discordSend_'+id+'" class="btn primary mention-send" type="button" '+(savedMessageDeliveryReady(item.id)?'':'hidden')+' onclick="sendSavedDiscordMessage('+jsArg(item.id)+',this)">'+(sentCount?'إعادة الإرسال ↻':'إرسال ↗')+'</button></div>'+
    '<div class="saved-message-status">'+esc(lastSent)+' • مرات الإرسال: '+sentCount+'</div>'+
    '<div class="saved-message-actions"><button class="btn" type="button" onclick="openDiscordMessageModal('+jsArg(item.id)+')">تعديل</button><button class="btn danger" type="button" onclick="deleteDiscordSavedMessage('+jsArg(item.id)+',this)">حذف</button></div>'+
   '</article>';
  }).join('');
  discordSavedMessages.forEach(item=>{
-  renderDiscordChannelPicker(item.id);
-  renderDiscordMentionPicker(item.id);
+  const delivery=savedMessageDeliveryFor(item.id);
+  if(discordDeliveryModeUsesChannels(delivery.mode)){
+   renderDiscordChannelPicker(item.id);
+   renderDiscordMentionPicker(item.id);
+  }
   const button=document.getElementById('discordSend_'+item.id);
-  if(button)button.hidden=selectedDiscordChannelsFor(item.id).length===0;
+  if(button)button.hidden=!savedMessageDeliveryReady(item.id);
  });
 }
 async function refreshDiscordMessages(){
