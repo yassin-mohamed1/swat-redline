@@ -174,6 +174,22 @@ export default async function handler(req, res) {
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   if (!await isActiveStaff(user)) return res.status(403).json({ error: "Account inactive or could not be verified" });
+
+  // Shared command records are privileged operational data, not general staff state.
+  let websiteAdminAccess = Boolean(user.isOwner);
+  try {
+    if (!websiteAdminAccess) {
+      websiteAdminAccess = await isWebsiteAdmin(user);
+      if (websiteAdminAccess) await requireActivePortalStaff(user);
+    }
+  } catch (error) {
+    return res.status(error.status || 503).json({
+      error: error.message || "Could not verify Website Admin access."
+    });
+  }
+  if (!websiteAdminAccess) {
+    return res.status(403).json({ error: "Website Admin permission required to access command data." });
+  }
   if (req.method === "PUT" && !requireSameOrigin(req, res)) return;
 
   const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, "");
