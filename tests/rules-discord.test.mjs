@@ -89,7 +89,7 @@ test("rules publishing shares the existing notification function and stays withi
     }
   }
   await walk("../api");
-  assert.equal(apiFiles.length, 13);
+  assert.equal(apiFiles.length, 12);
   assert.match(api, /SWAT_RULES_CHANNEL_ID = "1561775787152117770"/);
   assert.match(api, /isWebsiteAdmin\(user\)/);
   assert.match(api, /requireActivePortalStaff\(user\)/);
