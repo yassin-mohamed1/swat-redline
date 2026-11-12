@@ -4145,7 +4145,8 @@ function renderDiscordSavedMessages(){
 }
 async function refreshDiscordMessages(){
  discordSavedChannels=null;
- await Promise.all([loadDiscordSavedMessages(),loadDiscordMessageChannels(true)]);
+ discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};
+ await Promise.all([loadDiscordSavedMessages(),loadDiscordMessageChannels(true),loadDiscordMentionOptions(true)]);
 }
 function updateDiscordMessageCounter(){
  const content=document.getElementById('discordMessageContent')?.value||'';
@@ -4245,14 +4246,23 @@ async function sendSavedDiscordMessage(id,button){
  const channelId=select?.value||'';
  if(!channelId){toast('اختر قناة Discord أولًا.');select?.focus();return;}
  const row=discordSavedMessages.find(item=>String(item.id)===String(id));
- if(!confirm('إرسال «'+(row?.title||'الرسالة')+'» إلى القناة المحددة بواسطة بوت S.W.A.T. REDLINE؟'))return;
+ const mentions=mentionSelectedFor(id).slice();
+ const mentionNames=mentions.map(item=>item.label).join('، ');
+ const hasBroadPing=mentions.some(item=>item.kind==='everyone'||item.kind==='here');
+ let confirmation='إرسال «'+(row?.title||'الرسالة')+'» إلى القناة المحددة بواسطة بوت S.W.A.T. REDLINE؟';
+ confirmation+='\n\nالمنشنات المختارة: '+(mentionNames||'بدون منشن');
+ if(hasBroadPing)confirmation+='\n\n⚠️ تنبيه: اخترت منشن عام قد ينبه عددًا كبيرًا من أعضاء السيرفر.';
+ if(!confirm(confirmation))return;
  const old=button?.textContent||'إرسال ↗';if(button){button.disabled=true;button.textContent='جارٍ الإرسال...';}
  try{
-  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_send',id,channel_id:channelId})});
+  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_send',id,channel_id:channelId,mentions})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر إرسال الرسالة.');
   await loadDiscordSavedMessages();
-  toast(data.attached_text_file?'تم الإرسال في رسالة واحدة، والنص الكامل مرفق داخلها كملف TXT.':'تم إرسال الرسالة في Discord بنجاح.');
+  const summary=data.mention_summary||{};
+  const pingCount=Number(summary.role_count||0)+Number(summary.user_count||0)+(summary.everyone?1:0)+(summary.here?1:0);
+  const mentionText=pingCount?' مع '+pingCount+' منشن':'';
+  toast(data.attached_text_file?'تم الإرسال في رسالة واحدة'+mentionText+'، والنص الكامل مرفق داخلها كملف TXT.':'تم إرسال الرسالة في Discord بنجاح'+mentionText+'.');
  }catch(error){toast(error.message||'تعذّر إرسال الرسالة.');}
  finally{if(button){button.disabled=false;button.textContent=old;}}
 }
@@ -4266,7 +4276,7 @@ function go(page){
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='records')showRecordTab(tab||activeRecordTab||'people');
  if(page==='announcements')renderAnnouncements();if(page==='reports')renderReports();if(page==='audit'&&currentCanAdmin)renderAudit();
- if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings){renderWarnings();renderSiteNotices();}if(page==='messages'&&currentCanManageWarnings){loadDiscordSavedMessages();loadDiscordMessageChannels();}if(page==='attendance'&&currentCanManageWarnings)renderAttendance();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();}
+ if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings){renderWarnings();renderSiteNotices();}if(page==='messages'&&currentCanManageWarnings){loadDiscordSavedMessages();loadDiscordMessageChannels();loadDiscordMentionOptions();}if(page==='attendance'&&currentCanManageWarnings)renderAttendance();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();}
  if(page==='gallery')renderSiteGallery();applySiteSettings();window.scrollTo({top:0,behavior:'smooth'})
 }document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)go(b.dataset.page)});
 function openModal(){document.getElementById('viewContent')?.remove();document.getElementById('editContent')?.remove();document.getElementById('personForm').style.display='';document.getElementById('personForm').reset();pendingImages=[];document.getElementById('imagePreview').innerHTML='';document.getElementById('modalTitle').textContent='إضافة ملف شخص / قضية';document.getElementById('modalBack').classList.add('open')}function closeModal(){document.getElementById('modalBack').classList.remove('open')}document.getElementById('fImages').addEventListener('change',async e=>{pendingImages=[];pendingImageDescriptions=[];let files=[...e.target.files];for(let f of files){if(!f.type.startsWith('image/'))continue;if(f.size>1.5*1024*1024){toast('الصورة أكبر من 1.5MB في النموذج التجريبي');continue}let data=await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)});pendingImages.push(data);pendingImageDescriptions.push('')}document.getElementById('imagePreview').innerHTML=pendingImages.map((src,i)=>'<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:start;width:100%;margin:8px 0;padding:8px;border:1px solid #30343b;border-radius:8px"><img src="'+src+'" alt="صورة '+(i+1)+'" style="width:76px;height:76px;object-fit:cover;border-radius:6px"><div><label for="fImageDesc'+i+'" style="display:block;margin-bottom:6px">وصف الصورة '+(i+1)+'</label><textarea id="fImageDesc'+i+'" rows="2" placeholder="اكتب وصف هذه الصورة أو الدليل..." style="width:100%;min-height:60px"></textarea></div></div>').join('')});
