@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { discordApiRequest } from "../lib/discord-rest.js";
+import { discordApiRequest, removeRedCircleMarkers } from "../lib/discord-rest.js";
 
 function fakeResponse(status, body = "", headers = {}) {
   const normalized = new Map(Object.entries(headers).map(([key, value]) => [key.toLowerCase(), String(value)]));
@@ -109,5 +109,60 @@ test("does not set a JSON content type on multipart requests", async () => {
       return fakeResponse(200, JSON.stringify({ id: "message-1" }));
     }
   });
+  assert.equal(Object.hasOwn(sentHeaders, "Content-Type"), false);
+});
+
+test("removes only the red-circle marker from all outgoing Discord text fields", async () => {
+  assert.equal(removeRedCircleMarkers("🔴 ALERT • 🟢 READY • 🟡 WAIT"), " ALERT • 🟢 READY • 🟡 WAIT");
+  const outgoing = {
+    content: "🔴 Important message",
+    embeds: [{
+      title: "🔴 Official notice",
+      description: "Keep this 🟢 status",
+      fields: [{ name: "🔴 Status", value: "Everything else stays." }],
+      footer: { text: "S.W.A.T. 🔴 REDLINE" }
+    }]
+  };
+  let sentPayload;
+  await discordApiRequest("test-token", "/channels/123/messages", {
+    method: "POST",
+    body: JSON.stringify(outgoing)
+  }, {
+    fetchImpl: async (_url, init) => {
+      sentPayload = JSON.parse(init.body);
+      return fakeResponse(200, JSON.stringify({ id: "message-2" }));
+    }
+  });
+  assert.equal(sentPayload.content, " Important message");
+  assert.equal(sentPayload.embeds[0].title, " Official notice");
+  assert.equal(sentPayload.embeds[0].description, "Keep this 🟢 status");
+  assert.equal(sentPayload.embeds[0].fields[0].name, " Status");
+  assert.equal(sentPayload.embeds[0].footer.text, "S.W.A.T.  REDLINE");
+});
+
+test("removes the red-circle marker from multipart Discord payloads and TXT attachments", async () => {
+  let sentPayload;
+  let sentTextFile;
+  let sentHeaders;
+  const body = new FormData();
+  body.append("payload_json", JSON.stringify({
+    content: "🔴 Message with attachment",
+    embeds: [{ description: "🔴 Embed text" }]
+  }));
+  body.append("files[0]", new Blob(["🔴 Attached text 🟢"], { type: "text/plain;charset=utf-8" }), "notice.txt");
+  await discordApiRequest("test-token", "/channels/123/messages", {
+    method: "POST",
+    body
+  }, {
+    fetchImpl: async (_url, init) => {
+      sentHeaders = init.headers;
+      sentPayload = JSON.parse(init.body.get("payload_json"));
+      sentTextFile = await init.body.get("files[0]").text();
+      return fakeResponse(200, JSON.stringify({ id: "message-3" }));
+    }
+  });
+  assert.equal(sentPayload.content, " Message with attachment");
+  assert.equal(sentPayload.embeds[0].description, " Embed text");
+  assert.equal(sentTextFile, " Attached text 🟢");
   assert.equal(Object.hasOwn(sentHeaders, "Content-Type"), false);
 });
