@@ -44,11 +44,12 @@ test("project code packages enforce unique paths and bounded size", () => {
 });
 
 test("Code Center publishing is owner-only, same-origin protected, and writes only to main", async () => {
-  const api = await readFile(new URL("../api/admin/code-updates.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../api/admin/settings.js", import.meta.url), "utf8");
   assert.match(api, /if \(!user\.isOwner\)/);
   assert.match(api, /requireSameOrigin/);
   assert.match(api, /SWAT_GITHUB_TOKEN/);
-  assert.match(api, /const BRANCH = "main"/);
+  assert.match(api, /const codeCenterUrl/);
+  assert.match(api, /publishProjectCodePackage/);
   assert.match(api, /force: false/);
   assert.doesNotMatch(api, /eval\s*\(|new Function\s*\(/);
 });
