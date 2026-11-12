@@ -1969,7 +1969,7 @@ async function loadAuditLog(){
   const notifyButton=portalNotificationButton('person',p.id,'إرسال تنبيه','btn ghostred','flex:1;min-width:100px');
   return '<article class="person" onclick="viewPerson('+idArg+')"><img src="'+src+'" onerror="this.style.opacity=.15;this.alt=\'لا توجد صورة\'" alt="صورة '+esc(p.name)+'"><div class="pbody">'+statusTag(p)+'<h4>'+esc(p.name)+'</h4><div class="muted">#'+esc(p.id)+' • '+esc(p.priority)+' الخطورة</div><div class="personFoot"><span class="tag '+priorityTag(p)+'">'+esc(p.priority)+'</span><span class="muted">'+(p.images||[]).length+' صورة</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+notifyButton+'<button class="btn danger" style="flex:1;min-width:70px" onclick="event.stopPropagation();deletePerson('+idArg+')">حذف الملف</button>'+arrestButton+'<button class="btn" style="flex:1;min-width:70px" onclick="event.stopPropagation();editPerson('+idArg+')">تعديل الملف</button></div></div></article>';
 }
-function renderDashboard(){if(!currentCanAdmin){const page=document.getElementById('page-dashboard');if(page)page.innerHTML='<div class="sectionhead"><div><h2>لوحة القيادة</h2><div class="sub">S.W.A.T. REDLINE • SECURE COMMAND PORTAL</div></div></div><div class="panel"><div class="panelbody" style="padding:28px;text-align:center"><h3 style="margin:0 0 10px">الوصول الإداري مطلوب</h3><p class="muted" style="margin:0;line-height:1.9">الأقسام التشغيلية وسجلات الأفراد والقضايا متاحة فقط لحاملي رتبة WEBSITE ADMIN. يمكنك استخدام إعدادات حسابك الشخصية ومعرض الصور.</p></div></div>';return;}let active=people.filter(p=>p.status==='wanted');document.getElementById('statWanted').textContent=active.length;document.getElementById('statSuspects').textContent=cases.length+people.filter(p=>p.status!=='archived'&&String(p.charges||'').trim()).length;document.getElementById('statArrested').textContent=people.filter(p=>p.status==='arrested').length;document.getElementById('statReports').textContent=reports.length;document.getElementById('dashboardPeople').innerHTML=active.slice(0,3).map(personCard).join('')||'<div class="empty">لا توجد ملفات مطلوبة</div>';renderActivity();renderTasks()}
+function renderDashboard(){let active=people.filter(p=>p.status==='wanted');document.getElementById('statWanted').textContent=active.length;document.getElementById('statSuspects').textContent=cases.length+people.filter(p=>p.status!=='archived'&&String(p.charges||'').trim()).length;document.getElementById('statArrested').textContent=people.filter(p=>p.status==='arrested').length;document.getElementById('statReports').textContent=reports.length;document.getElementById('dashboardPeople').innerHTML=active.slice(0,3).map(personCard).join('')||'<div class="empty">لا توجد ملفات مطلوبة</div>';renderActivity();renderTasks()}
 let activeRecordTab='people';
 function showRecordTab(tab){
  activeRecordTab=['people','cases','investigations'].includes(tab)?tab:'people';
@@ -4637,7 +4637,7 @@ async function sendSavedDiscordMessage(id,button){
 function go(page){
  let tab=null;
  if(page==='wanted'||page==='records'){page='records';tab='people'}else if(page==='suspects'){page='records';tab='cases'}else if(page==='investigations'){page='records';tab='investigations'}
- const websiteAdminPages=['operations','announcements','records','reports','rules','personnel','assignments','warnings','messages','attendance','audit'];if(websiteAdminPages.includes(page)&&!currentCanAdmin){go('dashboard');return;}
+ if(['personnel','assignments','warnings','messages','attendance','audit'].includes(page)&&!currentCanAdmin){go('dashboard');return;}
  if((page==='attendance'||page==='messages')&&!currentCanManageWarnings){go('dashboard');return;}
  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+page)?.classList.add('active');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -4880,10 +4880,6 @@ async function initAuth(){
       const node=document.getElementById(id);
       if(node)node.style.display=currentCanAdmin?'flex':'none';
     });
-    const websiteAdminPages=['operations','announcements','records','reports','rules','personnel','assignments','warnings','messages','attendance','audit'];
-    document.querySelectorAll('#nav button[data-page]').forEach(node=>{
-      if(websiteAdminPages.includes(node.dataset.page))node.style.display=currentCanAdmin?'flex':'none';
-    });
     const warningsNav=document.getElementById('warningsNav');
     if(warningsNav)warningsNav.style.display=currentCanAdmin&&currentCanManageWarnings?'flex':'none';
     const attendanceNav=document.getElementById('attendanceNav');
@@ -4900,24 +4896,12 @@ async function initAuth(){
     document.getElementById('profileRole').textContent=currentIsOwner?'المالك ADMIN':currentIsWebsiteAdmin?'ADMIN':'موثّق عبر Discord';
     app.classList.remove('auth-locked');
     gate.style.display='none';
-    if(currentCanAdmin){
-      await pullSharedState(true);
-      sharedSyncReady=true;
-      await loadAuditLog();
-      renderAll();
-    }else{
-      // Do not leave previously cached command records readable on a shared browser.
-      ['redline_people','redline_cases','redline_investigations','redline_audit','redline_tasks',
-       'redline_operations','redline_reports','redline_announcements','redline_site_notices',
-       'redline_rules','redline_deleted_rule_ids','redline_daily_commands'].forEach(key=>localStorage.removeItem(key));
-      people=[];cases=[];investigations=[];audit=[];tasks=[];operations=[];reports=[];announcements=[];
-      siteNotices=[];rules=[];deletedRuleIds=[];dailyCommands=[];
-      sharedSyncReady=false;
-      renderDashboard();
-      renderSiteGallery();
-    }
+    await pullSharedState(true);
+    sharedSyncReady=true;
+    if(currentCanAdmin)await loadAuditLog();
     loadSiteSettings();
-    if(currentCanAdmin)setInterval(()=>{pullSharedState(false);loadAuditLog();},15000);
+    renderAll();
+    setInterval(()=>{pullSharedState(false);if(currentCanAdmin)loadAuditLog();},15000);
   }catch(e){
     app.classList.add('auth-locked');
     gate.style.display='grid';
