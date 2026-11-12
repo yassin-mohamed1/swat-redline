@@ -1476,6 +1476,19 @@ html[dir="ltr"] .field label{text-align:left}
 #page-messages .saved-message-controls select{width:100%;min-width:0;background:#0b0d11;color:#f4f5f7;border:1px solid #39414d;border-radius:8px;padding:10px;min-height:42px}
 #page-messages .saved-message-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
 #page-messages .mention-picker{position:relative;min-width:0}
+
+#page-messages .mention-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b0d11;color:#f4f5f7;border:1px solid #39414d;border-radius:8px;padding:10px 12px;min-height:42px;text-align:right;cursor:pointer;font:inherit;font-size:12px}
+#page-messages .mention-trigger:hover{border-color:#d92735;background:#14171d}
+#page-messages .mention-check-option{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;box-sizing:border-box;text-align:right;border:0;background:transparent;color:#e8ebf0;border-radius:7px;padding:8px;cursor:pointer;font:inherit;font-size:11px}
+#page-messages .mention-check-option:hover{background:#252b34}
+#page-messages .mention-check-main{display:flex;align-items:center;gap:8px;min-width:0}
+#page-messages .mention-check-option input{width:15px;height:15px;accent-color:#d92735;flex:0 0 auto}
+#page-messages .mention-check-option small{color:#929ba8;font-size:9px;white-space:nowrap;text-align:left}
+#page-messages .mention-dropdown-tools{display:flex;gap:6px;flex-wrap:wrap;padding:5px 4px 8px}
+#page-messages .mention-dropdown-tools button{border:1px solid #353c47;background:#191e26;color:#cfd5de;border-radius:6px;padding:5px 8px;font-size:10px;cursor:pointer}
+#page-messages .mention-dropdown-list{max-height:220px;overflow:auto}
+#page-messages .mention-dropdown-search{margin-bottom:7px}
+#page-messages .saved-message-preview.empty-preview{color:#939ba7;font-style:italic}
 #page-messages .mention-selected{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;min-height:0}
 #page-messages .mention-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;background:#2b1a20;border:1px solid #69303a;color:#ffd6da;border-radius:7px;padding:5px 7px;font-size:10px;line-height:1.35}
 #page-messages .mention-chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
@@ -1706,11 +1719,11 @@ html[dir="ltr"] .field label{text-align:left}
   </div>
   <form id="discordMessageForm" onsubmit="saveDiscordMessage(event)" style="padding:18px">
    <div class="formgrid">
-    <div class="field full"><label for="discordMessageTitle">اسم الرسالة *</label><input class="message-editor-input" id="discordMessageTitle" required placeholder="مثال: تنبيه تفعيل الصوت"></div>
-    <div class="field full"><label for="discordMessageContent">نص الرسالة *</label><textarea class="message-editor-input message-editor-textarea" id="discordMessageContent" required placeholder="اكتب الرسالة كاملة هنا..." oninput="updateDiscordMessageCounter()"></textarea>
+    <div class="field full"><label for="discordMessageTitle">اسم الرسالة (اختياري)</label><input class="message-editor-input" id="discordMessageTitle" placeholder="اكتب اسمًا أو اتركه فارغًا"></div>
+    <div class="field full"><label for="discordMessageContent">نص الرسالة (اختياري)</label><textarea class="message-editor-input message-editor-textarea" id="discordMessageContent" placeholder="اكتب النص أو اتركه فارغًا..." oninput="updateDiscordMessageCounter()"></textarea>
      <div class="message-editor-counter"><span id="discordMessageCharCount">0 حرف</span><span id="discordMessageByteCount">0 بايت</span></div>
     </div>
-    <div class="field full"><div class="message-editor-help">لن نضع حدًا للحروف داخل الموقع. إذا كان النص أطول من حد عرض Discord داخل الـEmbed (4096 حرفًا)، سيُرسل في ملف TXT واحد مرفق مع نفس الرسالة. النص لن يُقسم إلى عدة رسائل. حجم المرفق النهائي يظل خاضعًا لحدود رفع الملفات في Discord.</div></div>
+    <div class="field full"><div class="message-editor-help">لن نضع حدًا للحروف داخل الموقع. إذا كان النص أطول من حد عرض Discord داخل الـEmbed (4096 حرفًا)، سيُرسل في ملف TXT واحد مرفق مع نفس الرسالة. النص لن يُقسم إلى عدة رسائل. ويمكنك ترك الاسم والنص فارغين؛ سيستخدم النظام عنوانًا ونصًا افتراضيين.</div></div>
    </div>
    <div id="discordMessageSaveStatus" class="muted" aria-live="polite" style="margin-top:10px;min-height:20px"></div>
    <div class="modalactions">
@@ -1727,7 +1740,7 @@ const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;
-let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -4011,70 +4024,73 @@ function mentionSelectedFor(id){
  if(!Array.isArray(discordMentionSelections[key]))discordMentionSelections[key]=[];
  return discordMentionSelections[key];
 }
-function mentionOptionButton(messageId,kind,value,label,detail='',special=false){
- return '<button type="button" class="mention-option'+(special?' special':'')+'" onmousedown="event.preventDefault()" onclick="toggleDiscordMessageMention('+jsArg(messageId)+','+jsArg(kind)+','+jsArg(value)+','+jsArg(label)+');return false"><span>'+esc(label)+'</span><small>'+esc(detail)+'</small></button>';
+
+function mentionOptionCheckbox(messageId,kind,value,label,detail='',special=false){
+ const selected=mentionSelectedFor(messageId).some(item=>item.kind===kind&&item.id===String(value));
+ return '<label class="mention-check-option'+(special?' special':'')+'"><span class="mention-check-main"><input type="checkbox" '+(selected?'checked':'')+' onchange="toggleDiscordMessageMention('+jsArg(messageId)+','+jsArg(kind)+','+jsArg(value)+','+jsArg(label)+')"><span>'+esc(label)+'</span></span><small>'+esc(detail)+'</small></label>';
 }
-function renderDiscordMentionPicker(messageId){
+function renderDiscordMentionPicker(messageId,restoreFocus=false){
  const selectedNode=document.getElementById('discordMentionSelected_'+messageId);
  const dropdown=document.getElementById('discordMentionDropdown_'+messageId);
- const search=document.getElementById('discordMentionSearch_'+messageId);
+ const toggle=document.getElementById('discordMentionToggle_'+messageId);
  if(!selectedNode||!dropdown)return;
  const selected=mentionSelectedFor(messageId);
  selectedNode.innerHTML=selected.map(item=>'<span class="mention-chip"><span>'+esc(item.label)+'</span><button type="button" aria-label="إزالة '+esc(item.label)+'" onclick="toggleDiscordMessageMention('+jsArg(messageId)+','+jsArg(item.kind)+','+jsArg(item.id)+','+jsArg(item.label)+')">×</button></span>').join('');
- const query=String(search?.value||'').trim().toLowerCase();
+ if(toggle)toggle.textContent=selected.length?'المنشنات المختارة ('+selected.length+')':'اختيار المنشنات';
+ const query=String(discordMentionSearchQuery[messageId]||'').trim().toLowerCase();
+ const active=document.activeElement?.id==='discordMentionSearch_'+messageId;
+ const cursor=active?document.getElementById('discordMentionSearch_'+messageId)?.selectionStart:null;
  const groups=[];
  const specials=[
-  {kind:'everyone',id:'everyone',label:'@everyone',detail:'تنبيه لكل أعضاء السيرفر · يحتاج Mention Everyone',terms:'everyone الكل الجميع'},
-  {kind:'here',id:'here',label:'@here',detail:'تنبيه الأعضاء المتصلين · يحتاج Mention Everyone',terms:'here المتصلين الحاضرين'}
+  {kind:'everyone',id:'everyone',label:'@everyone',detail:'تنبيه عام · يحتاج Mention Everyone',terms:'everyone الكل الجميع'},
+  {kind:'here',id:'here',label:'@here',detail:'تنبيه المتصلين · يحتاج Mention Everyone',terms:'here المتصلين الحاضرين'}
  ].filter(item=>!query||item.label.toLowerCase().includes(query)||item.terms.includes(query));
- if(specials.length)groups.push('<div class="mention-group-title">منشنات عامة</div>'+specials.map(item=>mentionOptionButton(messageId,item.kind,item.id,item.label,item.detail,true)).join(''));
- const roles=(Array.isArray(discordSavedMentionData.roles)?discordSavedMentionData.roles:[])
-  .filter(item=>!query||String(item.name||'').toLowerCase().includes(query));
- if(roles.length)groups.push('<div class="mention-group-title">رتب السيرفر ('+roles.length+')</div>'+roles.map(item=>mentionOptionButton(messageId,'role',item.id,'@'+item.name,item.mentionable?'قابلة للمنشن':'تحتاج صلاحية Mention Everyone')).join(''));
- const channels=(Array.isArray(discordSavedChannels?.channels)?discordSavedChannels.channels:[])
-  .filter(item=>!query||String(item.name||'').toLowerCase().includes(query));
+ if(specials.length)groups.push('<div class="mention-group-title">منشنات عامة</div>'+specials.map(item=>mentionOptionCheckbox(messageId,item.kind,item.id,item.label,item.detail,true)).join(''));
+ const roles=(Array.isArray(discordSavedMentionData.roles)?discordSavedMentionData.roles:[]).filter(item=>!query||String(item.name||'').toLowerCase().includes(query));
+ if(roles.length)groups.push('<div class="mention-group-title">رتب السيرفر ('+roles.length+')</div>'+roles.map(item=>mentionOptionCheckbox(messageId,'role',item.id,'@'+item.name,item.mentionable?'قابلة للمنشن':'تحتاج Mention Everyone')).join(''));
+ const channels=(Array.isArray(discordSavedChannels?.channels)?discordSavedChannels.channels:[]).filter(item=>!query||String(item.name||'').toLowerCase().includes(query));
  if(channels.length)groups.push('<div class="mention-group-title">إشارات القنوات — لا ترسل تنبيهًا ('+channels.length+')</div>'+channels.map(item=>{
   const voice=[2,13].includes(Number(item.type));
-  return mentionOptionButton(messageId,'channel',item.id,'#'+item.name,voice?'قناة صوتية · إشارة فقط':'قناة '+(item.type_label||'')+' · إشارة فقط');
+  return mentionOptionCheckbox(messageId,'channel',item.id,'#'+item.name,voice?'قناة صوتية · إشارة فقط':'قناة '+(item.type_label||'')+' · إشارة فقط');
  }).join(''));
  const members=Array.isArray(discordMentionSearchResults[messageId])?discordMentionSearchResults[messageId]:[];
  const filteredMembers=members.filter(item=>!query||(String(item.display_name||'')+' '+String(item.username||'')).toLowerCase().includes(query));
- if(filteredMembers.length)groups.push('<div class="mention-group-title">الأعضاء المطابقون ('+filteredMembers.length+')</div>'+filteredMembers.map(item=>mentionOptionButton(messageId,'user',item.id,'@'+(item.display_name||item.username),item.username||'عضو')).join(''));
+ if(filteredMembers.length)groups.push('<div class="mention-group-title">الأعضاء المطابقون ('+filteredMembers.length+')</div>'+filteredMembers.map(item=>mentionOptionCheckbox(messageId,'user',item.id,'@'+(item.display_name||item.username),item.username||'عضو')).join(''));
  let helper='';
- if(query.length<2)helper='<div class="mention-info">ابحث باسم العضو أو لقبه لعرض نتائج من السيرفر. الرتب والقنوات تظهر من القائمة مباشرة.</div>';
+ if(query.length<2)helper='<div class="mention-info">اختر الرتب والقنوات مباشرة، أو اكتب حرفين على الأقل للبحث عن عضو.</div>';
  else if(discordMentionSearchState[messageId]==='loading')helper='<div class="mention-info">جارٍ البحث عن أعضاء السيرفر...</div>';
  else if(!filteredMembers.length){
   const unavailable=discordSavedMentionData.members_search_available===false;
-  helper='<div class="mention-info">'+esc(unavailable?(discordSavedMentionData.members_search_error||'البحث عن الأعضاء غير متاح للبوت.'):'لا توجد نتائج أعضاء مطابقة. جرّب بداية الاسم أو اللقب.')+'</div>';
+  helper='<div class="mention-info">'+esc(unavailable?(discordSavedMentionData.members_search_error||'البحث عن الأعضاء غير متاح للبوت.'):'لا توجد نتائج أعضاء مطابقة.')+'</div>';
  }
- dropdown.innerHTML=groups.join('')||'<div class="mention-info">لا توجد اختيارات مطابقة.</div>';
- if(helper)dropdown.innerHTML+=helper;
+ dropdown.innerHTML='<input class="mention-search mention-dropdown-search" id="discordMentionSearch_'+esc(messageId)+'" placeholder="ابحث عن عضو بالاسم أو اللقب..." autocomplete="off" value="'+esc(discordMentionSearchQuery[messageId]||'')+'" oninput="searchDiscordMentions('+jsArg(messageId)+',this.value)"><div class="mention-dropdown-list">'+(groups.join('')||'<div class="mention-info">لا توجد اختيارات مطابقة.</div>')+(helper||'')+'</div>';
  dropdown.hidden=!discordMentionPickerOpen[messageId];
+ if(active||restoreFocus){
+  const input=document.getElementById('discordMentionSearch_'+messageId);
+  input?.focus();
+  if(input&&cursor!==null)input.setSelectionRange(cursor,cursor);
+ }
 }
-function openDiscordMentionPicker(messageId){
- discordMentionPickerOpen[messageId]=true;
- renderDiscordMentionPicker(messageId);
-}
-function closeDiscordMentionPicker(messageId){
- discordMentionPickerOpen[messageId]=false;
+function toggleDiscordMentionPicker(messageId){
+ discordMentionPickerOpen[messageId]=!discordMentionPickerOpen[messageId];
  renderDiscordMentionPicker(messageId);
 }
 function searchDiscordMentions(messageId,value){
  discordMentionPickerOpen[messageId]=true;
- renderDiscordMentionPicker(messageId);
+ discordMentionSearchQuery[messageId]=String(value||'');
  clearTimeout(discordMentionSearchTimers[messageId]);
  const query=String(value||'').trim();
  discordMentionSearchResults[messageId]=[];
- if(query.length<2){discordMentionSearchState[messageId]='';renderDiscordMentionPicker(messageId);return;}
+ if(query.length<2){discordMentionSearchState[messageId]='';renderDiscordMentionPicker(messageId,true);return;}
  discordMentionSearchState[messageId]='loading';
- renderDiscordMentionPicker(messageId);
+ renderDiscordMentionPicker(messageId,true);
  discordMentionSearchTimers[messageId]=setTimeout(async()=>{
   try{
    const params=new URLSearchParams({action:'saved_message_mentions',q:query});
    const response=await fetch('/api/notifications/send?'+params.toString(),{credentials:'same-origin',cache:'no-store'});
    const data=await response.json().catch(()=>({}));
    if(!response.ok)throw new Error(data.error||'تعذّر البحث عن أعضاء السيرفر.');
-   if(document.getElementById('discordMentionSearch_'+messageId)?.value.trim()!==query)return;
+   if(discordMentionSearchQuery[messageId]?.trim()!==query)return;
    discordSavedMentionData={...discordSavedMentionData,...data};
    discordMentionSearchResults[messageId]=Array.isArray(data.members)?data.members:[];
    discordMentionSearchState[messageId]='done';
@@ -4082,8 +4098,13 @@ function searchDiscordMentions(messageId,value){
    discordMentionSearchState[messageId]='error';
    discordSavedMentionData={...discordSavedMentionData,members_search_available:false,members_search_error:error.message||'تعذّر البحث عن الأعضاء.'};
   }
-  renderDiscordMentionPicker(messageId);
+  renderDiscordMentionPicker(messageId,true);
  },350);
+}
+function mentionSelectedFor(id){
+ const key=String(id);
+ if(!Array.isArray(discordMentionSelections[key]))discordMentionSelections[key]=[];
+ return discordMentionSelections[key];
 }
 function toggleDiscordMessageMention(messageId,kind,value,label){
  const selected=mentionSelectedFor(messageId);
@@ -4102,10 +4123,69 @@ function toggleDiscordMessageMention(messageId,kind,value,label){
  }
  renderDiscordMentionPicker(messageId);
 }
-function setDiscordMessageChannel(messageId,value){
- discordMessageChannelSelections[messageId]=String(value||'');
+function selectedDiscordChannelsFor(id){
+ const key=String(id);
+ if(!Array.isArray(discordMessageChannelSelections[key]))discordMessageChannelSelections[key]=[];
+ return discordMessageChannelSelections[key];
+}
+function discordChannelCheck(messageId,channel){
+ const selected=selectedDiscordChannelsFor(messageId).includes(String(channel.id));
+ return '<label class="mention-check-option"><span class="mention-check-main"><input type="checkbox" '+(selected?'checked':'')+' onchange="toggleDiscordMessageChannel('+jsArg(messageId)+','+jsArg(channel.id)+')"><span>#'+esc(channel.name)+'</span></span><small>'+esc(channel.type_label||'قناة')+'</small></label>';
+}
+function renderDiscordChannelPicker(messageId,restoreFocus=false){
+ const selectedNode=document.getElementById('discordChannelSelected_'+messageId);
+ const dropdown=document.getElementById('discordChannelDropdown_'+messageId);
+ const toggle=document.getElementById('discordChannelToggle_'+messageId);
+ if(!selectedNode||!dropdown)return;
+ const selected=selectedDiscordChannelsFor(messageId);
+ const available=Array.isArray(discordSavedChannels?.channels)?discordSavedChannels.channels:[];
+ selectedNode.innerHTML=selected.map(id=>{
+  const channel=available.find(item=>String(item.id)===String(id));
+  const name=channel?.name||id;
+  return '<span class="mention-chip"><span>#'+esc(name)+'</span><button type="button" aria-label="إزالة '+esc(name)+'" onclick="toggleDiscordMessageChannel('+jsArg(messageId)+','+jsArg(id)+')">×</button></span>';
+ }).join('');
+ if(toggle)toggle.textContent=selected.length?'القنوات المحددة ('+selected.length+')':'اختيار قنوات الإرسال';
+ const query=String(discordChannelSearchQuery[messageId]||'').trim().toLowerCase();
+ const active=document.activeElement?.id==='discordChannelSearch_'+messageId;
+ const cursor=active?document.getElementById('discordChannelSearch_'+messageId)?.selectionStart:null;
+ const categories=Array.isArray(discordSavedChannels?.categories)?discordSavedChannels.categories:[];
+ const groups=[];
+ for(const category of categories){
+  const items=available.filter(channel=>String(channel.parent_id||'')===String(category.id)&&(!query||String(channel.name||'').toLowerCase().includes(query)));
+  if(items.length)groups.push('<div class="mention-group-title">▰ '+esc(category.name)+'</div>'+items.map(channel=>discordChannelCheck(messageId,channel)).join(''));
+ }
+ const uncategorized=available.filter(channel=>(!channel.parent_id||!categories.some(category=>String(category.id)===String(channel.parent_id)))&&(!query||String(channel.name||'').toLowerCase().includes(query)));
+ if(uncategorized.length)groups.push('<div class="mention-group-title">قنوات أخرى</div>'+uncategorized.map(channel=>discordChannelCheck(messageId,channel)).join(''));
+ const allVisible=available.filter(channel=>!query||String(channel.name||'').toLowerCase().includes(query));
+ dropdown.innerHTML='<div class="mention-dropdown-tools"><button type="button" onclick="setDiscordMessageChannels('+jsArg(messageId)+',true)">تحديد الكل</button><button type="button" onclick="setDiscordMessageChannels('+jsArg(messageId)+',false)">إلغاء التحديد</button></div><input class="mention-search mention-dropdown-search" id="discordChannelSearch_'+esc(messageId)+'" value="'+esc(discordChannelSearchQuery[messageId]||'')+'" placeholder="ابحث عن قناة..." oninput="filterDiscordMessageChannels('+jsArg(messageId)+',this.value)"><div class="mention-dropdown-list">'+(groups.join('')||'<div class="mention-info">لا توجد قنوات مطابقة.</div>')+'</div><div class="mention-info">تم اختيار '+selected.length+' من '+available.length+' قناة.</div>';
+ dropdown.hidden=!discordChannelPickerOpen[messageId];
+ if(active||restoreFocus){
+  const input=document.getElementById('discordChannelSearch_'+messageId);
+  input?.focus();if(input&&cursor!==null)input.setSelectionRange(cursor,cursor);
+ }
+}
+function toggleDiscordChannelPicker(messageId){
+ discordChannelPickerOpen[messageId]=!discordChannelPickerOpen[messageId];
+ renderDiscordChannelPicker(messageId);
+}
+function filterDiscordMessageChannels(messageId,value){
+ discordChannelSearchQuery[messageId]=String(value||'');
+ renderDiscordChannelPicker(messageId,true);
+}
+function toggleDiscordMessageChannel(messageId,channelId){
+ const selected=selectedDiscordChannelsFor(messageId);
+ const id=String(channelId);
+ discordMessageChannelSelections[messageId]=selected.includes(id)?selected.filter(value=>value!==id):[...selected,id];
+ renderDiscordChannelPicker(messageId);
  const button=document.getElementById('discordSend_'+messageId);
- if(button)button.hidden=!value;
+ if(button)button.hidden=discordMessageChannelSelections[messageId].length===0;
+}
+function setDiscordMessageChannels(messageId,checked){
+ const channels=Array.isArray(discordSavedChannels?.channels)?discordSavedChannels.channels:[];
+ discordMessageChannelSelections[messageId]=checked?channels.map(item=>String(item.id)):[];
+ renderDiscordChannelPicker(messageId);
+ const button=document.getElementById('discordSend_'+messageId);
+ if(button)button.hidden=discordMessageChannelSelections[messageId].length===0;
 }
 
 function renderDiscordSavedMessages(){
@@ -4117,7 +4197,6 @@ function renderDiscordSavedMessages(){
   list.innerHTML='<div class="empty" style="grid-column:1/-1">لا توجد رسائل محفوظة بعد. اضغط «إرسال رسالة» لإنشاء أول رسالة.</div>';
   return;
  }
- const options=buildDiscordMessageChannelOptions();
  list.innerHTML=discordSavedMessages.map(item=>{
   const id=esc(item.id);
   const preview=String(item.content_preview||'');
@@ -4127,20 +4206,20 @@ function renderDiscordSavedMessages(){
   const sentCount=Number(item.send_count||0);
   return '<article class="saved-message-card">'+
    '<div class="saved-message-head"><div style="min-width:0"><div class="saved-message-title">'+esc(item.title||'رسالة بدون اسم')+'</div><div class="saved-message-meta">بواسطة '+esc(item.created_by_name||'الإدارة')+' • '+chars+' حرف • '+bytes+' بايت</div></div><span class="tag gray">قالب محفوظ</span></div>'+
-   '<div class="saved-message-preview">'+esc(preview)+(Number(item.content_chars||0)>preview.length?'\n…':'')+'</div>'+
+   '<div class="saved-message-preview '+(!preview?'empty-preview':'')+'">'+esc(preview||'لا يوجد نص محفوظ؛ سيظهر نص افتراضي عند الإرسال.')+(Number(item.content_chars||0)>preview.length?'\n…':'')+'</div>'+
    '<div class="saved-message-delivery"><div class="saved-message-controls">'+
-    '<div class="saved-message-control"><label for="savedDiscordChannel_'+id+'">قناة الإرسال</label><select id="savedDiscordChannel_'+id+'" onchange="setDiscordMessageChannel('+jsArg(item.id)+',this.value)" aria-label="اختر قناة Discord للرسالة: '+esc(item.title||'')+'">'+options+'</select></div>'+
-    '<div class="saved-message-control"><label>المنشنات الاختيارية</label><div class="mention-picker"><div class="mention-selected" id="discordMentionSelected_'+id+'"></div><input class="mention-search" id="discordMentionSearch_'+id+'" placeholder="ابحث عن رتبة أو عضو أو قناة..." onfocus="openDiscordMentionPicker('+jsArg(item.id)+')" onblur="setTimeout(()=>closeDiscordMentionPicker('+jsArg(item.id)+'),180)" oninput="searchDiscordMentions('+jsArg(item.id)+',this.value)" autocomplete="off"><div class="mention-dropdown" id="discordMentionDropdown_'+id+'" hidden></div><div class="mention-info">تقدر تختار أكتر من منشن. إشارة القناة لا ترسل تنبيهًا.</div></div></div>'+
-   '</div><button id="discordSend_'+id+'" class="btn primary mention-send" type="button" hidden onclick="sendSavedDiscordMessage('+jsArg(item.id)+',this)" '+(!discordSavedChannels||discordSavedChannels.error?'disabled':'')+'>إرسال ↗</button></div>'+
+    '<div class="saved-message-control"><label>قنوات الإرسال</label><div class="mention-picker"><div class="mention-selected" id="discordChannelSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordChannelToggle_'+id+'" onclick="toggleDiscordChannelPicker('+jsArg(item.id)+')">اختيار قنوات الإرسال</button><div class="mention-dropdown" id="discordChannelDropdown_'+id+'" hidden></div></div></div>'+
+    '<div class="saved-message-control"><label>المنشنات الاختيارية</label><div class="mention-picker"><div class="mention-selected" id="discordMentionSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordMentionToggle_'+id+'" onclick="toggleDiscordMentionPicker('+jsArg(item.id)+')">اختيار المنشنات</button><div class="mention-dropdown" id="discordMentionDropdown_'+id+'" hidden></div><div class="mention-info">يمكنك تحديد عدة رتب أو أعضاء أو إشارات قنوات. إشارة القناة لا ترسل تنبيهًا.</div></div></div>'+
+   '</div><button id="discordSend_'+id+'" class="btn primary mention-send" type="button" hidden onclick="sendSavedDiscordMessage('+jsArg(item.id)+',this)">إرسال ↗</button></div>'+
    '<div class="saved-message-status">'+esc(lastSent)+' • مرات الإرسال: '+sentCount+'</div>'+
    '<div class="saved-message-actions"><button class="btn" type="button" onclick="openDiscordMessageModal('+jsArg(item.id)+')">تعديل</button><button class="btn danger" type="button" onclick="deleteDiscordSavedMessage('+jsArg(item.id)+',this)">حذف</button></div>'+
   '</article>';
  }).join('');
  discordSavedMessages.forEach(item=>{
-  const channel=document.getElementById('savedDiscordChannel_'+item.id);
-  if(channel)channel.value=discordMessageChannelSelections[item.id]||'';
-  setDiscordMessageChannel(item.id,channel?.value||'');
+  renderDiscordChannelPicker(item.id);
   renderDiscordMentionPicker(item.id);
+  const button=document.getElementById('discordSend_'+item.id);
+  if(button)button.hidden=selectedDiscordChannelsFor(item.id).length===0;
  });
 }
 async function refreshDiscordMessages(){
@@ -4196,7 +4275,7 @@ async function saveDiscordMessage(event){
  if(!currentCanManageWarnings||discordMessageSaveBusy)return;
  const title=document.getElementById('discordMessageTitle').value.trim();
  const content=document.getElementById('discordMessageContent').value;
- if(!title||!content.trim()){toast('اكتب اسم الرسالة ومحتواها أولًا.');return;}
+ 
  const button=document.getElementById('discordMessageSaveButton');
  const status=document.getElementById('discordMessageSaveStatus');
  const oldLabel=button.textContent;
@@ -4242,31 +4321,43 @@ async function deleteDiscordSavedMessage(id,button){
 }
 async function sendSavedDiscordMessage(id,button){
  if(!currentCanManageWarnings)return;
- const select=document.getElementById('savedDiscordChannel_'+id);
- const channelId=select?.value||'';
- if(!channelId){toast('اختر قناة Discord أولًا.');select?.focus();return;}
+ const channelIds=selectedDiscordChannelsFor(id).slice();
+ if(!channelIds.length){toast('حدد قناة واحدة على الأقل.');return;}
  const row=discordSavedMessages.find(item=>String(item.id)===String(id));
  const mentions=mentionSelectedFor(id).slice();
  const mentionNames=mentions.map(item=>item.label).join('، ');
+ const channelNames=channelIds.map(channelId=>discordSavedChannels?.channels?.find(channel=>String(channel.id)===String(channelId))?.name||channelId);
  const hasBroadPing=mentions.some(item=>item.kind==='everyone'||item.kind==='here');
- let confirmation='إرسال «'+(row?.title||'الرسالة')+'» إلى القناة المحددة بواسطة بوت S.W.A.T. REDLINE؟';
+ let confirmation='إرسال «'+(row?.title||'رسالة من S.W.A.T.')+'» إلى '+channelIds.length+' قناة بواسطة بوت S.W.A.T. REDLINE؟';
+ confirmation+='\n\nالقنوات المحددة: '+channelNames.join('، ');
  confirmation+='\n\nالمنشنات المختارة: '+(mentionNames||'بدون منشن');
- if(hasBroadPing)confirmation+='\n\n⚠️ تنبيه: اخترت منشن عام قد ينبه عددًا كبيرًا من أعضاء السيرفر.';
+ if(hasBroadPing)confirmation+='\n\n⚠️ تنبيه: اخترت منشنًا عامًا قد ينبه عددًا كبيرًا من أعضاء السيرفر في كل قناة محددة.';
  if(!confirm(confirmation))return;
- const old=button?.textContent||'إرسال ↗';if(button){button.disabled=true;button.textContent='جارٍ الإرسال...';}
+ const old=button?.textContent||'إرسال ↗';
+ const succeeded=[],failed=[];
+ if(button){button.disabled=true;button.textContent='جارٍ الإرسال 0/'+channelIds.length+'...';}
  try{
-  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_send',id,channel_id:channelId,mentions})});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'تعذّر إرسال الرسالة.');
+  for(let index=0;index<channelIds.length;index++){
+   const channelId=channelIds[index];
+   if(button)button.textContent='جارٍ الإرسال '+(index+1)+'/'+channelIds.length+'...';
+   try{
+    const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_send',id,channel_id:channelId,mentions})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'تعذّر إرسال الرسالة.');
+    succeeded.push({channelId,name:data.channel_name||channelNames[index],data});
+   }catch(error){
+    failed.push({channelId,name:channelNames[index],error:error.message||'تعذّر الإرسال.'});
+   }
+  }
   await loadDiscordSavedMessages();
-  const summary=data.mention_summary||{};
-  const pingCount=Number(summary.role_count||0)+Number(summary.user_count||0)+(summary.everyone?1:0)+(summary.here?1:0);
-  const mentionText=pingCount?' مع '+pingCount+' منشن':'';
-  toast(data.attached_text_file?'تم الإرسال في رسالة واحدة'+mentionText+'، والنص الكامل مرفق داخلها كملف TXT.':'تم إرسال الرسالة في Discord بنجاح'+mentionText+'.');
- }catch(error){toast(error.message||'تعذّر إرسال الرسالة.');}
- finally{if(button){button.disabled=false;button.textContent=old;}}
+  const summary=failed.length
+   ?'تم الإرسال بنجاح إلى '+succeeded.length+' من '+channelIds.length+' قناة. تعذّر الإرسال إلى '+failed.length+' قناة: '+failed.map(item=>item.name+' ('+item.error+')').join('؛ ')
+   :'تم إرسال الرسالة بنجاح إلى كل القنوات المحددة ('+succeeded.length+').';
+  toast(summary);
+ }finally{
+  if(button){button.disabled=false;button.textContent=old;}
+ }
 }
-
 function go(page){
  let tab=null;
  if(page==='wanted'||page==='records'){page='records';tab='people'}else if(page==='suspects'){page='records';tab='cases'}else if(page==='investigations'){page='records';tab='investigations'}
@@ -5173,6 +5264,28 @@ Object.assign(PORTAL_TRANSLATIONS,{
  "المنشنات المختارة: ":"Selected mentions: ",
  "بدون منشن":"No mentions",
  "تنبيه: اخترت منشن عام قد ينبه عددًا كبيرًا من أعضاء السيرفر.":"Warning: You selected a broad mention that may notify many server members."
+});
+
+
+Object.assign(PORTAL_TRANSLATIONS,{
+ "اسم الرسالة (اختياري)":"Message Name (Optional)",
+ "نص الرسالة (اختياري)":"Message Text (Optional)",
+ "اكتب اسمًا أو اتركه فارغًا":"Enter a name or leave blank",
+ "اكتب النص أو اتركه فارغًا...":"Enter text or leave blank...",
+ "اترك الاسم والنص فارغين؛ سيستخدم النظام عنوانًا ونصًا افتراضيين.":"You may leave both name and text blank; the system will use a default title and text.",
+ "قنوات الإرسال":"Delivery Channels",
+ "اختيار قنوات الإرسال":"Choose Delivery Channels",
+ "القنوات المحددة (":"Selected Channels (",
+ "اختيار المنشنات":"Choose Mentions",
+ "المنشنات المختارة (":"Selected Mentions (",
+ "تحديد الكل":"Select All",
+ "إلغاء التحديد":"Clear Selection",
+ "ابحث عن قناة...":"Search channels...",
+ "تم اختيار ":"Selected ",
+ " من ":" of ",
+ " قناة.":" channels.",
+ "حدد قناة واحدة على الأقل.":"Select at least one channel.",
+ "لا يوجد نص محفوظ؛ سيظهر نص افتراضي عند الإرسال.":"No saved text; a default message will be used when sending."
 });
 
 applyPortalLanguage();
