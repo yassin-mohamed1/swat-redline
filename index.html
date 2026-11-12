@@ -1484,6 +1484,44 @@ html[dir="ltr"] .field label{text-align:left}
   <div id="siteUpdatePackageStatus" class="muted" role="status" aria-live="polite">لم يتم فحص أي حزمة بعد.</div>
  </div>
 </div>
+
+<div class="panel" id="siteCodeCenterPanel" style="display:none;margin-top:16px">
+ <div class="panelhead"><div><h3>مركز البرمجة الشامل</h3><div class="sub">تعديل ملفات المشروع ونشرها على الموقع الأساسي</div></div><span class="tag gray">المالك فقط</span></div>
+ <div class="panelbody" style="display:grid;gap:12px">
+  <p class="muted" style="line-height:1.9;margin:0">هذا المركز يقبل حزمة واحدة تحتوي تغييرات متعددة في ملفات المشروع: إضافة ملفات جديدة، استبدال محتويات ملفات موجودة، أو حذف ملفات غير محمية. يدعم ملفات الواجهة وواجهات API ومكتبات الخادم والاختبارات والإعدادات وترحيلات SQL النصية. عند الاعتماد، تُسجّل التغييرات مباشرة على فرع main وتبدأ عملية نشر Production المعتادة؛ لا ينشئ رابط Preview منفصلًا.</p>
+  <p class="muted" style="line-height:1.9;margin:0">الحزمة لا تنفّذ أوامر من المتصفح ولا تستخدم eval. ملفات الأسرار ومفاتيح الاعتماد وسير عمل GitHub محمية. ترحيلات SQL تُحفظ داخل المشروع فقط ولا تُنفّذ تلقائيًا على قاعدة البيانات، وتغيير متغيرات البيئة والأسرار يظل من إعدادات Vercel المحمية.</p>
+  <div id="siteCodeCenterConnection" class="panel" style="padding:12px;background:#0c1118">
+   <b>حالة ربط GitHub</b>
+   <div id="siteCodeCenterConnectionText" class="muted" style="margin-top:6px">جاري فحص الاتصال...</div>
+  </div>
+  <label for="siteCodePackageInput" style="font-weight:700">حزمة تحديث المشروع (JSON)</label>
+  <textarea id="siteCodePackageInput" rows="16" spellcheck="false" dir="ltr" style="width:100%;min-height:300px;background:#090c11;color:#e4edf7;border:1px solid #394250;border-radius:9px;padding:12px;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical" placeholder='{
+  "format": "swat-project-code",
+  "version": 1,
+  "summary": "Describe the complete project update",
+  "files": [
+    {
+      "path": "index.html",
+      "action": "upsert",
+      "content": "Paste the complete new file content here"
+    },
+    {
+      "path": "api/example.js",
+      "action": "upsert",
+      "content": "export default function handler(req, res) { res.status(200).json({ ok: true }); }"
+    }
+  ]
+}'></textarea>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+   <button class="btn" type="button" onclick="previewSiteCodePackage()">فحص الحزمة ومعاينتها</button>
+   <button class="btn primary" id="siteCodePublishButton" type="button" onclick="publishSiteCodePackage()" disabled>اعتماد ونشر على الموقع الأساسي</button>
+   <button class="btn" type="button" onclick="clearSiteCodePackage()">مسح الحزمة</button>
+   <button class="btn" type="button" onclick="loadSiteCodeCenterStatus()">فحص ربط GitHub</button>
+  </div>
+  <div id="siteCodePackagePreview" class="panel" style="display:none;padding:12px;background:#0c1118"></div>
+  <div id="siteCodeCenterStatus" class="muted" role="status" aria-live="polite">لم يتم فحص حزمة بعد.</div>
+ </div>
+</div>
 </div></section><section class="page" id="page-reports"><div class="sectionhead"><div><h2>التقارير</h2><div class="sub">إنشاء تقارير موثقة وربطها بالعمليات والقضايا والتحريات</div></div><button class="btn primary" onclick="newReport()">＋ إنشاء تقرير</button></div><div class="toolbar"><input id="reportSearch" placeholder="ابحث بالعنوان أو الرقم أو الكاتب أو المحتوى..." oninput="renderReports()"><select id="reportStatusFilter" onchange="renderReports()"><option value="all">كل الحالات</option><option>مسودة</option><option>قيد المراجعة</option><option>معتمد</option></select><select id="reportTypeFilter" onchange="renderReports()"><option value="all">كل الأنواع</option><option value="operation">تقارير العمليات</option><option value="case">تقارير القضايا</option><option value="investigation">تقارير التحريات</option><option value="administrative">تقارير إدارية</option><option value="general">تقارير عامة</option></select></div><div class="panel" style="margin-top:14px"><div class="panelhead"><h3>سجل التقارير</h3><span class="sub" id="reportCount"></span></div><div class="tablewrap"><table><thead><tr><th>رقم التقرير</th><th>عنوان التقرير</th><th>النوع / السجل المرتبط</th><th>الكاتب</th><th>الحالة</th><th>تاريخ الإنشاء</th><th>إجراءات</th></tr></thead><tbody id="reportRows"></tbody></table></div></div></section>
 <section class="page" id="page-rules"><div class="sectionhead"><div><h2>القوانين والأوامر</h2><div class="sub">مكتبة S.W.A.T. للقوانين واللوائح والتعاميم والأوامر اليومية</div></div></div><div class="rules-library-toolbar"><div class="rules-library-search"><span aria-hidden="true">⌕</span><input id="rulesSearch" type="search" autocomplete="off" placeholder="ابحث في رقم القانون أو اسم القانون أو نص القانون..." oninput="renderRules()"></div><div class="rules-library-summary" id="rulesLibraryStats">جارٍ تجهيز مكتبة القوانين...</div></div><div class="grid"><div class="panel"><div class="panelhead"><h3>دليل القسم والتعاميم</h3><button class="btn primary" onclick="newRule('notice')">＋ إضافة تعميم أو دليل</button></div><div class="panelbody" id="rulesList"></div></div><div class="panel"><div class="panelhead"><h3>أوامر اليوم</h3><button class="btn primary" onclick="newDailyCommand()">＋ إضافة أمر</button></div><div class="panelbody" id="dailyCommandsList"></div></div></div><div class="panel" style="margin-top:14px"><div class="panelhead"><h3>قوانين القسم</h3><div class="actions"><span class="sub">القوانين التي تضيفها ستظهر هنا</span><button class="btn primary" onclick="newRule('law')">＋ إضافة قانون</button></div></div><div class="panelbody" id="lawsList"></div></div><div id="ruleEditorBack" class="rule-editor-back" hidden><div class="rule-editor"><div class="panelhead"><h3 id="ruleEditorHeading">إضافة قانون</h3><button class="btn" type="button" onclick="closeRuleEditor()">إغلاق ×</button></div><form id="ruleEditorForm"><div class="field"><label id="ruleTitleLabel" for="ruleTitle">اسم القانون</label><input id="ruleTitle" maxlength="160" placeholder="مثال: قانون استخدام القوة"></div><div class="field"><label id="ruleBodyLabel" for="ruleBody">القانون</label><textarea id="ruleBody" rows="8" placeholder="اكتب نص القانون كاملًا هنا..."></textarea></div><div class="modalactions"><button id="ruleSaveButton" class="btn primary" type="submit">حفظ القانون</button><button class="btn" type="button" onclick="closeRuleEditor()">إلغاء</button></div></form></div></div></section>
 
@@ -4711,7 +4749,7 @@ function go(page){
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='records')showRecordTab(tab||activeRecordTab||'people');
  if(page==='announcements')renderAnnouncements();if(page==='reports')renderReports();if(page==='audit'&&currentCanAdmin)renderAudit();
- if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings){renderWarnings();renderSiteNotices();}if(page==='messages'&&currentCanManageWarnings){loadDiscordSavedMessages();loadDiscordMessageChannels();loadDiscordMentionOptions();}if(page==='attendance'&&currentCanManageWarnings)renderAttendance();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();}
+ if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings){renderWarnings();renderSiteNotices();}if(page==='messages'&&currentCanManageWarnings){loadDiscordSavedMessages();loadDiscordMessageChannels();loadDiscordMentionOptions();}if(page==='attendance'&&currentCanManageWarnings)renderAttendance();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();if(currentIsOwner)loadSiteCodeCenterStatus();}
  if(page==='gallery')renderSiteGallery();applySiteSettings();window.scrollTo({top:0,behavior:'smooth'})
 }document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)go(b.dataset.page)});
 function openModal(){document.getElementById('viewContent')?.remove();document.getElementById('editContent')?.remove();document.getElementById('personForm').style.display='';document.getElementById('personForm').reset();pendingImages=[];document.getElementById('imagePreview').innerHTML='';document.getElementById('modalTitle').textContent='إضافة ملف شخص / قضية';document.getElementById('modalBack').classList.add('open')}function closeModal(){document.getElementById('modalBack').classList.remove('open')}document.getElementById('fImages').addEventListener('change',async e=>{pendingImages=[];pendingImageDescriptions=[];let files=[...e.target.files];for(let f of files){if(!f.type.startsWith('image/'))continue;if(f.size>1.5*1024*1024){toast('الصورة أكبر من 1.5MB في النموذج التجريبي');continue}let data=await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)});pendingImages.push(data);pendingImageDescriptions.push('')}document.getElementById('imagePreview').innerHTML=pendingImages.map((src,i)=>'<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:start;width:100%;margin:8px 0;padding:8px;border:1px solid #30343b;border-radius:8px"><img src="'+src+'" alt="صورة '+(i+1)+'" style="width:76px;height:76px;object-fit:cover;border-radius:6px"><div><label for="fImageDesc'+i+'" style="display:block;margin-bottom:6px">وصف الصورة '+(i+1)+'</label><textarea id="fImageDesc'+i+'" rows="2" placeholder="اكتب وصف هذه الصورة أو الدليل..." style="width:100%;min-height:60px"></textarea></div></div>').join('')});
@@ -4940,6 +4978,8 @@ async function initAuth(){
     currentUser=data.user.displayName||data.user.username||data.user.globalName||data.user.id||'Discord user';
     document.getElementById('settingsNav').style.display='flex';
     document.getElementById('ownerSettingsPanels').style.display=currentCanAdmin?'block':'none';
+    const codeCenterPanel=document.getElementById('siteCodeCenterPanel');
+    if(codeCenterPanel)codeCenterPanel.style.display=currentIsOwner?'block':'none';
     ['adminNavDivider','adminNavHeading'].forEach(id=>{
       const node=document.getElementById(id);
       if(node)node.style.display=currentCanAdmin?'block':'none';
@@ -5743,6 +5783,73 @@ function exportSiteUpdatePackage(){
  if(!currentCanAdmin){toast('التصدير متاح للإدارة فقط.');return}
  const payload={format:'swat-site-settings',version:1,changes:{accentColor:siteSettings.accentColor||'#39d69b',backgroundColor:siteSettings.backgroundColor||'#090a0c',textOverrides:siteSettings.textOverrides||{},styleOverrides:siteSettings.styleOverrides||{},siteImages:siteSettings.siteImages||{},customMenuItems:Array.isArray(siteSettings.customMenuItems)?siteSettings.customMenuItems:[]}};
  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='swat-site-settings.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+
+
+let previewedSiteCodePackage=null;
+let siteCodeCenterConnected=false;
+async function loadSiteCodeCenterStatus(){
+ const textNode=document.getElementById('siteCodeCenterConnectionText'),publish=document.getElementById('siteCodePublishButton');
+ if(!currentIsOwner){if(textNode)textNode.textContent='مركز البرمجة مخصص لمالك الموقع فقط.';if(publish)publish.disabled=true;return}
+ if(textNode)textNode.textContent='جاري فحص ربط GitHub...';
+ try{
+  const response=await fetch('/api/admin/code-updates',{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذر فحص ربط GitHub.');
+  siteCodeCenterConnected=Boolean(data.connected);
+  if(textNode)textNode.textContent=data.message|| (siteCodeCenterConnected?'GitHub متصل.':'GitHub غير مربوط.');
+  if(publish)publish.disabled=!siteCodeCenterConnected||!previewedSiteCodePackage;
+ }catch(error){
+  siteCodeCenterConnected=false;
+  if(textNode)textNode.textContent=error.message||'تعذر فحص ربط GitHub.';
+  if(publish)publish.disabled=true;
+ }
+}
+async function previewSiteCodePackage(){
+ const input=document.getElementById('siteCodePackageInput'),preview=document.getElementById('siteCodePackagePreview'),status=document.getElementById('siteCodeCenterStatus'),publish=document.getElementById('siteCodePublishButton');
+ if(!currentIsOwner){toast('مركز البرمجة مخصص لمالك الموقع فقط.');return}
+ if(!input||!preview||!status||!publish)return;
+ publish.disabled=true;preview.style.display='none';preview.textContent='';
+ let pkg;
+ try{pkg=JSON.parse(input.value)}catch{preview.style.display='block';preview.textContent='صيغة JSON غير صحيحة. راجع الأقواس والفواصل وعلامات الاقتباس.';status.textContent='فشل الفحص.';previewedSiteCodePackage=null;return}
+ status.textContent='جاري فحص الحزمة على الخادم...';
+ try{
+  const response=await fetch('/api/admin/code-updates',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'validate',package:pkg})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'الحزمة غير صالحة.');
+  previewedSiteCodePackage=pkg;siteCodeCenterConnected=Boolean(data.connected);
+  const rows=(data.files||[]).map(file=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #29313b"><b dir="ltr">'+adminEscape(file.path)+'</b><span class="muted">'+(file.action==='delete'?'حذف':'إضافة / استبدال')+(file.bytes?' · '+Math.ceil(file.bytes/1024)+' KB':'')+'</span></div>').join('');
+  preview.innerHTML='<b>ملخص الحزمة: '+adminEscape(data.summary||'')+'</b><div class="muted" style="margin:7px 0 10px">عدد الملفات: '+Number(data.fileCount||0)+' · إجمالي الحجم: '+Math.ceil(Number(data.totalBytes||0)/1024)+' KB</div>'+rows;
+  preview.style.display='block';
+  publish.disabled=!siteCodeCenterConnected;
+  status.textContent=siteCodeCenterConnected?'الحزمة سليمة والاتصال جاهز. زر النشر سيكتب مباشرة إلى main ويبدأ نشر Production.':'الحزمة سليمة، لكن GitHub غير مربوط بعد؛ لا يمكن نشر ملفات المشروع قبل إضافة Secret المطلوب في Vercel.';
+ }catch(error){
+  preview.style.display='block';preview.textContent=error.message||'فشل فحص الحزمة.';
+  status.textContent='لم يتم اعتماد أي تغيير.';previewedSiteCodePackage=null;publish.disabled=true;
+ }
+}
+async function publishSiteCodePackage(){
+ const publish=document.getElementById('siteCodePublishButton'),status=document.getElementById('siteCodeCenterStatus');
+ if(!currentIsOwner||!previewedSiteCodePackage||!siteCodeCenterConnected||!publish||publish.disabled)return;
+ const summary=String(previewedSiteCodePackage.summary||'تحديث المشروع');
+ const count=Array.isArray(previewedSiteCodePackage.files)?previewedSiteCodePackage.files.length:0;
+ if(!confirm('سيتم تسجيل '+count+' تغيير ملف مباشرة على فرع main، وبعدها يبدأ نشر الموقع الأساسي عبر Vercel. هل تريد المتابعة؟'))return;
+ publish.disabled=true;status.textContent='جاري تسجيل التعديلات على GitHub main...';
+ try{
+  const response=await fetch('/api/admin/code-updates',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'apply',package:previewedSiteCodePackage})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذر نشر حزمة المشروع.');
+  status.textContent='تم تسجيل التعديلات على main. بدأ Vercel نشر Production. Commit: '+String(data.commitSha||'');
+  const url=new URL(String(data.commitUrl||''));
+  if(url.hostname==='github.com'){const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='عرض Commit على GitHub';link.style.display='inline-block';link.style.marginInlineStart='8px';status.appendChild(link)}
+  toast('تم تسجيل التعديلات على المشروع وبدء نشر الموقع الأساسي.');
+  await loadSiteCodeCenterStatus();
+ }catch(error){status.textContent='فشل النشر: '+(error.message||'خطأ غير معروف');publish.disabled=!siteCodeCenterConnected;toast(error.message||'تعذر نشر التعديلات.')}
+}
+function clearSiteCodePackage(){
+ const input=document.getElementById('siteCodePackageInput'),preview=document.getElementById('siteCodePackagePreview'),status=document.getElementById('siteCodeCenterStatus'),publish=document.getElementById('siteCodePublishButton');
+ if(input)input.value='';if(preview){preview.style.display='none';preview.textContent=''}if(status)status.textContent='تم مسح الحزمة.';
+ previewedSiteCodePackage=null;if(publish)publish.disabled=true;
 }
 
 </script></body></html>
