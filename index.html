@@ -5013,7 +5013,7 @@ function setDiscordMessageChannels(messageId,checked){
  discordMessageChannelSelections[messageId]=checked?channels.map(item=>String(item.id)):[];
  renderDiscordChannelPicker(messageId);
  const button=document.getElementById('discordSend_'+messageId);
- if(button)button.hidden=discordMessageChannelSelections[messageId].length===0;
+ if(button)button.hidden=!savedMessageDeliveryReady(messageId);
 }
 
 function renderDiscordSavedMessages(){
@@ -5302,42 +5302,100 @@ async function deleteDiscordSavedMessage(id,button){
 }
 async function sendSavedDiscordMessage(id,button){
  if(!currentCanManageWarnings)return;
- const channelIds=selectedDiscordChannelsFor(id).slice();
- if(!channelIds.length){toast('حدد قناة واحدة على الأقل.');return;}
+ const delivery=savedMessageDeliveryFor(id);
+ const mode=delivery.mode;
+ const wantsChannels=discordDeliveryModeUsesChannels(mode);
+ const wantsDm=discordDeliveryModeUsesDm(mode);
+ const isBulk=discordDeliveryModeIsBulk(mode);
+ const isSingle=discordDeliveryModeIsSingle(mode);
+ const channelIds=wantsChannels?selectedDiscordChannelsFor(id).slice():[];
+ if(wantsChannels&&!channelIds.length){toast('حدد قناة واحدة على الأقل لإرسال الرسالة في Discord.');return;}
+ if(wantsDm){
+  if(!discordDmRecipientsState.dm_enabled){toast('إرسال الرسائل الخاصة متوقف من إعدادات الموقع الحالية. لم يتم تغيير الإعدادات.');return;}
+  if(isBulk){
+   if(!discordDmRecipientsState.broadcast_enabled){toast('الإرسال الجماعي غير مفعّل في إعدادات البوت. اختر عضوًا واحدًا بدلًا من ذلك.');return;}
+   const count=Number(discordDmRecipientsState.recipient_count||0);
+   if(!count||count>Number(discordDmRecipientsState.max_recipients||200)){toast('عدد الأعضاء المؤهلين يتجاوز الحد الآمن أو لا يوجد مستلمون. لم يتم إرسال أي رسالة.');return;}
+  }else if(isSingle){
+   if(!delivery.recipientId||!discordDmRecipientsState.recipients.some(item=>String(item.discord_user_id)===delivery.recipientId)){
+    toast('اختر عضوًا نشطًا فعّل استقبال الرسائل الخاصة.');return;
+   }
+  }else{
+   toast('حدد طريقة مستلمي الرسائل الخاصة بشكل صحيح.');return;
+  }
+ }
+ if(!wantsChannels&&!wantsDm){toast('اختر جهة إرسال صحيحة.');return;}
  const row=discordSavedMessages.find(item=>String(item.id)===String(id));
- const mentions=mentionSelectedFor(id).slice();
+ if(!row){toast('قالب الرسالة غير موجود. حدّث القائمة وحاول مرة أخرى.');return;}
+ const mentions=wantsChannels?mentionSelectedFor(id).slice():[];
  const mentionNames=mentions.map(item=>item.label).join('، ');
- const linkButtons=Array.isArray(row?.link_buttons)?row.link_buttons:[];
+ const linkButtons=Array.isArray(row.link_buttons)?row.link_buttons:[];
  const channelNames=channelIds.map(channelId=>discordSavedChannels?.channels?.find(channel=>String(channel.id)===String(channelId))?.name||channelId);
+ const chosenRecipient=isSingle?discordDmRecipientsState.recipients.find(item=>String(item.discord_user_id)===delivery.recipientId):null;
  const hasBroadPing=mentions.some(item=>item.kind==='everyone'||item.kind==='here');
- const isResend=Number(row?.send_count||0)>0;
- let confirmation=(isResend?'إعادة إرسال ':'إرسال ')+'«'+(row?.title||'بدون عنوان')+'» إلى '+channelIds.length+' قناة بواسطة بوت S.W.A.T. REDLINE؟';
- confirmation+='\n\nالقنوات المحددة: '+channelNames.join('، ');
- confirmation+='\n\nالمنشنات المختارة: '+(mentionNames||'بدون منشن');
+ const isResend=Number(row.send_count||0)>0;
+ const destinations=[];
+ if(wantsChannels)destinations.push('قنوات Discord ('+channelIds.length+')');
+ if(wantsDm)destinations.push(isBulk?'خاص لكل الأعضاء المؤهلين ('+Number(discordDmRecipientsState.recipient_count||0)+')':'خاص إلى '+(chosenRecipient?.display_name||'العضو المحدد'));
+ let confirmation=(isResend?'إعادة إرسال ':'إرسال ')+'«'+(row.title||'بدون عنوان')+'»؟';
+ confirmation+='\n\nوجهة الإرسال: '+destinations.join(' + ');
+ if(wantsChannels)confirmation+='\n\nالقنوات المحددة: '+channelNames.join('، ');
+ if(wantsDm)confirmation+='\n\nالمستلمون: '+(isBulk?'كل الأعضاء النشطين الذين فعّلوا استقبال الخاص.':'عضو واحد: '+(chosenRecipient?.display_name||'محدد'));
+ if(wantsChannels)confirmation+='\n\nالمنشنات المختارة: '+(mentionNames||'بدون منشن');
  confirmation+='\n\nأزرار الروابط: '+(linkButtons.length?linkButtons.map(item=>item.label).join('، '):'بدون أزرار');
- if(hasBroadPing)confirmation+='\n\n⚠️ تنبيه: اخترت منشنًا عامًا قد ينبه عددًا كبيرًا من أعضاء السيرفر في كل قناة محددة.';
+ if(hasBroadPing)confirmation+='\n\n⚠️ تنبيه: اخترت منشنًا عامًا قد ينبه عددًا كبيرًا من أعضاء السيرفر في القنوات المحددة.';
+ if(wantsDm&&isBulk)confirmation+='\n\nسيتم إرسال الخاص فقط للأعضاء الذين فعّلوا استقبال الرسائل الخاصة، وبحد أقصى '+Number(discordDmRecipientsState.max_recipients||200)+' عضوًا في الدفعة.';
  if(!confirm(confirmation))return;
  const old=button?.textContent||'إرسال ↗';
- const succeeded=[],failed=[];
- if(button){button.disabled=true;button.textContent='جارٍ الإرسال 0/'+channelIds.length+'...';}
+ const succeededChannels=[],failedChannels=[];
+ let dmResult=null,dmError=null;
+ const totalSteps=(wantsChannels?channelIds.length:0)+(wantsDm?1:0);
+ if(button){button.disabled=true;button.textContent='جارٍ الإرسال 0/'+totalSteps+'...';}
  try{
-  for(let index=0;index<channelIds.length;index++){
-   const channelId=channelIds[index];
-   if(button)button.textContent='جارٍ الإرسال '+(index+1)+'/'+channelIds.length+'...';
-   try{
-    const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_send',id,channel_id:channelId,mentions})});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'تعذّر إرسال الرسالة.');
-    succeeded.push({channelId,name:data.channel_name||channelNames[index],data});
-   }catch(error){
-    failed.push({channelId,name:channelNames[index],error:error.message||'تعذّر الإرسال.'});
+  if(wantsChannels){
+   for(let index=0;index<channelIds.length;index++){
+    const channelId=channelIds[index];
+    if(button)button.textContent='جارٍ إرسال القنوات '+(index+1)+'/'+channelIds.length+'...';
+    try{
+     const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_send',id,channel_id:channelId,mentions})});
+     const data=await response.json().catch(()=>({}));
+     if(!response.ok)throw new Error(data.error||'تعذّر إرسال الرسالة.');
+     succeededChannels.push({channelId,name:data.channel_name||channelNames[index],data});
+    }catch(error){
+     failedChannels.push({channelId,name:channelNames[index],error:error.message||'تعذّر الإرسال.'});
+    }
    }
   }
+  if(wantsDm){
+   if(button)button.textContent='جارٍ إرسال الرسائل الخاصة...';
+   try{
+    const response=await fetch('/api/notifications/send',{
+     method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({
+      action:'saved_message_send_dm',id,
+      recipient_mode:isBulk?'all':'single',
+      recipient_id:isSingle?delivery.recipientId:undefined
+     })
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'تعذّر إرسال الرسائل الخاصة.');
+    dmResult=data;
+   }catch(error){dmError=error.message||'تعذّر إرسال الرسائل الخاصة.';}
+  }
   await loadDiscordSavedMessages();
-  const summary=failed.length
-   ?'تم الإرسال بنجاح إلى '+succeeded.length+' من '+channelIds.length+' قناة. تعذّر الإرسال إلى '+failed.length+' قناة: '+failed.map(item=>item.name+' ('+item.error+')').join('؛ ')
-   :'تم إرسال الرسالة بنجاح إلى كل القنوات المحددة ('+succeeded.length+').';
-  toast(summary+(succeeded.length&&linkButtons.length?' • أُرفق '+linkButtons.length+' زرار رابط بكل رسالة ناجحة.':''));
+  const summaries=[];
+  if(wantsChannels){
+   summaries.push(failedChannels.length
+    ?'القنوات: نجح '+succeededChannels.length+' من '+channelIds.length+'، وفشل '+failedChannels.length
+    :'القنوات: تم الإرسال بنجاح إلى '+succeededChannels.length+' قناة');
+  }
+  if(wantsDm){
+   summaries.push(dmError
+    ?'الرسائل الخاصة: فشل الإرسال ('+dmError+')'
+    :'الرسائل الخاصة: نجح '+Number(dmResult?.sent||0)+' وفشل '+Number(dmResult?.failed||0)+' من '+Number(dmResult?.total||0));
+  }
+  const detail=failedChannels.length? '\n'+failedChannels.map(item=>item.name+': '+item.error).join('؛ '):'';
+  toast(summaries.join(' • ')+detail+(linkButtons.length?' • أزرار الروابط: '+linkButtons.length:''));
  }finally{
   if(button){button.disabled=false;button.textContent=old;}
  }
