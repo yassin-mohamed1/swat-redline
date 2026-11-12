@@ -1463,7 +1463,7 @@ html[dir="ltr"] .field label{text-align:left}
 
 <section class="page" id="page-messages">
 <style>
-#page-messages .saved-message-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#page-messages .saved-message-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 #page-messages .saved-message-card{background:#111419;border:1px solid #303641;border-radius:12px;padding:16px;min-width:0}
 #page-messages .saved-message-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
 #page-messages .saved-message-title{font-size:16px;font-weight:800;overflow-wrap:anywhere}
@@ -1488,6 +1488,30 @@ html[dir="ltr"] .field label{text-align:left}
 #page-messages .mention-dropdown-tools button{border:1px solid #353c47;background:#191e26;color:#cfd5de;border-radius:6px;padding:5px 8px;font-size:10px;cursor:pointer}
 #page-messages .mention-dropdown-list{max-height:220px;overflow:auto}
 #page-messages .mention-dropdown-search{margin-bottom:7px}
+
+/* Picker menus are moved to body so panels and cards cannot clip them. */
+.discord-picker-portal{position:fixed!important;z-index:10090!important;box-sizing:border-box!important;margin:0!important;border:1px solid #555e6d!important;border-radius:12px!important;background:#101318!important;padding:9px!important;box-shadow:0 22px 70px rgba(0,0,0,.78),0 0 0 1px rgba(217,39,53,.13)!important;overflow:hidden!important;max-width:calc(100vw - 24px)!important}
+.discord-picker-portal[hidden]{display:none!important}
+.discord-picker-portal .mention-dropdown-list{max-height:min(430px,calc(100vh - 240px));overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.discord-picker-portal .mention-group-title{padding:9px 9px 5px;color:#aab3c0;font-size:11px;font-weight:800;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:4px}
+.discord-picker-portal .mention-check-option{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;box-sizing:border-box;text-align:right;border:0;background:transparent;color:#e8ebf0;border-radius:8px;padding:10px 9px;cursor:pointer;font:inherit;font-size:12px;min-height:38px}
+.discord-picker-portal .mention-check-option:hover{background:#242a33}
+.discord-picker-portal .mention-check-main{display:flex;align-items:center;gap:10px;min-width:0}
+.discord-picker-portal .mention-check-option input{width:16px;height:16px;accent-color:#d92735;flex:0 0 auto}
+.discord-picker-portal .mention-check-option small{color:#929ba8;font-size:10px;white-space:nowrap;text-align:left}
+.discord-picker-portal .mention-dropdown-tools{display:flex;gap:7px;flex-wrap:wrap;padding:3px 2px 9px}
+.discord-picker-portal .mention-dropdown-tools button{border:1px solid #414a58;background:#1b2029;color:#e2e7ee;border-radius:7px;padding:7px 11px;font-size:11px;cursor:pointer}
+.discord-picker-portal .mention-dropdown-tools button:hover{border-color:#d92735;background:#27191e}
+.discord-picker-portal .mention-search{width:100%;box-sizing:border-box;background:#090c10;color:#f4f5f7;border:1px solid #46505e;border-radius:8px;padding:11px 12px;min-height:42px;font:inherit;font-size:12px}
+.discord-picker-portal .mention-search:focus{outline:2px solid rgba(217,39,53,.28);border-color:#d92735}
+.discord-picker-portal .mention-dropdown-search{margin:0 0 7px}
+.discord-picker-portal .mention-info{font-size:11px;color:#a2acb9;line-height:1.7;margin-top:7px}
+.discord-picker-portal .mention-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:right;border:0;background:transparent;color:#e8ebf0;border-radius:8px;padding:9px;cursor:pointer;font:inherit;font-size:12px}
+.discord-picker-portal .mention-option:hover{background:#242a33}
+.discord-picker-portal .mention-option small{color:#929ba8;font-size:10px;white-space:nowrap}
+.discord-picker-portal .mention-option.special{color:#ffb1b8}
+@media(max-width:600px){.discord-picker-portal{max-width:calc(100vw - 16px)!important}.discord-picker-portal .mention-dropdown-list{max-height:calc(100vh - 230px)}}
+
 #page-messages .saved-message-preview.empty-preview{color:#939ba7;font-style:italic}
 #page-messages .mention-selected{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;min-height:0}
 #page-messages .mention-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;background:#2b1a20;border:1px solid #69303a;color:#ffd6da;border-radius:7px;padding:5px 7px;font-size:10px;line-height:1.35}
@@ -1740,7 +1764,7 @@ const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;
-let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]}};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -4025,6 +4049,112 @@ function mentionSelectedFor(id){
  return discordMentionSelections[key];
 }
 
+
+function discordPickerKey(type,messageId){return type+':'+String(messageId);}
+function discordPickerElement(type,messageId){
+ return document.getElementById((type==='channel'?'discordChannelDropdown_':'discordMentionDropdown_')+messageId);
+}
+function discordPickerTrigger(type,messageId){
+ return document.getElementById((type==='channel'?'discordChannelToggle_':'discordMentionToggle_')+messageId);
+}
+function positionDiscordPicker(type,messageId){
+ const key=discordPickerKey(type,messageId);
+ const dropdown=discordPickerElement(type,messageId);
+ const trigger=discordPickerTrigger(type,messageId);
+ if(!dropdown||!trigger||!dropdown.classList.contains('discord-picker-portal')||dropdown.hidden)return;
+ const rect=trigger.getBoundingClientRect();
+ const margin=12;
+ const width=Math.min(Math.max(rect.width,360),Math.max(260,window.innerWidth-margin*2),560);
+ const left=Math.max(margin,Math.min(window.innerWidth-width-margin,rect.right-width));
+ const below=window.innerHeight-rect.bottom-margin;
+ const above=rect.top-margin;
+ let top,bottom='auto',available;
+ if(below>=Math.min(300,above)||below>=above){
+  top=Math.min(window.innerHeight-margin,rect.bottom+7);
+  available=Math.max(150,window.innerHeight-top-margin);
+ }else{
+  available=Math.max(150,above-7);
+  top='auto';
+  bottom=Math.max(margin,window.innerHeight-rect.top+7);
+ }
+ dropdown.style.position='fixed';
+ dropdown.style.left=left+'px';
+ dropdown.style.right='auto';
+ dropdown.style.top=top==='auto'?'auto':top+'px';
+ dropdown.style.bottom=bottom==='auto'?'auto':bottom+'px';
+ dropdown.style.width=width+'px';
+ dropdown.style.maxHeight=Math.min(560,available)+'px';
+ dropdown.style.overflow='hidden';
+ dropdown.dataset.pickerKey=key;
+}
+function openDiscordPickerPortal(type,messageId){
+ const key=discordPickerKey(type,messageId);
+ const dropdown=discordPickerElement(type,messageId);
+ if(!dropdown)return;
+ if(!discordPickerPortalState[key]){
+  const placeholder=document.createComment('discord-picker-'+key);
+  dropdown.parentNode.insertBefore(placeholder,dropdown);
+  discordPickerPortalState[key]={placeholder};
+ }
+ if(dropdown.parentNode!==document.body)document.body.appendChild(dropdown);
+ dropdown.classList.add('discord-picker-portal');
+ dropdown.hidden=false;
+ positionDiscordPicker(type,messageId);
+}
+function restoreDiscordPickerPortal(type,messageId){
+ const key=discordPickerKey(type,messageId);
+ const dropdown=discordPickerElement(type,messageId);
+ const state=discordPickerPortalState[key];
+ if(!dropdown)return;
+ dropdown.hidden=true;
+ dropdown.classList.remove('discord-picker-portal');
+ dropdown.removeAttribute('style');
+ delete dropdown.dataset.pickerKey;
+ if(state?.placeholder?.parentNode){
+  state.placeholder.parentNode.replaceChild(dropdown,state.placeholder);
+ }
+ delete discordPickerPortalState[key];
+}
+function closeAllDiscordPickerMenus(exceptKey=''){
+ for(const messageId of Object.keys(discordChannelPickerOpen)){
+  const key=discordPickerKey('channel',messageId);
+  if(discordChannelPickerOpen[messageId]&&key!==exceptKey){
+   discordChannelPickerOpen[messageId]=false;
+   restoreDiscordPickerPortal('channel',messageId);
+  }
+ }
+ for(const messageId of Object.keys(discordMentionPickerOpen)){
+  const key=discordPickerKey('mention',messageId);
+  if(discordMentionPickerOpen[messageId]&&key!==exceptKey){
+   discordMentionPickerOpen[messageId]=false;
+   restoreDiscordPickerPortal('mention',messageId);
+  }
+ }
+}
+function closeDiscordPickerOutside(event){
+ if(event.target.closest?.('.discord-picker-portal')||event.target.closest?.('.mention-picker'))return;
+ closeAllDiscordPickerMenus();
+}
+if(!window.__swatDiscordPickerListeners){
+ window.__swatDiscordPickerListeners=true;
+ document.addEventListener('pointerdown',closeDiscordPickerOutside,true);
+ window.addEventListener('resize',()=>{
+  for(const [key,state] of Object.entries(discordPickerPortalState)){
+   const [type,messageId]=key.split(':');
+   positionDiscordPicker(type,messageId);
+  }
+ });
+ window.addEventListener('scroll',()=>{
+  for(const key of Object.keys(discordPickerPortalState)){
+   const [type,messageId]=key.split(':');
+   positionDiscordPicker(type,messageId);
+  }
+ },true);
+ document.addEventListener('keydown',event=>{
+  if(event.key==='Escape')closeAllDiscordPickerMenus();
+ });
+}
+
 function mentionOptionCheckbox(messageId,kind,value,label,detail='',special=false){
  const selected=mentionSelectedFor(messageId).some(item=>item.kind===kind&&item.id===String(value));
  return '<label class="mention-check-option'+(special?' special':'')+'"><span class="mention-check-main"><input type="checkbox" '+(selected?'checked':'')+' onchange="toggleDiscordMessageMention('+jsArg(messageId)+','+jsArg(kind)+','+jsArg(value)+','+jsArg(label)+')"><span>'+esc(label)+'</span></span><small>'+esc(detail)+'</small></label>';
@@ -4065,6 +4195,7 @@ function renderDiscordMentionPicker(messageId,restoreFocus=false){
  }
  dropdown.innerHTML='<input class="mention-search mention-dropdown-search" id="discordMentionSearch_'+esc(messageId)+'" placeholder="ابحث عن عضو بالاسم أو اللقب..." autocomplete="off" value="'+esc(discordMentionSearchQuery[messageId]||'')+'" oninput="searchDiscordMentions('+jsArg(messageId)+',this.value)"><div class="mention-dropdown-list">'+(groups.join('')||'<div class="mention-info">لا توجد اختيارات مطابقة.</div>')+(helper||'')+'</div>';
  dropdown.hidden=!discordMentionPickerOpen[messageId];
+ if(discordMentionPickerOpen[messageId]&&dropdown.classList.contains('discord-picker-portal'))positionDiscordPicker('mention',messageId);
  if(active||restoreFocus){
   const input=document.getElementById('discordMentionSearch_'+messageId);
   input?.focus();
@@ -4072,8 +4203,12 @@ function renderDiscordMentionPicker(messageId,restoreFocus=false){
  }
 }
 function toggleDiscordMentionPicker(messageId){
- discordMentionPickerOpen[messageId]=!discordMentionPickerOpen[messageId];
+ const open=!discordMentionPickerOpen[messageId];
+ closeAllDiscordPickerMenus(discordPickerKey('mention',messageId));
+ discordMentionPickerOpen[messageId]=open;
  renderDiscordMentionPicker(messageId);
+ if(open)openDiscordPickerPortal('mention',messageId);
+ else restoreDiscordPickerPortal('mention',messageId);
 }
 function searchDiscordMentions(messageId,value){
  discordMentionPickerOpen[messageId]=true;
@@ -4159,14 +4294,19 @@ function renderDiscordChannelPicker(messageId,restoreFocus=false){
  const allVisible=available.filter(channel=>!query||String(channel.name||'').toLowerCase().includes(query));
  dropdown.innerHTML='<div class="mention-dropdown-tools"><button type="button" onclick="setDiscordMessageChannels('+jsArg(messageId)+',true)">تحديد الكل</button><button type="button" onclick="setDiscordMessageChannels('+jsArg(messageId)+',false)">إلغاء التحديد</button></div><input class="mention-search mention-dropdown-search" id="discordChannelSearch_'+esc(messageId)+'" value="'+esc(discordChannelSearchQuery[messageId]||'')+'" placeholder="ابحث عن قناة..." oninput="filterDiscordMessageChannels('+jsArg(messageId)+',this.value)"><div class="mention-dropdown-list">'+(groups.join('')||'<div class="mention-info">لا توجد قنوات مطابقة.</div>')+'</div><div class="mention-info">تم اختيار '+selected.length+' من '+available.length+' قناة.</div>';
  dropdown.hidden=!discordChannelPickerOpen[messageId];
+ if(discordChannelPickerOpen[messageId]&&dropdown.classList.contains('discord-picker-portal'))positionDiscordPicker('channel',messageId);
  if(active||restoreFocus){
   const input=document.getElementById('discordChannelSearch_'+messageId);
   input?.focus();if(input&&cursor!==null)input.setSelectionRange(cursor,cursor);
  }
 }
 function toggleDiscordChannelPicker(messageId){
- discordChannelPickerOpen[messageId]=!discordChannelPickerOpen[messageId];
+ const open=!discordChannelPickerOpen[messageId];
+ closeAllDiscordPickerMenus(discordPickerKey('channel',messageId));
+ discordChannelPickerOpen[messageId]=open;
  renderDiscordChannelPicker(messageId);
+ if(open)openDiscordPickerPortal('channel',messageId);
+ else restoreDiscordPickerPortal('channel',messageId);
 }
 function filterDiscordMessageChannels(messageId,value){
  discordChannelSearchQuery[messageId]=String(value||'');
@@ -4189,6 +4329,7 @@ function setDiscordMessageChannels(messageId,checked){
 }
 
 function renderDiscordSavedMessages(){
+ closeAllDiscordPickerMenus();
  const list=document.getElementById('discordSavedMessageList');
  if(!list)return;
  const meta=document.getElementById('discordMessageListMeta');
