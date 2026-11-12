@@ -4687,7 +4687,19 @@ function renderSiteCustomMenus(){
   const panelBody=document.createElement('div');panelBody.className='panelbody';
   const body=document.createElement('p');body.style.whiteSpace='pre-wrap';body.style.lineHeight='1.9';body.style.margin='0';
   body.textContent=String(item.content||'تم إنشاء هذه القائمة بنجاح. يمكنك تغيير النص لاحقًا من مركز تحديثات الموقع.').slice(0,6000);
-  panelBody.appendChild(body);panel.append(panelHead,panelBody);page.append(sectionHead,panel);content.appendChild(page);
+  panelBody.appendChild(body);
+  if(Array.isArray(item.buttons)&&item.buttons.length){
+   const actions=document.createElement('div');actions.className='actions';actions.style.display='flex';actions.style.gap='10px';actions.style.flexWrap='wrap';actions.style.marginTop='16px';
+   for(const action of item.buttons.slice(0,8)){
+    try{
+     const url=new URL(String(action.url||''));
+     if(url.protocol!=='https:'||url.username||url.password)continue;
+     const link=document.createElement('a');link.className='btn primary';link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent=String(action.label||'فتح الرابط').slice(0,40);actions.appendChild(link);
+    }catch{}
+   }
+   if(actions.childElementCount)panelBody.appendChild(actions);
+  }
+  panel.append(panelHead,panelBody);page.append(sectionHead,panel);content.appendChild(page);
  }
 }
 function go(page){
@@ -5671,8 +5683,12 @@ function validateSiteUpdatePackage(raw){
   if(!Array.isArray(items)||items.length>12)throw new Error('customMenuItems لازم يكون قائمة بحد أقصى 12 عنصر.');
   const ids=new Set();
   for(const item of items){
-   const allowed=['id','label','icon','description','content'];
-   if(!siteUpdatePlainObject(item)||Object.keys(item).some(key=>!allowed.includes(key))||typeof item.id!=='string'||!/^[a-z0-9-]{2,40}$/.test(item.id)||ids.has(item.id)||typeof item.label!=='string'||!item.label.trim()||item.label.length>40||(item.icon!==undefined&&(typeof item.icon!=='string'||item.icon.length>8))||(item.description!==undefined&&(typeof item.description!=='string'||item.description.length>160))||(item.content!==undefined&&(typeof item.content!=='string'||item.content.length>6000)))throw new Error('يوجد عنصر قائمة مخصص غير صالح. راجع id و label و description و content.');
+   const allowed=['id','label','icon','description','content','buttons'];
+   if(!siteUpdatePlainObject(item)||Object.keys(item).some(key=>!allowed.includes(key))||typeof item.id!=='string'||!/^[a-z0-9-]{2,40}$/.test(item.id)||ids.has(item.id)||typeof item.label!=='string'||!item.label.trim()||item.label.length>40||(item.icon!==undefined&&(typeof item.icon!=='string'||item.icon.length>8))||(item.description!==undefined&&(typeof item.description!=='string'||item.description.length>160))||(item.content!==undefined&&(typeof item.content!=='string'||item.content.length>6000))||(item.buttons!==undefined&&(!Array.isArray(item.buttons)||item.buttons.length>8)))throw new Error('يوجد عنصر قائمة مخصص غير صالح. راجع id و label و description و content و buttons.');
+   if(Array.isArray(item.buttons))for(const button of item.buttons){
+    if(!siteUpdatePlainObject(button)||Object.keys(button).some(key=>!['label','url'].includes(key))||typeof button.label!=='string'||!button.label.trim()||button.label.length>40||typeof button.url!=='string'||button.url.length>2048)throw new Error('يوجد زر غير صالح داخل القائمة.');
+    try{const url=new URL(button.url);if(url.protocol!=='https:'||url.username||url.password)throw new Error('HTTPS only')}catch{throw new Error('رابط الزر لازم يكون HTTPS صالحًا وآمنًا.')}
+   }
    ids.add(item.id);
   }
  }
