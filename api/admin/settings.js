@@ -88,13 +88,29 @@ export default async function handler(req, res) {
         const ids = new Set();
         for (const item of value) {
           const itemKeys = plainObject(item) ? Object.keys(item) : [];
-          if (!plainObject(item) || itemKeys.some(key => !["id", "label", "icon", "description", "content"].includes(key)) ||
+          if (!plainObject(item) || itemKeys.some(key => !["id", "label", "icon", "description", "content", "buttons"].includes(key)) ||
               typeof item.id !== "string" || !/^[a-z0-9-]{2,40}$/.test(item.id) || ids.has(item.id) ||
               typeof item.label !== "string" || !item.label.trim() || item.label.length > 40 ||
               (item.icon !== undefined && (typeof item.icon !== "string" || item.icon.length > 8)) ||
               (item.description !== undefined && (typeof item.description !== "string" || item.description.length > 160)) ||
-              (item.content !== undefined && (typeof item.content !== "string" || item.content.length > 6000))) {
+              (item.content !== undefined && (typeof item.content !== "string" || item.content.length > 6000)) ||
+              (item.buttons !== undefined && (!Array.isArray(item.buttons) || item.buttons.length > 8))) {
             return res.status(400).json({ error: "Invalid custom menu item" });
+          }
+          if (Array.isArray(item.buttons)) {
+            for (const button of item.buttons) {
+              if (!plainObject(button) || Object.keys(button).some(key => !["label", "url"].includes(key)) ||
+                  typeof button.label !== "string" || !button.label.trim() || button.label.length > 40 ||
+                  typeof button.url !== "string" || button.url.length > 2048) {
+                return res.status(400).json({ error: "Invalid custom menu button" });
+              }
+              try {
+                const target = new URL(button.url);
+                if (target.protocol !== "https:" || target.username || target.password) throw new Error("Unsafe URL");
+              } catch {
+                return res.status(400).json({ error: "Custom menu buttons require a valid HTTPS URL" });
+              }
+            }
           }
           ids.add(item.id);
         }
