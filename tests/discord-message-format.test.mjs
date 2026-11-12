@@ -29,3 +29,10 @@ test("message filenames are safe for Discord attachments", () => {
   assert.equal(filename.includes("/"), false);
   assert.equal(filename.includes(":"), false);
 });
+
+test("empty title and body receive a branded fallback instead of an invalid blank embed", () => {
+  const result = buildDiscordMessageEmbed({ title: "", content: "" });
+  assert.equal(result.useAttachment, false);
+  assert.equal(result.embed.title, "رسالة من S.W.A.T.");
+  assert.equal(result.embed.description, "إشعار إداري من S.W.A.T. REDLINE.");
+});
