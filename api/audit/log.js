@@ -142,7 +142,7 @@ export default async function handler(req, res) {
   const body = typeof req.body === "string"
     ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
     : (req.body || {});
-  const allowedActions = new Set(["create", "update", "delete", "login", "logout", "upload", "download", "permission_change"]);
+  const allowedActions = new Set(["create", "update", "delete", "login", "logout", "upload", "download", "permission_change", "view"]);
   const action = typeof body.action === "string" ? body.action.trim() : "";
   const entityType = typeof body.entity_type === "string" ? body.entity_type.trim().slice(0, 80) : "";
   const entityId = body.entity_id == null ? null : String(body.entity_id).slice(0, 160);
