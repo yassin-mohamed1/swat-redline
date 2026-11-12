@@ -40,7 +40,25 @@ export default async function handler(req, res) {
       const r = await fetch(base + "/rest/v1/site_settings?select=key,value", { headers });
       if (!r.ok) { console.error("Settings read failed:", r.status, (await r.text()).slice(0, 400)); return res.status(502).json({ error: "Could not load settings. Apply the admin migration first." }); }
       const rows = await r.json(), settings = {};
-      for (const row of rows) settings[row.key] = row.value;
+      let canReadAdminSettings = Boolean(user.isOwner);
+      if (!canReadAdminSettings) {
+        try {
+          canReadAdminSettings = await isWebsiteAdmin(user);
+          if (canReadAdminSettings) await requireActivePortalStaff(user);
+        } catch {
+          canReadAdminSettings = false;
+        }
+      }
+      const adminOnlySettingKeys = new Set([
+        "notificationRoleMentionDisabled",
+        "notificationChannelEnabled",
+        "notificationMemberDmEnabled",
+        "disciplinaryTargetMentionEnabled"
+      ]);
+      for (const row of rows) {
+        if (!canReadAdminSettings && adminOnlySettingKeys.has(row.key)) continue;
+        settings[row.key] = row.value;
+      }
       return res.status(200).json({ settings });
     }
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
