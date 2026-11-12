@@ -1,10 +1,40 @@
 import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
-import { forwardAuditEventsToDiscord } from "../../lib/audit-log.js";
+import { forwardAuditEventsToDiscord, forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 import { validateProjectCodePackage, publishProjectCodePackage } from "../../lib/project-code.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "2mb" } } };
+async function appendAdminAuditEvent(user,event) {
+  const base=process.env.SUPABASE_URL?.replace(/\\/+$/, "");
+  const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if(!base||!key)return false;
+  const auditEvent={
+    actor_discord_id:user.id,
+    actor_name:user.displayName||user.username||"S.W.A.T. Admin",
+    action:event.action||"update",
+    entity_type:event.entity_type||"portal_admin",
+    entity_id:event.entity_id==null?null:String(event.entity_id),
+    details:event.details&&typeof event.details==="object"?event.details:{}
+  };
+  try {
+    const response=await fetch(base+"/rest/v1/audit_logs",{
+      method:"POST",
+      headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"return=minimal"},
+      body:JSON.stringify(auditEvent)
+    });
+    if(!response.ok) {
+      console.error("Admin action audit write failed:",response.status,(await response.text()).slice(0,250));
+      return false;
+    }
+    const discord=await forwardAuditToDiscord(user,auditEvent);
+    if(!discord?.ok)console.warn("Admin action audit saved but Discord forwarding is pending:",discord?.reason||discord?.failed||"unknown");
+    return true;
+  } catch(error) {
+    console.error("Admin action audit failed:",error?.message||"unknown");
+    return false;
+  }
+}
 function cookies(header = "") {
   const out = {};
   for (const part of header.split(";")) { const i = part.indexOf("="); if (i < 0) continue; try { out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch {} }
@@ -93,6 +123,16 @@ export default async function handler(req, res) {
         files: result.files,
         summary: update.summary
       }));
+      await appendAdminAuditEvent(user,{
+        action:"update",entity_type:"project_code_publish",entity_id:result.commitSha,
+        details:{
+          type:"نشر تحديث برمجي للموقع",
+          detail:"نشر "+String(user.displayName||user.username||"مالك الموقع")+" تحديثًا برمجيًا إلى main: "+String(update.summary||"تحديث مشروع").slice(0,240)+".",
+          commit_sha:result.commitSha,
+          file_count:Array.isArray(result.files)?result.files.length:update.files.length,
+          changed_paths:(Array.isArray(result.files)?result.files:update.files.map(item=>item.path)).slice(0,40)
+        }
+      });
       return res.status(200).json({ ok: true, message: "Project changes committed to main. Vercel Production deployment has been triggered.", ...result });
     } catch (error) {
       console.error("SWAT Code Center publish failed", error?.githubStatus || error?.status || "unknown", error?.message || "unknown");
