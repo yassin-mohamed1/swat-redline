@@ -1470,11 +1470,32 @@ html[dir="ltr"] .field label{text-align:left}
 #page-messages .saved-message-meta{font-size:11px;color:#9299a4;margin-top:5px}
 #page-messages .saved-message-preview{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0d11;border:1px solid #272d36;border-radius:9px;padding:12px;color:#d8dce3;font-size:12px;line-height:1.8;max-height:150px;overflow:hidden;margin:12px 0}
 #page-messages .saved-message-delivery{display:grid;gap:9px}
-#page-messages .saved-message-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start}
+#page-messages .saved-message-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}
 #page-messages .saved-message-control{min-width:0;display:grid;gap:6px}
 #page-messages .saved-message-control>label{font-size:11px;color:#aab2be;font-weight:700}
 #page-messages .saved-message-controls select{width:100%;min-width:0;background:#0b0d11;color:#f4f5f7;border:1px solid #39414d;border-radius:8px;padding:10px;min-height:42px}
 #page-messages .saved-message-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+
+#page-messages .saved-link-button-list{display:grid;gap:6px;min-width:0}
+#page-messages .saved-link-button-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center;background:#0b0d11;border:1px solid #343b46;border-radius:8px;padding:7px 8px}
+#page-messages .saved-link-button-name{display:flex;align-items:center;gap:7px;min-width:0;color:#e5e9f0;font-size:11px;font-weight:700}
+#page-messages .saved-link-button-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-messages .saved-link-button-url{display:block;color:#8e9bad;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:right;margin-top:3px}
+#page-messages .saved-link-button-actions{display:flex;gap:4px;align-items:center}
+#page-messages .saved-link-button-actions button{border:1px solid #3a414c;background:#191e26;color:#cad1dc;border-radius:6px;padding:4px 7px;font-size:10px;cursor:pointer}
+#page-messages .saved-link-button-actions button.delete{color:#ff929a;border-color:#622e36}
+#page-messages .saved-link-button-add{width:100%;justify-content:center;min-height:38px;border:1px dashed #70404a;background:#1c1116;color:#ffb4bc;border-radius:8px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+#page-messages .saved-link-button-add:hover{background:#29141b;border-color:#d92735}
+#page-messages .saved-link-button-limit{font-size:10px;color:#929ba8;text-align:center}
+#page-messages .link-button-editor-modal{position:fixed;inset:0;z-index:10120;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
+#page-messages .link-button-editor-modal[hidden]{display:none!important}
+#page-messages .link-button-editor-card{width:min(560px,100%);max-height:90vh;overflow:auto;background:#111419;border:1px solid #454d59;border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.65)}
+#page-messages .link-button-editor-card .field{display:grid;gap:7px}
+#page-messages .link-button-editor-card .field label{font-size:12px;color:#d9dee7;font-weight:700}
+#page-messages .link-button-editor-help{font-size:11px;line-height:1.7;color:#aab3c0;background:#171b22;border:1px solid #303641;border-radius:8px;padding:10px 12px}
+@media(max-width:1050px){#page-messages .saved-message-controls{grid-template-columns:repeat(2,minmax(0,1fr))}#page-messages .saved-message-control:last-child{grid-column:1/-1}}
+@media(max-width:600px){#page-messages .saved-message-controls{grid-template-columns:1fr}#page-messages .saved-message-control:last-child{grid-column:auto}}
+
 #page-messages .mention-picker{position:relative;min-width:0}
 
 #page-messages .mention-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b0d11;color:#f4f5f7;border:1px solid #39414d;border-radius:8px;padding:10px 12px;min-height:42px;text-align:right;cursor:pointer;font:inherit;font-size:12px}
@@ -1753,6 +1774,28 @@ html[dir="ltr"] .field label{text-align:left}
    <div class="modalactions">
     <button class="btn primary" id="discordMessageSaveButton" type="submit">حفظ الرسالة</button>
     <button class="btn" type="button" onclick="closeDiscordMessageModal()">إلغاء</button>
+   </div>
+  </form>
+ </div>
+</div>
+
+
+<div class="link-button-editor-modal" id="discordLinkButtonModalBack" hidden onclick="if(event.target===this)closeDiscordLinkButtonModal()">
+ <div class="link-button-editor-card" role="dialog" aria-modal="true" aria-labelledby="discordLinkButtonModalTitle">
+  <div class="modalhead" style="padding:16px 18px;border-bottom:1px solid #2b3038">
+   <div><h3 id="discordLinkButtonModalTitle">إنشاء زرار رابط</h3><div class="sub" id="discordLinkButtonModalSubtitle">اكتب اسم الزرار والرابط الذي سيفتحه.</div></div>
+   <button class="close" type="button" onclick="closeDiscordLinkButtonModal()">×</button>
+  </div>
+  <form id="discordLinkButtonForm" onsubmit="saveDiscordLinkButton(event)" style="padding:18px">
+   <div class="formgrid">
+    <div class="field full"><label for="discordLinkButtonLabel">اسم الزرار *</label><input class="message-editor-input" id="discordLinkButtonLabel" maxlength="80" required placeholder="مثال: YouTube"></div>
+    <div class="field full"><label for="discordLinkButtonUrl">الرابط URL *</label><input class="message-editor-input" id="discordLinkButtonUrl" type="url" maxlength="512" required placeholder="https://www.youtube.com/..."></div>
+    <div class="field full"><div class="link-button-editor-help">الزرار هيظهر أسفل رسالة Discord ويفتح الرابط مباشرةً عند الضغط عليه. استخدم رابط HTTPS. الحد الأقصى 25 زرار لكل رسالة، و80 حرفًا لاسم الزرار.</div></div>
+   </div>
+   <div id="discordLinkButtonStatus" class="muted" aria-live="polite" style="margin-top:10px;min-height:20px"></div>
+   <div class="modalactions">
+    <button class="btn primary" id="discordLinkButtonSave" type="submit">Create / إنشاء</button>
+    <button class="btn" type="button" onclick="closeDiscordLinkButtonModal()">إلغاء</button>
    </div>
   </form>
  </div>
@@ -4351,6 +4394,7 @@ function renderDiscordSavedMessages(){
    '<div class="saved-message-delivery"><div class="saved-message-controls">'+
     '<div class="saved-message-control"><label>قنوات الإرسال</label><div class="mention-picker"><div class="mention-selected" id="discordChannelSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordChannelToggle_'+id+'" onclick="toggleDiscordChannelPicker('+jsArg(item.id)+')">اختيار قنوات الإرسال</button><div class="mention-dropdown" id="discordChannelDropdown_'+id+'" hidden></div></div></div>'+
     '<div class="saved-message-control"><label>المنشنات الاختيارية</label><div class="mention-picker"><div class="mention-selected" id="discordMentionSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordMentionToggle_'+id+'" onclick="toggleDiscordMentionPicker('+jsArg(item.id)+')">اختيار المنشنات</button><div class="mention-dropdown" id="discordMentionDropdown_'+id+'" hidden></div><div class="mention-info">يمكنك تحديد عدة رتب أو أعضاء أو إشارات قنوات. إشارة القناة لا ترسل تنبيهًا.</div></div></div>'+
+    '<div class="saved-message-control"><label>أزرار الروابط</label><div class="saved-link-button-list">'+(Array.isArray(item.link_buttons)&&item.link_buttons.length?item.link_buttons.map((link,index)=>'<div class="saved-link-button-item"><div style="min-width:0"><div class="saved-link-button-name"><span>↗ '+esc(link.label)+'</span></div><span class="saved-link-button-url">'+esc(link.url)+'</span></div><div class="saved-link-button-actions"><button type="button" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+','+index+')">تعديل</button><button type="button" class="delete" onclick="removeDiscordLinkButton('+jsArg(item.id)+','+index+')">×</button></div></div>').join(''):'<div class="mention-info">لا توجد أزرار روابط مضافة.</div>')+'</div><button type="button" class="saved-link-button-add" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+')">＋ إنشاء زرار رابط</button>'+(Array.isArray(item.link_buttons)&&item.link_buttons.length>=25?'<div class="saved-link-button-limit">وصلت للحد الأقصى 25 زرار.</div>':'')+'</div>'+
    '</div><button id="discordSend_'+id+'" class="btn primary mention-send" type="button" hidden onclick="sendSavedDiscordMessage('+jsArg(item.id)+',this)">إرسال ↗</button></div>'+
    '<div class="saved-message-status">'+esc(lastSent)+' • مرات الإرسال: '+sentCount+'</div>'+
    '<div class="saved-message-actions"><button class="btn" type="button" onclick="openDiscordMessageModal('+jsArg(item.id)+')">تعديل</button><button class="btn danger" type="button" onclick="deleteDiscordSavedMessage('+jsArg(item.id)+',this)">حذف</button></div>'+
@@ -4448,6 +4492,94 @@ async function saveDiscordMessage(event){
   discordMessageSaveBusy=false;button.disabled=false;button.textContent=oldLabel;
  }
 }
+
+let discordLinkButtonEditorState={messageId:null,editingIndex:null,busy:false};
+function openDiscordLinkButtonModal(messageId,editingIndex=null){
+ if(!currentCanManageWarnings){toast('إدارة الرسائل متاحة للمالك وWebsite Admin فقط.');return;}
+ const row=discordSavedMessages.find(item=>String(item.id)===String(messageId));
+ if(!row){toast('قالب الرسالة غير موجود.');return;}
+ const links=Array.isArray(row.link_buttons)?row.link_buttons:[];
+ if(editingIndex===null&&links.length>=25){toast('وصلت للحد الأقصى 25 زرار رابط في الرسالة.');return;}
+ discordLinkButtonEditorState={messageId:String(messageId),editingIndex:editingIndex===null?null:Number(editingIndex),busy:false};
+ const item=editingIndex===null?null:links[Number(editingIndex)];
+ document.getElementById('discordLinkButtonModalTitle').textContent=item?'تعديل زرار الرابط':'إنشاء زرار رابط';
+ document.getElementById('discordLinkButtonModalSubtitle').textContent=item?'عدّل اسم الزرار أو الرابط ثم احفظ.':'اكتب اسم الزرار والرابط الذي سيفتحه.';
+ document.getElementById('discordLinkButtonSave').textContent=item?'حفظ التعديلات':'Create / إنشاء';
+ document.getElementById('discordLinkButtonLabel').value=item?.label||'';
+ document.getElementById('discordLinkButtonUrl').value=item?.url||'';
+ document.getElementById('discordLinkButtonStatus').textContent='';
+ document.getElementById('discordLinkButtonModalBack').hidden=false;
+ setTimeout(()=>document.getElementById('discordLinkButtonLabel')?.focus(),40);
+}
+function closeDiscordLinkButtonModal(){
+ document.getElementById('discordLinkButtonModalBack').hidden=true;
+ document.getElementById('discordLinkButtonForm')?.reset();
+ document.getElementById('discordLinkButtonStatus').textContent='';
+ discordLinkButtonEditorState={messageId:null,editingIndex:null,busy:false};
+}
+async function persistDiscordLinkButtons(messageId,buttons){
+ const response=await fetch('/api/notifications/send',{
+  method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({action:'saved_message_update_link_buttons',id:messageId,link_buttons:buttons})
+ });
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||'تعذّر حفظ أزرار الروابط.');
+ return data.message;
+}
+async function saveDiscordLinkButton(event){
+ event.preventDefault();
+ if(!currentCanManageWarnings||discordLinkButtonEditorState.busy)return;
+ const state={...discordLinkButtonEditorState};
+ const label=document.getElementById('discordLinkButtonLabel').value.trim();
+ const rawUrl=document.getElementById('discordLinkButtonUrl').value.trim();
+ if(!label||label.length>80){toast('اكتب اسم الزرار بحد أقصى 80 حرفًا.');return;}
+ if(!rawUrl||rawUrl.length>512){toast('اكتب رابطًا صحيحًا بحد أقصى 512 حرفًا.');return;}
+ let parsed;
+ try{parsed=new URL(rawUrl);}catch{toast('اكتب رابطًا صحيحًا يبدأ بـ https://.');return;}
+ if(parsed.protocol!=='https:'||!parsed.hostname||parsed.username||parsed.password){toast('استخدم رابط HTTPS صالحًا.');return;}
+ const row=discordSavedMessages.find(item=>String(item.id)===state.messageId);
+ if(!row){toast('قالب الرسالة غير موجود.');return;}
+ const links=Array.isArray(row.link_buttons)?row.link_buttons.slice():[];
+ const link={label,url:parsed.toString()};
+ if(state.editingIndex===null){
+  if(links.length>=25){toast('وصلت للحد الأقصى 25 زرار رابط.');return;}
+  links.push(link);
+ }else{
+  if(!Number.isInteger(state.editingIndex)||state.editingIndex<0||state.editingIndex>=links.length){toast('الزرار المحدد غير موجود.');return;}
+  links[state.editingIndex]=link;
+ }
+ const button=document.getElementById('discordLinkButtonSave');
+ const status=document.getElementById('discordLinkButtonStatus');
+ const old=button.textContent;
+ discordLinkButtonEditorState.busy=true;button.disabled=true;button.textContent='جارٍ الحفظ...';status.textContent='جارٍ حفظ الزرار مع قالب الرسالة...';
+ try{
+  await persistDiscordLinkButtons(state.messageId,links);
+  closeDiscordLinkButtonModal();
+  await loadDiscordSavedMessages();
+  toast(state.editingIndex===null?'تم إنشاء زرار الرابط وحفظه مع الرسالة.':'تم تحديث زرار الرابط.');
+ }catch(error){
+  status.textContent=error.message||'تعذّر حفظ الزرار.';
+  toast(error.message||'تعذّر حفظ الزرار.');
+ }finally{
+  button.disabled=false;button.textContent=old;
+  discordLinkButtonEditorState.busy=false;
+ }
+}
+async function removeDiscordLinkButton(messageId,index){
+ if(!currentCanManageWarnings)return;
+ const row=discordSavedMessages.find(item=>String(item.id)===String(messageId));
+ const links=Array.isArray(row?.link_buttons)?row.link_buttons.slice():[];
+ if(!row||!Number.isInteger(index)||index<0||index>=links.length)return;
+ const label=links[index].label||'الزرار';
+ if(!confirm('حذف زرار الرابط «'+label+'» من قالب الرسالة؟'))return;
+ links.splice(index,1);
+ try{
+  await persistDiscordLinkButtons(String(messageId),links);
+  await loadDiscordSavedMessages();
+  toast('تم حذف زرار الرابط من القالب.');
+ }catch(error){toast(error.message||'تعذّر حذف الزرار.');}
+}
+
 async function deleteDiscordSavedMessage(id,button){
  if(!currentCanManageWarnings)return;
  if(!confirm('هل تريد حذف الرسالة من سجل الموقع؟ لن تُحذف الرسائل التي سبق إرسالها في Discord.'))return;
@@ -4467,11 +4599,13 @@ async function sendSavedDiscordMessage(id,button){
  const row=discordSavedMessages.find(item=>String(item.id)===String(id));
  const mentions=mentionSelectedFor(id).slice();
  const mentionNames=mentions.map(item=>item.label).join('، ');
+ const linkButtons=Array.isArray(row?.link_buttons)?row.link_buttons:[];
  const channelNames=channelIds.map(channelId=>discordSavedChannels?.channels?.find(channel=>String(channel.id)===String(channelId))?.name||channelId);
  const hasBroadPing=mentions.some(item=>item.kind==='everyone'||item.kind==='here');
  let confirmation='إرسال «'+(row?.title||'رسالة من S.W.A.T.')+'» إلى '+channelIds.length+' قناة بواسطة بوت S.W.A.T. REDLINE؟';
  confirmation+='\n\nالقنوات المحددة: '+channelNames.join('، ');
  confirmation+='\n\nالمنشنات المختارة: '+(mentionNames||'بدون منشن');
+ confirmation+='\n\nأزرار الروابط: '+(linkButtons.length?linkButtons.map(item=>item.label).join('، '):'بدون أزرار');
  if(hasBroadPing)confirmation+='\n\n⚠️ تنبيه: اخترت منشنًا عامًا قد ينبه عددًا كبيرًا من أعضاء السيرفر في كل قناة محددة.';
  if(!confirm(confirmation))return;
  const old=button?.textContent||'إرسال ↗';
@@ -4494,7 +4628,7 @@ async function sendSavedDiscordMessage(id,button){
   const summary=failed.length
    ?'تم الإرسال بنجاح إلى '+succeeded.length+' من '+channelIds.length+' قناة. تعذّر الإرسال إلى '+failed.length+' قناة: '+failed.map(item=>item.name+' ('+item.error+')').join('؛ ')
    :'تم إرسال الرسالة بنجاح إلى كل القنوات المحددة ('+succeeded.length+').';
-  toast(summary);
+  toast(summary+(succeeded.length&&linkButtons.length?' • أُرفق '+linkButtons.length+' زرار رابط بكل رسالة ناجحة.':''));
  }finally{
   if(button){button.disabled=false;button.textContent=old;}
  }
@@ -5427,6 +5561,26 @@ Object.assign(PORTAL_TRANSLATIONS,{
  " قناة.":" channels.",
  "حدد قناة واحدة على الأقل.":"Select at least one channel.",
  "لا يوجد نص محفوظ؛ سيظهر نص افتراضي عند الإرسال.":"No saved text; a default message will be used when sending."
+});
+
+
+Object.assign(PORTAL_TRANSLATIONS,{
+ "أزرار الروابط":"Link Buttons",
+ "إنشاء زرار رابط":"Create Link Button",
+ "＋ إنشاء زرار رابط":"＋ Create Link Button",
+ "لا توجد أزرار روابط مضافة.":"No link buttons added.",
+ "وصلت للحد الأقصى 25 زرار.":"Maximum 25 buttons reached.",
+ "اسم الزرار *":"Button Label *",
+ "الرابط URL *":"Link URL *",
+ "مثال: YouTube":"Example: YouTube",
+ "الزرار هيظهر أسفل رسالة Discord ويفتح الرابط مباشرةً عند الضغط عليه. استخدم رابط HTTPS. الحد الأقصى 25 زرار لكل رسالة، و80 حرفًا لاسم الزرار.":"The button appears below the Discord message and opens the URL when clicked. Use HTTPS. Maximum 25 buttons per message and 80 characters for the label.",
+ "حفظ الزرار":"Save Button",
+ "Create / إنشاء":"Create",
+ "تم إنشاء زرار الرابط وحفظه مع الرسالة.":"Link button created and saved with the message.",
+ "تم تحديث زرار الرابط.":"Link button updated.",
+ "تم حذف زرار الرابط من القالب.":"Link button removed from the template.",
+ "أزرار الروابط: ":"Link Buttons: ",
+ "بدون أزرار":"No buttons"
 });
 
 applyPortalLanguage();
