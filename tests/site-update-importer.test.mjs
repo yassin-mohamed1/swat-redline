@@ -17,6 +17,8 @@ test("site update center is nested inside the admin-only settings container", as
   assert.match(html, /link\.target='_blank'/);
   assert.match(html, /noopener noreferrer/);
   assert.match(html, /new URL\(button\.url\)/);
+  assert.match(html, /const merged=new Map/);
+  assert.match(html, /حتى 12 قائمة مخصصة/);
 });
 
 test("settings API validates the imported visual settings", async () => {
