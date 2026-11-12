@@ -2,6 +2,9 @@ import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditEventsToDiscord } from "../../lib/audit-log.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
+import { validateProjectCodePackage, publishProjectCodePackage } from "../../lib/project-code.js";
+
+export const config = { api: { bodyParser: { sizeLimit: "2mb" } } };
 function cookies(header = "") {
   const out = {};
   for (const part of header.split(";")) { const i = part.indexOf("="); if (i < 0) continue; try { out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch {} }
@@ -32,6 +35,70 @@ export default async function handler(req, res) {
     if (!user.isOwner && !websiteAdmin) return res.status(403).json({ error: "Website Admin permission required" });
   }
   if (req.method === "PUT" && !requireSameOrigin(req, res)) return;
+  if (!["GET", "PUT", "POST"].includes(req.method)) {
+    res.setHeader("Allow", "GET, PUT, POST");
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  if ((req.method === "PUT" || req.method === "POST") && !requireSameOrigin(req, res)) return;
+
+  const codeCenterUrl = new URL(req.url, "https://swat-redline.vercel.app");
+  if (req.method === "GET" && codeCenterUrl.searchParams.get("code_center") === "1") {
+    if (!user.isOwner) return res.status(403).json({ error: "Only the portal owner can access source-code publishing." });
+    const connected = Boolean(process.env.SWAT_GITHUB_TOKEN);
+    return res.status(200).json({
+      ok: true,
+      connected,
+      repository: "yassin-mohamed1/swat-redline",
+      branch: "main",
+      mode: "direct-production",
+      limits: { maxFiles: 40, maxFileBytes: 262144, maxTotalBytes: 1048576 },
+      message: connected
+        ? "GitHub publishing is configured. Approved packages commit directly to main and trigger the normal Vercel Production deployment."
+        : "GitHub publishing is not configured. Add SWAT_GITHUB_TOKEN as a Vercel Production Secret to enable source-code publishing."
+    });
+  }
+
+  if (req.method === "POST") {
+    if (!user.isOwner) return res.status(403).json({ error: "Only the portal owner can publish source-code changes." });
+    const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+    if (!["validate", "apply"].includes(body.action)) return res.status(400).json({ error: "Action must be validate or apply." });
+    let update;
+    try { update = validateProjectCodePackage(body.package); }
+    catch (error) { return res.status(error.status || 400).json({ error: error.message || "Invalid code update package." }); }
+
+    if (body.action === "validate") {
+      const connected = Boolean(process.env.SWAT_GITHUB_TOKEN);
+      return res.status(200).json({
+        ok: true,
+        summary: update.summary,
+        fileCount: update.files.length,
+        totalBytes: update.totalBytes,
+        files: update.files.map(file => ({ path: file.path, action: file.action, bytes: file.bytes || 0 })),
+        connected,
+        publishReady: connected
+      });
+    }
+
+    const githubToken = process.env.SWAT_GITHUB_TOKEN;
+    if (!githubToken) {
+      return res.status(503).json({
+        error: "Code package is valid, but GitHub publishing is not connected yet. Add the protected Vercel Production Secret SWAT_GITHUB_TOKEN with repository Contents: Read and write permission, then redeploy."
+      });
+    }
+    try {
+      const result = await publishProjectCodePackage(githubToken, update, user.displayName || user.username || user.id);
+      console.info("SWAT Code Center commit", JSON.stringify({
+        actor: user.id,
+        commit: result.commitSha,
+        files: result.files,
+        summary: update.summary
+      }));
+      return res.status(200).json({ ok: true, message: "Project changes committed to main. Vercel Production deployment has been triggered.", ...result });
+    } catch (error) {
+      console.error("SWAT Code Center publish failed", error?.githubStatus || error?.status || "unknown", error?.message || "unknown");
+      return res.status(error.status || 502).json({ error: error.message || "Could not publish the project update." });
+    }
+  }
   const base = process.env.SUPABASE_URL?.replace(/\/+$/, ""), key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) return res.status(503).json({ error: "Database is not configured" });
   const headers = { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json" };
