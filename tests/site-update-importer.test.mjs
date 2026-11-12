@@ -12,6 +12,8 @@ test("site update center is nested inside the admin-only settings container", as
   assert.match(html, /previewSiteUpdatePackage\(\)/);
   assert.match(html, /applySiteUpdatePackage\(\)/);
   assert.match(html, /validateSiteUpdatePackage/);
+  assert.match(html, /function renderSiteCustomMenus/);
+  assert.match(html, /customMenuItems/);
 });
 
 test("settings API validates the imported visual settings", async () => {
@@ -22,4 +24,5 @@ test("settings API validates the imported visual settings", async () => {
   assert.match(api, /Invalid style override entry/);
   assert.match(api, /Invalid image URL/);
   assert.match(api, /gallery\.length > 40/);
+  assert.match(api, /Invalid custom menu item/);
 });
