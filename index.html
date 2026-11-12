@@ -2479,7 +2479,7 @@ function log(type,detail,ref='—'){
   audit.unshift(event);audit=audit.slice(0,500);
   localStorage.setItem('redline_audit',JSON.stringify(audit));
   renderAudit();renderActivity();
-  const action=type==='إضافة'?'create':type==='حذف'?'delete':type==='تصدير'?'download':type==='رفع'?'upload':type==='دخول'?'login':type==='خروج'?'logout':type==='صلاحية'?'permission_change':'update';
+  const action=type==='عرض'?'view':type==='إضافة'?'create':type==='حذف'?'delete':type==='تصدير'?'download':type==='رفع'?'upload':type==='دخول'?'login':type==='خروج'?'logout':type==='صلاحية'?'permission_change':'update';
   fetch('/api/audit/log',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,entity_type:'portal_action',entity_id:ref&&ref!=='—'?String(ref):null,details:{type,detail:String(detail||'').slice(0,3000),ref:String(ref||'—')}})})
     .then(async response=>{if(!response.ok)console.warn('Persistent audit event was not saved:',response.status);})
     .catch(error=>console.warn('Persistent audit service unavailable:',error?.message||'unknown'));
@@ -2490,7 +2490,7 @@ async function loadAuditLog(){
     if(!response.ok)return;
     const result=await response.json();
     if(!Array.isArray(result.events))return;
-    const labels={create:'إضافة',update:'تعديل',delete:'حذف',download:'تصدير',upload:'رفع',permission_change:'تعديل',login:'دخول',logout:'خروج'};
+    const labels={create:'إضافة',update:'تعديل',delete:'حذف',download:'تصدير',upload:'رفع',permission_change:'تعديل',login:'دخول',logout:'خروج',view:'عرض'};
     audit=result.events.map(item=>({
       time:item.created_at,
       user:item.actor_name||'Discord user',
@@ -2504,7 +2504,7 @@ async function loadAuditLog(){
     if(repaired)save();
     renderAudit();renderActivity();
   }catch(error){console.warn('Could not load persistent audit history:',error?.message||'unknown');}
-}function fmtTime(t){return new Date(t).toLocaleString('ar-SA',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}function statusTag(p){return p.status==='arrested'?'<span class="tag green">✓ تم القبض عليه</span>':p.status==='archived'?'<span class="tag gray">مؤرشف</span>':'<span class="tag red">مطلوب</span>'}function priorityTag(p){return p.priority==='عالي'?'red':p.priority==='متوسط'?'orange':'gray'}function personCard(p){
+}function fmtTime(t){const locale=typeof currentPortalLanguage==='function'&&currentPortalLanguage()==='en'?'en-US':'ar-SA';return new Date(t).toLocaleString(locale,{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'})}function statusTag(p){return p.status==='arrested'?'<span class="tag green">✓ تم القبض عليه</span>':p.status==='archived'?'<span class="tag gray">مؤرشف</span>':'<span class="tag red">مطلوب</span>'}function priorityTag(p){return p.priority==='عالي'?'red':p.priority==='متوسط'?'orange':'gray'}function personCard(p){
   const src=esc(p.images&&p.images[0]||''),idArg=jsArg(p.id);
   const arrestButton=p.status==='wanted'
     ? '<button class="btn primary" style="flex:1;min-width:90px" onclick="event.stopPropagation();arrestPerson('+idArg+')">تم القبض</button>'
@@ -5451,6 +5451,11 @@ function go(page){
  if(page==='wanted'||page==='records'){page='records';tab='people'}else if(page==='suspects'){page='records';tab='cases'}else if(page==='investigations'){page='records';tab='investigations'}
  if(['personnel','assignments','warnings','messages','attendance','audit'].includes(page)&&!currentCanAdmin){go('dashboard');return;}
  if((page==='attendance'||page==='messages')&&!currentCanManageWarnings){go('dashboard');return;}
+ const pageNames={dashboard:'لوحة القيادة',records:'مركز الملفات والقضايا',operations:'العمليات',announcements:'الإعلانات',reports:'التقارير',rules:'القوانين والأوامر',personnel:'الأفراد',assignments:'التعيينات',warnings:'التحذيرات',messages:'إرسال الرسائل',attendance:'البصمة اليومية',audit:'سجل الإدارة',settings:'إعدادات النظام',gallery:'الصور'};
+ if(window.__redlineAuditPage!==page){
+  window.__redlineAuditPage=page;
+  log('عرض','فتح صفحة '+(pageNames[page]||page),'PAGE-'+page);
+ }
  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+page)?.classList.add('active');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='records')showRecordTab(tab||activeRecordTab||'people');
@@ -5716,6 +5721,8 @@ async function initAuth(){
     if(currentCanAdmin)await loadAuditLog();
     loadSiteSettings();
     renderAll();
+    window.__redlineAuditPage='dashboard';
+    log('عرض','فتح صفحة لوحة القيادة','PAGE-dashboard');
     setInterval(()=>{pullSharedState(false);if(currentCanAdmin)loadAuditLog();},15000);
   }catch(e){
     app.classList.add('auth-locked');
@@ -6126,8 +6133,10 @@ function applyPortalLanguage(){
  });
 }
 function togglePortalLanguage(){
- localStorage.setItem('swat-language-preference',currentPortalLanguage()==='ar'?'en':'ar');
+ const nextLanguage=currentPortalLanguage()==='ar'?'en':'ar';
+ localStorage.setItem('swat-language-preference',nextLanguage);
  applyPortalLanguage();
+ log('تعديل',nextLanguage==='en'?'Changed interface language to English':'تم تغيير لغة الواجهة إلى العربية','PORTAL-LANGUAGE');
  if(currentCanManageWarnings&&document.getElementById('page-warnings')?.classList.contains('active'))renderWarnings();
 }
 const portalLanguageObserver=new MutationObserver(()=>{
@@ -6397,6 +6406,61 @@ Object.assign(PORTAL_TRANSLATIONS,{
  "تم حذف زرار الرابط من القالب.":"Link button removed from the template.",
  "أزرار الروابط: ":"Link Buttons: ",
  "بدون أزرار":"No buttons"
+});
+
+/* Refresh the phrase index after all translation dictionaries have been registered.
+   Earlier code built this array before several page-specific dictionaries were appended. */
+portalTranslationEntries.splice(0,portalTranslationEntries.length,...Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length));
+Object.assign(PORTAL_TRANSLATIONS,{
+ "عرض":"View",
+ "عرض الصفحات":"Page views",
+ "فتح صفحة":"Opened page",
+ "تغيير لغة الواجهة":"Changed interface language",
+ "تعديل إعدادات الموقع":"Update site settings",
+ "تعديل إعداد الموقع":"Update site setting",
+ "تعديل أزرار روابط رسالة محفوظة":"Update saved-message link buttons",
+ "إنشاء قالب رسالة محفوظة":"Create saved message template",
+ "تعديل قالب رسالة محفوظة":"Update saved message template",
+ "حذف قالب رسالة محفوظة":"Delete saved message template",
+ "إرسال رسالة محفوظة إلى Discord":"Send saved message to Discord",
+ "إرسال رسالة محفوظة إلى الرسائل الخاصة":"Send saved message by direct message",
+ "نشر تحديث برمجي للموقع":"Publish website code update",
+ "رفع صورة للموقع":"Upload website image",
+ "إضافة عضو يدويًا دون تسجيل دخول للموقع":"Manually add a member without portal sign-in",
+ "تعيين فرد":"Assign member",
+ "تعديل تعيين فرد":"Update member assignment",
+ "إنهاء تعيين فرد":"End member assignment",
+ "تغيير صلاحية فرد":"Change member permission",
+ "تسجيل دخول":"Sign in",
+ "تسجيل خروج":"Sign out",
+ "حفظ إعدادات الموقع":"Save website settings",
+ "فتح صفحة لوحة القيادة":"Opened Dashboard",
+ "لوحة القيادة":"Dashboard",
+ "مركز الملفات والقضايا":"Records & Cases Center",
+ "القوانين والأوامر":"Rules & Orders",
+ "سجل الإدارة":"Administration Log",
+ "إعدادات النظام":"System Settings",
+ "البصمة اليومية":"Daily Attendance",
+ "إرسال الرسائل":"Message Center",
+ "الأفراد":"Personnel",
+ "التعيينات":"Appointments",
+ "التحذيرات":"Warnings",
+ "العمليات":"Operations",
+ "الإعلانات":"Announcements",
+ "التقارير":"Reports",
+ "الصور":"Media Gallery",
+ "تم حذف قالب الرسالة":"Deleted saved message template",
+ "تم تعديل قالب الرسالة":"Updated saved message template",
+ "تم إنشاء قالب رسالة محفوظة":"Created saved message template",
+ "تم تحديث إعداد الموقع":"Updated site setting",
+ "تم رفع صورة جديدة إلى معرض أو ملفات الموقع.":"A new image was uploaded to the portal gallery or media files.",
+ "تم حذف التعميم":"Deleted official notice",
+ "تم تعديل التعميم":"Updated official notice",
+ "تم نشر":"Published",
+ "لم تُرسل":"Not sent",
+ "مرات الإرسال":"Send count",
+ "لا توجد أحداث":"No events",
+ "كل العمليات":"All actions"
 });
 
 applyPortalLanguage();
