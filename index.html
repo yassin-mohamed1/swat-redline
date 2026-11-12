@@ -5725,8 +5725,16 @@ async function applySiteUpdatePackage(){
  if(!confirm('تأكيد حفظ التغييرات المعروضة على إعدادات الموقع؟'))return;
  button.disabled=true;status.textContent='جاري حفظ التغييرات...';
  try{
-  await saveSettingPayload(previewedSiteUpdatePackage.changes);
-  siteSettings={...siteSettings,...previewedSiteUpdatePackage.changes};
+  const changes={...previewedSiteUpdatePackage.changes};
+  if(Array.isArray(changes.customMenuItems)&&changes.customMenuItems.length){
+   const existing=Array.isArray(siteSettings.customMenuItems)?siteSettings.customMenuItems:[];
+   const merged=new Map(existing.filter(item=>item&&typeof item.id==='string').map(item=>[item.id,item]));
+   for(const item of changes.customMenuItems)merged.set(item.id,item);
+   changes.customMenuItems=Array.from(merged.values());
+   if(changes.customMenuItems.length>12)throw new Error('الموقع يدعم حتى 12 قائمة مخصصة. احذف قائمة قديمة أولًا قبل إضافة المزيد.');
+  }
+  await saveSettingPayload(changes);
+  siteSettings={...siteSettings,...changes};
   applySiteSettings();renderSiteImageSettings();renderSiteGallery();renderSiteCustomMenus();
   status.textContent='تم حفظ الإعدادات بنجاح وتطبيقها على الموقع.';toast('تم تحديث إعدادات الموقع.');
  }catch(error){button.disabled=false;status.textContent='فشل الحفظ: '+(error.message||'خطأ غير معروف');toast(error.message||'تعذر حفظ التحديثات.')}
