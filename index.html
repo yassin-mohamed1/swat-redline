@@ -4024,8 +4024,8 @@ function renderDiscordMentionPicker(messageId){
  const query=String(search?.value||'').trim().toLowerCase();
  const groups=[];
  const specials=[
-  {kind:'everyone',id:'everyone',label:'@everyone',detail:'تنبيه لكل أعضاء السيرفر',terms:'everyone الكل الجميع'},
-  {kind:'here',id:'here',label:'@here',detail:'تنبيه للأعضاء المتصلين/النشطين حسب Discord',terms:'here المتصلين الحاضرين'}
+  {kind:'everyone',id:'everyone',label:'@everyone',detail:'تنبيه لكل أعضاء السيرفر · يحتاج Mention Everyone',terms:'everyone الكل الجميع'},
+  {kind:'here',id:'here',label:'@here',detail:'تنبيه الأعضاء المتصلين · يحتاج Mention Everyone',terms:'here المتصلين الحاضرين'}
  ].filter(item=>!query||item.label.toLowerCase().includes(query)||item.terms.includes(query));
  if(specials.length)groups.push('<div class="mention-group-title">منشنات عامة</div>'+specials.map(item=>mentionOptionButton(messageId,item.kind,item.id,item.label,item.detail,true)).join(''));
  const roles=(Array.isArray(discordSavedMentionData.roles)?discordSavedMentionData.roles:[])
@@ -5149,6 +5149,30 @@ Object.assign(PORTAL_TRANSLATIONS,{
  "جارٍ الإرسال...":"Sending...",
  "تم الإرسال في رسالة واحدة، والنص الكامل مرفق داخلها كملف TXT.":"Sent as one Discord message with the full text attached as a TXT file.",
  "تم إرسال الرسالة في Discord بنجاح.":"Message sent to Discord successfully."
+});
+
+
+Object.assign(PORTAL_TRANSLATIONS,{
+ "المنشنات الاختيارية":"Optional Mentions",
+ "ابحث عن رتبة أو عضو أو قناة...":"Search roles, members or channels...",
+ "منشنات عامة":"General Mentions",
+ "رتب السيرفر (":"Server Roles (",
+ "إشارات القنوات — لا ترسل تنبيهًا (":"Channel References — no notification (",
+ "الأعضاء المطابقون (":"Matching Members (",
+ "قناة صوتية · إشارة فقط":"Voice Channel · reference only",
+ "قناة نصية · إشارة فقط":"Text Channel · reference only",
+ "قابلة للمنشن":"Mentionable",
+ "تحتاج صلاحية Mention Everyone":"Requires Mention Everyone permission",
+ "تنبيه لكل أعضاء السيرفر · يحتاج Mention Everyone":"Notify everyone in the server · requires Mention Everyone",
+ "تنبيه الأعضاء المتصلين · يحتاج Mention Everyone":"Notify online members · requires Mention Everyone",
+ "ابحث باسم العضو أو لقبه لعرض نتائج من السيرفر. الرتب والقنوات تظهر من القائمة مباشرة.":"Search a member's username or nickname. Roles and channels are listed automatically.",
+ "جارٍ البحث عن أعضاء السيرفر...":"Searching server members...",
+ "لا توجد نتائج أعضاء مطابقة. جرّب بداية الاسم أو اللقب.":"No matching members. Try the beginning of a username or nickname.",
+ "تقدر تختار أكتر من منشن. إشارة القناة لا ترسل تنبيهًا.":"You can select multiple mentions. A channel reference does not send a notification.",
+ "الحد الأقصى 100 رتبة و100 عضو في كل رسالة.":"Maximum 100 roles and 100 members per message.",
+ "المنشنات المختارة: ":"Selected mentions: ",
+ "بدون منشن":"No mentions",
+ "تنبيه: اخترت منشن عام قد ينبه عددًا كبيرًا من أعضاء السيرفر.":"Warning: You selected a broad mention that may notify many server members."
 });
 
 applyPortalLanguage();
