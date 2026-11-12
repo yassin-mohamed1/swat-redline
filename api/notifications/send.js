@@ -1074,6 +1074,14 @@ export default async function handler(req, res) {
   const user = readSession(req);
   if (!user) return res.status(401).json({ error: "Unauthorized." });
   const statusUrl = new URL(req.url, "https://swat-redline.vercel.app");
+  if (req.method === "GET" && statusUrl.searchParams.get("site_notice_status") === "1") {
+    try {
+      return await getSiteNoticePublicationStatuses(user, statusUrl, res);
+    } catch (error) {
+      return res.status(error.status || 500).json({ error: error.message || "Could not read official notice publication status." });
+    }
+  }
+
   let websiteAdminAccess = Boolean(user.isOwner);
   try {
     if (!websiteAdminAccess) {
@@ -1085,14 +1093,6 @@ export default async function handler(req, res) {
   }
   if (!websiteAdminAccess) {
     return res.status(403).json({ error: "Website Admin permission required to send Discord notifications." });
-  }
-
-  if (req.method === "GET" && statusUrl.searchParams.get("site_notice_status") === "1") {
-    try {
-      return await getSiteNoticePublicationStatuses(user, statusUrl, res);
-    } catch (error) {
-      return res.status(error.status || 500).json({ error: error.message || "Could not read official notice publication status." });
-    }
   }
 
   if (req.method === "GET") {
