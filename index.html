@@ -1518,7 +1518,7 @@ html[dir="ltr"] .field label{text-align:left}
 @media(max-width:600px){#page-messages .saved-message-controls{grid-template-columns:1fr}#page-messages .saved-message-controls .btn{width:100%}}
 </style>
 <div class="sectionhead">
- <div><h2>إرسال الرسائل</h2><div class="sub">أنشئ قوالب الرسائل مرة واحدة، واختر أي قناة في سيرفر Discord لإرسالها بواسطة بوت S.W.A.T. REDLINE</div></div>
+ <div><h2>إرسال الرسائل</h2><div class="sub">أنشئ قوالب الرسائل مرة واحدة، وحدد قناة أو أكثر ومنشنات متعددة لإرسالها بواسطة بوت S.W.A.T. REDLINE</div></div>
  <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap">
   <button class="btn" type="button" onclick="refreshDiscordMessages()">↻ تحديث</button>
   <button class="btn primary" type="button" onclick="openDiscordMessageModal()">＋ إرسال رسالة</button>
@@ -1714,7 +1714,7 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="message-editor-modal" id="discordMessageModalBack" hidden onclick="if(event.target===this)closeDiscordMessageModal()">
  <div class="message-editor-card" role="dialog" aria-modal="true" aria-labelledby="discordMessageModalTitle">
   <div class="modalhead" style="padding:16px 18px;border-bottom:1px solid #2b3038">
-   <div><h3 id="discordMessageModalTitle">إرسال رسالة جديدة</h3><div class="sub" id="discordMessageModalSubtitle">اكتب اسم الرسالة ومحتواها ثم احفظها في سجل الرسائل.</div></div>
+   <div><h3 id="discordMessageModalTitle">إرسال رسالة جديدة</h3><div class="sub" id="discordMessageModalSubtitle">اكتب الاسم أو النص أو اتركهما فارغين، ثم احفظ الرسالة.</div></div>
    <button class="close" type="button" onclick="closeDiscordMessageModal()">×</button>
   </div>
   <form id="discordMessageForm" onsubmit="saveDiscordMessage(event)" style="padding:18px">
@@ -5209,7 +5209,7 @@ Object.assign(PORTAL_TRANSLATIONS, {
 Object.assign(PORTAL_TRANSLATIONS,{
  "إرسال الرسائل":"Send Messages",
  "إرسال رسالة":"Create Message",
- "أنشئ قوالب الرسائل مرة واحدة، واختر أي قناة في سيرفر Discord لإرسالها بواسطة بوت S.W.A.T. REDLINE":"Create reusable message templates and choose any Discord channel for the S.W.A.T. REDLINE bot to send them.",
+ "أنشئ قوالب الرسائل مرة واحدة، واختر قناة أو أكثر في سيرفر Discord لإرسالها بواسطة بوت S.W.A.T. REDLINE":"Create reusable message templates and choose any Discord channel for the S.W.A.T. REDLINE bot to send them.",
  "قوالب الرسائل المحفوظة":"Saved Message Templates",
  "جارٍ تحميل الرسائل...":"Loading messages...",
  "رسالة محفوظة":"saved messages",
