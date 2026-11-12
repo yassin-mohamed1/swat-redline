@@ -1460,8 +1460,14 @@ html[dir="ltr"] .field label{text-align:left}
 <div class="muted" style="padding:10px;border-radius:8px;background:#17191d">وضع التجربة: أوقف الخيارين؛ سيصل التنبيه إلى المالك فقط في الخاص، دون نشره في أي روم ودون إرساله لبقية الأعضاء.</div>
 </div></div><div class="grid"><div class="panel"><div class="panelhead"><h3>المظهر العام</h3></div><div class="panelbody"><label style="display:block;margin-bottom:8px">اللون الرئيسي</label><input id="settingAccent" type="color" value="#39d69b" style="width:100%;height:42px;margin-bottom:16px"><label style="display:block;margin-bottom:8px">لون الخلفية</label><input id="settingBackground" type="color" value="#090a0c" style="width:100%;height:42px;margin-bottom:16px"><button class="btn primary" onclick="saveThemeSettings()">حفظ ألوان الموقع</button></div></div><div class="panel"><div class="panelhead"><h3>محرر محتوى الموقع</h3></div><div class="panelbody"><p class="muted">فعّل وضع التحرير ثم انقر مرتين على أي نص ظاهر لتعديله. Alt + نقرة لتغيير لون النص، وShift + Alt + نقرة لتغيير لون خلفية العنصر. احفظ التغييرات لتظهر للأعضاء الآخرين.</p><button class="btn primary" id="toggleVisualEdit" onclick="toggleVisualEditMode()">تفعيل وضع التحرير</button> <button class="btn" onclick="saveVisualSettings()">حفظ تعديلات المحتوى</button><button class="btn danger" onclick="resetVisualSettings()">مسح تعديلات المحتوى</button><div id="settingsStatus" class="muted" style="margin-top:12px">تحميل الإعدادات...</div></div></div></div><div class="panel" style="margin-top:16px"><div class="panelhead"><h3>صور الموقع</h3><span class="sub">تغيير صور التصميم وإدارة المعرض</span></div><div class="panelbody"><p class="muted">كل عنصر من عناصر الهوية له إعداد مستقل. ارفع صورة لكل مكان على حدة، وستظهر لكل أعضاء الموقع بعد الحفظ. الصيغ المدعومة JPG وPNG وWEBP وGIF، والحد الأقصى للصورة 2MB.</p><div class="site-image-settings-grid"><div class="site-image-setting"><h4>شعار القائمة الجانبية</h4><div id="siteSidebarLogoPreview" class="site-image-preview"><span>استخدام الشعار الافتراضي</span></div><input id="siteSidebarLogoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('logoSidebar',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteSidebarLogoFile').click()">تغيير شعار القائمة</button> <button class="btn danger" type="button" onclick="clearSiteImage('logoSidebar')">استعادة الأصلي</button></div><div class="site-image-setting"><h4>شعار شاشة التحميل</h4><div id="siteLoadingLogoPreview" class="site-image-preview"><span>استخدام الشعار الافتراضي</span></div><input id="siteLoadingLogoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('logoLoading',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteLoadingLogoFile').click()">تغيير شعار التحميل</button> <button class="btn danger" type="button" onclick="clearSiteImage('logoLoading')">استعادة الأصلي</button></div><div class="site-image-setting"><h4>شعار شاشة تسجيل الدخول</h4><div id="siteLoginLogoPreview" class="site-image-preview"><span>استخدام الشعار الافتراضي</span></div><input id="siteLoginLogoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('logoLogin',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteLoginLogoFile').click()">تغيير شعار الدخول</button> <button class="btn danger" type="button" onclick="clearSiteImage('logoLogin')">استعادة الأصلي</button></div><div class="site-image-setting"><h4>صورة البانر</h4><div id="siteBannerPreview" class="site-image-preview"><span>لم يتم اختيار صورة للبانر</span></div><input id="siteBannerFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('banner',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteBannerFile').click()">رفع صورة البانر</button> <button class="btn danger" type="button" onclick="clearSiteImage('banner')">إزالة</button></div><div class="site-image-setting"><h4>صورة خلفية الموقع</h4><div id="siteBackgroundPreview" class="site-image-preview"><span>لم يتم اختيار صورة للخلفية</span></div><input id="siteBackgroundFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('background',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteBackgroundFile').click()">رفع صورة الخلفية</button> <button class="btn danger" type="button" onclick="clearSiteImage('background')">إزالة</button></div></div><div class="site-gallery-add-row" style="margin-top:18px"><input id="siteGalleryTitle" maxlength="100" placeholder="اسم الصورة (اختياري)"><input id="siteGalleryFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('gallery',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteGalleryFile').click()">＋ إضافة صورة للمعرض</button></div><div id="siteGalleryAdmin" class="site-gallery-admin"></div><div class="muted" id="siteImagesStatus" style="margin-top:12px">إدارة صور التصميم محفوظة مركزيًا.</div></div></div><div class="panel" style="margin-top:16px"><div class="panelhead"><h3>ملاحظات الصلاحيات</h3></div><div class="panelbody"><p>هذه اللوحة متاحة للمالك وأصحاب رتبة WEBSITE ADMIN. الحظر والفصل يُنفذان من الخادم، وحساب المالك ADMIN محمي من التعديل من خلال واجهة الإدارة.</p><p class="muted">لإظهار جميع أعضاء Discord بمن فيهم من لم يسجّلوا دخول الموقع، يلزم ربط بوت Discord بصلاحية قراءة أعضاء السيرفر؛ هذه القائمة حاليًا تعرض من سجّلوا الدخول إلى الموقع.</p></div></div>
 <div class="panel" id="siteUpdateImporterPanel" style="margin-top:16px">
- <div class="panelhead"><div><h3>مركز تحديثات الموقع</h3><div class="sub">استيراد تغييرات آمنة للإعدادات والمظهر والمحتوى</div></div><span class="tag gray">خاص بالإدارة</span></div>
+ <div class="panelhead"><div><h3>مركز تحديثات الموقع</h3><div class="sub">إدارة تحديثات التصميم والمحتوى وملفات البرمجة من مكان واحد</div></div><span class="tag gray">خاص بالإدارة</span></div>
  <div class="panelbody" style="display:grid;gap:12px">
+  <div id="siteUpdatesTabBar" role="tablist" aria-label="أنواع تحديثات الموقع" style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #292d33">
+   <button class="btn primary" id="siteSettingsTabButton" type="button" role="tab" aria-selected="true" onclick="setSiteUpdateTab('settings')">تحديثات التصميم والمحتوى</button>
+   <button class="btn" id="siteCodeTabButton" type="button" role="tab" aria-selected="false" style="display:none" onclick="setSiteUpdateTab('code')">تحديثات البرمجة</button>
+  </div>
+  <div id="siteSettingsTabContent" style="display:grid;gap:12px">
+
   <p class="muted" style="line-height:1.9;margin:0">الصق هنا حزمة JSON التي تم تجهيزها للموقع، افحصها أولًا، ثم اعتمدها لحفظ التغييرات. يدعم المركز الألوان والنصوص المخصصة وبعض روابط الصور وإعدادات المظهر الحالية فقط. لا يشغّل أكواد برمجية أو HTML أو أوامر نظام. إضافة صفحات أو قوائم أو وظائف جديدة تحتاج تعديلًا برمجيًا ومراجعة ونشر إصدار جديد.</p>
   <textarea id="siteUpdatePackageInput" rows="12" spellcheck="false" dir="ltr" style="width:100%;min-height:220px;background:#090c11;color:#e4edf7;border:1px solid #394250;border-radius:9px;padding:12px;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical" placeholder='{
   "format": "swat-site-settings",
@@ -1482,12 +1488,9 @@ html[dir="ltr"] .field label{text-align:left}
   </div>
   <div id="siteUpdatePackagePreview" class="panel" style="display:none;padding:12px;background:#0c1118"></div>
   <div id="siteUpdatePackageStatus" class="muted" role="status" aria-live="polite">لم يتم فحص أي حزمة بعد.</div>
- </div>
-</div>
+  </div>
+  <div id="siteCodeCenterPanel" style="display:none;gap:12px">
 
-<div class="panel" id="siteCodeCenterPanel" style="display:none;margin-top:16px">
- <div class="panelhead"><div><h3>مركز البرمجة الشامل</h3><div class="sub">تعديل ملفات المشروع ونشرها على الموقع الأساسي</div></div><span class="tag gray">المالك فقط</span></div>
- <div class="panelbody" style="display:grid;gap:12px">
   <p class="muted" style="line-height:1.9;margin:0">هذا المركز يقبل حزمة واحدة تحتوي تغييرات متعددة في ملفات المشروع: إضافة ملفات جديدة، استبدال محتويات ملفات موجودة، أو حذف ملفات غير محمية. يدعم ملفات الواجهة وواجهات API ومكتبات الخادم والاختبارات والإعدادات وترحيلات SQL النصية. عند الاعتماد، تُسجّل التغييرات مباشرة على فرع main وتبدأ عملية نشر Production المعتادة؛ لا ينشئ رابط Preview منفصلًا.</p>
   <p class="muted" style="line-height:1.9;margin:0">الحزمة لا تنفّذ أوامر من المتصفح ولا تستخدم eval. ملفات الأسرار ومفاتيح الاعتماد وسير عمل GitHub محمية. ترحيلات SQL تُحفظ داخل المشروع فقط ولا تُنفّذ تلقائيًا على قاعدة البيانات، وتغيير متغيرات البيئة والأسرار يظل من إعدادات Vercel المحمية.</p>
   <div id="siteCodeCenterConnection" class="panel" style="padding:12px;background:#0c1118">
@@ -1520,6 +1523,7 @@ html[dir="ltr"] .field label{text-align:left}
   </div>
   <div id="siteCodePackagePreview" class="panel" style="display:none;padding:12px;background:#0c1118"></div>
   <div id="siteCodeCenterStatus" class="muted" role="status" aria-live="polite">لم يتم فحص حزمة بعد.</div>
+  </div>
  </div>
 </div>
 </div></section><section class="page" id="page-reports"><div class="sectionhead"><div><h2>التقارير</h2><div class="sub">إنشاء تقارير موثقة وربطها بالعمليات والقضايا والتحريات</div></div><button class="btn primary" onclick="newReport()">＋ إنشاء تقرير</button></div><div class="toolbar"><input id="reportSearch" placeholder="ابحث بالعنوان أو الرقم أو الكاتب أو المحتوى..." oninput="renderReports()"><select id="reportStatusFilter" onchange="renderReports()"><option value="all">كل الحالات</option><option>مسودة</option><option>قيد المراجعة</option><option>معتمد</option></select><select id="reportTypeFilter" onchange="renderReports()"><option value="all">كل الأنواع</option><option value="operation">تقارير العمليات</option><option value="case">تقارير القضايا</option><option value="investigation">تقارير التحريات</option><option value="administrative">تقارير إدارية</option><option value="general">تقارير عامة</option></select></div><div class="panel" style="margin-top:14px"><div class="panelhead"><h3>سجل التقارير</h3><span class="sub" id="reportCount"></span></div><div class="tablewrap"><table><thead><tr><th>رقم التقرير</th><th>عنوان التقرير</th><th>النوع / السجل المرتبط</th><th>الكاتب</th><th>الحالة</th><th>تاريخ الإنشاء</th><th>إجراءات</th></tr></thead><tbody id="reportRows"></tbody></table></div></div></section>
@@ -4978,8 +4982,9 @@ async function initAuth(){
     currentUser=data.user.displayName||data.user.username||data.user.globalName||data.user.id||'Discord user';
     document.getElementById('settingsNav').style.display='flex';
     document.getElementById('ownerSettingsPanels').style.display=currentCanAdmin?'block':'none';
-    const codeCenterPanel=document.getElementById('siteCodeCenterPanel');
-    if(codeCenterPanel)codeCenterPanel.style.display=currentIsOwner?'block':'none';
+    const codeTabButton=document.getElementById('siteCodeTabButton');
+    if(codeTabButton)codeTabButton.style.display=currentIsOwner?'inline-flex':'none';
+    setSiteUpdateTab('settings');
     ['adminNavDivider','adminNavHeading'].forEach(id=>{
       const node=document.getElementById(id);
       if(node)node.style.display=currentCanAdmin?'block':'none';
@@ -5804,6 +5809,25 @@ async function loadSiteCodeCenterStatus(){
   if(textNode)textNode.textContent=error.message||'تعذر فحص ربط GitHub.';
   if(publish)publish.disabled=true;
  }
+}
+function setSiteUpdateTab(tab){
+ const showCode=tab==='code'&&Boolean(currentIsOwner);
+ const settingsContent=document.getElementById('siteSettingsTabContent');
+ const codeContent=document.getElementById('siteCodeCenterPanel');
+ const settingsButton=document.getElementById('siteSettingsTabButton');
+ const codeButton=document.getElementById('siteCodeTabButton');
+ if(settingsContent)settingsContent.style.display=showCode?'none':'grid';
+ if(codeContent)codeContent.style.display=showCode?'grid':'none';
+ if(settingsButton){
+  settingsButton.className=showCode?'btn':'btn primary';
+  settingsButton.setAttribute('aria-selected',showCode?'false':'true');
+ }
+ if(codeButton){
+  codeButton.style.display=currentIsOwner?'inline-flex':'none';
+  codeButton.className=showCode?'btn primary':'btn';
+  codeButton.setAttribute('aria-selected',showCode?'true':'false');
+ }
+ if(showCode&&typeof loadSiteCodeCenterStatus==='function')loadSiteCodeCenterStatus();
 }
 async function previewSiteCodePackage(){
  const input=document.getElementById('siteCodePackageInput'),preview=document.getElementById('siteCodePackagePreview'),status=document.getElementById('siteCodeCenterStatus'),publish=document.getElementById('siteCodePublishButton');
