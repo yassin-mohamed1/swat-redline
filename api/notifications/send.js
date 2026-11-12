@@ -1015,6 +1015,45 @@ async function publishAttendanceChannelNotice(user, body) {
   return { channelId, messageId, messageUrl, auditRecorded, type, title };
 }
 
+
+async function readJsonRequestBody(req) {
+  if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
+    return req.body;
+  }
+
+  const raw = typeof req.body === "string" ? req.body : "";
+  if (raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      throw Object.assign(new Error("بيانات الطلب غير صالحة. أعد تحميل الصفحة وحاول مرة أخرى."), { status: 400 });
+    }
+  }
+
+  // Some Vercel Node handlers can reach this route without a parsed req.body.
+  // Read the stream only when the framework has not already provided a body.
+  if (req.readableEnded || req.destroyed) return {};
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+    if (totalBytes > 1024 * 1024) {
+      throw Object.assign(new Error("حجم بيانات الطلب أكبر من الحد المسموح."), { status: 413 });
+    }
+    chunks.push(buffer);
+  }
+
+  if (!totalBytes) return {};
+  try {
+    const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    throw Object.assign(new Error("بيانات الطلب غير صالحة. أعد تحميل الصفحة وحاول مرة أخرى."), { status: 400 });
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -1108,9 +1147,12 @@ export default async function handler(req, res) {
 
   if (!requireSameOrigin(req, res)) return;
 
-  const body = typeof req.body === "string"
-    ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })()
-    : (req.body || {});
+  let body;
+  try {
+    body = await readJsonRequestBody(req);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message || "Invalid request body." });
+  }
   if (String(body.action || "").startsWith("saved_message_")) {
     const config = getConfig();
     if (config.error === "bot_token_missing") return res.status(503).json({ error: "بوت Discord غير متصل." });
