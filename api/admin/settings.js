@@ -6,8 +6,8 @@ import { validateProjectCodePackage, publishProjectCodePackage } from "../../lib
 
 export const config = { api: { bodyParser: { sizeLimit: "2mb" } } };
 async function appendAdminAuditEvent(user,event) {
-  const base=process.env.SUPABASE_URL?.replace(/\\/+$/, "");
-  const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+  let base=String(process.env.SUPABASE_URL||"");
+  while(base.endsWith("/"))base=base.slice(0,-1);  const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
   if(!base||!key)return false;
   const auditEvent={
     actor_discord_id:user.id,
