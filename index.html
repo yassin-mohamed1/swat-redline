@@ -3728,7 +3728,7 @@ async function submitWarningAction(action){
  if(action==='dismiss'&&level!==3){toast('اختيار إجراء الفصل غير صالح.');return}
  if(action==='issue'&&level!==1&&level!==2){toast('اختر الإنذار الأول أو الإنذار الثاني.');return}
  const label=action==='dismiss'?'فصل هذا العضو':restartingDismissed?'بدء دورة إنذارات جديدة بإصدار الإنذار الأول':'إصدار '+warningLevelLabel(level);
- const labelEnglish=action==='dismiss'?'dismiss this member':restartingDismissed?'start a new warning cycle by issuing Warning 1':'issue Warning '+level;
+ const labelEnglish=action==='dismiss'?'fire this member':restartingDismissed?'start a new warning cycle by issuing Warning 1':'issue Warning '+level;
  const confirmation=currentPortalLanguage()==='ar'
   ?'هل أنت متأكد من '+label+'؟\n\nالسبب: '+reason
   :'Are you sure you want to '+labelEnglish+'?\n\nReason: '+reason;
@@ -5736,7 +5736,7 @@ async function initAuth(){
 
 /* Language choice is local to this browser and is never synced to other members. */
 const PORTAL_TRANSLATIONS = {
-'خاص بالإدارة':'Owner only','التحكم في منشن SWAT':'SWAT mention control','إيقاف منشن رتبة SWAT مؤقتًا':'Temporarily disable the SWAT role mention','عند تفعيل هذا الخيار، ينزل التنبيه في روم الإشعارات بدون منشن لأي عضو. عند إيقافه، يظهر منشن رتبة SWAT مع التنبيه. الرسائل الخاصة لا تتأثر بهذا الخيار.':'When this option is on, the alert is posted in the notification channel without mentioning anyone. When off, the SWAT role is mentioned with the alert. Direct messages are not affected.','إيقاف المنشن مؤقتًا':'Temporarily disable mentions','جاري تحميل إعداد المنشن...':'Loading mention setting...','منشن SWAT متوقف؛ لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and dismissals.','منشن SWAT مفعّل؛ سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and dismissals.','جاري حفظ إعداد المنشن...':'Saving mention setting...','منشن SWAT متوقف. لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and dismissals.','منشن SWAT مفعّل. سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and dismissals.','تعذّر حفظ إعداد المنشن.':'Could not save mention setting.','تم إيقاف منشن SWAT':'SWAT mention disabled','تم تفعيل منشن SWAT':'SWAT mention enabled',
+'خاص بالإدارة':'Owner only','التحكم في منشن SWAT':'SWAT mention control','إيقاف منشن رتبة SWAT مؤقتًا':'Temporarily disable the SWAT role mention','عند تفعيل هذا الخيار، ينزل التنبيه في روم الإشعارات بدون منشن لأي عضو. عند إيقافه، يظهر منشن رتبة SWAT مع التنبيه. الرسائل الخاصة لا تتأثر بهذا الخيار.':'When this option is on, the alert is posted in the notification channel without mentioning anyone. When off, the SWAT role is mentioned with the alert. Direct messages are not affected.','إيقاف المنشن مؤقتًا':'Temporarily disable mentions','جاري تحميل إعداد المنشن...':'Loading mention setting...','منشن SWAT متوقف؛ لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and fired-member notices.','منشن SWAT مفعّل؛ سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and fired-member notices.','جاري حفظ إعداد المنشن...':'Saving mention setting...','منشن SWAT متوقف. لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and fired-member notices.','منشن SWAT مفعّل. سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and fired-member notices.','تعذّر حفظ إعداد المنشن.':'Could not save mention setting.','تم إيقاف منشن SWAT':'SWAT mention disabled','تم تفعيل منشن SWAT':'SWAT mention enabled',
 
 'سيتم نشر التنبيه في روم SWAT Notification Website، وإرسال رسالة خاصة إلى كل عضو نشط في البوابة لم يوقف استقبال الرسائل من الإعدادات. هل تريد المتابعة؟':'The alert will be posted in SWAT Notification Website and a DM will be sent to every active portal member who has not disabled private alerts in settings. Continue?','تم نشر التنبيه في الروم، لكن لا يوجد عضو حاليًا مفعّل لاستقبال الرسائل الخاصة.':'The alert was posted in the channel, but no member currently has private DMs enabled.','تم تفعيل استقبال رسائل التنبيه.':'Private alert messages are enabled.','تم إيقاف الرسائل الخاصة. لن تصلك تنبيهات البوت على الخاص.':'Private DMs are disabled.','تم نشر التنبيه وإرسال ':'Alert published and sent ',
 'حالة اتصال بوت Discord':'Discord Bot Connection','لم يتم الفحص':'Not checked','افحص أن البوت مثبت في نفس سيرفر Discord المستخدم لتسجيل الدخول إلى البوابة. هذا الفحص لا يعرض التوكن.':'Check that the bot is installed in the same Discord server used to sign in to the portal. This check does not reveal the token.','فحص اتصال البوت بالسيرفر':'Check bot connection to server','لم يتم إجراء الفحص بعد.':'No check has been performed yet.','جاري الفحص...':'Checking...','جاري الفحص':'Checking','التوكن غير صالح':'Invalid token','البوت غير مثبت':'Bot not installed','متصل بالسيرفر':'Connected to server','تعذر فحص اتصال البوت':'Could not check bot connection','Discord رفض الرسالة: البوت وحسابك ليسا في سيرفر مشترك. أضف البوت إلى سيرفر الموقع.':'Discord rejected the DM: the bot and your account do not share a server. Add the bot to the portal server.','تعذر إرسال الرسالة بسبب إعدادات الخصوصية أو حظر رسائل البوت في حساب Discord.':'The DM could not be sent because of the recipient Discord privacy settings or a bot block.',
@@ -5785,7 +5785,7 @@ Object.assign(PORTAL_TRANSLATIONS,{
 Object.assign(PORTAL_TRANSLATIONS, {
   "يظل الإنذار الأول ساريًا لمدة 30 يومًا، ثم تُزال رتبته من ديسكورد تلقائيًا.":"Warning 1 remains active for 30 days, then its Discord role is removed automatically.",
   "يظل الإنذار الثاني ساريًا لمدة 60 يومًا، ولا تُزال رتبته بعد 30 يومًا؛ تُزال تلقائيًا بعد اكتمال 60 يومًا.":"Warning 2 remains active for 60 days. Its Discord role is not removed after 30 days; it is removed automatically after the full 60 days.",
-  "الفصل لا يخضع لمدة انتهاء الإنذارات.":"Dismissal does not have a warning expiry period.",
+  "الفصل لا يخضع لمدة انتهاء الإنذارات.":"Being fired does not have a warning expiry period.",
   "ينتهي بعد 30 يومًا.":"Expires after 30 days.",
   "ينتهي بعد 60 يومًا.":"Expires after 60 days."
 });
@@ -5801,7 +5801,7 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "تحديث":"Refresh",
   "الإنذار الأول":"Warning 1",
   "الإنذار الثاني":"Warning 2",
-  "الأعضاء المفصولون":"Dismissed Members",
+  "الأعضاء المفصولون":"Fired Members",
   "إضافة تحذير":"Add Warning",
   "مدير التحذيرات":"Warnings Manager",
   "اختيار عضو مسجل":"Select Registered Member",
@@ -5812,17 +5812,17 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "الصق معرّف ديسكورد هنا":"Paste the Discord ID here",
   "اختر عضوًا للمتابعة.":"Choose a member to continue.",
   "الإجراء التأديبي":"Disciplinary Action",
-  "الفصل":"Dismissal",
+  "الفصل":"Fired",
   "يظل كل إنذار ساريًا لمدة 30 يومًا، ثم تُزال رتبته من ديسكورد تلقائيًا.":"Each warning remains active for 30 days, then its Discord role is removed automatically.",
   "سبب الإجراء":"Reason",
   "اكتب سبب المخالفة...":"Enter the reason for the violation...",
   "تفاصيل إضافية (اختياري)":"Additional Details (Optional)",
   "ملخص الأدلة أو أي معلومات إضافية...":"Evidence summary or any additional information...",
-  "الفصل: يؤدي هذا الإجراء إلى إزالة جميع رتب ديسكورد التي يستطيع البوت إزالتها، مع تسجيل السبب.":"Dismissal: This action removes all Discord roles the bot can manage and records the reason.",
+  "الفصل: يؤدي هذا الإجراء إلى إزالة جميع رتب ديسكورد التي يستطيع البوت إزالتها، مع تسجيل السبب.":"Fired: This action removes all Discord roles the bot can manage and records the reason.",
   "إصدار الإنذار الأول":"Issue Warning 1",
   "إصدار الإنذار الثاني":"Issue Warning 2",
   "بدء دورة جديدة • إصدار الإنذار الأول":"Start New Cycle • Issue Warning 1",
-  "تنفيذ قرار الفصل":"Execute Dismissal",
+  "تنفيذ قرار الفصل":"Fire Member",
   "جارٍ تحديث رتب ديسكورد وإرسال الإشعار الخاص ونشر السجل الرسمي...":"Updating Discord roles, sending the private notice, and publishing the official record...",
   "سجل الإنذارات":"Warning Records",
   "عضو":"Member",
@@ -5846,28 +5846,28 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "عضو ديسكورد":"Discord member",
   "غير معروف":"Unknown",
   "نشط":"Active",
-  "مفصول":"Dismissed",
-  "فصل":"Dismissal",
-  "فصل العضو":"Dismissal",
+  "مفصول":"Fired",
+  "فصل":"Fired",
+  "فصل العضو":"Fired",
   "بدون إنذار":"No Warning",
   "تم الإرسال":"Sent",
   "فشل الإرسال":"Failed",
   "قيد الانتظار":"Pending",
   "منتهي":"Expired",
-  "سجل سابق: العضو مفصول. يمكنك بدء دورة إنذارات جديدة بإصدار الإنذار الأول.":"Previous record: The member was dismissed. You can start a new warning cycle by issuing Warning 1.",
+  "سجل سابق: العضو مفصول. يمكنك بدء دورة إنذارات جديدة بإصدار الإنذار الأول.":"Previous record: The member was fired. You can start a new warning cycle by issuing Warning 1.",
   "العضو:":"Member:",
   "لا يوجد له سجل إنذارات سابق":"No previous warning record",
   "أدخل معرّف مستخدم ديسكورد صحيحًا أو اختر عضوًا من القائمة.":"Enter a valid Discord user ID or choose a member from the list.",
   "سبب الإجراء التأديبي مطلوب.":"A disciplinary reason is required.",
-  "لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.":"Dismissal is only available after Warning 2.",
-  "يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني. وبعد الفصل يمكن بدء دورة جديدة بالإنذار الأول.":"Warnings must be issued in order: Warning 1, then Warning 2. After dismissal, a new cycle can start with Warning 1.",
-  "تم فصل العضو وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات.":"The member was dismissed. The private notice was sent and the warnings-channel announcement was published.",
+  "لا يمكن تنفيذ الفصل إلا بعد تسجيل الإنذار الثاني.":"Firing is only available after Warning 2.",
+  "يجب إصدار الإنذارات بالترتيب: الإنذار الأول ثم الإنذار الثاني. وبعد الفصل يمكن بدء دورة جديدة بالإنذار الأول.":"Warnings must be issued in order: Warning 1, then Warning 2. After a member is fired, a new cycle can start with Warning 1.",
+  "تم فصل العضو وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات.":"The member was fired. The private notice was sent and the warnings-channel announcement was published.",
   "تم إصدار الإنذار الأول وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.":"Warning 1 issued. The private notice was sent and the warnings-channel announcement was published. Expires after 30 days.",
   "تم إصدار الإنذار الثاني وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.":"Warning 2 issued. The private notice was sent and the warnings-channel announcement was published. Expires after 30 days.",
   "بدء دورة إنذارات جديدة بإصدار الإنذار الأول":"start a new warning cycle by issuing Warning 1",
   " وإرسال الإشعار الخاص ونشر إعلان قناة التحذيرات. ينتهي بعد 30 يومًا.":". The private notice was sent and the warnings-channel announcement was published. Expires after 30 days.",
   "تم تحديث الرتب، لكن تعذّر نشر الإعلان في ديسكورد. راجع صلاحيات البوت في القناة.":"Roles were updated, but the Discord announcement could not be published. Check the bot's channel permissions.",
-  "تم تنفيذ قرار الفصل بنجاح.":"Dismissal completed successfully.",
+  "تم تنفيذ قرار الفصل بنجاح.":"The member was fired successfully.",
   "تم إصدار الإنذار بنجاح.":"Warning issued successfully.",
   "تعذّر تنفيذ الإجراء التأديبي.":"Could not complete the disciplinary action.",
   "تعذّر تحميل سجل التحذيرات.":"Could not load warning records.",
@@ -5887,7 +5887,7 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "لا يستطيع البوت إدارة رتبة الإنذار المنتهي رقم ":"The bot cannot manage expired Warning ",
   "رتبة الإنذار المحددة غير موجودة في سيرفر ديسكورد.":"The selected warning role does not exist in this Discord server.",
   "ارفع رتبة البوت في إعدادات السيرفر لتكون أعلى من رتبتي الإنذار الأول والإنذار الثاني.":"Move the bot role above Warning 1 and Warning 2 in Server Settings → Roles.",
-  "لا يمكن فصل مالك السيرفر المحمي.":"The protected server owner cannot be dismissed.",
+  "لا يمكن فصل مالك السيرفر المحمي.":"The protected server owner cannot be fired.",
   "لم يتمكن ديسكورد من إنشاء محادثة خاصة مع هذا العضو.":"Discord could not create a private channel for this member.",
   "لم يؤكد ديسكورد إرسال الرسالة الخاصة.":"Discord did not confirm delivery of the private message.",
   "طريقة الطلب غير مسموح بها.":"This request method is not allowed.",
@@ -5897,27 +5897,27 @@ Object.assign(PORTAL_TRANSLATIONS, {
   "راجع معرّف العضو والإجراء والسبب ومعرّف الطلب.":"Check the member ID, action, reason, and request ID.",
   "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي من خلال هذه الأداة.":"The protected owner cannot receive disciplinary actions through this tool.",
   "فشل إرسال الرسالة الخاصة كما فشل التراجع عن تغيير الرتبة. يلزم إصلاح الرتبة يدويًا من ديسكورد.":"The private message failed and role rollback also failed. Manual role recovery in Discord is required.",
-  "تعذّر إرسال الرسالة الخاصة إلى العضو. تم التراجع عن تغيير الرتبة ولم يتم تسجيل الإنذار أو قرار الفصل.":"The private message could not be delivered. The role change was rolled back, and the warning or dismissal was not recorded.",
+  "تعذّر إرسال الرسالة الخاصة إلى العضو. تم التراجع عن تغيير الرتبة ولم يتم تسجيل الإنذار أو قرار الفصل.":"The private message could not be delivered. The role change was rolled back, and the warning or firing action was not recorded.",
   "تعذّر نشر الإشعار في قناة التحذيرات. تم التراجع عن تغيير الرتبة ومحاولة حذف الرسالة الخاصة.":"The notice could not be posted in the warnings channel. The role change was rolled back and deletion of the private message was attempted.",
-  "تم تسجيل قرار فصل العضو من إدارة S.W.A.T. REDLINE.":"The dismissal decision has been recorded by S.W.A.T. REDLINE.",
+  "تم تسجيل قرار فصل العضو من إدارة S.W.A.T. REDLINE.":"The decision to fire the member has been recorded by S.W.A.T. REDLINE.",
   "تم إصدار وتسجيل إنذار رسمي وفقًا للوائح S.W.A.T. REDLINE.":"An official warning has been issued and recorded under S.W.A.T. REDLINE regulations."
 });
 Object.assign(PORTAL_TRANSLATIONS,{
 'إدارة الحالات':'Manage cases','＋ إجراء جديد':'＋ New action','سجل الإجراءات والرسائل':'Actions & messages log',
 'تحديث البيانات':'Refresh data','الأعضاء والحالات الحالية':'Members & current statuses','إدارة ومراجعة':'Manage & review',
-'كل الأعضاء':'All members','المفصولون':'Dismissed members','بدون إنذار':'No warning','إدارة':'Manage',
+'كل الأعضاء':'All members','المفصولون':'Fired members','بدون إنذار':'No warning','إدارة':'Manage',
 'إنشاء إجراء تأديبي':'Create disciplinary action','اختيار عضو مسجل':'Select registered member',
 'إدخال معرّف ديسكورد يدويًا':'Enter Discord ID manually','اختر عضوًا مسجلًا في الموقع':'Select a registered portal member',
 'اختر عضوًا...':'Select a member...','اختر عضوًا للمتابعة.':'Select a member to continue.',
 'الإجراء التأديبي':'Disciplinary action','سبب الإجراء':'Reason for action','تفاصيل إضافية (اختياري)':'Additional details (optional)',
 'اكتب سبب المخالفة...':'Enter the violation reason...','ملخص الأدلة أو أي معلومات إضافية...':'Evidence summary or additional information...',
-'إصدار الإنذار':'Issue warning','تنفيذ قرار الفصل':'Execute dismissal','سجل الإجراءات والرسائل الأصلية':'Action and original message log',
+'إصدار الإنذار':'Issue warning','تنفيذ قرار الفصل':'Fire member','سجل الإجراءات والرسائل الأصلية':'Action and original message log',
 'تعديل السبب أو التفاصيل يحدّث رسالة Discord الأصلية':'Editing the reason or details updates the original Discord message',
-'كل الإجراءات':'All actions','الإنذارات فقط':'Warnings only','الفصل فقط':'Dismissals only','الإنذارات المنتهية':'Expired warnings',
+'كل الإجراءات':'All actions','الإنذارات فقط':'Warnings only','الفصل فقط':'Fired members only','الإنذارات المنتهية':'Expired warnings',
 'ابحث في سجل الإجراءات...':'Search the action log...','التاريخ':'Date','العضو':'Member','الإجراء':'Action',
 'صدر بواسطة':'Issued by','الخاص':'DM','القناة':'Channel','الانتهاء':'Expiry','تعديل':'Edit',
 'إدارة حالة العضو':'Manage member status','إغلاق':'Close','الحالة الجديدة':'New status',
-'إزالة الإنذار الحالي / بدون إنذار':'Remove current warning / no warning','فصل العضو':'Dismiss member',
+'إزالة الإنذار الحالي / بدون إنذار':'Remove current warning / no warning','فصل العضو':'Fire member',
 'سبب التعديل *':'Reason for change *','اكتب سبب إزالة الإنذار أو تعديل الحالة...':'Enter the reason for removing the warning or changing the status...',
 'حفظ الحالة الجديدة':'Save new status','إلغاء':'Cancel','تعديل الرسالة التأديبية':'Edit disciplinary message',
 'سيتم تحديث الرسالة الأصلية في قناة التحذيرات والرسالة الخاصة للعضو. وسيظل التعديل مسجلًا في سجل النشاط.':'The original message in the warnings channel and the member DM will be updated. The edit will remain in the activity log.',
@@ -5926,10 +5926,10 @@ Object.assign(PORTAL_TRANSLATIONS,{
 'تعذّر تعديل الحالة التأديبية.':'Could not update disciplinary status.',
 'تم تعديل الرسالة التأديبية الأصلية في Discord.':'The original disciplinary message was updated in Discord.',
 'تعذّر تعديل الرسالة التأديبية.':'Could not edit the disciplinary message.',
-'إعادة تفعيل السجل لا تعيد الرتب العادية التي أزيلت من Discord عند الفصل؛ أعد توزيعها من إدارة الرتب إذا لزم.':'Reactivating the record does not restore regular Discord roles removed at dismissal; reassign them from role management if needed.',
+'إعادة تفعيل السجل لا تعيد الرتب العادية التي أزيلت من Discord عند الفصل؛ أعد توزيعها من إدارة الرتب إذا لزم.':'Reactivating the record does not restore regular Discord roles removed when the member was fired; reassign them from role management if needed.',
 'سيتم حذف رتبة التحذير الحالية فقط مع الحفاظ على بقية رتب العضو.':'Only the current warning role will be removed; the member’s other roles will be preserved.',
 'سيتم تحديث رتبة التحذير في Discord وإعادة احتساب مدة الصلاحية من الآن.':'The warning role in Discord will be updated and its validity period will restart from now.',
-'الفصل متاح بعد الإنذار الثاني فقط.':'Dismissal is available only after Warning 2.'
+'الفصل متاح بعد الإنذار الثاني فقط.':'Firing is available only after Warning 2.'
 });
 Object.assign(PORTAL_TRANSLATIONS,{
 'التعيينات والنداءات':'Appointments & Callsigns','إدارة الرتب الرسمية وأكواد النداء للأعضاء المسجلين في بوابة S.W.A.T. REDLINE':'Manage official Discord ranks and callsigns for members registered in the S.W.A.T. REDLINE portal',
@@ -5969,11 +5969,11 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "التحكم في منشن العضو المستهدف":"Target Member Mention Controls",
  "أما منشن رتبة @SWAT فيتم التحكم فيه من خيار «إيقاف منشن رتبة SWAT مؤقتًا» أعلاه.":"The @SWAT role mention is controlled by the “Temporarily Disable SWAT Role Mention” setting above.",
  "منشن العضو المستهدف":"Target Member Mention",
- "عند التفعيل، سيظهر منشن مباشر للشخص الذي صدر بحقه WARNING أو DISMISSAL داخل إعلان قناة التحذيرات.":"When enabled, the warnings-channel announcement will directly mention the member who received a WARNING or DISMISSAL.",
+ "عند التفعيل، سيظهر منشن مباشر للشخص الذي صدر بحقه WARNING أو DISMISSAL داخل إعلان قناة التحذيرات.":"When enabled, the warnings-channel announcement will directly mention the member who received a WARNING or was FIRED.",
  "تفعيل منشن العضو":"Enable Member Mention",
  "جاري تحميل إعداد منشن العضو...":"Loading member mention setting...",
- "منشن العضو المستهدف مفعّل في إعلانات التحذيرات والفصل.":"Target member mentions are enabled in warning and dismissal announcements.",
- "منشن العضو المستهدف متوقف في إعلانات التحذيرات والفصل.":"Target member mentions are disabled in warning and dismissal announcements.",
+ "منشن العضو المستهدف مفعّل في إعلانات التحذيرات والفصل.":"Target member mentions are enabled in warning and fired-member announcements.",
+ "منشن العضو المستهدف متوقف في إعلانات التحذيرات والفصل.":"Target member mentions are disabled in warning and fired-member announcements.",
  "جاري حفظ إعداد المنشن...":"Saving mention settings...",
  "تعذّر حفظ إعداد المنشن.":"Could not save mention settings.",
  "تم تفعيل منشن العضو":"Member mention enabled",
@@ -5987,7 +5987,7 @@ Object.assign(PORTAL_ATTRIBUTE_TRANSLATIONS, {
   "الصق معرّف ديسكورد هنا":"Paste the Discord ID here"
 });
 Object.assign(PORTAL_TRANSLATIONS, {
- "هذا الإعداد يتحكم في منشن رتبة @SWAT داخل التنبيهات العامة وإعلانات التحذيرات وقرارات الفصل. عند إيقافه، لن يظهر منشن رتبة SWAT في أي من هذه الرسائل. منشن العضو المستهدف له إعداد مستقل بالأسفل.":"This setting controls the @SWAT role mention in regular notifications, warning announcements, and dismissal announcements. When disabled, the SWAT role will not be mentioned in any of these messages. The target member mention has a separate setting below."
+ "هذا الإعداد يتحكم في منشن رتبة @SWAT داخل التنبيهات العامة وإعلانات التحذيرات وقرارات الفصل. عند إيقافه، لن يظهر منشن رتبة SWAT في أي من هذه الرسائل. منشن العضو المستهدف له إعداد مستقل بالأسفل.":"This setting controls the @SWAT role mention in regular notifications, warning announcements, and fired-member announcements. When disabled, the SWAT role will not be mentioned in any of these messages. The target member mention has a separate setting below."
 });
 const portalTextNodes = new WeakMap(), portalAttributes = new WeakMap();
 Object.assign(PORTAL_TRANSLATIONS, {
@@ -6078,7 +6078,7 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "تم التسجيل اليوم":"Stamped Today",
  "لم يسجل من قبل":"Never stamped",
  "بدون إنذار":"No Warning",
- "فصل":"Dismissed",
+ "فصل":"Fired",
  "تحديث البيانات":"Refresh Data"
 });
 
