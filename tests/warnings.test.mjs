@@ -140,7 +140,7 @@ test("all site DM delivery paths honor each member's personal opt-out", async ()
 test("disciplinary embeds use English branding and warning titles with Arabic field labels", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   assert.ok(api.includes('author: { name: "S.W.A.T. REDLINE • OFFICIAL DISCIPLINARY RECORD" }'));
-  assert.ok(api.includes('title: dismissed ? "⛔ MEMBER DISMISSED" : "⚠️ OFFICIAL " + actionLabel'));
+  assert.ok(api.includes('title: dismissed ? "⛔ MEMBER FIRED" : "⚠️ OFFICIAL " + actionLabel'));
   assert.ok(api.includes('value: actionLabel'));
   assert.ok(api.includes('name: "العضو"'));
   assert.ok(api.includes('name: "سبب الإجراء"'));
