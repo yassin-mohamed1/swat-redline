@@ -799,7 +799,7 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
     );
     if (unmanageable.length) {
       const names = unmanageable.map(role => role?.name || "Unknown/managed role").join(", ");
-      throw Object.assign(new Error("Dismissal cannot be completed because the bot cannot remove these roles: " + names + ". Move the bot higher or remove managed roles manually first."), { status: 409 });
+      throw Object.assign(new Error("The member cannot be fired because the bot cannot remove these roles: " + names + ". Move the bot higher or remove managed roles manually first."), { status: 409 });
     }
     for (const id of originalRoles) current.delete(id);
   }
@@ -859,7 +859,7 @@ function formatRiyadhDate(value) {
 }
 function buildDisciplinaryEmbed(action, level, target, reason, details, actor, actionId, expiresAt) {
   const dismissed = action === "dismissal";
-  const actionLabel = dismissed ? "DISMISSAL" : "WARNING " + level;
+  const actionLabel = dismissed ? "FIRED" : "WARNING " + level;
   const fields = [
     { name: "العضو", value: String(target.name || "Discord member").slice(0, 200), inline: true },
     { name: "Discord ID", value: target.id, inline: true },
@@ -878,7 +878,7 @@ function buildDisciplinaryEmbed(action, level, target, reason, details, actor, a
   return {
     ...(target.avatarUrl ? { thumbnail: { url: target.avatarUrl } } : {}),
     author: { name: "S.W.A.T. REDLINE • OFFICIAL DISCIPLINARY RECORD" },
-    title: dismissed ? "⛔ MEMBER DISMISSED" : "⚠️ OFFICIAL " + actionLabel,
+    title: dismissed ? "⛔ MEMBER FIRED" : "⚠️ OFFICIAL " + actionLabel,
     description: dismissed
       ? "تم تسجيل قرار فصل العضو من إدارة S.W.A.T. REDLINE."
       : "تم إصدار وتسجيل إنذار رسمي وفقًا للوائح S.W.A.T. REDLINE.",
