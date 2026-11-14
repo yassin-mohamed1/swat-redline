@@ -12,7 +12,8 @@ test("Arabic-English phrase index refreshes after the final translation dictiona
   assert.ok(finalTranslation >= 0, "late phrase translations should exist");
   assert.ok(refresh > finalTranslation, "phrase index must include all late dictionaries");
   assert.ok(firstApply > refresh, "initial translation pass must run after the index refresh");
-  assert.match(html, /new MutationObserver\(\(\)=>\{/);
+  assert.match(html, /new MutationObserver\(\(records\)=>\{/);
+  assert.match(html, /record\.addedNodes/);
   assert.match(html, /togglePortalLanguage\(\)/);
 });
 

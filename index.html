@@ -37,14 +37,15 @@ html[dir="ltr"] body{font-family:Arial,Helvetica,sans-serif}html[dir="ltr"] .sid
 .splash-status{display:flex;align-items:center;justify-content:center;gap:9px;color:#c5c7ce;font:500 11px/1.5 Arial,Helvetica,sans-serif;letter-spacing:1.4px;text-transform:uppercase}
 .splash-dot{width:6px;height:6px;border-radius:50%;background:#f12835;box-shadow:0 0 12px #f12835;animation:splashBlink 1s ease-in-out infinite}
 .splash-progress{height:3px;margin-top:18px;border-radius:99px;background:#27282d;overflow:hidden}
-.splash-progress span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#8e121d,#f12835,#ff777e);box-shadow:0 0 14px #f1283570;animation:splashProgress 5s linear forwards}
+.splash-progress span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#8e121d,#f12835,#ff777e);box-shadow:0 0 14px #f1283570}
+#portalSplash.is-ready .splash-progress span{animation:splashProgress 10s linear forwards}
 .splash-footer{margin-top:19px;color:#626873;font:9px/1.5 Arial,Helvetica,sans-serif;letter-spacing:1.8px}
 @keyframes splashProgress{from{width:0}to{width:100%}}
 @keyframes splashPulse{0%,100%{transform:scale(1);opacity:.45}50%{transform:scale(1.06);opacity:1}}
 @keyframes splashBlink{0%,100%{opacity:.4}50%{opacity:1}}
 @keyframes splashOrbit{to{transform:rotate(360deg)}}
 @media(max-width:520px){.splash-card{padding:32px 22px 27px}.splash-wordmark{font-size:23px;letter-spacing:3px}.splash-emblem{width:82px;height:82px}.splash-emblem img{width:61px;height:61px}}
-@media(prefers-reduced-motion:reduce){#portalSplash:before,#portalSplash:after,.splash-emblem:before,.splash-dot,.splash-progress span{animation-duration:5s!important}}
+@media(prefers-reduced-motion:reduce){#portalSplash:before,#portalSplash:after,.splash-emblem:before,.splash-dot{animation-duration:5s!important}.splash-progress span{animation-duration:10s!important}}
 
 /* Evidence gallery and viewer */
 .evidence-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin:12px 0}
@@ -1564,6 +1565,21 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
  html{scroll-behavior:auto!important}
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+ /* Keep scroll-heavy panels and gallery tiles steady while preserving button and card motion. */
+ .panel:hover,.site-gallery-admin-card:hover,.site-gallery-card:hover,.evidence-card:hover,
+ .site-gallery-card:hover img,.evidence-card:hover img{
+  transform:none!important;
+ }
+ .panel:hover{
+  border-color:rgba(151,178,216,.2)!important;
+  box-shadow:0 14px 34px rgba(0,0,0,.28)!important;
+ }
+ .site-gallery-admin-card:hover,.site-gallery-card:hover,.evidence-card:hover{
+  border-color:rgba(241,40,53,.4)!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.24)!important;
+ }
+ .page.active{animation:redlinePageFade .18s ease-out both!important}
+ @keyframes redlinePageFade{from{opacity:0}to{opacity:1}}
 </style>
 </head><body><div id="portalSplash" role="status" aria-live="polite"><div class="splash-card"><div class="splash-emblem"><img src="/swat-redline-logo.svg" alt="S.W.A.T. REDLINE"></div><h1 class="splash-wordmark">S.W.A.T. <span>REDLINE</span></h1><div class="splash-subtitle">SPECIAL FORCES • COMMAND PORTAL</div><div class="splash-status"><span class="splash-dot"></span><span>INITIALIZING SECURE SYSTEMS</span></div><div class="splash-progress"><span></span></div><div class="splash-footer">SECURE ACCESS&nbsp; • &nbsp;AUTHORIZED PERSONNEL ONLY</div></div></div><div id="authGate" class="auth-gate"><div class="auth-card"><div class="auth-mark"><img src="/swat-redline-logo.svg" alt="S.W.A.T. REDLINE"></div><h1>S.W.A.T. <span>REDLINE</span></h1><p>بوابة القيادة — سجّل الدخول بحساب Discord المصرّح له للوصول إلى النظام.</p><a class="auth-login" href="/api/auth/discord"><span>◉</span> تسجيل الدخول باستخدام Discord</a><div id="authError" class="auth-error">تعذّر التحقق من الجلسة. حاول تسجيل الدخول مرة أخرى.</div><p class="auth-note">الوصول مقيّد بحساب Discord والرتبة المعتمدة.</p></div></div><div class="app auth-locked"><aside class="sidebar"><div class="brand"><img src="/swat-redline-logo.svg" alt="S.W.A.T. Redline logo"><div><b>S.W.A.T.</b><span>REDLINE</span><div class="muted">SPECIAL FORCES</div></div></div><nav class="nav" id="nav"><button class="active" data-page="dashboard"><span class="ico">▦</span> لوحة القيادة</button><button data-page="operations"><span class="ico">⌖</span> العمليات</button><button data-page="announcements"><span class="ico">▣</span> الإعلانات</button><button data-page="records"><span class="ico">▣</span> مركز الملفات والقضايا</button><button data-page="reports"><span class="ico">▤</span> التقارير</button><button data-page="rules"><span class="ico">☷</span> القوانين والأوامر</button><div id="adminNavDivider" style="display:none;height:1px;background:#2a2d32;margin:9px 5px 4px"></div><div id="adminNavHeading" style="display:none;padding:5px 13px;color:#7f8792;font-size:10px;font-weight:700;letter-spacing:.5px">الإدارة والنظام</div><button data-page="personnel" id="personnelNav" style="display:none"><span class="ico">♧</span> الأفراد</button><button data-page="assignments" id="assignmentsNav" style="display:none"><span class="ico">🎖</span> التعيينات والنداءات</button><button data-page="warnings" id="warningsNav" style="display:none"><span class="ico">⛨</span> التحذيرات</button><button data-page="messages" id="messagesNav" style="display:none"><span class="ico">✉</span> إرسال الرسائل</button><button data-page="attendance" id="attendanceNav" style="display:none"><span class="ico">◷</span> البصمة اليومية</button><button data-page="audit" id="auditNav" style="display:none"><span class="ico">◷</span> سجل الإدارة</button><button data-page="gallery" id="galleryNav"><span class="ico">▧</span> الصور</button><button data-page="settings" id="settingsNav" style="display:none"><span class="ico">⚙</span> إعدادات النظام</button></nav><div class="sidefoot">S.W.A.T. REDLINE • COMMAND SYSTEM<br>Discord Authorized • Secure Portal</div></aside><main class="main"><header class="topbar"><div class="search"><input id="globalSearch" placeholder="ابحث عن اسم أو رقم ملف... ( / )"></div><div class="profile"><span style="color:var(--green)">●</span><div class="avatar" id="profileAvatar">?</div><div class="userlabel"><b id="profileName">جاري التحقق...</b><div class="muted" id="profileRole">موثّق عبر Discord</div></div><button class="btn" id="languageToggle" type="button" onclick="togglePortalLanguage()" style="margin-right:8px;min-width:76px">العربية</button><button class="btn" id="logoutButton" onclick="logoutFromPortal()" style="margin-right:8px">تسجيل الخروج</button></div></header><div class="content">
 <section class="page active" id="page-dashboard"><div class="hero"><div class="heroText"><div class="eyebrow">COMMAND & PERSONNEL SYSTEM</div><h1>S.W.A.T. <span>REDLINE</span></h1><p>مركز القيادة وإدارة الملفات والعمليات لقسم القوات الخاصة في FiveM</p><div class="actions" style="margin-top:17px"><button class="btn primary" onclick="openModal()">＋ إضافة ملف مطلوب</button><button class="btn" onclick="go('audit')">عرض سجل الإدارة ←</button></div></div><div class="heroMark"><small>S.W.A.T. REDLINE</small><strong id="clock">--:--</strong><small>COMMAND PORTAL</small></div></div><div class="stats"><div class="stat"><div class="statIcon">♟</div><div><strong id="statWanted">4</strong><span>مطلوبون نشطون</span></div></div><div class="stat"><div class="statIcon" style="color:#ffc06c;background:#30220f">◎</div><div><strong id="statSuspects">2</strong><span>قضايا مفتوحة</span></div></div><div class="stat"><div class="statIcon" style="color:#54e2ae;background:#103328">✓</div><div><strong id="statArrested">8</strong><span>تم القبض عليهم</span></div></div><div class="stat"><div class="statIcon" style="color:#c7cbd2;background:#25282d">▤</div><div><strong id="statReports">5</strong><span>تقارير اليوم</span></div></div></div><div class="grid"><div class="panel"><div class="panelhead"><div><h3>أحدث المطلوبين</h3><div class="sub">ملفات تحتاج إلى متابعة</div></div><button class="btn" onclick="go('wanted')">عرض الكل ←</button></div><div class="panelbody"><div class="personGrid" id="dashboardPeople"></div></div></div><div class="sideStack"><div class="panel"><div class="panelhead"><h3>إشعارات سريعة</h3><span class="tag red">LIVE DEMO</span></div><div class="panelbody"><div class="activity" id="dashboardActivity"></div></div></div><div class="panel"><div class="panelhead"><h3>مهام اليوم</h3><button class="btn" onclick="addTask()">＋ إضافة</button></div><div class="panelbody" id="taskList"></div></div></div></div></section>
@@ -5655,15 +5671,13 @@ async function saveOperation(event){
   }
 }
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}document.getElementById('globalSearch').addEventListener('input',e=>{let v=e.target.value.trim();if(v){go('wanted');document.getElementById('wantedSearch').value=v;renderWanted()}});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();document.getElementById('globalSearch').focus()}});function updateClock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}setInterval(updateClock,1000);updateClock();
-let portalBootReady=false,portalSplashMinimumElapsed=false,portalSplashDismissed=false;
-function dismissPortalSplash(force=false){
- if(portalSplashDismissed||(!force&&(!portalBootReady||!portalSplashMinimumElapsed)))return;
+let portalBootReady=false,portalSplashHoldElapsed=false,portalSplashDismissed=false;
+ function dismissPortalSplash(){
+ if(portalSplashDismissed||!portalBootReady||!portalSplashHoldElapsed)return;
  portalSplashDismissed=true;
  const splash=document.getElementById('portalSplash');
  if(splash){splash.classList.add('is-leaving');setTimeout(()=>splash.remove(),650);}
 }
-setTimeout(()=>{portalSplashMinimumElapsed=true;dismissPortalSplash();},5000);
-setTimeout(()=>{portalBootReady=true;dismissPortalSplash(true);},15000);
 async function initAuth(){
   const gate=document.getElementById('authGate');
   const app=document.querySelector('.app');
@@ -5730,7 +5744,8 @@ async function initAuth(){
     if(new URLSearchParams(location.search).has('authError')) error.style.display='block';
   }finally{
     portalBootReady=true;
-    dismissPortalSplash();
+    document.getElementById('portalSplash')?.classList.add('is-ready');
+    setTimeout(()=>{portalSplashHoldElapsed=true;dismissPortalSplash();},10000);
   }
 }
 
@@ -5989,7 +6004,7 @@ Object.assign(PORTAL_ATTRIBUTE_TRANSLATIONS, {
 Object.assign(PORTAL_TRANSLATIONS, {
  "هذا الإعداد يتحكم في منشن رتبة @SWAT داخل التنبيهات العامة وإعلانات التحذيرات وقرارات الفصل. عند إيقافه، لن يظهر منشن رتبة SWAT في أي من هذه الرسائل. منشن العضو المستهدف له إعداد مستقل بالأسفل.":"This setting controls the @SWAT role mention in regular notifications, warning announcements, and fired-member announcements. When disabled, the SWAT role will not be mentioned in any of these messages. The target member mention has a separate setting below."
 });
-const portalTextNodes = new WeakMap(), portalAttributes = new WeakMap();
+const portalTextNodes = new WeakMap(), portalAttributes = new WeakMap(), portalLanguageInternalTextUpdates = new WeakSet();
 Object.assign(PORTAL_TRANSLATIONS, {
  "تم التخطي حسب تفضيل العضو":"Skipped due to the member's preference",
  "لم تُرسل رسالة خاصة احترامًا لتفضيل العضو.":"No DM was sent, respecting the member's preference.",
@@ -6035,6 +6050,22 @@ Object.assign(PORTAL_TRANSLATIONS,{
  " اضغط الزر مرة أخرى لاستكمال بقية أعضاء السيرفر.":" Click the button again to continue scanning the remaining server members."
 });
 const portalTranslationEntries = Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length);
+let portalTranslationPrefixes = new Map();
+let portalTranslationEntryOrder = new WeakMap();
+const portalTranslationCache = new Map();
+const PORTAL_TRANSLATION_CACHE_LIMIT = 2048;
+function rebuildPortalTranslationIndex(){
+ const prefixes=new Map(),order=new WeakMap();
+ portalTranslationEntries.forEach((entry,index)=>{
+  const prefix=entry[0].slice(0,2);
+  if(!prefixes.has(prefix))prefixes.set(prefix,[]);
+  prefixes.get(prefix).push(entry);
+  order.set(entry,index);
+ });
+ portalTranslationPrefixes=prefixes;
+ portalTranslationEntryOrder=order;
+ portalTranslationCache.clear();
+}
 function replaceArabicPhrase(source,phrase,translation){
  if(!phrase||phrase.length<3||!source.includes(phrase))return source;
  const isArabicLetter=char=>Boolean(char&&/[\u0600-\u06FF]/.test(char));
@@ -6050,12 +6081,35 @@ function replaceArabicPhrase(source,phrase,translation){
 }
 function portalTranslateText(value){
  const source=String(value??''),trimmed=source.trim();
- if(Object.prototype.hasOwnProperty.call(PORTAL_TRANSLATIONS,trimmed))return source.replace(trimmed,PORTAL_TRANSLATIONS[trimmed]);
+ if(portalTranslationCache.has(source))return portalTranslationCache.get(source);
+ if(Object.prototype.hasOwnProperty.call(PORTAL_TRANSLATIONS,trimmed)){
+  const translated=source.replace(trimmed,PORTAL_TRANSLATIONS[trimmed]);
+  if(source.length<=256){
+   if(portalTranslationCache.size>=PORTAL_TRANSLATION_CACHE_LIMIT)portalTranslationCache.delete(portalTranslationCache.keys().next().value);
+   portalTranslationCache.set(source,translated);
+  }
+  return translated;
+ }
+ const candidateSet=new Set();
+ if(portalTranslationPrefixes.size){
+  for(let index=0;index<source.length-1;index++){
+   const bucket=portalTranslationPrefixes.get(source.slice(index,index+2));
+   if(bucket)for(const entry of bucket)candidateSet.add(entry);
+  }
+ }else{
+  for(const entry of portalTranslationEntries)candidateSet.add(entry);
+ }
+ const candidates=[...candidateSet].sort((a,b)=>(portalTranslationEntryOrder.get(a)??0)-(portalTranslationEntryOrder.get(b)??0));
  let text=source;
- for(const [ar,en] of portalTranslationEntries){
+ for(const [ar,en] of candidates){
   if(ar.length>=3&&text.includes(ar))text=replaceArabicPhrase(text,ar,en);
  }
- return text.replace(/(.*?) الخطورة/g,(m,p)=>p+' priority');
+ text=text.replace(/(.*?) الخطورة/g,(m,p)=>p+' priority');
+ if(source.length<=256){
+  if(portalTranslationCache.size>=PORTAL_TRANSLATION_CACHE_LIMIT)portalTranslationCache.delete(portalTranslationCache.keys().next().value);
+  portalTranslationCache.set(source,text);
+ }
+ return text;
 }
 
 Object.assign(PORTAL_TRANSLATIONS, {
@@ -6105,24 +6159,24 @@ Object.assign(PORTAL_TRANSLATIONS, {
 /* Each full page load starts in Arabic; the manual English choice lasts only until reload. */
 let portalLanguagePreference='ar';
 function currentPortalLanguage(){return portalLanguagePreference}
-function applyPortalLanguage(){
- const lang=currentPortalLanguage();
- document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
- const toggle=document.getElementById('languageToggle');
- if(toggle){toggle.textContent=lang==='ar'?'EN':'العربية';toggle.setAttribute('aria-label',lang==='ar'?'التبديل إلى الإنجليزية':'Switch to Arabic');}
- const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode(node){return node.parentElement&&!node.parentElement.closest('script,style,textarea,code')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}});
- let node;
- while((node=walker.nextNode())){
-  let state=portalTextNodes.get(node);
-  if(!state){state={source:node.nodeValue,rendered:node.nodeValue};portalTextNodes.set(node,state);}
-  else if(node.nodeValue!==state.rendered){state.source=node.nodeValue;}
-  const next=lang==='en'?portalTranslateText(state.source):state.source;
-  if(node.nodeValue!==next)node.nodeValue=next;
-  state.rendered=next;
- }
- document.querySelectorAll('[placeholder],[title],[aria-label],[alt],input[type="button"][value],input[type="submit"][value]').forEach(el=>{
+const PORTAL_TRANSLATABLE_ATTRIBUTES=['placeholder','title','aria-label','alt','value'];
+const PORTAL_TRANSLATABLE_ATTRIBUTE_SELECTOR='[placeholder],[title],[aria-label],[alt],input[type="button"][value],input[type="submit"][value]';
+function applyPortalLanguageToTextNode(node,lang){
+ if(!node.parentElement||node.parentElement.closest('script,style,textarea,code'))return;
+ let state=portalTextNodes.get(node);
+ if(!state){state={source:node.nodeValue,rendered:node.nodeValue};portalTextNodes.set(node,state);}
+ else if(node.nodeValue!==state.rendered){state.source=node.nodeValue;}
+ const next=lang==='en'?portalTranslateText(state.source):state.source;
+ if(node.nodeValue!==next){portalLanguageInternalTextUpdates.add(node);node.nodeValue=next;}
+ state.rendered=next;
+}
+function applyPortalLanguageToAttributes(root,lang){
+ const elements=[];
+ if(root.nodeType===Node.ELEMENT_NODE&&root.matches?.(PORTAL_TRANSLATABLE_ATTRIBUTE_SELECTOR))elements.push(root);
+ if(typeof root.querySelectorAll==='function')elements.push(...root.querySelectorAll(PORTAL_TRANSLATABLE_ATTRIBUTE_SELECTOR));
+ elements.forEach(el=>{
   let states=portalAttributes.get(el);if(!states){states={};portalAttributes.set(el,states);}
-  for(const attr of ['placeholder','title','aria-label','alt','value']){
+  for(const attr of PORTAL_TRANSLATABLE_ATTRIBUTES){
    if(!el.hasAttribute(attr))continue;
    const current=el.getAttribute(attr);
    let state=states[attr];
@@ -6134,6 +6188,21 @@ function applyPortalLanguage(){
   }
  });
 }
+function applyPortalLanguage(root=document.body){
+ const lang=currentPortalLanguage();
+ if(root===document.body){
+  document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+  const toggle=document.getElementById('languageToggle');
+  if(toggle){toggle.textContent=lang==='ar'?'EN':'العربية';toggle.setAttribute('aria-label',lang==='ar'?'التبديل إلى الإنجليزية':'Switch to Arabic');}
+ }
+ if(root.nodeType===Node.TEXT_NODE)applyPortalLanguageToTextNode(root,lang);
+ else{
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode(node){return node.parentElement&&!node.parentElement.closest('script,style,textarea,code')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;}});
+  let node;
+  while((node=walker.nextNode()))applyPortalLanguageToTextNode(node,lang);
+ }
+ applyPortalLanguageToAttributes(root,lang);
+}
 function togglePortalLanguage(){
  const nextLanguage=currentPortalLanguage()==='ar'?'en':'ar';
  portalLanguagePreference=nextLanguage;
@@ -6141,11 +6210,27 @@ function togglePortalLanguage(){
  log('تعديل',nextLanguage==='en'?'Changed interface language to English':'تم تغيير لغة الواجهة إلى العربية','PORTAL-LANGUAGE');
  if(currentCanManageWarnings&&document.getElementById('page-warnings')?.classList.contains('active'))renderWarnings();
 }
-const portalLanguageObserver=new MutationObserver(()=>{
- if(window.portalLanguageFrame)cancelAnimationFrame(window.portalLanguageFrame);
- window.portalLanguageFrame=requestAnimationFrame(applyPortalLanguage);
+const portalLanguagePendingNodes=new Set();
+let portalLanguageFrame=0;
+const portalLanguageObserver=new MutationObserver((records)=>{
+ if(currentPortalLanguage()!=='en'){portalLanguagePendingNodes.clear();return;}
+ records.forEach(record=>{
+  if(record.type==='characterData'&&portalLanguageInternalTextUpdates.has(record.target)){
+   portalLanguageInternalTextUpdates.delete(record.target);
+   return;
+  }
+  if(record.type==='childList')record.addedNodes.forEach(node=>portalLanguagePendingNodes.add(node));
+  else portalLanguagePendingNodes.add(record.target);
+ });
+ if(!portalLanguagePendingNodes.size||portalLanguageFrame)return;
+ portalLanguageFrame=requestAnimationFrame(()=>{
+  portalLanguageFrame=0;
+  const pending=[...portalLanguagePendingNodes];
+  portalLanguagePendingNodes.clear();
+  pending.forEach(node=>{if(node.isConnected)applyPortalLanguage(node);});
+ });
 });
-portalLanguageObserver.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['placeholder','title','aria-label','alt','value']});
+portalLanguageObserver.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:PORTAL_TRANSLATABLE_ATTRIBUTES});
 
 
 Object.assign(PORTAL_TRANSLATIONS, {
@@ -6540,6 +6625,7 @@ Object.assign(PORTAL_TRANSLATIONS,{
  "إرسال الرسائل":"Send messages"
 });
 portalTranslationEntries.splice(0,portalTranslationEntries.length,...Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length));
+rebuildPortalTranslationIndex();
 
 applyPortalLanguage();
 loadPublicSiteImages();
