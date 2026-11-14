@@ -160,7 +160,8 @@ export default async function handler(req, res) {
         "notificationRoleMentionDisabled",
         "notificationChannelEnabled",
         "notificationMemberDmEnabled",
-        "disciplinaryTargetMentionEnabled"
+        "disciplinaryTargetMentionEnabled",
+        "promotionChannelId"
       ]);
       for (const row of rows) {
         if (!canReadAdminSettings && adminOnlySettingKeys.has(row.key)) continue;
@@ -171,7 +172,7 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "customMenuItems"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "customMenuItems", "promotionChannelId"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
@@ -179,6 +180,7 @@ export default async function handler(req, res) {
       if (raw.length > 120000) return res.status(413).json({ error: "A setting is too large" });
       if (k.endsWith("Color") && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) return res.status(400).json({ error: "Invalid color value" });
       if (["notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled"].includes(k) && typeof value !== "boolean") return res.status(400).json({ error: k + " must be a boolean" });
+      if (k === "promotionChannelId" && value !== "" && (typeof value !== "string" || !/^\d{15,22}$/.test(value))) return res.status(400).json({ error: "Invalid promotion channel ID" });
       const plainObject = (input) => Boolean(input) && typeof input === "object" && !Array.isArray(input) && (Object.getPrototypeOf(input) === Object.prototype || Object.getPrototypeOf(input) === null);
       if (k === "textOverrides") {
         if (!plainObject(value) || Object.keys(value).length > 500) return res.status(400).json({ error: "Invalid text overrides" });
