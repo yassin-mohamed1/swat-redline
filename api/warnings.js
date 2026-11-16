@@ -1027,8 +1027,8 @@ export default async function handler(req, res) {
       const diagnostics = await warningDiagnostics(cfg, user);
       return json(res, 200, diagnostics);
     }
-    await requireManager(cfg, user);
     if (req.method === "GET" && params.get("my_leave_requests") === "1") {
+      await requireActiveStaff(cfg, user);
       const q = new URLSearchParams({
         discord_user_id: "eq." + user.id,
         select: "id,discord_user_id,display_name,reason,start_date,end_date,status,review_note,reviewed_at,created_at",
@@ -1039,6 +1039,7 @@ export default async function handler(req, res) {
       if (!response.ok) throw new Error("تعذّر تحميل طلبات إجازتك.");
       return json(res, 200, { requests: await response.json() });
     }
+    await requireManager(cfg, user);
     if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("access") === "1") {
       return json(res, 200, { authorized: true });
     }
@@ -1066,6 +1067,8 @@ export default async function handler(req, res) {
     }
     if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+    if (body.action === "submit_attendance_leave") await requireActiveStaff(cfg, user);
+    else await requireManager(cfg, user);
 
     if (body.action === "save_attendance_exemptions") {
       const selectedIds = Array.isArray(body.discord_user_ids)
