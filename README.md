@@ -156,4 +156,4 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 - Staff can submit a leave request from the standalone **الإجازات** portal page and see only their own requests and decisions.
 - Only Website Admins (and the protected owner, following the existing admin access rule) can open the full request list, approve or reject requests, or cancel or end an approved leave.
 - An early cutoff preserves the original approved end date and records the cutoff date, admin, reason, Discord DM delivery state, and audit entry. The employee receives a Discord DM with the cancellation or last covered day.
-- Apply `20261116201934_attendance_leave_cutoff.sql` before deploying the API change, because the API selects the new cutoff fields.
+- Apply `20261116201934_attendance_leave_cutoff.sql` and `20261116203534_attendance_leave_cutoff_is_exclusive.sql` in order before deploying the API. The second migration makes the cutoff date the first day not counted as leave and materializes already-recorded same-day cancellations.
