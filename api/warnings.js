@@ -1049,7 +1049,7 @@ export default async function handler(req, res) {
     }
     if (req.method === "GET" && params.get("leave_requests") === "1") {
       const q = new URLSearchParams({
-        select: "id,discord_user_id,display_name,reason,start_date,end_date,status,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,created_at",
+        select: "id,discord_user_id,display_name,avatar_url,reason,start_date,end_date,approved_duration_days,status,source,discord_channel_id,discord_message_id,discord_message_url,submitted_at,acknowledgement_message_id,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,created_at",
         order: "created_at.desc",
         limit: "500"
       });
@@ -1286,54 +1286,131 @@ export default async function handler(req, res) {
       const requestId = String(body.id || "");
       const status = String(body.status || "");
       const note = typeof body.review_note === "string" ? body.review_note.trim() : "";
+      const startDate = String(body.start_date || "");
+      const durationDays = Number(body.duration_days);
+      const isValidDate = value => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(value + "T00:00:00.000Z");
+        return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0,10) === value;
+      };
+
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId) ||
           !["approved","rejected"].includes(status) || note.length > 1000) {
         return json(res, 400, { error: "بيانات مراجعة الإجازة غير صحيحة." });
       }
-      const updateResponse = await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.pending", {
-        method: "PATCH",
-        headers: { Prefer: "return=representation" },
-        body: JSON.stringify({
-          status,
-          reviewed_by_discord_id: user.id,
-          reviewed_by_name: user.displayName,
-          review_note: note || null,
-          reviewed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+      if (status === "rejected" && note.length < 3) {
+        return json(res, 400, { error: "اكتب سبب رفض واضحًا لا يقل عن 3 أحرف." });
+      }
+      if (status === "approved" &&
+          (!isValidDate(startDate) || !Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365)) {
+        return json(res, 400, { error: "حدد تاريخ بداية صحيحًا ومدة إجازة من يوم إلى 365 يومًا." });
+      }
+      if (status === "approved" && startDate < riyadhDateKey(new Date())) {
+        return json(res, 400, { error: "لا يمكن اعتماد إجازة بتاريخ بداية سابق لليوم بتوقيت الرياض." });
+      }
+
+      const pendingQuery = new URLSearchParams({
+        id: "eq." + requestId,
+        status: "eq.pending",
+        select: "id,discord_user_id,display_name,reason,source",
+        limit: "1"
       });
+      const pendingResponse = await db(cfg, "attendance_leave_requests?" + pendingQuery.toString());
+      if (!pendingResponse.ok) {
+        return json(res, 503, { error: "تعذّر تحميل طلب الإجازة قبل اتخاذ القرار." });
+      }
+      const pending = (await pendingResponse.json())[0];
+      if (!pending) return json(res, 409, { error: "تمت مراجعة هذا الطلب بالفعل أو لم يعد موجودًا." });
+
+      let endDate = null;
+      if (status === "approved") {
+        const parts = startDate.split("-").map(Number);
+        endDate = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + durationDays - 1)).toISOString().slice(0,10);
+
+        const overlapQuery = new URLSearchParams({
+          discord_user_id: "eq." + pending.discord_user_id,
+          status: "eq.approved",
+          start_date: "lte." + endDate,
+          end_date: "gte." + startDate,
+          select: "id,start_date,end_date",
+          limit: "1"
+        });
+        const overlapResponse = await db(cfg, "attendance_leave_requests?" + overlapQuery.toString());
+        if (!overlapResponse.ok) {
+          return json(res, 503, { error: "تعذّر التحقق من تعارض الإجازة مع إجازة معتمدة أخرى." });
+        }
+        if ((await overlapResponse.json()).length) {
+          return json(res, 409, { error: "لدى هذا الموظف إجازة معتمدة تتداخل مع التاريخ المحدد. اختر تاريخًا آخر." });
+        }
+      }
+
+      const updateBody = {
+        status,
+        start_date: status === "approved" ? startDate : null,
+        end_date: status === "approved" ? endDate : null,
+        approved_duration_days: status === "approved" ? durationDays : null,
+        reviewed_by_discord_id: user.id,
+        reviewed_by_name: user.displayName,
+        review_note: status === "rejected" ? note : null,
+        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        dm_status: "not_sent",
+        dm_error: null
+      };
+      const updateResponse = await db(cfg,
+        "attendance_leave_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.pending",
+        {
+          method: "PATCH",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify(updateBody)
+        }
+      );
       if (!updateResponse.ok) {
         console.error("Attendance leave review failed:", updateResponse.status, (await updateResponse.text()).slice(0,300));
         return json(res, 502, { error: "تعذّر حفظ قرار الإجازة." });
       }
       const updated = (await updateResponse.json())[0];
-      if (!updated) return json(res, 409, { error: "تمت مراجعة هذا الطلب بالفعل أو لم يعد موجودًا." });
-      try { await forwardAuditToDiscord(user, {
-        action: "update",
-        entity_type: "attendance_leave_request",
-        entity_id: requestId,
-        details: {
-          type: status === "approved" ? "قبول طلب إجازة" : "رفض طلب إجازة",
-          detail: (status === "approved" ? "تمت الموافقة على إجازة " : "تم رفض إجازة ") + updated.display_name + ".",
-          target_discord_id: updated.discord_user_id,
-          status,
-          review_note: note
-        }
-      }); } catch (auditError) { console.error("Leave review audit forwarding failed:", auditError?.message || "unknown"); }
+      if (!updated) return json(res, 409, { error: "تم اتخاذ قرار على هذا الطلب بالفعل." });
+
+      try {
+        await forwardAuditToDiscord(user, {
+          action: "update",
+          entity_type: "attendance_leave_request",
+          entity_id: requestId,
+          details: {
+            type: status === "approved" ? "قبول طلب إجازة" : "رفض طلب إجازة",
+            detail: (status === "approved" ? "تمت الموافقة على إجازة " : "تم رفض إجازة ") + updated.display_name + ".",
+            target_discord_id: updated.discord_user_id,
+            status,
+            start_date: updated.start_date,
+            end_date: updated.end_date,
+            approved_duration_days: updated.approved_duration_days,
+            review_note: note
+          }
+        });
+      } catch (auditError) {
+        console.error("Leave review audit forwarding failed:", auditError?.message || "unknown");
+      }
+
       let dmStatus = "skipped";
       let dmError = null;
-      if (await memberPrivateNotificationsEnabled(cfg, updated.discord_user_id)) {
-        try {
-          const startLabel = updated.start_date, endLabel = updated.end_date;
-          const durationDays = Math.floor((Date.parse(endLabel + "T00:00:00Z") - Date.parse(startLabel + "T00:00:00Z")) / 86400000) + 1;
+      try {
+        const dmAllowed = await memberPrivateNotificationsEnabled(cfg, updated.discord_user_id);
+        if (dmAllowed) {
+          const formatDate = value => new Intl.DateTimeFormat("ar-SA", {
+            timeZone: "Asia/Riyadh",
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+          }).format(new Date(String(value) + "T12:00:00+03:00"));
           const embed = {
             title: status === "approved" ? "✅ تمت الموافقة على إجازتك" : "❌ تم رفض طلب الإجازة",
             description: status === "approved"
-              ? "أنت حاليًا في إجازة معتمدة من **" + startLabel + "** إلى **" + endLabel + "** (شاملة اليومين).\n\nخلال هذه الفترة لن تُطلب منك بصمة يومية، ولن تُحتسب عليك أيام غياب أو تُتخذ ضدك إجراءات غياب تلقائية."
-              : "تم رفض طلب الإجازة المقدم من قبلك.\n" + (note ? "**ملاحظة الإدارة:** " + note : "تواصل مع الإدارة لمزيد من التفاصيل."),
+              ? "أنت حاليًا في إجازة معتمدة من **" + formatDate(updated.start_date) + "** إلى **" + formatDate(updated.end_date) + "** (شاملة يوم البداية والنهاية).\n\nخلال هذه الفترة لن تُطلب منك بصمة يومية، ولن تُحتسب عليك أيام غياب أو تُتخذ ضدك إجراءات غياب تلقائية."
+              : "تم رفض طلب الإجازة المقدم من قبلك.\n\n**سبب الرفض:** " + note,
             color: status === "approved" ? 0x239B72 : 0xD92735,
             fields: [
-              { name: "المدة", value: status === "approved" ? durationDays + " يوم" : "—", inline: true },
+              { name: "المدة", value: status === "approved" ? String(updated.approved_duration_days) + " يوم" : "—", inline: true },
               { name: "سبب الطلب", value: String(updated.reason || "—").slice(0, 1000), inline: false },
               { name: "قرار الإدارة", value: String(updated.reviewed_by_name || "الإدارة"), inline: true }
             ],
@@ -1342,13 +1419,29 @@ export default async function handler(req, res) {
           };
           await sendDirectNotice(cfg, updated.discord_user_id, embed);
           dmStatus = "sent";
-        } catch (dmErrorValue) {
-          dmStatus = "failed";
-          dmError = String(dmErrorValue?.code || dmErrorValue?.message || "dm_delivery_failed").slice(0, 120);
-          console.error("Leave decision DM failed:", dmError);
         }
+      } catch (dmErrorValue) {
+        dmStatus = "failed";
+        dmError = String(dmErrorValue?.code || dmErrorValue?.message || "dm_delivery_failed").slice(0, 120);
+        console.error("Leave decision DM failed:", dmError);
       }
-      return json(res, 200, { ok: true, request: updated, dm_status: dmStatus, dm_error: dmError });
+
+      try {
+        await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId), {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({ dm_status: dmStatus, dm_error: dmError, updated_at: new Date().toISOString() })
+        });
+      } catch (dmStatusSaveError) {
+        console.error("Leave DM status save failed:", dmStatusSaveError?.message || "unknown");
+      }
+
+      return json(res, 200, {
+        ok: true,
+        request: { ...updated, dm_status: dmStatus, dm_error: dmError },
+        dm_status: dmStatus,
+        dm_error: dmError
+      });
     }
 
     if (body.action === "archive_subject" || body.action === "restore_subject") {
