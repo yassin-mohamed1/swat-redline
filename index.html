@@ -2197,7 +2197,21 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    <div><h3 id="attendanceLeaveTitle">إدارة الإجازات</h3><div class="sub">تسجيل الطلبات ومراجعتها؛ الإجازة المعتمدة توقف احتساب الغياب خلال مدتها</div></div>
    <button class="close" type="button" onclick="closeAttendanceLeaveModal()">×</button>
   </div>
-  <div class="attendance-leave-create">
+ 
+ <div id="myAttendanceLeavePanel" class="panel" style="margin-top:14px;display:none">
+  <div class="panelhead"><div><h3>طلباتي للإجازة</h3><span class="sub">قدّم طلب إجازة وتابع قرار الإدارة</span></div><button class="btn" type="button" onclick="loadMyAttendanceLeaveRequests()">↻ تحديث</button></div>
+  <div class="panelbody">
+   <div class="formgrid">
+    <div class="field"><label for="myLeaveStart">من تاريخ *</label><input id="myLeaveStart" type="date" required></div>
+    <div class="field"><label for="myLeaveEnd">إلى تاريخ *</label><input id="myLeaveEnd" type="date" required></div>
+    <div class="field full"><label for="myLeaveReason">سبب الإجازة *</label><textarea id="myLeaveReason" rows="3" maxlength="1000" placeholder="اكتب سبب طلب الإجازة..." required></textarea></div>
+   </div>
+   <div class="modalactions"><button class="btn primary" id="myLeaveSubmitButton" type="button" onclick="submitMyAttendanceLeaveRequest()">＋ تقديم طلب إجازة</button></div>
+   <div id="myLeaveStatus" class="muted" aria-live="polite" style="min-height:20px;margin-top:8px"></div>
+   <div class="tablewrap" style="margin-top:12px"><table class="attendance-table"><thead><tr><th>الفترة</th><th>السبب</th><th>الحالة</th><th>ملاحظة الإدارة</th></tr></thead><tbody id="myLeaveRows"><tr><td colspan="4">جارٍ تحميل طلباتك...</td></tr></tbody></table></div>
+  </div>
+ </div>
+ <div class="attendance-leave-create">
    <h4>تسجيل طلب إجازة</h4>
    <div class="formgrid">
     <div class="field full"><label for="attendanceLeaveMember">العضو *</label><select id="attendanceLeaveMember" required><option value="">اختر عضوًا...</option></select></div>
@@ -3304,6 +3318,7 @@ async function renderAttendance(){
   const updated=document.getElementById('attendanceUpdatedAt');
   if(updated)updated.textContent='آخر تحديث: '+fmtWarningDate(data.generated_at)+' • بداية النظام: '+fmtWarningDate(data.attendance_started_at);
   renderAttendanceRows();
+  updateAttendanceLeavePanel();
   loadAttendanceLeaveRequests();
  }catch(error){
   if(body)body.innerHTML='<tr><td colspan="8">'+adminEscape(error.message||'تعذّر تحميل بيانات الحضور.')+'</td></tr>';
@@ -3352,6 +3367,14 @@ function renderAttendanceRows(){
    '<td>'+attendanceWarningBadge(member)+'</td></tr>';
  }).join('')||'<tr><td colspan="8"><div class="empty">لا توجد أعضاء مطابقة لبحثك.</div></td></tr>';
 }
+
+function updateAttendanceLeavePanel(){
+ const panel=document.getElementById('myAttendanceLeavePanel');
+ if(!panel)return;
+ const isManager=Boolean(currentCanManageWarnings);
+ panel.style.display=isManager?'none':'block';
+ if(!isManager)loadMyAttendanceLeaveRequests();
+}
 function openAttendanceSettingsModal(){
  if(!currentCanManageWarnings){toast('لا تملك صلاحية إدارة إعفاءات البصمة.');return;}
  attendanceExemptionSelection=new Set(attendanceData.members.filter(member=>member.is_swat_member&&member.is_attendance_exempt).map(member=>String(member.discord_user_id)));
@@ -3399,6 +3422,53 @@ async function saveAttendanceExemptions(){
   await renderAttendance();
  }catch(error){if(status)status.textContent=error.message||'تعذّر حفظ الإعدادات.';toast(error.message||'تعذّر حفظ الإعدادات.');}
  finally{attendanceExemptionSaveBusy=false;if(button)button.disabled=false;}
+}
+
+let myLeaveRequestsBusy=false;
+function renderMyAttendanceLeaveRequests(rows){
+ const body=document.getElementById('myLeaveRows');if(!body)return;
+ const statusLabel=value=>value==='pending'?'قيد المراجعة':value==='approved'?'مقبولة':value==='rejected'?'مرفوضة':'ملغاة';
+ body.innerHTML=(Array.isArray(rows)?rows:[]).map(item=>
+  '<tr><td>'+adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div></td>'+
+  '<td>'+adminEscape(item.reason||'—')+'</td><td><span class="attendance-leave-status '+adminEscape(item.status)+'">'+statusLabel(item.status)+'</span></td>'+
+  '<td>'+adminEscape(item.review_note||'—')+'</td></tr>'
+ ).join('')||'<tr><td colspan="4"><div class="empty">لم تقدم أي طلب إجازة بعد.</div></td></tr>';
+}
+async function loadMyAttendanceLeaveRequests(){
+ if(myLeaveRequestsBusy)return;
+ myLeaveRequestsBusy=true;
+ const body=document.getElementById('myLeaveRows');
+ if(body)body.innerHTML='<tr><td colspan="4">جارٍ تحميل طلباتك...</td></tr>';
+ try{
+  const response=await fetch('/api/warnings?my_leave_requests=1',{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل طلبات الإجازة.');
+  renderMyAttendanceLeaveRequests(data.requests||[]);
+ }catch(error){if(body)body.innerHTML='<tr><td colspan="4">'+adminEscape(error.message||'تعذّر تحميل الطلبات.')+'</td></tr>';}
+ finally{myLeaveRequestsBusy=false;}
+}
+async function submitMyAttendanceLeaveRequest(){
+ const startDate=String(document.getElementById('myLeaveStart')?.value||'');
+ const endDate=String(document.getElementById('myLeaveEnd')?.value||'');
+ const reason=String(document.getElementById('myLeaveReason')?.value||'').trim();
+ const status=document.getElementById('myLeaveStatus');
+ const button=document.getElementById('myLeaveSubmitButton');
+ if(!startDate||!endDate||endDate<startDate||reason.length<3){
+  if(status)status.textContent='اختر تاريخ البداية والنهاية واكتب سببًا لا يقل عن 3 أحرف.';
+  return;
+ }
+ if(button)button.disabled=true;
+ if(status)status.textContent='جارٍ إرسال طلب الإجازة...';
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'submit_attendance_leave',start_date:startDate,end_date:endDate,reason})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر إرسال الطلب.');
+  document.getElementById('myLeaveReason').value='';
+  if(status)status.textContent='تم إرسال طلبك للإدارة، وسيصلك إشعار عند صدور القرار.';
+  toast('تم تقديم طلب الإجازة.');
+  await loadMyAttendanceLeaveRequests();
+ }catch(error){if(status)status.textContent=error.message||'تعذّر إرسال الطلب.';toast(error.message||'تعذّر إرسال الطلب.');}
+ finally{if(button)button.disabled=false;}
 }
 function openAttendanceLeaveModal(){
  if(!currentCanManageWarnings){toast('لا تملك صلاحية إدارة طلبات الإجازة.');return;}
