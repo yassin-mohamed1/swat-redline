@@ -149,3 +149,11 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 - Attendance warnings, dismissals, role changes, and automatic removals are intentionally not part of this phase.
 - Apply `20261110165500_schedule_swat_attendance_poller.sql` only after `/api/notifications/send?task=attendance` is deployed to production.
 - Apply `20261111034000_swat_attendance_lease_recovery.sql` before deploying the version of `lib/attendance-poller.js` that uses the versioned lease RPCs.
+
+
+## Leave Requests and Early Leave Cutoff
+
+- Staff can submit a leave request from the standalone **الإجازات** portal page and see only their own requests and decisions.
+- Only Website Admins (and the protected owner, following the existing admin access rule) can open the full request list, approve or reject requests, or cancel or end an approved leave.
+- An early cutoff preserves the original approved end date and records the cutoff date, admin, reason, Discord DM delivery state, and audit entry. The employee receives a Discord DM with the cancellation or last covered day.
+- Apply `20261116194700_attendance_leave_cutoff.sql` before deploying the API change, because the API selects the new cutoff fields.
