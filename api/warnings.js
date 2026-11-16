@@ -260,7 +260,7 @@ async function listAttendanceDashboard(cfg) {
     db(cfg, "disciplinary_subjects?" + subjectQuery.toString()),
     db(cfg, "attendance_sync_state?" + attendanceStateQuery.toString()),
     db(cfg, "attendance_exemptions?select=discord_user_id,enabled,reason,updated_at&limit=1000"),
-    db(cfg, "attendance_leave_requests?status=eq.approved&select=discord_user_id,start_date,end_date&order=end_date.desc&limit=2000")
+    db(cfg, "attendance_leave_requests?status=eq.approved&select=discord_user_id,start_date,end_date,cutoff_date&order=end_date.desc&limit=2000")
   ]);
   if (!staffResponse.ok || !subjectResponse.ok || !stateResponse.ok ||
       !exemptionResponse.ok || !leaveResponse.ok) {
@@ -326,14 +326,19 @@ async function listAttendanceDashboard(cfg) {
     const exemption = exemptionById.get(id) || null;
     const isAttendanceExempt = exemption?.enabled === true;
     const leaveRows = leavesById.get(id) || [];
-    const currentLeave = leaveRows.find(leave =>
-      String(leave.start_date || "") <= today && String(leave.end_date || "") >= today
-    ) || null;
+    const currentLeave = leaveRows.find(leave => {
+      const effectiveEnd = String(leave.cutoff_date || leave.end_date || "");
+      return String(leave.start_date || "") <= today && effectiveEnd >= today;
+    }) || null;
     const leaveEndDates = leaveRows
-      .map(leave => String(leave.end_date || ""))
-      .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today)
-      .sort();
-    const latestLeaveEnd = leaveEndDates.length ? leaveEndDates[leaveEndDates.length - 1] : null;
+      .map(leave => {
+        const start = String(leave.start_date || "");
+        const cutoff = String(leave.cutoff_date || "");
+        if (cutoff && start && cutoff < start) return "";
+        return cutoff || String(leave.end_date || "");
+      })
+      .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today);
+    const latestLeaveEnd = leaveEndDates.length ? leaveEndDates.sort().at(-1) : null;
     let baselineMs = Number.isFinite(originalBaselineMs) ? originalBaselineMs : nowMs;
     let baselineSource = last ? "last_attendance"
       : registeredMs > systemMs ? "member_registration" : "system_activation";
@@ -370,7 +375,7 @@ async function listAttendanceDashboard(cfg) {
       discord_user_id:id,display_name:profile.display_name||profile.username||"Discord member",username:profile.username||"",
       avatar_url:profile.avatar_url||null,registered_at:profile.created_at||null,is_swat_member,is_dismissed:subject?.status==="dismissed",
       is_attendance_exempt:isAttendanceExempt,attendance_exemption_reason:exemption?.reason||null,
-      is_on_approved_leave:isOnApprovedLeave,approved_leave_end_date:currentLeave?.end_date||null,
+      is_on_approved_leave:isOnApprovedLeave,approved_leave_end_date:currentLeave?.cutoff_date||currentLeave?.end_date||null,
       today_present:lastDate===today,has_ever_attended:Boolean(last),last_attendance_at:last?.first_seen_at||null,
       last_attendance_date:lastDate,first_attendance_at:first?.first_seen_at||null,absence_started_at:absenceStartedAt,
       absence_baseline:absenceBaseline,days_since_last:daysSinceLast,weeks_since_last:Math.floor(daysSinceLast/7),
@@ -621,6 +626,7 @@ async function processAutomaticAttendanceDiscipline(cfg) {
         status: "eq.approved",
         start_date: "lte." + riyadhDateKey(new Date()),
         end_date: "gte." + riyadhDateKey(new Date()),
+        or: "(cutoff_date.is.null,cutoff_date.gte." + riyadhDateKey(new Date()) + ")",
         select: "id",
         limit: "1"
       });
@@ -1046,7 +1052,7 @@ export default async function handler(req, res) {
       await requireActiveStaff(cfg, user);
       const q = new URLSearchParams({
         discord_user_id: "eq." + user.id,
-        select: "id,discord_user_id,display_name,reason,start_date,end_date,status,review_note,reviewed_at,created_at",
+        select: "id,reason,start_date,end_date,status,review_note,reviewed_at,cutoff_date,cut_reason,cut_dm_status,created_at",
         order: "created_at.desc",
         limit: "100"
       });
@@ -1064,7 +1070,7 @@ export default async function handler(req, res) {
     }
     if (req.method === "GET" && params.get("leave_requests") === "1") {
       const q = new URLSearchParams({
-        select: "id,discord_user_id,display_name,avatar_url,reason,start_date,end_date,approved_duration_days,status,source,discord_channel_id,discord_message_id,discord_message_url,submitted_at,acknowledgement_message_id,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,created_at",
+        select: "id,discord_user_id,display_name,avatar_url,reason,start_date,end_date,approved_duration_days,status,source,discord_channel_id,discord_message_id,discord_message_url,submitted_at,acknowledgement_message_id,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,cutoff_date,cut_by_discord_id,cut_by_name,cut_at,cut_reason,cut_dm_status,cut_dm_error,created_at",
         order: "created_at.desc",
         limit: "500"
       });
@@ -1347,7 +1353,8 @@ export default async function handler(req, res) {
           status: "eq.approved",
           start_date: "lte." + endDate,
           end_date: "gte." + startDate,
-          select: "id,start_date,end_date",
+          or: "(cutoff_date.is.null,cutoff_date.gte." + startDate + ")",
+          select: "id,start_date,end_date,cutoff_date",
           limit: "1"
         });
         const overlapResponse = await db(cfg, "attendance_leave_requests?" + overlapQuery.toString());
@@ -1455,6 +1462,80 @@ export default async function handler(req, res) {
         dm_status: dmStatus,
         dm_error: dmError
       });
+    }
+
+    if (body.action === "cut_attendance_leave") {
+      const requestId = String(body.id || "");
+      const cutoffDate = String(body.cutoff_date || "");
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const isValidDate = value => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(value + "T00:00:00.000Z");
+        return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0,10) === value;
+      };
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId) ||
+          !isValidDate(cutoffDate) || reason.length < 3 || reason.length > 1000) {
+        return json(res, 400, { error: "بيانات إلغاء أو قطع الإجازة غير صحيحة." });
+      }
+      const existingQuery = new URLSearchParams({ id: "eq." + requestId, select: "id,discord_user_id,display_name,status,start_date,end_date,cutoff_date", limit: "1" });
+      const existingResponse = await db(cfg, "attendance_leave_requests?" + existingQuery.toString());
+      if (!existingResponse.ok) return json(res, 503, { error: "تعذّر تحميل طلب الإجازة المراد تعديله." });
+      const existing = (await existingResponse.json())[0];
+      if (!existing) return json(res, 404, { error: "طلب الإجازة غير موجود." });
+      if (existing.status !== "approved" || existing.cutoff_date) return json(res, 409, { error: "لا يمكن إلغاء أو قطع إلا إجازة معتمدة لم يسبق تعديلها." });
+      const today = riyadhDateKey(new Date());
+      const startDate = String(existing.start_date || ""), endDate = String(existing.end_date || "");
+      if (!isValidDate(startDate) || !isValidDate(endDate) || endDate <= today) return json(res, 409, { error: "انتهت هذه الإجازة بالفعل ولا يمكن قطعها الآن." });
+      const beforeStart = new Date(startDate + "T00:00:00.000Z");
+      beforeStart.setUTCDate(beforeStart.getUTCDate() - 1);
+      const cancellationDate = beforeStart.toISOString().slice(0,10);
+      const cancelled = cutoffDate < startDate;
+      if (cutoffDate < today || cutoffDate >= endDate ||
+          (cancelled && (startDate <= today || cutoffDate !== cancellationDate))) {
+        return json(res, 400, { error: "اختر آخر يوم مشمولًا من اليوم وحتى ما قبل نهاية الإجازة. للإلغاء الكامل اختر اليوم السابق للبداية، وذلك قبل بدء الإجازة." });
+      }
+      const now = new Date().toISOString();
+      const writeResponse = await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.approved&cutoff_date=is.null", {
+        method: "PATCH", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ cutoff_date: cutoffDate, cut_by_discord_id: user.id, cut_by_name: user.displayName, cut_at: now, cut_reason: reason, cut_dm_status: "not_sent", cut_dm_error: null, updated_at: now })
+      });
+      if (!writeResponse.ok) {
+        console.error("Attendance leave cutoff save failed:", writeResponse.status, (await writeResponse.text()).slice(0,300));
+        return json(res, 502, { error: "تعذّر حفظ إلغاء أو قطع الإجازة." });
+      }
+      const updated = (await writeResponse.json())[0];
+      if (!updated) return json(res, 409, { error: "تم تعديل الإجازة بالفعل؛ حدّث القائمة ثم حاول مرة أخرى." });
+      let cutDmStatus = "sent", cutDmError = null;
+      try {
+        await sendDirectNotice(cfg, existing.discord_user_id, {
+          title: cancelled ? "تم إلغاء إجازتك" : "تم قطع إجازتك",
+          description: cancelled ? "تم إلغاء إجازتك قبل موعد بدايتها. لن تُحسب إجازة على سجل حضورك." : "تم قطع إجازتك. تظل الإجازة معتمدة حتى " + cutoffDate + " ولا تشمل الأيام التالية.",
+          color: cancelled ? 0xed6673 : 0xf0b44d,
+          fields: [
+            { name: "الفترة الأصلية", value: startDate + " إلى " + endDate, inline: false },
+            { name: cancelled ? "الحالة" : "آخر يوم مشمول", value: cancelled ? "ملغاة قبل البداية" : cutoffDate, inline: true },
+            { name: "السبب", value: reason.slice(0,1000), inline: false }
+          ],
+          timestamp: now
+        });
+      } catch (error) { cutDmStatus = "failed"; cutDmError = String(error?.message || "فشل إرسال رسالة Discord الخاصة").slice(0,1000); }
+      const dmSaveResponse = await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId), {
+        method: "PATCH", headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ cut_dm_status: cutDmStatus, cut_dm_error: cutDmError, updated_at: new Date().toISOString() })
+      });
+      if (!dmSaveResponse.ok) console.error("Leave cutoff DM status save failed:", dmSaveResponse.status, (await dmSaveResponse.text()).slice(0,300));
+      try {
+        await appendAttendanceAdminAudit(cfg, user, {
+          action: "update", entity_type: "attendance_leave_request", entity_id: requestId,
+          details: {
+            type: cancelled ? "إلغاء إجازة معتمدة" : "قطع إجازة معتمدة",
+            detail: (cancelled ? "تم إلغاء إجازة " : "تم قطع إجازة ") + (existing.display_name || existing.discord_user_id) + " عند " + cutoffDate + ".",
+            target_discord_id: existing.discord_user_id, original_start_date: startDate, original_end_date: endDate,
+            cutoff_date: cutoffDate, reason, cut_dm_status: cutDmStatus
+          }
+        });
+      } catch (auditError) { console.error("Leave cutoff audit forwarding failed:", auditError?.message || "unknown"); }
+      return json(res, 200, { ok: true, request: { ...updated, cut_dm_status: cutDmStatus, cut_dm_error: cutDmError }, cut_dm_status: cutDmStatus, cut_dm_error: cutDmError });
     }
 
     if (body.action === "archive_subject" || body.action === "restore_subject") {
