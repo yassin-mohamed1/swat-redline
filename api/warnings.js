@@ -1497,7 +1497,7 @@ export default async function handler(req, res) {
       const now = new Date().toISOString();
       const writeResponse = await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.approved&cutoff_date=is.null", {
         method: "PATCH", headers: { Prefer: "return=representation" },
-        body: JSON.stringify({ cutoff_date: cutoffDate, cut_by_discord_id: user.id, cut_by_name: user.displayName, cut_at: now, cut_reason: reason, cut_dm_status: "not_sent", cut_dm_error: null, updated_at: now })
+        body: JSON.stringify({ status: cancelled ? "cancelled" : "approved", cutoff_date: cutoffDate, cut_by_discord_id: user.id, cut_by_name: user.displayName, cut_at: now, cut_reason: reason, cut_dm_status: "not_sent", cut_dm_error: null, updated_at: now })
       });
       if (!writeResponse.ok) {
         console.error("Attendance leave cutoff save failed:", writeResponse.status, (await writeResponse.text()).slice(0,300));
