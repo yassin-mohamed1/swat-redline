@@ -1028,6 +1028,17 @@ export default async function handler(req, res) {
       return json(res, 200, diagnostics);
     }
     await requireManager(cfg, user);
+    if (req.method === "GET" && params.get("my_leave_requests") === "1") {
+      const q = new URLSearchParams({
+        discord_user_id: "eq." + user.id,
+        select: "id,discord_user_id,display_name,reason,start_date,end_date,status,review_note,reviewed_at,created_at",
+        order: "created_at.desc",
+        limit: "100"
+      });
+      const response = await db(cfg, "attendance_leave_requests?" + q.toString());
+      if (!response.ok) throw new Error("تعذّر تحميل طلبات إجازتك.");
+      return json(res, 200, { requests: await response.json() });
+    }
     if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("access") === "1") {
       return json(res, 200, { authorized: true });
     }
@@ -1206,8 +1217,9 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, discord_user_id: targetId, enabled });
     }
 
-    if (body.action === "create_attendance_leave") {
-      const targetId = String(body.discord_user_id || "");
+    if (body.action === "create_attendance_leave" || body.action === "submit_attendance_leave") {
+      const selfRequest = body.action === "submit_attendance_leave";
+      const targetId = selfRequest ? user.id : String(body.discord_user_id || "");
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
       const startDate = String(body.start_date || "");
       const endDate = String(body.end_date || "");
@@ -1252,7 +1264,7 @@ export default async function handler(req, res) {
         return json(res, 502, { error: "تعذّر تسجيل طلب الإجازة." });
       }
       const created = (await insertResponse.json())[0];
-      await appendAttendanceAdminAudit(cfg, user, {
+      try { await appendAttendanceAdminAudit(cfg, user, {
         action: "create",
         entity_type: "attendance_leave_request",
         entity_id: created?.id || targetId,
@@ -1263,7 +1275,7 @@ export default async function handler(req, res) {
           start_date: startDate,
           end_date: endDate
         }
-      });
+      }); } catch (auditError) { console.error("Leave request audit forwarding failed:", auditError?.message || "unknown"); }
       return json(res, 200, { ok: true, request: created });
     }
 
@@ -1293,7 +1305,7 @@ export default async function handler(req, res) {
       }
       const updated = (await updateResponse.json())[0];
       if (!updated) return json(res, 409, { error: "تمت مراجعة هذا الطلب بالفعل أو لم يعد موجودًا." });
-      await forwardAuditToDiscord(user, {
+      try { await forwardAuditToDiscord(user, {
         action: "update",
         entity_type: "attendance_leave_request",
         entity_id: requestId,
@@ -1304,8 +1316,36 @@ export default async function handler(req, res) {
           status,
           review_note: note
         }
-      });
-      return json(res, 200, { ok: true, request: updated });
+      }); } catch (auditError) { console.error("Leave review audit forwarding failed:", auditError?.message || "unknown"); }
+      let dmStatus = "skipped";
+      let dmError = null;
+      if (await memberPrivateNotificationsEnabled(cfg, updated.discord_user_id)) {
+        try {
+          const startLabel = updated.start_date, endLabel = updated.end_date;
+          const durationDays = Math.floor((Date.parse(endLabel + "T00:00:00Z") - Date.parse(startLabel + "T00:00:00Z")) / 86400000) + 1;
+          const embed = {
+            title: status === "approved" ? "✅ تمت الموافقة على إجازتك" : "❌ تم رفض طلب الإجازة",
+            description: status === "approved"
+              ? "أنت حاليًا في إجازة معتمدة من **" + startLabel + "** إلى **" + endLabel + "** (شاملة اليومين).\n\nخلال هذه الفترة لن تُطلب منك بصمة يومية، ولن تُحتسب عليك أيام غياب أو تُتخذ ضدك إجراءات غياب تلقائية."
+              : "تم رفض طلب الإجازة المقدم من قبلك.\n" + (note ? "**ملاحظة الإدارة:** " + note : "تواصل مع الإدارة لمزيد من التفاصيل."),
+            color: status === "approved" ? 0x239B72 : 0xD92735,
+            fields: [
+              { name: "المدة", value: status === "approved" ? durationDays + " يوم" : "—", inline: true },
+              { name: "سبب الطلب", value: String(updated.reason || "—").slice(0, 1000), inline: false },
+              { name: "قرار الإدارة", value: String(updated.reviewed_by_name || "الإدارة"), inline: true }
+            ],
+            footer: { text: "S.W.A.T. REDLINE • ATTENDANCE & LEAVE" },
+            timestamp: new Date().toISOString()
+          };
+          await sendDirectNotice(cfg, updated.discord_user_id, embed);
+          dmStatus = "sent";
+        } catch (dmErrorValue) {
+          dmStatus = "failed";
+          dmError = String(dmErrorValue?.code || dmErrorValue?.message || "dm_delivery_failed").slice(0, 120);
+          console.error("Leave decision DM failed:", dmError);
+        }
+      }
+      return json(res, 200, { ok: true, request: updated, dm_status: dmStatus, dm_error: dmError });
     }
 
     if (body.action === "archive_subject" || body.action === "restore_subject") {
