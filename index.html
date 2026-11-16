@@ -3510,7 +3510,6 @@ function toggleAttendanceLeaveCustomDuration(){
  if(custom)custom.style.display=select?.value==='custom'?'block':'none';
 }
 function closeAttendanceLeaveReviewModal(){
- if(attendanceLeaveSaveBusy)return;
  document.getElementById('attendanceLeaveReviewModalBack')?.classList.remove('open');
  attendanceLeaveReviewTargetId=null;
  attendanceLeaveReviewStatus=null;
