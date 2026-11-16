@@ -335,13 +335,21 @@ async function listAttendanceDashboard(cfg) {
       .sort();
     const latestLeaveEnd = leaveEndDates.length ? leaveEndDates[leaveEndDates.length - 1] : null;
     let baselineMs = Number.isFinite(originalBaselineMs) ? originalBaselineMs : nowMs;
+    let baselineSource = last ? "last_attendance"
+      : registeredMs > systemMs ? "member_registration" : "system_activation";
     if (latestLeaveEnd) {
       const leaveEndMs = Date.parse(latestLeaveEnd + "T20:59:59.999Z");
-      if (Number.isFinite(leaveEndMs)) baselineMs = Math.max(baselineMs, leaveEndMs);
+      if (Number.isFinite(leaveEndMs) && leaveEndMs >= baselineMs) {
+        baselineMs = leaveEndMs;
+        baselineSource = "approved_leave_end";
+      }
     }
     if (exemption && exemption.enabled === false) {
       const exemptionEndedMs = Date.parse(exemption.updated_at || "");
-      if (Number.isFinite(exemptionEndedMs)) baselineMs = Math.max(baselineMs, exemptionEndedMs);
+      if (Number.isFinite(exemptionEndedMs) && exemptionEndedMs >= baselineMs) {
+        baselineMs = exemptionEndedMs;
+        baselineSource = "exemption_ended";
+      }
     }
     const isOnApprovedLeave = Boolean(currentLeave);
     if (isAttendanceExempt || isOnApprovedLeave) baselineMs = nowMs;
@@ -351,13 +359,10 @@ async function listAttendanceDashboard(cfg) {
       : Math.max(0,Math.floor((nowMs-safeBaselineMs)/86400000));
     const absenceStartedAt = (isAttendanceExempt || isOnApprovedLeave)
       ? null
-      : (last?.first_seen_at || new Date(safeBaselineMs).toISOString());
+      : new Date(safeBaselineMs).toISOString();
     const absenceBaseline = isAttendanceExempt ? "exempt"
       : isOnApprovedLeave ? "approved_leave"
-      : last ? "last_attendance"
-      : latestLeaveEnd ? "approved_leave_end"
-      : (exemption?.enabled === false ? "exemption_ended"
-      : registeredMs > systemMs ? "member_registration" : "system_activation");
+      : baselineSource;
     const weekCount = daily.filter(([date])=>{const ordinal=dateOrdinal(date);return ordinal!==null&&ordinal>=weekStartOrdinal&&ordinal<=todayOrdinal;}).length;
     let streak=0,previousOrdinal=null;
     for(const [date] of daily){const ordinal=dateOrdinal(date);if(ordinal===null)continue;if(previousOrdinal===null)streak=1;else if(previousOrdinal-ordinal===1)streak++;else break;previousOrdinal=ordinal;}
@@ -543,12 +548,19 @@ async function processAutomaticAttendanceDiscipline(cfg) {
     if (processed >= 3) break;
     const stage = candidate.next_stage;
     const latestStamp = await latestAttendanceForMember(cfg, candidate.discord_user_id);
-    const absence = elapsedAbsenceDays(
-      latestStamp,
-      candidate.registered_at,
-      dashboard.attendance_started_at,
-      new Date()
-    );
+    const sameStampAsDashboard =
+      (latestStamp?.first_seen_at || null) === (candidate.last_attendance_at || null);
+    const absence = sameStampAsDashboard
+      ? {
+          days: Number(candidate.days_since_last) || 0,
+          startedAt: candidate.absence_started_at || new Date().toISOString()
+        }
+      : elapsedAbsenceDays(
+          latestStamp,
+          candidate.registered_at,
+          dashboard.attendance_started_at,
+          new Date()
+        );
     if (absence.days < stage * 7) continue;
 
     const eventKey = "attendance:" + candidate.discord_user_id + ":" + stage + ":" + absence.startedAt;
@@ -623,12 +635,15 @@ async function processAutomaticAttendanceDiscipline(cfg) {
 
       // Re-check the stamp immediately before any role or disciplinary change.
       const finalStamp = await latestAttendanceForMember(cfg, candidate.discord_user_id);
-      const finalAbsence = elapsedAbsenceDays(
-        finalStamp,
-        candidate.registered_at,
-        dashboard.attendance_started_at,
-        new Date()
-      );
+      const sameFinalStamp = (finalStamp?.first_seen_at || null) === (latestStamp?.first_seen_at || null);
+      const finalAbsence = sameFinalStamp
+        ? absence
+        : elapsedAbsenceDays(
+            finalStamp,
+            candidate.registered_at,
+            dashboard.attendance_started_at,
+            new Date()
+          );
       if (finalAbsence.days < stage * 7 || finalAbsence.startedAt !== absence.startedAt) {
         await rpc(cfg, "complete_swat_attendance_discipline", {
           p_event_key: eventKey, p_success: true, p_error_code: null
@@ -1392,11 +1407,10 @@ export default async function handler(req, res) {
         console.error("Leave review audit forwarding failed:", auditError?.message || "unknown");
       }
 
-      let dmStatus = "skipped";
+      let dmStatus = "failed";
       let dmError = null;
       try {
-        const dmAllowed = await memberPrivateNotificationsEnabled(cfg, updated.discord_user_id);
-        if (dmAllowed) {
+        // Leave decisions are essential transactional notices; always attempt a DM.
           const formatDate = value => new Intl.DateTimeFormat("ar-SA", {
             timeZone: "Asia/Riyadh",
             year: "numeric",
@@ -1419,7 +1433,6 @@ export default async function handler(req, res) {
           };
           await sendDirectNotice(cfg, updated.discord_user_id, embed);
           dmStatus = "sent";
-        }
       } catch (dmErrorValue) {
         dmStatus = "failed";
         dmError = String(dmErrorValue?.code || dmErrorValue?.message || "dm_delivery_failed").slice(0, 120);
