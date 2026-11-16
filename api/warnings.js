@@ -327,15 +327,27 @@ async function listAttendanceDashboard(cfg) {
     const isAttendanceExempt = exemption?.enabled === true;
     const leaveRows = leavesById.get(id) || [];
     const currentLeave = leaveRows.find(leave => {
-      const effectiveEnd = String(leave.cutoff_date || leave.end_date || "");
-      return String(leave.start_date || "") <= today && effectiveEnd >= today;
+      const start = String(leave.start_date || "");
+      const cutoff = String(leave.cutoff_date || "");
+      const stillCoversToday = cutoff
+        ? cutoff > today
+        : String(leave.end_date || "") >= today;
+      return start <= today && stillCoversToday;
     }) || null;
+    const currentLeaveEnd = currentLeave
+      ? (currentLeave.cutoff_date
+        ? new Date(Date.parse(String(currentLeave.cutoff_date) + "T00:00:00.000Z") - 86400000).toISOString().slice(0,10)
+        : currentLeave.end_date || null)
+      : null;
     const leaveEndDates = leaveRows
       .map(leave => {
         const start = String(leave.start_date || "");
         const cutoff = String(leave.cutoff_date || "");
-        if (cutoff && start && cutoff < start) return "";
-        return cutoff || String(leave.end_date || "");
+        if (cutoff) {
+          if (start && cutoff <= start) return "";
+          return new Date(Date.parse(cutoff + "T00:00:00.000Z") - 86400000).toISOString().slice(0,10);
+        }
+        return String(leave.end_date || "");
       })
       .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today);
     const latestLeaveEnd = leaveEndDates.length ? leaveEndDates.sort().at(-1) : null;
@@ -375,7 +387,7 @@ async function listAttendanceDashboard(cfg) {
       discord_user_id:id,display_name:profile.display_name||profile.username||"Discord member",username:profile.username||"",
       avatar_url:profile.avatar_url||null,registered_at:profile.created_at||null,is_swat_member,is_dismissed:subject?.status==="dismissed",
       is_attendance_exempt:isAttendanceExempt,attendance_exemption_reason:exemption?.reason||null,
-      is_on_approved_leave:isOnApprovedLeave,approved_leave_end_date:currentLeave?.cutoff_date||currentLeave?.end_date||null,
+      is_on_approved_leave:isOnApprovedLeave,approved_leave_end_date:currentLeaveEnd,
       today_present:lastDate===today,has_ever_attended:Boolean(last),last_attendance_at:last?.first_seen_at||null,
       last_attendance_date:lastDate,first_attendance_at:first?.first_seen_at||null,absence_started_at:absenceStartedAt,
       absence_baseline:absenceBaseline,days_since_last:daysSinceLast,weeks_since_last:Math.floor(daysSinceLast/7),
@@ -626,7 +638,7 @@ async function processAutomaticAttendanceDiscipline(cfg) {
         status: "eq.approved",
         start_date: "lte." + riyadhDateKey(new Date()),
         end_date: "gte." + riyadhDateKey(new Date()),
-        or: "(cutoff_date.is.null,cutoff_date.gte." + riyadhDateKey(new Date()) + ")",
+        or: "(cutoff_date.is.null,cutoff_date.gt." + riyadhDateKey(new Date()) + ")",
         select: "id",
         limit: "1"
       });
@@ -1353,7 +1365,7 @@ export default async function handler(req, res) {
           status: "eq.approved",
           start_date: "lte." + endDate,
           end_date: "gte." + startDate,
-          or: "(cutoff_date.is.null,cutoff_date.gte." + startDate + ")",
+          or: "(cutoff_date.is.null,cutoff_date.gt." + startDate + ")",
           select: "id,start_date,end_date,cutoff_date",
           limit: "1"
         });
@@ -1485,14 +1497,11 @@ export default async function handler(req, res) {
       if (existing.status !== "approved" || existing.cutoff_date) return json(res, 409, { error: "لا يمكن إلغاء أو قطع إلا إجازة معتمدة لم يسبق تعديلها." });
       const today = riyadhDateKey(new Date());
       const startDate = String(existing.start_date || ""), endDate = String(existing.end_date || "");
-      if (!isValidDate(startDate) || !isValidDate(endDate) || endDate <= today) return json(res, 409, { error: "انتهت هذه الإجازة بالفعل ولا يمكن قطعها الآن." });
-      const beforeStart = new Date(startDate + "T00:00:00.000Z");
-      beforeStart.setUTCDate(beforeStart.getUTCDate() - 1);
-      const cancellationDate = beforeStart.toISOString().slice(0,10);
-      const cancelled = cutoffDate < startDate;
-      if (cutoffDate < today || cutoffDate >= endDate ||
-          (cancelled && (startDate <= today || cutoffDate !== cancellationDate))) {
-        return json(res, 400, { error: "اختر آخر يوم مشمولًا من اليوم وحتى ما قبل نهاية الإجازة. للإلغاء الكامل اختر اليوم السابق للبداية، وذلك قبل بدء الإجازة." });
+      if (!isValidDate(startDate) || !isValidDate(endDate) || endDate < today) return json(res, 409, { error: "انتهت هذه الإجازة بالفعل ولا يمكن قطعها الآن." });
+      const cancelled = cutoffDate <= startDate;
+      if (cutoffDate < today || cutoffDate > endDate ||
+          (cancelled && (startDate < today || cutoffDate !== startDate))) {
+        return json(res, 400, { error: "اختر أول يوم لا تُحسب فيه الإجازة من اليوم وحتى نهاية الفترة. للإلغاء الكامل اختر تاريخ بداية الإجازة." });
       }
       const now = new Date().toISOString();
       const writeResponse = await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.approved&cutoff_date=is.null", {
@@ -1509,11 +1518,13 @@ export default async function handler(req, res) {
       try {
         await sendDirectNotice(cfg, existing.discord_user_id, {
           title: cancelled ? "تم إلغاء إجازتك" : "تم قطع إجازتك",
-          description: cancelled ? "تم إلغاء إجازتك قبل موعد بدايتها. لن تُحسب إجازة على سجل حضورك." : "تم قطع إجازتك. تظل الإجازة معتمدة حتى " + cutoffDate + " ولا تشمل الأيام التالية.",
+          description: cancelled
+            ? "تم إلغاء إجازتك دون احتساب أي يوم منها."
+            : "تم قطع إجازتك اعتبارًا من " + cutoffDate + ". لا تُحسب إجازة من هذا التاريخ فصاعدًا.",
           color: cancelled ? 0xed6673 : 0xf0b44d,
           fields: [
             { name: "الفترة الأصلية", value: startDate + " إلى " + endDate, inline: false },
-            { name: cancelled ? "الحالة" : "آخر يوم مشمول", value: cancelled ? "ملغاة قبل البداية" : cutoffDate, inline: true },
+            { name: cancelled ? "الحالة" : "أول يوم غير مشمول", value: cancelled ? "ملغاة" : cutoffDate, inline: true },
             { name: "السبب", value: reason.slice(0,1000), inline: false }
           ],
           timestamp: now
