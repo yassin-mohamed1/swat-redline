@@ -2287,7 +2287,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 <div class="modalback" id="attendanceLeaveCutModalBack" onclick="if(event.target===this)closeAttendanceLeaveCutModal()">
  <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="attendanceLeaveCutTitle">
   <div class="modalhead"><div><h3 id="attendanceLeaveCutTitle">إلغاء أو قطع الإجازة</h3><div class="sub" id="attendanceLeaveCutHint">اختر آخر يوم مشمول بالإجازة.</div></div><button class="close" type="button" onclick="closeAttendanceLeaveCutModal()">×</button></div>
-  <div class="formgrid"><div class="field full"><label for="attendanceLeaveCutDate">آخر يوم مشمول بالإجازة *</label><input id="attendanceLeaveCutDate" type="date" required></div>
+  <div class="formgrid"><div class="field full"><label for="attendanceLeaveCutDate">إيقاف الإجازة اعتبارًا من تاريخ *</label><input id="attendanceLeaveCutDate" type="date" required></div>
    <div class="field full"><label for="attendanceLeaveCutReason">سبب الإلغاء أو القطع *</label><textarea id="attendanceLeaveCutReason" rows="4" maxlength="1000" placeholder="اكتب سبب القرار..." required></textarea></div></div>
   <div class="modalactions"><button class="btn danger" id="attendanceLeaveCutSubmitButton" type="button" onclick="submitAttendanceLeaveCut()">تأكيد الإلغاء أو القطع</button><button class="btn" type="button" onclick="closeAttendanceLeaveCutModal()">رجوع</button></div>
  </div>
@@ -3512,24 +3512,30 @@ function attendanceLeaveDate(value){
  const date=new Date(String(value).slice(0,10)+'T12:00:00+03:00');
  return Number.isNaN(date.getTime())?String(value):new Intl.DateTimeFormat('ar-SA',{timeZone:'Asia/Riyadh',day:'numeric',month:'short',year:'numeric'}).format(date);
 }
+function attendanceLeavePreviousDate(value){
+ if(!value)return '';
+ const date=new Date(String(value).slice(0,10)+'T00:00:00.000Z');
+ date.setUTCDate(date.getUTCDate()-1);
+ return date.toISOString().slice(0,10);
+}
 function renderAttendanceLeaveRows(){
  const body=document.getElementById('attendanceLeaveRows');if(!body)return;
  body.innerHTML=attendanceLeaveRequests.map(item=>{
-  const wasCut=Boolean(item.cutoff_date),cancelled=wasCut&&item.start_date&&item.cutoff_date<item.start_date;
-  const statusLabel=wasCut?(cancelled?'ملغاة قبل البداية':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
+  const wasCut=Boolean(item.cutoff_date),cancelled=wasCut&&item.start_date&&item.cutoff_date<=item.start_date;
+  const statusLabel=wasCut?(cancelled?'ملغاة':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
   const sourceLabel=item.source==='discord'?'Discord':'الموقع';
   const avatar=item.avatar_url
    ?'<img src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 38px">'
    :'<span style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#242830;flex:0 0 38px">👤</span>';
   const submitted=item.submitted_at||item.created_at;
   const dateRange=item.start_date&&item.end_date
-   ?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>'+(wasCut?'<div class="attendance-admin-meta">'+(cancelled?'إلغاء قبل البداية':'آخر يوم مشمول: '+adminEscape(attendanceLeaveDate(item.cutoff_date)))+'</div>':'')
+   ?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>'+(wasCut?'<div class="attendance-admin-meta">'+(cancelled?'لا توجد أيام إجازة محتسبة':'تتوقف من: '+adminEscape(attendanceLeaveDate(item.cutoff_date))+' • آخر يوم مشمول: '+adminEscape(attendanceLeaveDate(attendanceLeavePreviousDate(item.cutoff_date))))+'</div>':'')
    :'<span class="muted">تُحدد عند الموافقة</span>';
   const originalLink=item.discord_message_url?'<div style="margin-top:7px"><a href="'+adminEscape(item.discord_message_url)+'" target="_blank" rel="noopener noreferrer">فتح الرسالة الأصلية في Discord ↗</a></div>':'';
   const sourceTag='<span class="attendance-admin-meta">'+sourceLabel+(submitted?' • '+adminEscape(fmtWarningDate(submitted)):'')+'</span>';
   const dmLabel=item.dm_status==='sent'?'وصلت رسالة الخاص':item.dm_status==='failed'?'فشل إرسال الخاص':item.dm_status==='skipped'?'الخاص غير مفعّل':'لم يُرسل الخاص بعد';
   const cutDmLabel=item.cut_dm_status==='sent'?'وصل إشعار الإلغاء أو القطع':item.cut_dm_status==='failed'?'فشل إرسال إشعار الإلغاء أو القطع':'لم يُرسل إشعار الإلغاء أو القطع بعد';
-  const canCut=item.status==='approved'&&!wasCut&&item.end_date>portalRiyadhToday();
+  const canCut=item.status==='approved'&&!wasCut&&item.end_date>=portalRiyadhToday();
   let actions='';
   if(item.status==='pending'){
    actions='<div class="attendance-leave-actions"><button class="btn primary" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'approved\')">موافقة</button><button class="btn danger" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'rejected\')">رفض</button></div>';
@@ -3540,13 +3546,6 @@ function renderAttendanceLeaveRows(){
   }
   return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><div class="attendance-name">'+adminEscape(item.display_name||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(item.discord_user_id)+'</code></div>'+sourceTag+'</div></div></td><td>'+dateRange+'</td><td><div style="white-space:pre-wrap;word-break:break-word;max-width:460px;line-height:1.75">'+adminEscape(item.reason||'—')+'</div>'+originalLink+'</td><td><span class="attendance-leave-status '+(wasCut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+statusLabel+'</span></td><td>'+actions+'</td></tr>';
  }).join('')||'<tr><td colspan="5"><div class="empty">لا توجد طلبات إجازة حتى الآن.</div></td></tr>';
-}
-function updateMyAttendanceLeaveDateBounds(){
- const today=portalRiyadhToday();
- const start=document.getElementById('myAttendanceLeaveStart');
- const end=document.getElementById('myAttendanceLeaveEnd');
- if(start){start.min=today;if(!start.value)start.value=today;}
- if(end){end.min=start?.value||today;if(!end.value||end.value<end.min)end.value=end.min;}
 }
 async function loadMyAttendanceLeaveRequests(){
  if(myAttendanceLeaveLoadBusy)return;
@@ -3565,9 +3564,9 @@ async function loadMyAttendanceLeaveRequests(){
 function renderMyAttendanceLeaveRequests(){
  const body=document.getElementById('myAttendanceLeaveRows');if(!body)return;
  body.innerHTML=myAttendanceLeaveRequests.map(item=>{
-  const cut=Boolean(item.cutoff_date),cancelled=cut&&item.start_date&&item.cutoff_date<item.start_date;
-  const label=cut?(cancelled?'ملغاة قبل البداية':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
-  const dates=item.start_date&&item.end_date?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>':'<span class="muted">تُحدد عند الموافقة</span>';
+  const cut=Boolean(item.cutoff_date),cancelled=cut&&item.start_date&&item.cutoff_date<=item.start_date;
+  const label=cut?(cancelled?'ملغاة':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
+  const dates=item.start_date&&item.end_date?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>'+(cut?'<div class="attendance-admin-meta">'+(cancelled?'لا توجد أيام إجازة محتسبة':'تتوقف من: '+adminEscape(attendanceLeaveDate(item.cutoff_date))+' • آخر يوم مشمول: '+adminEscape(attendanceLeaveDate(attendanceLeavePreviousDate(item.cutoff_date))))+'</div>':''):'<span class="muted">تُحدد عند الموافقة</span>';
   const notes=(item.review_note?'<div>'+adminEscape(item.review_note)+'</div>':'')+(item.cut_reason?'<div>'+adminEscape(item.cut_reason)+'</div>':'');
   return '<tr><td>'+dates+'</td><td style="white-space:pre-wrap">'+adminEscape(item.reason||'—')+'</td><td><span class="attendance-leave-status '+(cut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+label+'</span></td><td>'+notes+'</td></tr>';
  }).join('')||'<tr><td colspan="4"><div class="empty">لم ترسل أي طلب إجازة حتى الآن.</div></td></tr>';
@@ -3617,16 +3616,12 @@ function openAttendanceLeaveCut(id){
  const reasonInput=document.getElementById('attendanceLeaveCutReason');
  const hint=document.getElementById('attendanceLeaveCutHint');
  const title=document.getElementById('attendanceLeaveCutTitle');
- if(dateInput){
-  const beforeEnd=new Date(item.end_date+'T00:00:00Z');beforeEnd.setUTCDate(beforeEnd.getUTCDate()-1);dateInput.max=beforeEnd.toISOString().slice(0,10);
-  if(item.start_date>today){
-   const beforeStart=new Date(item.start_date+'T00:00:00Z');beforeStart.setUTCDate(beforeStart.getUTCDate()-1);
-   const cancellationDay=beforeStart.toISOString().slice(0,10);dateInput.min=cancellationDay;dateInput.value=cancellationDay;
-  }else{dateInput.min=today;dateInput.value=today;}
- }
+ if(dateInput){dateInput.min=today;dateInput.max=item.end_date;dateInput.value=item.start_date>today?item.start_date:today;}
  if(reasonInput)reasonInput.value='';
- if(title)title.textContent=item.start_date>today?'إلغاء الإجازة أو تعديل مدتها':'قطع الإجازة';
- if(hint)hint.textContent='اختَر آخر يوم مشمول. لاختيار الإلغاء الكامل، استخدم اليوم السابق لتاريخ البداية.';
+ if(title)title.textContent=item.start_date>today?'إلغاء كامل الإجازة أو قطعها مبكرًا':'قطع الإجازة فورًا أو تحديد تاريخ إيقافها';
+ if(hint)hint.textContent=item.start_date>today
+  ?'اختَر تاريخ بداية الإجازة لإلغائها بالكامل، أو تاريخًا لاحقًا لإيقافها من ذلك اليوم.'
+  :'التاريخ المختار هو أول يوم لا تُحسب فيه الإجازة؛ اختر اليوم لإيقافها فورًا.';
  document.getElementById('attendanceLeaveCutModalBack')?.classList.add('open');
 }
 async function submitAttendanceLeaveCut(){
@@ -6636,7 +6631,14 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "ملغاة قبل البداية":"Cancelled before start",
  "مقطوعة":"Ended early",
  "إلغاء أو قطع الإجازة":"Cancel or end leave",
- "آخر يوم مشمول بالإجازة *":"Last covered day *",
+ "إيقاف الإجازة اعتبارًا من تاريخ *":"Stop leave starting on *",
+ "إيقاف الإجازة فورًا أو تحديد تاريخ إيقافها":"Stop leave now or choose a stop date",
+ "إلغاء كامل الإجازة أو قطعها مبكرًا":"Cancel the full leave or end it early",
+ "اختَر تاريخ بداية الإجازة لإلغائها بالكامل، أو تاريخًا لاحقًا لإيقافها من ذلك اليوم.":"Choose the leave start date to cancel it, or a later date to stop it from that day.",
+ "التاريخ المختار هو أول يوم لا تُحسب فيه الإجازة؛ اختر اليوم لإيقافها فورًا.":"The selected date is the first day not counted as leave; choose today to stop it immediately.",
+ "لا توجد أيام إجازة محتسبة":"No leave days were counted",
+ "تتوقف من: ":"Stops on: ",
+ "آخر يوم مشمول: ":"Last covered day: ",
  "سبب الإلغاء أو القطع *":"Reason for cancellation or end *",
  "اكتب سبب القرار...":"Enter the reason for the decision...",
  "تأكيد الإلغاء أو القطع":"Confirm cancellation or end",
