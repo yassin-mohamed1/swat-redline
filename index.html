@@ -2436,7 +2436,7 @@ const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;
-let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -3547,22 +3547,49 @@ function renderAttendanceLeaveRows(){
   return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><div class="attendance-name">'+adminEscape(item.display_name||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(item.discord_user_id)+'</code></div>'+sourceTag+'</div></div></td><td>'+dateRange+'</td><td><div style="white-space:pre-wrap;word-break:break-word;max-width:460px;line-height:1.75">'+adminEscape(item.reason||'—')+'</div>'+originalLink+'</td><td><span class="attendance-leave-status '+(wasCut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+statusLabel+'</span></td><td>'+actions+'</td></tr>';
  }).join('')||'<tr><td colspan="5"><div class="empty">لا توجد طلبات إجازة حتى الآن.</div></td></tr>';
 }
+function updateMyAttendanceLeaveDateBounds(){
+ const today=portalRiyadhToday();
+ const start=document.getElementById('myAttendanceLeaveStart');
+ const end=document.getElementById('myAttendanceLeaveEnd');
+ if(start){start.min=today;if(!start.value)start.value=today;}
+ if(end){end.min=start?.value||today;if(!end.value||end.value<end.min)end.value=end.min;}
+}
 async function loadMyAttendanceLeaveRequests(){
- if(myAttendanceLeaveLoadBusy)return;
- myAttendanceLeaveLoadBusy=true;
+ if(myAttendanceLeaveLoadPromise)return myAttendanceLeaveLoadPromise;
  const body=document.getElementById('myAttendanceLeaveRows');
- if(body)body.innerHTML='<tr><td colspan="4">جارٍ تحميل طلباتك...</td></tr>';
- try{
-  const response=await fetch('/api/warnings?my_leave_requests=1',{credentials:'same-origin',cache:'no-store'});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'تعذّر تحميل طلباتك.');
-  myAttendanceLeaveRequests=Array.isArray(data.requests)?data.requests:[];
-  renderMyAttendanceLeaveRequests();
- }catch(error){if(body)body.innerHTML='<tr><td colspan="4">'+adminEscape(error.message||'تعذّر تحميل طلباتك.')+'</td></tr>';}
- finally{myAttendanceLeaveLoadBusy=false;}
+ myAttendanceLeaveLoadBusy=true;
+ myAttendanceLeaveLoadState='loading';
+ if(body){body.dataset.loadState='loading';body.innerHTML='<tr><td colspan="4"><span role="status" aria-live="polite">جارٍ تحميل طلباتك...</span></td></tr>';}
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),15000);
+ const request=(async()=>{
+  try{
+   const response=await fetch('/api/warnings?my_leave_requests=1',{credentials:'same-origin',cache:'no-store',signal:controller.signal});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||'تعذّر تحميل طلباتك.');
+   if(!Array.isArray(data.requests))throw new Error('تعذّر قراءة قائمة طلبات الإجازة.');
+   myAttendanceLeaveRequests=data.requests;
+   myAttendanceLeaveLoadState='loaded';
+   renderMyAttendanceLeaveRequests();
+  }catch(error){
+   myAttendanceLeaveLoadState='error';
+   const message=error&&error.name==='AbortError'
+    ?'انتهت مهلة تحميل طلباتك. تحقق من الاتصال ثم أعد المحاولة.'
+    :(error&&error.message)||'تعذّر تحميل طلباتك.';
+   if(body){body.dataset.loadState='error';body.innerHTML='<tr><td colspan="4"><div role="alert">'+adminEscape(message)+' <button class="btn" type="button" onclick="loadMyAttendanceLeaveRequests()">إعادة المحاولة</button></div></td></tr>';}
+   else toast(message);
+  }finally{
+   clearTimeout(timeout);
+   myAttendanceLeaveLoadBusy=false;
+  }
+ })();
+ myAttendanceLeaveLoadPromise=request;
+ try{return await request;}
+ finally{if(myAttendanceLeaveLoadPromise===request)myAttendanceLeaveLoadPromise=null;}
 }
 function renderMyAttendanceLeaveRequests(){
  const body=document.getElementById('myAttendanceLeaveRows');if(!body)return;
+ body.dataset.loadState='loaded';
  body.innerHTML=myAttendanceLeaveRequests.map(item=>{
   const cut=Boolean(item.cutoff_date),cancelled=cut&&item.start_date&&item.cutoff_date<=item.start_date;
   const label=cut?(cancelled?'ملغاة':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
