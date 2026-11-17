@@ -2105,6 +2105,11 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-messages .message-editor-card{width:min(820px,100%);max-height:92vh;overflow:auto;background:#111419;border:1px solid #3b414b;border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.6)}
 #page-messages .message-editor-counter{font-size:11px;color:#9ca4b0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 #page-messages .message-editor-help{font-size:11px;color:#aeb5c0;line-height:1.8;background:#171b22;border:1px solid #303641;border-radius:8px;padding:10px 12px}
+#page-messages .discord-message-image-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;margin-top:10px}
+#page-messages .discord-message-image-item{position:relative;background:#0b0d11;border:1px solid #343b46;border-radius:9px;overflow:hidden;min-width:0}
+#page-messages .discord-message-image-item img{width:100%;height:105px;object-fit:cover;display:block;background:#080a0d}
+#page-messages .discord-message-image-name{padding:7px 8px 2px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d8dde5}
+#page-messages .discord-message-image-remove{margin:5px 8px 8px;padding:4px 8px;border-radius:6px;border:1px solid #73313a;background:#2b1115;color:#ffb7bd;cursor:pointer;font-size:10px}
 @media(max-width:900px){#page-messages .saved-message-grid{grid-template-columns:1fr}}
 @media(max-width:600px){#page-messages .saved-message-controls{grid-template-columns:1fr}#page-messages .saved-message-controls .btn{width:100%}}
 </style>
@@ -2373,6 +2378,15 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
      <div class="message-editor-counter"><span id="discordMessageCharCount">0 حرف</span><span id="discordMessageByteCount">0 بايت</span></div>
     </div>
     <div class="field full"><div class="message-editor-help">يمكنك ترك الاسم فارغًا لإرسال الرسالة بدون عنوان. إذا تركت النص فارغًا سيستخدم النظام نص الإشعار الافتراضي. إذا كان النص أطول من حد عرض Discord، فسيُرسل في ملف TXT واحد مرفق مع نفس الرسالة دون تقسيمه إلى عدة رسائل.</div></div>
+    <div class="field full">
+     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <label style="margin:0">صور مرفقة (حتى 10 صور)</label>
+      <button class="btn" type="button" onclick="document.getElementById('discordMessageImageFiles').click()">＋ إضافة صور</button>
+     </div>
+     <input id="discordMessageImageFiles" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden onchange="handleDiscordMessageImageSelection(this)">
+     <div class="message-editor-help" style="margin-top:8px">اختر صورًا لإرفاقها مع الرسالة في القنوات أو الخاص. الأنواع المدعومة JPG وPNG وWEBP وGIF، وإجمالي الصور حتى 20 ميجابايت.</div>
+     <div class="discord-message-image-grid" id="discordMessageImagePreview" aria-live="polite"></div>
+    </div>
    </div>
    <div class="formgrid" style="margin-top:14px">
     <div class="field full">
@@ -2436,7 +2450,7 @@ const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;
-let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordMessageImages=[];let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -5356,7 +5370,7 @@ function renderDiscordSavedMessages(){
   ];
   const options=modeOptions.map(([value,label])=>'<option value="'+value+'"'+(mode===value?' selected':'')+'>'+label+'</option>').join('');
   return '<article class="saved-message-card">'+
-   '<div class="saved-message-head"><div style="min-width:0"><div class="saved-message-title">'+esc(item.title||'رسالة بدون اسم')+'</div><div class="saved-message-meta">بواسطة '+esc(item.created_by_name||'الإدارة')+' • '+chars+' حرف • '+bytes+' بايت</div></div><span class="tag gray">قالب محفوظ</span></div>'+
+   '<div class="saved-message-head"><div style="min-width:0"><div class="saved-message-title">'+esc(item.title||'رسالة بدون اسم')+'</div><div class="saved-message-meta">بواسطة '+esc(item.created_by_name||'الإدارة')+' • '+chars+' حرف • '+bytes+' بايت'+(Array.isArray(item.images)&&item.images.length?' • '+item.images.length+' صورة':'')+'</div></div><span class="tag gray">قالب محفوظ</span></div>'+
    '<div class="saved-message-preview '+(!preview?'empty-preview':'')+'">'+esc(preview||'لا يوجد نص محفوظ؛ سيظهر نص افتراضي عند الإرسال.')+(Number(item.content_chars||0)>preview.length?'\n…':'')+'</div>'+
    '<div class="saved-message-delivery"><div class="saved-message-controls">'+
     '<div class="saved-message-control"><label>جهة الإرسال</label><select class="message-editor-input" id="discordDeliveryMode_'+id+'" onchange="setSavedMessageDeliveryMode('+jsArg(item.id)+',this.value)">'+options+'</select></div>'+
@@ -5381,6 +5395,64 @@ async function refreshDiscordMessages(){
  discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};
  await Promise.all([loadDiscordSavedMessages(),loadDiscordMessageChannels(true),loadDiscordMentionOptions(true),loadDiscordDmRecipients(true)]);
 }
+const DISCORD_MESSAGE_IMAGE_MAX_BYTES=20*1024*1024;
+const DISCORD_MESSAGE_IMAGES_TOTAL_MAX_BYTES=20*1024*1024;
+const DISCORD_MESSAGE_IMAGE_TYPES={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'};
+function discordMessageImageContentType(file){
+ const declared=String(file?.type||'').toLowerCase();
+ if(DISCORD_MESSAGE_IMAGE_TYPES[declared])return declared;
+ const extension=String(file?.name||'').split('.').pop().toLowerCase();
+ return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif'})[extension]||'';
+}
+function discordMessageImagesBytes(){
+ return discordMessageImages.reduce((sum,image)=>sum+Number(image.size||0),0);
+}
+function renderDiscordMessageImagePreview(){
+ const container=document.getElementById('discordMessageImagePreview');
+ if(!container)return;
+ if(!discordMessageImages.length){
+  container.innerHTML='';
+  return;
+ }
+ container.innerHTML=discordMessageImages.map((image,index)=>{
+  const src=String(image.preview_url||image.signed_url||'');
+  const filename=String(image.filename||image.file?.name||'image');
+  const size=(Number(image.size||0)/1024/1024).toLocaleString('en-US',{maximumFractionDigits:2});
+  return '<div class="discord-message-image-item"><img src="'+esc(src)+'" alt="'+esc(filename)+'"><div class="discord-message-image-name" title="'+esc(filename)+'">'+esc(filename)+' • '+size+' MB</div><button class="discord-message-image-remove" type="button" onclick="removeDiscordMessageImage('+index+')">إزالة الصورة</button></div>';
+ }).join('');
+}
+function clearDiscordMessageImages(){
+ discordMessageImages.forEach(image=>{if(String(image.preview_url||'').startsWith('blob:'))URL.revokeObjectURL(image.preview_url);});
+ discordMessageImages=[];
+ const input=document.getElementById('discordMessageImageFiles');
+ if(input)input.value='';
+ renderDiscordMessageImagePreview();
+}
+function removeDiscordMessageImage(index){
+ const image=discordMessageImages[Number(index)];
+ if(!image)return;
+ if(String(image.preview_url||'').startsWith('blob:'))URL.revokeObjectURL(image.preview_url);
+ discordMessageImages.splice(Number(index),1);
+ renderDiscordMessageImagePreview();
+}
+function handleDiscordMessageImageSelection(input){
+ const files=Array.from(input?.files||[]);
+ if(input)input.value='';
+ if(!files.length)return;
+ if(discordMessageImages.length+files.length>10){toast('يمكن إرفاق 10 صور كحد أقصى.');return;}
+ const additions=[];
+ let total=discordMessageImagesBytes();
+ for(const file of files){
+  const contentType=discordMessageImageContentType(file);
+  if(!contentType){toast('اختر صور JPG أو PNG أو WEBP أو GIF فقط.');return;}
+  if(!Number.isSafeInteger(file.size)||file.size<1||file.size>DISCORD_MESSAGE_IMAGE_MAX_BYTES){toast('حجم الصورة الواحدة يجب ألا يتجاوز 20 ميجابايت.');return;}
+  total+=file.size;
+  if(total>DISCORD_MESSAGE_IMAGES_TOTAL_MAX_BYTES){toast('إجمالي حجم الصور يجب ألا يتجاوز 20 ميجابايت.');return;}
+  additions.push({file,filename:file.name||('image.'+DISCORD_MESSAGE_IMAGE_TYPES[contentType]),content_type:contentType,size:file.size,preview_url:URL.createObjectURL(file)});
+ }
+ discordMessageImages.push(...additions);
+ renderDiscordMessageImagePreview();
+}
 function updateDiscordMessageCounter(){
  const content=document.getElementById('discordMessageContent')?.value||'';
  const chars=document.getElementById('discordMessageCharCount');
@@ -5390,6 +5462,7 @@ function updateDiscordMessageCounter(){
 }
 async function openDiscordMessageModal(id=null){
  if(!currentCanManageWarnings){toast('إدارة الرسائل متاحة للمالك وWebsite Admin فقط.');return;}
+ clearDiscordMessageImages();
  const form=document.getElementById('discordMessageForm');
  form?.reset();
  discordMessageEditingId=id?String(id):null;
@@ -5397,9 +5470,9 @@ async function openDiscordMessageModal(id=null){
  document.getElementById('discordMessageDeliveryMode').value=delivery.mode;
  document.getElementById('discordMessageDmRecipient').value=delivery.recipientId;
  document.getElementById('discordMessageModalTitle').textContent=discordMessageEditingId?'تعديل الرسالة المحفوظة':'إرسال رسالة جديدة';
- document.getElementById('discordMessageModalSubtitle').textContent=discordMessageEditingId?'عدّل العنوان أو النص أو جهة الإرسال ثم احفظ التغييرات.':'اكتب الرسالة وحدد هل ستُرسل في القنوات أو في الخاص أو في الاثنين معًا.';
+ document.getElementById('discordMessageModalSubtitle').textContent=discordMessageEditingId?'عدّل العنوان أو النص أو الصور أو جهة الإرسال ثم احفظ التغييرات.':'اكتب الرسالة وحدد جهة الإرسال، ويمكنك إرفاق صور معها.';
  document.getElementById('discordMessageSaveButton').textContent=discordMessageEditingId?'حفظ التعديلات':'حفظ الرسالة';
- document.getElementById('discordMessageSaveStatus').textContent=discordMessageEditingId?'جارٍ تحميل النص الكامل...':'';
+ document.getElementById('discordMessageSaveStatus').textContent=discordMessageEditingId?'جارٍ تحميل محتوى الرسالة...':'';
  document.getElementById('discordMessageModalBack').hidden=false;
  await loadDiscordDmRecipients();
  document.getElementById('discordMessageDeliveryMode').value=delivery.mode;
@@ -5414,6 +5487,8 @@ async function openDiscordMessageModal(id=null){
   const response=await fetch(discordMessagesApiUrl('content',discordMessageEditingId),{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر فتح محتوى الرسالة.');
+  discordMessageImages=(Array.isArray(data.images)?data.images:[]).map(image=>({...image,preview_url:image.signed_url}));
+  renderDiscordMessageImagePreview();
   const contentResponse=await fetch(data.signed_url,{cache:'no-store'});
   if(!contentResponse.ok)throw new Error('تعذّر تنزيل النص المحفوظ من التخزين.');
   const content=await contentResponse.text();
@@ -5429,6 +5504,7 @@ async function openDiscordMessageModal(id=null){
 function closeDiscordMessageModal(){
  document.getElementById('discordMessageModalBack').hidden=true;
  document.getElementById('discordMessageForm')?.reset();
+ clearDiscordMessageImages();
  document.getElementById('discordMessageSaveStatus').textContent='';
  document.getElementById('discordMessageTitle').value='';
  document.getElementById('discordMessageContent').value='';
@@ -5449,6 +5525,7 @@ async function saveDiscordMessage(event){
  const status=document.getElementById('discordMessageSaveStatus');
  const oldLabel=button.textContent;
  const wasEditing=Boolean(discordMessageEditingId);
+ if(discordMessageImages.length>10||discordMessageImagesBytes()>DISCORD_MESSAGE_IMAGES_TOTAL_MAX_BYTES){toast('راجع عدد الصور وإجمالي حجمها قبل الحفظ.');return;}
  if(discordDeliveryModeUsesDm(deliveryMode)&&!discordDmRecipientsState.loaded)await loadDiscordDmRecipients();
  if(discordDeliveryModeUsesDm(deliveryMode)){
   if(!discordDmRecipientsState.dm_enabled){toast('إرسال الرسائل الخاصة متوقف من إعدادات الموقع الحالية. لم يتم تغييرها.');return;}
@@ -5462,8 +5539,10 @@ async function saveDiscordMessage(event){
    }
   }
  }
- discordMessageSaveBusy=true;button.disabled=true;button.textContent='جارٍ رفع النص وحفظه...';status.textContent='جارٍ تجهيز ملف النص الكامل ورفعه بأمان...';
+ discordMessageSaveBusy=true;button.disabled=true;button.textContent='جارٍ رفع النص والصور...';status.textContent='جارٍ تجهيز النص والصور ورفعها إلى التخزين الخاص...';
  let uploadedPath='';
+ const uploadedImagePaths=[];
+ let saveAttempted=false;
  try{
   const uploadUrlResponse=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_upload_url'})});
   const uploadData=await uploadUrlResponse.json().catch(()=>({}));
@@ -5472,10 +5551,27 @@ async function saveDiscordMessage(event){
   const file=new Blob([content],{type:'text/plain;charset=UTF-8'});
   const uploadResponse=await fetch(uploadData.signed_url,{method:'PUT',headers:{'Content-Type':'text/plain;charset=UTF-8','x-upsert':'false'},body:file});
   if(!uploadResponse.ok)throw new Error('فشل رفع النص الكامل إلى التخزين الخاص. رمز الخطأ: '+uploadResponse.status);
-  status.textContent='تم رفع النص؛ جارٍ حفظ سجل الرسالة...';
+  const imagesToSave=[];
+  for(let index=0;index<discordMessageImages.length;index++){
+   const image=discordMessageImages[index];
+   if(image.file){
+    status.textContent='جارٍ رفع الصورة '+(index+1)+' من '+discordMessageImages.length+'...';
+    const imageUrlResponse=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_image_upload_url',content_type:image.content_type,size:image.size})});
+    const imageUploadData=await imageUrlResponse.json().catch(()=>({}));
+    if(!imageUrlResponse.ok)throw new Error(imageUploadData.error||'تعذّر تجهيز رفع الصورة.');
+    uploadedImagePaths.push(imageUploadData.path);
+    const imageUploadResponse=await fetch(imageUploadData.signed_url,{method:'PUT',headers:{'Content-Type':image.content_type,'x-upsert':'false'},body:image.file});
+    if(!imageUploadResponse.ok)throw new Error('فشل رفع الصورة '+(index+1)+' إلى التخزين الخاص. رمز الخطأ: '+imageUploadResponse.status);
+    imagesToSave.push({path:imageUploadData.path,filename:image.filename,content_type:image.content_type,size:image.size});
+   }else{
+    imagesToSave.push({path:image.path,filename:image.filename,content_type:image.content_type,size:Number(image.size||0)});
+   }
+  }
+  status.textContent='تم رفع النص والصور؛ جارٍ حفظ الرسالة...';
+  saveAttempted=true;
   const saveResponse=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
    action:'saved_message_save',id:discordMessageEditingId||undefined,title,storage_path:uploadedPath,
-   content_preview:content.slice(0,500),content_chars:content.length,content_bytes:file.size
+   content_preview:content.slice(0,500),content_chars:content.length,content_bytes:file.size,images:imagesToSave
   })});
   const saveData=await saveResponse.json().catch(()=>({}));
   if(!saveResponse.ok)throw new Error(saveData.error||'تعذّر حفظ سجل الرسالة.');
@@ -5483,8 +5579,11 @@ async function saveDiscordMessage(event){
   if(savedId)discordSavedMessageDelivery[savedId]={mode:deliveryMode,recipientId};
   closeDiscordMessageModal();
   await loadDiscordSavedMessages();
-  toast(wasEditing?'تم تحديث الرسالة ووجهة الإرسال.':'تم حفظ الرسالة. راجع الوجهة والقنوات ثم اضغط إرسال.');
+  toast(wasEditing?'تم تحديث الرسالة والصور ووجهة الإرسال.':'تم حفظ الرسالة والصور. راجع الوجهة والقنوات ثم اضغط إرسال.');
  }catch(error){
+  if(!saveAttempted)for(const path of [uploadedPath,...uploadedImagePaths].filter(Boolean)){
+   fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'saved_message_discard_upload',storage_path:path})}).catch(()=>{});
+  }
   status.textContent=error.message||'تعذّر حفظ الرسالة.';
   toast(error.message||'تعذّر حفظ الرسالة.');
  }finally{
