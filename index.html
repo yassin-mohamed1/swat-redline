@@ -1700,7 +1700,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 <div id="assignmentBotNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div class="panel">
- <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو يظهر هنا مع رتب Discord والتعيين وكود النداء ورتبته الرسمية في المدينة، مع إمكانية نشر هويته في روم SWAT MEMBERS.</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
+ <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو يظهر هنا مع رتب Discord والتعيين وكود النداء ورتبته الرسمية في المدينة، مع إمكانية نشر هويته في روم روم الهويات.</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
  <div class="panelbody">
   <div class="assignment-toolbar" style="margin-bottom:12px">
    <input id="assignmentSearch" class="assignment-input" style="flex:1;min-width:220px" placeholder="ابحث باسم العضو أو Discord ID أو كود النداء..." oninput="renderAssignmentRows()">
@@ -4413,7 +4413,7 @@ async function publishMemberIdentity(id){
   })});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر إرسال هوية العضو.');
-  toast(data.updated?'تم تحديث هوية العضو في روم SWAT MEMBERS.':'تم إرسال هوية العضو إلى روم SWAT MEMBERS.');
+  toast(data.updated?'تم تحديث هوية العضو في روم روم الهويات.':'تم إرسال هوية العضو إلى روم روم الهويات.');
   if(typeof loadAuditLog==='function')loadAuditLog();
  }catch(error){
   toast(error.message||'تعذّر إرسال هوية العضو.');
