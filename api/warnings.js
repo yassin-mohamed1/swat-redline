@@ -479,7 +479,7 @@ function elapsedAbsenceDays(lastAttendance, profileCreatedAt, systemStartedAt, n
   const baselineMs=Number.isFinite(lastMs)?lastMs:Math.max(Number.isFinite(createdMs)?createdMs:now.getTime(),Number.isFinite(startedMs)?startedMs:now.getTime());
   return {days:Math.max(0,Math.floor(Math.max(0,now.getTime()-baselineMs)/86400000)),startedAt:new Date(Math.min(baselineMs,now.getTime())).toISOString()};
 }
-async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, absenceDays, absenceStartedAt) {
+async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, absenceDays, absenceStartedAt, manualOverride = null) {
   const actionType=stage===3?"dismissal":"warning", level=stage===3?3:stage;
   const target=await getGuildMemberOrNull(cfg,discordUserId);
   if(!target)return {skipped:"member_left_server"};
@@ -487,8 +487,12 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   if(discordUserId===process.env.DISCORD_OWNER_ID)return {skipped:"protected_owner"};
   const targetName=discordName(target);
   const targetProfile={id:discordUserId,name:targetName,avatarUrl:discordAvatarUrl(target,cfg.guildId)};
-  const reason=stage===1?"عدم تسجيل الحضور اليومي لمدة 7 أيام متتالية.":stage===2?"عدم تسجيل الحضور اليومي لمدة 14 يومًا متتالية.":"الفصل التلقائي بسبب عدم تسجيل الحضور اليومي لمدة 21 يومًا متتالية.";
-  const details="آخر بصمة/بداية احتساب الغياب: "+formatRiyadhDate(absenceStartedAt)+". مدة الغياب المحسوبة: "+absenceDays+" يومًا. الإجراء صادر تلقائيًا من نظام البصمة اليومية في S.W.A.T. REDLINE.";
+  const reason=manualOverride
+    ?(actionType==="dismissal"?"الفصل بعد تفعيل مرحلة الغياب يدويًا من إدارة البصمة (21 يومًا).":"عدم تسجيل الحضور اليومي لمدة "+absenceDays+" يومًا — تفعيل إداري لمرحلة الغياب.")
+    :stage===1?"عدم تسجيل الحضور اليومي لمدة 7 أيام متتالية.":stage===2?"عدم تسجيل الحضور اليومي لمدة 14 يومًا متتالية.":"الفصل التلقائي بسبب عدم تسجيل الحضور اليومي لمدة 21 يومًا متتالية.";
+  const details=manualOverride
+    ?"تم تفعيل هذه المرحلة يدويًا من لوحة البصمة لهذا العضو فقط بقرار إداري، واعتُبر شرط الغياب لهذه المرحلة مستوفى ("+absenceDays+" يومًا). لم يتم تعديل سجل الحضور أو تاريخ آخر بصمة. آخر بصمة فعلية مسجلة: "+(manualOverride.lastAttendanceAt?formatRiyadhDate(manualOverride.lastAttendanceAt):"لا توجد بصمة سابقة مسجلة")+"."
+    :"آخر بصمة/بداية احتساب الغياب: "+formatRiyadhDate(absenceStartedAt)+". مدة الغياب المحسوبة: "+absenceDays+" يومًا. الإجراء صادر تلقائيًا من نظام البصمة اليومية في S.W.A.T. REDLINE.";
   let dmAllowed=false,dmStatus="skipped",dmError=null;
   try{dmAllowed=await memberPrivateNotificationsEnabled(cfg,discordUserId);}
   catch(error){
@@ -496,11 +500,14 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
     dmError=String(error.code||error.message||"dm_preference_lookup_failed").slice(0,100);
     console.warn("Automatic attendance warning DM preference lookup failed:",dmError);
   }
-  const start=await rpc(cfg,"begin_disciplinary_action",{
-    p_request_id:crypto.randomUUID(),p_discord_user_id:discordUserId,p_target_name:targetName,
+  const startInput={
+    p_request_id:manualOverride?.requestId||crypto.randomUUID(),p_discord_user_id:discordUserId,p_target_name:targetName,
     p_username:target.user?.username||"",p_avatar_url:targetProfile.avatarUrl,p_action_type:actionType,
     p_warning_level:level,p_reason:reason,p_details:details,p_actor_discord_id:actor.id,p_actor_name:actor.displayName
-  });
+  };
+  const startFunction=manualOverride?"begin_attendance_discipline_override":"begin_disciplinary_action";
+  if(manualOverride)startInput.p_expected_previous_level=stage-1;
+  const start=await rpc(cfg,startFunction,startInput);
   if(start.duplicate){if(start.status==="completed")return {duplicate:true,action_id:start.action_id};throw new Error("disciplinary_action_already_pending");}
   const expiresAt=actionType==="warning"?new Date(Date.now()+warningValidityDays(level)*86400000).toISOString():null;
   let roleResult;
@@ -537,12 +544,14 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   try{completion=await rpc(cfg,"complete_disciplinary_action_v2",completionInput);}catch{completion=await rpc(cfg,"complete_disciplinary_action_v2",completionInput);}
   try{
     await forwardAuditToDiscord(actor,{action:actionType==="dismissal"?"delete":"create",entity_type:"disciplinary_action",entity_id:start.action_id,details:{
-      type:actionType==="dismissal"?"فصل تلقائي بسبب الغياب":"تحذير تلقائي بسبب الغياب",
-      detail:(actionType==="dismissal"?"تم فصل ":"تم إصدار إنذار تلقائي للمستخدم ")+targetName+(actionType==="warning"?" • المستوى "+level:"")+" بسبب الغياب عن البصمة.",
-      target_discord_id:discordUserId,automatic_attendance_action:true,absence_days:absenceDays
+      type:manualOverride?"تفعيل إداري لمرحلة الغياب":actionType==="dismissal"?"فصل تلقائي بسبب الغياب":"تحذير تلقائي بسبب الغياب",
+      detail:manualOverride
+        ?"تم تفعيل "+(actionType==="dismissal"?"الفصل":"الإنذار "+level)+" يدويًا للفرد "+targetName+" من سجل البصمة، دون تعديل سجل الحضور أو تاريخ آخر بصمة."
+        :(actionType==="dismissal"?"تم فصل ":"تم إصدار إنذار تلقائي للمستخدم ")+targetName+(actionType==="warning"?" • المستوى "+level:"")+" بسبب الغياب عن البصمة.",
+      target_discord_id:discordUserId,automatic_attendance_action:!manualOverride,manual_attendance_stage_override:Boolean(manualOverride),absence_days:absenceDays
     }});
   }catch(error){console.error("Automatic attendance audit forwarding failed:",error?.message||"unknown");}
-  return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmStatus,dm_error:dmError,channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0};
+  return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmStatus,dm_error:dmError,channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0,manual_override:Boolean(manualOverride)};
 }
 async function processAutomaticAttendanceDiscipline(cfg) {
   const dashboard = await listAttendanceDashboard(cfg);
@@ -1902,6 +1911,83 @@ export default async function handler(req, res) {
         discord_messages_updated: channelUpdated || dmUpdated,
         discord_message_failures: discordMessageFailures,
         discord_roles_updated: Boolean(roleResult)
+      });
+    }
+
+    if (body.action === "advance_attendance_discipline") {
+      const targetId = String(body.discord_user_id || "");
+      const stage = Number(body.stage);
+      const requestId = String(body.request_id || "");
+      if (!/^\d{15,22}$/.test(targetId) || ![1,2,3].includes(stage) ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+        return json(res, 400, { error: "بيانات العضو أو مرحلة الغياب غير صحيحة." });
+      }
+      if (targetId === process.env.DISCORD_OWNER_ID) {
+        return json(res, 403, { error: "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي." });
+      }
+      const today = riyadhDateKey(new Date());
+      const latestStamp = await latestAttendanceForMember(cfg, targetId);
+      if (latestStamp?.attendance_date === today) {
+        return json(res, 409, { error: "العضو سجّل بصمته اليوم؛ لا يمكن تقديم مرحلة الغياب." });
+      }
+      if (await isAttendanceExempt(cfg, targetId)) {
+        return json(res, 409, { error: "العضو معفى حاليًا من البصمة؛ ألغِ الإعفاء أولًا إذا كان ذلك مقصودًا." });
+      }
+      const activeLeaveQuery = new URLSearchParams({
+        discord_user_id: "eq." + targetId,
+        status: "eq.approved",
+        start_date: "lte." + today,
+        end_date: "gte." + today,
+        or: "(cutoff_date.is.null,cutoff_date.gt." + today + ")",
+        select: "id",
+        limit: "1"
+      });
+      const leaveResponse = await db(cfg, "attendance_leave_requests?" + activeLeaveQuery.toString());
+      if (!leaveResponse.ok) throw new Error("تعذّر التحقق من الإجازة الحالية قبل تفعيل المرحلة.");
+      if ((await leaveResponse.json()).length) {
+        return json(res, 409, { error: "الإجازة ما زالت سارية؛ لا يمكن تقديم مرحلة الغياب الآن." });
+      }
+      const subject = await currentDisciplinaryState(cfg, targetId);
+      if (subject.status === "dismissed") {
+        return json(res, 409, { error: "العضو مفصول بالفعل ولا توجد مرحلة تالية." });
+      }
+      const expectedStage = Number(subject.warning_level || 0) + 1;
+      if (stage !== expectedStage) {
+        return json(res, 409, { error: "تغيّرت حالة التحذير منذ تحميل القائمة. حدّث سجل البصمة ثم حاول بالمرحلة التالية." });
+      }
+      const actor = { id: user.id, displayName: user.displayName };
+      let action;
+      try {
+        action = await applyAutomaticAttendanceAction(
+          cfg, actor, targetId, stage, stage * 7,
+          latestStamp?.first_seen_at || new Date().toISOString(),
+          { requestId, lastAttendanceAt: latestStamp?.first_seen_at || null }
+        );
+      } catch (error) {
+        const detail = String(error.detail || "");
+        if (detail.includes("attendance_discipline_stage_changed")) {
+          return json(res, 409, { error: "تغيّرت حالة التحذير أثناء تنفيذ الطلب. حدّث سجل البصمة ثم حاول مجددًا." });
+        }
+        if (detail.includes("disciplinary_action_already_pending")) {
+          return json(res, 409, { error: "يوجد إجراء تأديبي قيد التنفيذ لهذا العضو؛ حدّث القائمة بعد اكتماله." });
+        }
+        throw error;
+      }
+      if (action.skipped) return json(res, 409, { error: "لم يَعُد العضو مستوفيًا لشروط تنفيذ الإجراء." });
+      if (action.duplicate) return json(res, 200, { ok: true, duplicate: true, action_id: action.action_id });
+      if (!action.ok) throw new Error("لم يكتمل تسجيل الإجراء التأديبي.");
+      return json(res, 200, {
+        ok: true,
+        action_id: action.action_id,
+        action_type: action.action_type,
+        warning_level: action.warning_level,
+        stage,
+        simulated_absence_days: stage * 7,
+        last_attendance_at: latestStamp?.first_seen_at || null,
+        dm_status: action.dm_status,
+        dm_error: action.dm_error,
+        channel_status: action.channel_status,
+        manual_override: true
       });
     }
 

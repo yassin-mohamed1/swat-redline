@@ -1784,7 +1784,9 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-attendance .attendance-summary strong{font-size:27px}
 #page-attendance .attendance-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 #page-attendance .attendance-toolbar input,#page-attendance .attendance-toolbar select{background:#101216;color:#e8e9ec;border:1px solid #353a43;border-radius:8px;padding:10px 12px;min-height:42px}
-#page-attendance .attendance-table{min-width:1050px}
+#page-attendance .attendance-table{min-width:1180px}
+#page-attendance .attendance-stage-btn{white-space:nowrap;padding:7px 9px;font-size:10px}
+#page-attendance .attendance-stage-btn:disabled{opacity:.5;cursor:not-allowed}
 #page-attendance .attendance-name{font-weight:700}
 #page-attendance .attendance-meta{font-size:10px;color:#9299a4;margin-top:4px}
 #page-attendance .attendance-badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:5px;font-size:10px;font-weight:700;white-space:nowrap}
@@ -2175,11 +2177,11 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    </div>
    <div class="tablewrap">
     <table class="attendance-table">
-     <thead><tr><th>العضو</th><th>حضور اليوم</th><th>آخر بصمة</th><th>مدة الغياب</th><th>آخر 7 أيام</th><th>الالتزام المتواصل</th><th>إجمالي أيام الحضور</th><th>حالة التحذير</th></tr></thead>
-     <tbody id="attendanceRows"><tr><td colspan="8">افتح تبويب البصمة لتحميل البيانات.</td></tr></tbody>
+     <thead><tr><th>العضو</th><th>حضور اليوم</th><th>آخر بصمة</th><th>مدة الغياب</th><th>آخر 7 أيام</th><th>الالتزام المتواصل</th><th>إجمالي أيام الحضور</th><th>تقديم المرحلة</th><th>حالة التحذير</th></tr></thead>
+     <tbody id="attendanceRows"><tr><td colspan="9">افتح تبويب البصمة لتحميل البيانات.</td></tr></tbody>
     </table>
    </div>
-   <div class="muted" style="margin-top:10px;line-height:1.8">يعرض السجل حاملي رتبة SWAT الحالية بعد التحقق من Discord مباشرة، ويُبقي المفصولين ظاهرين لسجلهم التأديبي. الإعفاء والإجازة المعتمدة يوقفان حساب الغياب خلال فترة سريانهما، مع استمرار تسجيل أي بصمة يرسلها العضو. تُحتسب بصمة واحدة يوميًا.</div>
+   <div class="muted" style="margin-top:10px;line-height:1.8">يعرض السجل حاملي رتبة SWAT الحالية بعد التحقق من Discord مباشرة، ويُبقي المفصولين ظاهرين لسجلهم التأديبي. الإعفاء والإجازة المعتمدة يوقفان حساب الغياب خلال فترة سريانهما، مع استمرار تسجيل أي بصمة يرسلها العضو. تُحتسب بصمة واحدة يوميًا. زر «تقديم المرحلة» يطبق الإجراء التالي على هذا العضو فقط من دون تغيير سجل البصمات أو تاريخ آخر بصمة.</div>
   </div>
  </div>
 </div>
@@ -2453,6 +2455,7 @@ const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;
 let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordMessageImages=[];let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+const attendanceStageAdvanceBusy=new Set();
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
   localStorage.setItem('redline_people',JSON.stringify(people));
@@ -3369,7 +3372,7 @@ async function renderAttendance(){
  if(!currentCanManageWarnings||attendanceLoadBusy)return;
  attendanceLoadBusy=true;
  const body=document.getElementById('attendanceRows');
- if(body)body.innerHTML='<tr><td colspan="8">جارٍ تحميل سجل البصمة...</td></tr>';
+ if(body)body.innerHTML='<tr><td colspan="9">جارٍ تحميل سجل البصمة...</td></tr>';
  try{
   const response=await fetch('/api/warnings?attendance=1',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
@@ -3392,8 +3395,50 @@ async function renderAttendance(){
   renderAttendanceRows();
   loadAttendanceLeaveRequests();
  }catch(error){
-  if(body)body.innerHTML='<tr><td colspan="8">'+adminEscape(error.message||'تعذّر تحميل بيانات الحضور.')+'</td></tr>';
+  if(body)body.innerHTML='<tr><td colspan="9">'+adminEscape(error.message||'تعذّر تحميل بيانات الحضور.')+'</td></tr>';
  }finally{attendanceLoadBusy=false;}
+}
+function attendanceStageLabel(stage){
+ const labels=currentPortalLanguage()==='en'?{1:'Warning 1',2:'Warning 2',3:'Dismissal'}:{1:'الإنذار الأول',2:'الإنذار الثاني',3:'الفصل'};
+ return labels[stage]||'';
+}
+function attendanceStageDisabledReason(member,stage){
+ const english=currentPortalLanguage()==='en';
+ if(!currentCanManageWarnings)return english?'Only administrators can use this action.':'الإجراء متاح للإدارة فقط.';
+ if(!member.is_swat_member)return english?'Only active SWAT members can use this action.':'الإجراء متاح لأعضاء SWAT النشطين فقط.';
+ if(member.warning_status==='dismissed')return english?'The member has already been dismissed.':'تم فصل العضو بالفعل.';
+ if(member.is_attendance_exempt)return english?'Cannot apply an absence action while the member is exempt.':'لا يمكن تطبيق إجراء غياب على عضو معفى من البصمة.';
+ if(member.is_on_approved_leave)return english?'Cannot apply an absence action during approved leave.':'لا يمكن تطبيق إجراء غياب أثناء إجازة سارية.';
+ if(member.today_present)return english?'The member stamped in today.':'العضو سجّل بصمته اليوم.';
+ if(![1,2,3].includes(stage))return english?'No next stage is available.':'لا توجد مرحلة تالية متاحة.';
+ return '';
+}
+async function advanceAttendanceDiscipline(discordUserId){
+ if(!currentCanManageWarnings){toast('تقديم مرحلة الغياب متاح للإدارة فقط.');return;}
+ const id=String(discordUserId||''),member=attendanceData.members.find(item=>String(item.discord_user_id)===id);
+ if(!member)return;
+ const currentLevel=member.warning_status==='dismissed'?3:Number(member.warning_level||0),stage=currentLevel+1;
+ const disabledReason=attendanceStageDisabledReason(member,stage);
+ if(disabledReason){toast(disabledReason);return;}
+ if(attendanceStageAdvanceBusy.has(id))return;
+ const english=currentPortalLanguage()==='en',duration=stage*7;
+ const actionLabel=english?(['','Warning 1','Warning 2','Dismissal'][stage]):attendanceStageLabel(stage);
+ const confirmation=english
+  ?`Confirm ${actionLabel} for ${member.display_name||member.username||id}? This applies the ${duration}-day absence stage to this member only, without changing attendance records or the last stamp date.`
+  :'تأكيد تنفيذ '+actionLabel+' للعضو '+(member.display_name||member.username||id)+'؟ سيطبق النظام مرحلة غياب '+duration+' يومًا لهذا العضو فقط، من دون تغيير سجل الحضور أو تاريخ آخر بصمة.';
+ if(!confirm(confirmation))return;
+ attendanceStageAdvanceBusy.add(id);renderAttendanceRows();
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'advance_attendance_discipline',discord_user_id:id,stage,request_id:crypto.randomUUID()})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تنفيذ مرحلة الغياب.');
+  if(data.duplicate)toast(english?'This action is already recorded.':'هذا الإجراء مسجل بالفعل.');
+  else if(data.dm_status==='failed')toast(english?`${actionLabel} completed and posted to the warning channel, but the DM could not be sent.`:'تم تنفيذ '+actionLabel+' وتحديث الرتب ونشر إعلان التحذيرات، لكن تعذّر إرسال الخاص.');
+  else if(data.dm_status==='skipped')toast(english?`${actionLabel} completed and the member's DM preference was respected.`:'تم تنفيذ '+actionLabel+' ونشر الإعلان، مع احترام إعدادات الرسائل الخاصة للعضو.');
+  else toast(english?`${actionLabel} completed and announced.`:'تم تنفيذ '+actionLabel+' ونشر الإعلان بنجاح.');
+  await renderAttendance();
+ }catch(error){toast(error.message||'تعذّر تنفيذ مرحلة الغياب.');}
+ finally{attendanceStageAdvanceBusy.delete(id);renderAttendanceRows();}
 }
 function renderAttendanceRows(){
  const body=document.getElementById('attendanceRows');if(!body)return;
@@ -3430,13 +3475,19 @@ function renderAttendanceRows(){
   const absence=(days>=7&&!member.is_attendance_exempt&&!member.is_on_approved_leave)
    ?'<span class="attendance-badge warn">'+adminEscape(duration)+'</span>'
    :adminEscape(duration);
+  const nextStage=member.warning_status==='dismissed'?0:Number(member.warning_level||0)+1;
+  const disabledReason=attendanceStageDisabledReason(member,nextStage);
+  const english=currentPortalLanguage()==='en';
+  const stageLabel=nextStage===1?(english?'Issue Warning 1':'تفعيل إنذار 1'):nextStage===2?(english?'Issue Warning 2':'تفعيل إنذار 2'):nextStage===3?(english?'Dismiss member':'تفعيل الفصل'):(english?'Dismissed':'تم الفصل');
+  const stageBusy=attendanceStageAdvanceBusy.has(String(member.discord_user_id));
+  const stageButton='<button type="button" class="btn attendance-stage-btn" title="'+adminEscape(stageBusy?(english?'Processing...':'جارٍ تنفيذ الإجراء...'):disabledReason||(english?'Apply the next stage without changing the attendance date.':'تطبيق المرحلة التالية دون تغيير تاريخ البصمة'))+'" '+((disabledReason||stageBusy)?'disabled':'')+' onclick="advanceAttendanceDiscipline('+jsArg(member.discord_user_id)+')">'+(stageBusy?(english?'Processing...':'جارٍ التنفيذ...'):stageLabel)+'</button>';
   return '<tr><td><div class="attendance-name">'+adminEscape(member.display_name||member.username||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(member.discord_user_id)+'</code></div></td>'+
    '<td>'+todayTag+'</td><td>'+adminEscape(last)+'</td><td>'+absence+'</td>'+
    '<td><span dir="ltr"><b>'+adminEscape(member.last_seven_days||0)+'</b> / 7</span></td>'+
    '<td><b>'+adminEscape(member.current_streak_days||0)+'</b> يوم</td>'+
    '<td><b>'+adminEscape(member.total_days||0)+'</b> يوم</td>'+
-   '<td>'+attendanceWarningBadge(member)+'</td></tr>';
- }).join('')||'<tr><td colspan="8"><div class="empty">لا توجد أعضاء مطابقة لبحثك.</div></td></tr>';
+   '<td>'+stageButton+'</td><td>'+attendanceWarningBadge(member)+'</td></tr>';
+ }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد أعضاء مطابقة لبحثك.</div></td></tr>';
 }
 
 function openAttendanceSettingsModal(){
@@ -6519,7 +6570,14 @@ Object.assign(PORTAL_TRANSLATIONS, {
  "آخر 7 أيام":"Last 7 Days",
  "الالتزام المتواصل":"Current Streak",
  "إجمالي أيام الحضور":"Total Attendance Days",
+ "تقديم المرحلة":"Advance Stage",
+ "تفعيل إنذار 1":"Issue Warning 1",
+ "تفعيل إنذار 2":"Issue Warning 2",
+ "تفعيل الفصل":"Dismiss Member",
+ "تم الفصل":"Dismissed",
+ "جارٍ التنفيذ...":"Processing...",
  "حالة التحذير":"Warning Status",
+ "يعرض السجل حاملي رتبة SWAT الحالية بعد التحقق من Discord مباشرة، ويُبقي المفصولين ظاهرين لسجلهم التأديبي. الإعفاء والإجازة المعتمدة يوقفان حساب الغياب خلال فترة سريانهما، مع استمرار تسجيل أي بصمة يرسلها العضو. تُحتسب بصمة واحدة يوميًا. زر «تقديم المرحلة» يطبق الإجراء التالي على هذا العضو فقط من دون تغيير سجل البصمات أو تاريخ آخر بصمة.":"This table shows current SWAT members verified directly with Discord and keeps dismissed members visible for their disciplinary history. Exemptions and approved leave pause absence counting, while stamps are still recorded. Only one stamp per day is counted. Advance Stage applies the next action to this member only without changing attendance records or the last stamp date.",
  "تم التسجيل اليوم":"Stamped Today",
  "لم يسجل من قبل":"Never stamped",
  "بدون إنذار":"No Warning",
