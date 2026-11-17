@@ -11,9 +11,7 @@ const ASSIGNMENT_RANKS = [
   { key: "deputyswatcommander", label: "DEPUTY S.W.A.T COMMANDER" },
   { key: "swatteamleader", label: "S.W.A.T TEAM LEADER" },
   { key: "swatsupervisor", label: "S.W.A.T SUPERVISOR" },
-  { key: "swatsenioroperator", label: "S.W.A.T SENIOR OPERATOR" },
-  { key: "swatoperator", label: "S.W.A.T OPERATOR" },
-  { key: "swatrecruit", label: "S.W.A.T RECRUIT" }
+  { key: "swatoperator", label: "S.W.A.T OPERATOR" }
 ];
 
 const CITY_RANKS = [
@@ -21,9 +19,7 @@ const CITY_RANKS = [
   { key: "deputy_swat_commander", label: "DEPUTY S.W.A.T COMMANDER" },
   { key: "swat_team_leader", label: "S.W.A.T TEAM LEADER" },
   { key: "swat_supervisor", label: "S.W.A.T SUPERVISOR" },
-  { key: "swat_senior_operator", label: "S.W.A.T SENIOR OPERATOR" },
-  { key: "swat_operator", label: "S.W.A.T OPERATOR" },
-  { key: "swat_recruit", label: "S.W.A.T RECRUIT" }
+  { key: "swat_operator", label: "S.W.A.T OPERATOR" }
 ];
 const MEMBER_IDENTITIES_CHANNEL_ID = "1561490450953670817";
 

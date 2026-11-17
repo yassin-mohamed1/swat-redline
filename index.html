@@ -1737,9 +1737,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
      <option value="deputy_swat_commander">DEPUTY S.W.A.T COMMANDER</option>
      <option value="swat_team_leader">S.W.A.T TEAM LEADER</option>
      <option value="swat_supervisor">S.W.A.T SUPERVISOR</option>
-     <option value="swat_senior_operator">S.W.A.T SENIOR OPERATOR</option>
      <option value="swat_operator">S.W.A.T OPERATOR</option>
-     <option value="swat_recruit">S.W.A.T RECRUIT</option>
     </select>
     <div class="muted">هذه رتبة العضو الرسمية في المدينة، مستقلة عن Discord Roles والصلاحيات الإدارية.</div>
     <button class="btn" type="button" id="saveCityRankButton" onclick="saveAssignmentCityRank()">حفظ City Rank فقط</button>
@@ -4394,7 +4392,7 @@ function selectedAssignmentCallsign(){
 async function saveAssignmentCityRank(){
  if((!currentCanAdmin&&!currentCanManageAssignments)||!assignmentTargetId)return;
  const cityRank=document.getElementById('assignmentCityRank')?.value||'';
- if(!['swat_commander','deputy_swat_commander','swat_team_leader','swat_supervisor','swat_senior_operator','swat_operator','swat_recruit'].includes(cityRank)){
+ if(!['swat_commander','deputy_swat_commander','swat_team_leader','swat_supervisor','swat_operator'].includes(cityRank)){
   toast('اختر الرتبة الرسمية للعضو في المدينة (City Rank).');return;
  }
  const button=document.getElementById('saveCityRankButton');
@@ -4465,7 +4463,7 @@ async function submitStaffAssignment(action){
   if(rankRoleIds.length>20){toast('الحد الأقصى 20 رتبة للفرد.');return;}
   callsign=selectedAssignmentCallsign();
   const cityRank=document.getElementById('assignmentCityRank')?.value||'';
-  if(!['swat_commander','deputy_swat_commander','swat_team_leader','swat_supervisor','swat_senior_operator','swat_operator','swat_recruit'].includes(cityRank)){
+  if(!['swat_commander','deputy_swat_commander','swat_team_leader','swat_supervisor','swat_operator'].includes(cityRank)){
    toast('اختر الرتبة الرسمية للعضو في المدينة (City Rank).');return;
   }
  }

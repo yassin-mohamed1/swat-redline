@@ -202,7 +202,7 @@ test("city rank is independent from Discord roles and is saved through the membe
   const handler = api.slice(start, end);
   for (const rank of [
     "swat_commander", "deputy_swat_commander", "swat_team_leader",
-    "swat_supervisor", "swat_senior_operator", "swat_operator", "swat_recruit"
+    "swat_supervisor", "swat_operator"
   ]) {
     assert.ok(api.includes('key: "' + rank + '"') || migration.includes("'" + rank + "'"));
   }
