@@ -25,7 +25,7 @@ const CITY_RANKS = [
   { key: "swat_operator", label: "S.W.A.T OPERATOR" },
   { key: "swat_recruit", label: "S.W.A.T RECRUIT" }
 ];
-const SWAT_MEMBERS_CHANNEL_ID = "1561489833505849505";
+const MEMBER_IDENTITIES_CHANNEL_ID = "1561490450953670817";
 
 function parseCookies(header = "") {
   const out = {};
@@ -767,9 +767,9 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
     allowed_mentions:{parse:[],users:[targetId]}
   };
   let message=null,updated=false;
-  if(identity?.message_id&&identity?.channel_id===SWAT_MEMBERS_CHANNEL_ID){
+  if(identity?.message_id&&identity?.channel_id===MEMBER_IDENTITIES_CHANNEL_ID){
     try{
-      message=await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages/"+encodeURIComponent(identity.message_id),{
+      message=await assignmentDiscord(token,"/channels/"+MEMBER_IDENTITIES_CHANNEL_ID+"/messages/"+encodeURIComponent(identity.message_id),{
         method:"PATCH",
         body:JSON.stringify(discordMessagePayload)
       });
@@ -778,7 +778,7 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
       if(Number(error?.status)!==404){
         const status=Number(error?.status||0);
         const description=status===403
-          ?"البوت لا يملك صلاحية تعديل رسائل روم SWAT MEMBERS."
+          ?"البوت لا يملك صلاحية تعديل رسائل روم روم الهويات."
           :status===429
             ?"Discord فرض حدًا مؤقتًا على إرسال الهوية. حاول مرة أخرى بعد انتهاء المهلة."
             :"تعذّر تحديث رسالة الهوية الحالية في Discord.";
@@ -788,7 +788,7 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
   }
   if(!message?.id){
     try{
-      message=await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages",{
+      message=await assignmentDiscord(token,"/channels/"+MEMBER_IDENTITIES_CHANNEL_ID+"/messages",{
         method:"POST",
         body:JSON.stringify(discordMessagePayload)
       });
@@ -796,9 +796,9 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
     }catch(error){
       const status=Number(error?.status||0);
       const description=status===403
-        ?"البوت لا يملك صلاحية إرسال الرسائل أو Embed Links في روم SWAT MEMBERS."
+        ?"البوت لا يملك صلاحية إرسال الرسائل أو Embed Links في روم روم الهويات."
         :status===404
-          ?"لم يتم العثور على روم SWAT MEMBERS أو أن البوت لا يستطيع الوصول إليه."
+          ?"لم يتم العثور على روم روم الهويات أو أن البوت لا يستطيع الوصول إليه."
           :status===429
             ?"Discord فرض حدًا مؤقتًا على إرسال الهوية. حاول مرة أخرى بعد انتهاء المهلة."
             :"تعذّر إرسال هوية العضو إلى Discord.";
@@ -810,7 +810,7 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
     method:"PATCH",
     headers:{Prefer:"return=representation"},
     body:JSON.stringify({
-      channel_id:SWAT_MEMBERS_CHANNEL_ID,
+      channel_id:MEMBER_IDENTITIES_CHANNEL_ID,
       message_id:String(message.id),
       published_at:new Date().toISOString(),
       updated_at:new Date().toISOString()
@@ -820,7 +820,7 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
     const detail=(await saved.text()).slice(0,250);
     console.error("Member identity message ID could not be saved:",saved.status,detail);
     if(!updated){
-      try{await assignmentDiscord(token,"/channels/"+SWAT_MEMBERS_CHANNEL_ID+"/messages/"+encodeURIComponent(String(message.id)),{method:"DELETE"});}
+      try{await assignmentDiscord(token,"/channels/"+MEMBER_IDENTITIES_CHANNEL_ID+"/messages/"+encodeURIComponent(String(message.id)),{method:"DELETE"});}
       catch(deleteError){console.warn("Orphaned member identity cleanup failed:",deleteError?.code||deleteError?.status||"unknown");}
     }
     return send(res,502,{error:"تم إرسال الهوية، لكن تعذّر حفظ معرّف الرسالة. لم يتم تأكيد النشر في الموقع؛ راجع صلاحية قاعدة البيانات قبل إعادة المحاولة."});
@@ -835,7 +835,7 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
       type:updated?"تحديث هوية عضو":"نشر هوية عضو",
       detail:(updated?"تم تحديث":"تم نشر")+" هوية "+name+" • "+cityRank.label+" • "+(assignment?.callsign||"بدون كود نداء"),
       target_discord_id:targetId,
-      channel_id:SWAT_MEMBERS_CHANNEL_ID,
+      channel_id:MEMBER_IDENTITIES_CHANNEL_ID,
       message_id:String(message.id)
     }
   };
@@ -845,8 +845,8 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
     ok:true,
     updated,
     message_id:String(message.id),
-    channel_id:SWAT_MEMBERS_CHANNEL_ID,
-    message_url:"https://discord.com/channels/"+guildId+"/"+SWAT_MEMBERS_CHANNEL_ID+"/"+message.id,
+    channel_id:MEMBER_IDENTITIES_CHANNEL_ID,
+    message_url:"https://discord.com/channels/"+guildId+"/"+MEMBER_IDENTITIES_CHANNEL_ID+"/"+message.id,
     city_rank:cityRank.key,
     city_rank_label:cityRank.label,
     callsign:assignment?.callsign||null
