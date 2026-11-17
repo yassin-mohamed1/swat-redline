@@ -778,7 +778,7 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
       if(Number(error?.status)!==404){
         const status=Number(error?.status||0);
         const description=status===403
-          ?"البوت لا يملك صلاحية تعديل رسائل روم روم الهويات."
+          ?"البوت لا يملك صلاحية تعديل رسائل روم الهويات."
           :status===429
             ?"Discord فرض حدًا مؤقتًا على إرسال الهوية. حاول مرة أخرى بعد انتهاء المهلة."
             :"تعذّر تحديث رسالة الهوية الحالية في Discord.";
@@ -796,9 +796,9 @@ async function handlePublishMemberIdentity(url,key,token,guildId,user,body,res){
     }catch(error){
       const status=Number(error?.status||0);
       const description=status===403
-        ?"البوت لا يملك صلاحية إرسال الرسائل أو Embed Links في روم روم الهويات."
+        ?"البوت لا يملك صلاحية إرسال الرسائل أو Embed Links في روم الهويات."
         :status===404
-          ?"لم يتم العثور على روم روم الهويات أو أن البوت لا يستطيع الوصول إليه."
+          ?"لم يتم العثور على روم الهويات أو أن البوت لا يستطيع الوصول إليه."
           :status===429
             ?"Discord فرض حدًا مؤقتًا على إرسال الهوية. حاول مرة أخرى بعد انتهاء المهلة."
             :"تعذّر إرسال هوية العضو إلى Discord.";
