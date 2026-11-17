@@ -255,15 +255,23 @@ async function listAttendanceDashboard(cfg) {
     channel_id: "eq." + (process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434"),
     select: "initialized_at", limit: "1"
   });
-  const [staffResponse, subjectResponse, stateResponse, exemptionResponse, leaveResponse] = await Promise.all([
+  const manualOverrideQuery = new URLSearchParams({
+    status: "eq.completed",
+    details: "like.*تم تفعيل هذه المرحلة يدويًا من لوحة البصمة لهذا العضو فقط بقرار إداري*",
+    select: "discord_user_id,warning_level,completed_at",
+    order: "completed_at.desc",
+    limit: "2000"
+  });
+  const [staffResponse, subjectResponse, stateResponse, exemptionResponse, leaveResponse, manualOverrideResponse] = await Promise.all([
     db(cfg, "staff_profiles?" + staffQuery.toString()),
     db(cfg, "disciplinary_subjects?" + subjectQuery.toString()),
     db(cfg, "attendance_sync_state?" + attendanceStateQuery.toString()),
     db(cfg, "attendance_exemptions?select=discord_user_id,enabled,reason,updated_at&limit=1000"),
-    db(cfg, "attendance_leave_requests?status=eq.approved&select=discord_user_id,start_date,end_date,cutoff_date&order=end_date.desc&limit=2000")
+    db(cfg, "attendance_leave_requests?status=eq.approved&select=discord_user_id,start_date,end_date,cutoff_date&order=end_date.desc&limit=2000"),
+    db(cfg, "disciplinary_actions?" + manualOverrideQuery.toString())
   ]);
   if (!staffResponse.ok || !subjectResponse.ok || !stateResponse.ok ||
-      !exemptionResponse.ok || !leaveResponse.ok) {
+      !exemptionResponse.ok || !leaveResponse.ok || !manualOverrideResponse.ok) {
     throw new Error("تعذّر تحميل الأعضاء أو حالات التحذيرات أو إعدادات واستثناءات البصمة.");
   }
   const allStaff = await staffResponse.json();
@@ -271,8 +279,14 @@ async function listAttendanceDashboard(cfg) {
   const stateRows = await stateResponse.json();
   const exemptionRows = await exemptionResponse.json();
   const approvedLeaveRows = await leaveResponse.json();
+  const manualOverrideRows = await manualOverrideResponse.json();
   const subjectById = new Map(subjects.map(subject => [String(subject.discord_user_id), subject]));
   const exemptionById = new Map(exemptionRows.map(row => [String(row.discord_user_id), row]));
+  const manualOverrideById = new Map();
+  for (const action of manualOverrideRows) {
+    const id = String(action.discord_user_id || "");
+    if (id && !manualOverrideById.has(id)) manualOverrideById.set(id, action);
+  }
   const leavesById = new Map();
   for (const leave of approvedLeaveRows) {
     const id = String(leave.discord_user_id || "");
@@ -374,6 +388,16 @@ async function listAttendanceDashboard(cfg) {
     const daysSinceLast = (isAttendanceExempt || isOnApprovedLeave)
       ? 0
       : Math.max(0,Math.floor((nowMs-safeBaselineMs)/86400000));
+    let displayDaysSinceLast = daysSinceLast;
+    const manualOverride = manualOverrideById.get(id);
+    const overrideAtMs = Date.parse(manualOverride?.completed_at || "");
+    const lastAttendanceMs = last ? Date.parse(last.first_seen_at || "") : NaN;
+    if (!isAttendanceExempt && !isOnApprovedLeave && Number.isFinite(overrideAtMs) &&
+        (!Number.isFinite(lastAttendanceMs) || lastAttendanceMs <= overrideAtMs)) {
+      const stageDays = Math.max(7, Math.min(21, Number(manualOverride.warning_level || 1) * 7));
+      const daysSinceOverride = stageDays + Math.floor(Math.max(0, nowMs - overrideAtMs) / 86400000);
+      displayDaysSinceLast = Math.max(daysSinceLast, daysSinceOverride);
+    }
     const absenceStartedAt = (isAttendanceExempt || isOnApprovedLeave)
       ? null
       : new Date(safeBaselineMs).toISOString();
@@ -391,6 +415,7 @@ async function listAttendanceDashboard(cfg) {
       today_present:lastDate===today,has_ever_attended:Boolean(last),last_attendance_at:last?.first_seen_at||null,
       last_attendance_date:lastDate,first_attendance_at:first?.first_seen_at||null,absence_started_at:absenceStartedAt,
       absence_baseline:absenceBaseline,days_since_last:daysSinceLast,weeks_since_last:Math.floor(daysSinceLast/7),
+      display_days_since_last:displayDaysSinceLast,
       last_seven_days:weekCount,total_days:daily.length,current_streak_days:streak,
       warning_level:Number(subject?.warning_level||0),warning_status:subject?.status||"clear",
       warning_reason:subject?.last_reason||null,warning_updated_at:subject?.last_action_at||null,

@@ -3349,12 +3349,8 @@ async function sendAttendanceMessage(event){
 }
 
 function attendanceDuration(days){
- const value=Math.max(0,Number(days)||0);
- if(value<1)return 'أقل من يوم';
- const weeks=Math.floor(value/7),remaining=value%7;
- if(weeks&&remaining)return weeks+' أسبوع و'+remaining+' يوم';
- if(weeks)return weeks+' أسبوع';
- return value+' يوم';
+ const value=Math.max(0,Math.floor(Number(days)||0));
+ return currentPortalLanguage()==='en'?value+(value===1?' day':' days'):value+' أيام';
 }
 function attendanceWarningBadge(member){
  if(member.warning_status==='dismissed')return '<span class="attendance-badge dismissed">فصل</span>';
@@ -3464,14 +3460,12 @@ function renderAttendanceRows(){
      ?'<span class="attendance-badge present">تم التسجيل اليوم</span>'
      :'<span class="attendance-badge absent">لم يسجل اليوم</span>';
   const last=member.last_attendance_at?fmtWarningDate(member.last_attendance_at):'لم يسجل بعد';
-  const days=Number(member.days_since_last)||0;
+  const days=Math.max(0,Math.floor(Number(member.display_days_since_last??member.days_since_last)||0));
   const duration=member.is_attendance_exempt
    ?'غير مطالب بالبصمة'
    :member.is_on_approved_leave
     ?'إجازة معتمدة حتى '+adminEscape(member.approved_leave_end_date||'')
-    :member.has_ever_attended===false
-     ?(member.absence_baseline==='member_registration'?'منذ انضمام العضو: ':'منذ بدء النظام: ')+attendanceDuration(days)
-     :attendanceDuration(days);
+    :attendanceDuration(days);
   const absence=(days>=7&&!member.is_attendance_exempt&&!member.is_on_approved_leave)
    ?'<span class="attendance-badge warn">'+adminEscape(duration)+'</span>'
    :adminEscape(duration);
