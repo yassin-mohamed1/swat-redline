@@ -489,7 +489,13 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   const targetProfile={id:discordUserId,name:targetName,avatarUrl:discordAvatarUrl(target,cfg.guildId)};
   const reason=stage===1?"عدم تسجيل الحضور اليومي لمدة 7 أيام متتالية.":stage===2?"عدم تسجيل الحضور اليومي لمدة 14 يومًا متتالية.":"الفصل التلقائي بسبب عدم تسجيل الحضور اليومي لمدة 21 يومًا متتالية.";
   const details="آخر بصمة/بداية احتساب الغياب: "+formatRiyadhDate(absenceStartedAt)+". مدة الغياب المحسوبة: "+absenceDays+" يومًا. الإجراء صادر تلقائيًا من نظام البصمة اليومية في S.W.A.T. REDLINE.";
-  const dmAllowed=await memberPrivateNotificationsEnabled(cfg,discordUserId);
+  let dmAllowed=false,dmStatus="skipped",dmError=null;
+  try{dmAllowed=await memberPrivateNotificationsEnabled(cfg,discordUserId);}
+  catch(error){
+    dmStatus="failed";
+    dmError=String(error.code||error.message||"dm_preference_lookup_failed").slice(0,100);
+    console.warn("Automatic attendance warning DM preference lookup failed:",dmError);
+  }
   const start=await rpc(cfg,"begin_disciplinary_action",{
     p_request_id:crypto.randomUUID(),p_discord_user_id:discordUserId,p_target_name:targetName,
     p_username:target.user?.username||"",p_avatar_url:targetProfile.avatarUrl,p_action_type:actionType,
@@ -500,16 +506,20 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   let roleResult;
   try{roleResult=await updateMemberRoles(cfg,discordUserId,level,actionType==="dismissal");}
   catch(error){
-    await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:"failed",p_dm_status:"failed",p_dm_channel_id:null,p_dm_message_id:null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:String(error.code||error.message||"role_sync_failed").slice(0,120)});
+    const roleError=String(error.code||error.message||"role_sync_failed").slice(0,100);
+    await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:"failed",p_dm_status:dmStatus,p_dm_channel_id:null,p_dm_message_id:null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:(dmStatus==="failed"?"role_sync_failed:"+roleError+";dm_failed:"+dmError:roleError).slice(0,120)});
     throw error;
   }
   let dmResult=null;
   if(dmAllowed){
-    try{dmResult=await sendDirectNotice(cfg,discordUserId,disciplinaryNoticeEmbed(actionType,level,targetProfile,reason,details,actor.displayName,start.action_id,expiresAt));}
+    try{
+      dmResult=await sendDirectNotice(cfg,discordUserId,disciplinaryNoticeEmbed(actionType,level,targetProfile,reason,details,actor.displayName,start.action_id,expiresAt));
+      dmStatus="sent";
+    }
     catch(error){
-      let rollbackFailed=false;try{await restoreMemberRoles(cfg,discordUserId,roleResult.originalRoles);}catch{rollbackFailed=true;}
-      await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:rollbackFailed?"succeeded":"failed",p_dm_status:"failed",p_dm_channel_id:null,p_dm_message_id:null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:(rollbackFailed?"dm_rollback_failed:":"dm_failed:")+String(error.code||error.message||"dm_delivery_failed").slice(0,100)});
-      throw error;
+      dmStatus="failed";
+      dmError=String(error.code||error.message||"dm_delivery_failed").slice(0,100);
+      console.warn("Automatic attendance warning DM failed; continuing with the warning:",dmError);
     }
   }
   let channelMessage;
@@ -517,10 +527,12 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   catch(error){
     let rollbackFailed=false;try{await restoreMemberRoles(cfg,discordUserId,roleResult.originalRoles);}catch{rollbackFailed=true;}
     if(dmResult){try{await deleteDirectNotice(cfg,dmResult);}catch{}}
-    await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:rollbackFailed?"succeeded":"failed",p_dm_status:dmResult?"failed":"skipped",p_dm_channel_id:dmResult?.channelId||null,p_dm_message_id:dmResult?.messageId||null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:(rollbackFailed?"announcement_rollback_failed:":"announcement_failed:")+String(error.code||error.message||"channel_delivery_failed").slice(0,100)});
+    const channelError=String(error.code||error.message||"channel_delivery_failed").slice(0,80);
+    const finalDmStatus=dmStatus==="sent"?"failed":dmStatus;
+    await rpc(cfg,"complete_disciplinary_action_v2",{p_action_id:start.action_id,p_role_sync_status:rollbackFailed?"succeeded":"failed",p_dm_status:finalDmStatus,p_dm_channel_id:dmResult?.channelId||null,p_dm_message_id:dmResult?.messageId||null,p_channel_status:"failed",p_channel_message_id:null,p_warning_expires_at:null,p_error_code:((rollbackFailed?"announcement_rollback_failed:":"announcement_failed:")+channelError+(dmStatus==="failed"&&dmError?";dm_failed:"+dmError:"")).slice(0,120)});
     throw error;
   }
-  const completionInput={p_action_id:start.action_id,p_role_sync_status:"succeeded",p_dm_status:dmResult?"sent":"skipped",p_dm_channel_id:dmResult?.channelId||null,p_dm_message_id:dmResult?.messageId||null,p_channel_status:"sent",p_channel_message_id:channelMessage.id||null,p_warning_expires_at:expiresAt,p_error_code:null};
+  const completionInput={p_action_id:start.action_id,p_role_sync_status:"succeeded",p_dm_status:dmStatus,p_dm_channel_id:dmResult?.channelId||null,p_dm_message_id:dmResult?.messageId||null,p_channel_status:"sent",p_channel_message_id:channelMessage.id||null,p_warning_expires_at:expiresAt,p_error_code:dmStatus==="failed"?"dm_failed:"+dmError:null};
   let completion;
   try{completion=await rpc(cfg,"complete_disciplinary_action_v2",completionInput);}catch{completion=await rpc(cfg,"complete_disciplinary_action_v2",completionInput);}
   try{
@@ -530,7 +542,7 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
       target_discord_id:discordUserId,automatic_attendance_action:true,absence_days:absenceDays
     }});
   }catch(error){console.error("Automatic attendance audit forwarding failed:",error?.message||"unknown");}
-  return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmResult?"sent":"skipped",channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0};
+  return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmStatus,dm_error:dmError,channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0};
 }
 async function processAutomaticAttendanceDiscipline(cfg) {
   const dashboard = await listAttendanceDashboard(cfg);
@@ -689,7 +701,8 @@ async function processAutomaticAttendanceDiscipline(cfg) {
         stage,
         action_type: action.action_type,
         action_id: action.action_id,
-        dm_status: action.dm_status
+        dm_status: action.dm_status,
+        dm_error: action.dm_error || null
       });
     } catch (error) {
       failed++;
@@ -1910,11 +1923,15 @@ export default async function handler(req, res) {
     const targetName = discordName(target);
     const targetProfile = { id: targetId, name: targetName, avatarUrl: discordAvatarUrl(target, cfg.guildId) };
     if (targetId === process.env.DISCORD_OWNER_ID) return json(res, 403, { error: "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي من خلال هذه الأداة." });
-    let dmAllowed;
+    let dmAllowed = false;
+    let dmStatus = "skipped";
+    let dmError = null;
     try {
       dmAllowed = await memberPrivateNotificationsEnabled(cfg, targetId);
     } catch (preferenceError) {
-      return json(res, preferenceError.status || 503, { error: preferenceError.message || "تعذّر التحقق من تفضيلات الرسائل الخاصة؛ لم يتم إرسال أي رسالة." });
+      dmStatus = "failed";
+      dmError = String(preferenceError.code || preferenceError.message || "dm_preference_lookup_failed").slice(0, 100);
+      console.warn("Disciplinary DM preference lookup failed; continuing without a DM:", dmError);
     }
 
     const start = await rpc(cfg, "begin_disciplinary_action", {
@@ -1947,9 +1964,10 @@ export default async function handler(req, res) {
     } catch (error) {
       const errorCode = String(error.code || error.message || "role_sync_failed").slice(0, 120);
       await rpc(cfg, "complete_disciplinary_action_v2", {
-        p_action_id: start.action_id, p_role_sync_status: "failed", p_dm_status: "failed",
+        p_action_id: start.action_id, p_role_sync_status: "failed", p_dm_status: dmStatus,
         p_dm_channel_id: null, p_dm_message_id: null, p_channel_status: "failed",
-        p_channel_message_id: null, p_warning_expires_at: null, p_error_code: errorCode
+        p_channel_message_id: null, p_warning_expires_at: null,
+        p_error_code: (errorCode + (dmStatus === "failed" && dmError ? ";dm_failed:" + dmError : "")).slice(0, 120)
       });
       return json(res, error.status || 502, { ok: false, status: "failed", error: error.message || "Discord roles could not be updated." });
     }
@@ -1958,27 +1976,11 @@ export default async function handler(req, res) {
       try {
         dmResult = await sendDirectNotice(cfg, targetId,
           disciplinaryNoticeEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt));
+        dmStatus = "sent";
       } catch (error) {
-        let rollbackFailed = false;
-        try { await restoreMemberRoles(cfg, targetId, roleResult.originalRoles); }
-        catch (rollbackError) {
-          rollbackFailed = true;
-          console.error("Role rollback failed after private message delivery failure:", rollbackError.code || rollbackError.message);
-        }
-        const errorCode = String(error.code || error.message || "dm_delivery_failed").slice(0, 100);
-        await rpc(cfg, "complete_disciplinary_action_v2", {
-          p_action_id: start.action_id, p_role_sync_status: rollbackFailed ? "succeeded" : "failed",
-          p_dm_status: "failed", p_dm_channel_id: null, p_dm_message_id: null,
-          p_channel_status: "failed", p_channel_message_id: null, p_warning_expires_at: null,
-          p_error_code: (rollbackFailed ? "dm_failed_rollback_failed:" : "dm_failed:") + errorCode
-        });
-        return json(res, 502, {
-          ok: false, status: "failed",
-          error: rollbackFailed
-            ? "فشل إرسال الرسالة الخاصة كما فشل التراجع عن تغيير الرتبة. يلزم إصلاح الرتبة يدويًا من ديسكورد."
-            : "تعذّر إرسال الرسالة الخاصة إلى العضو. تم التراجع عن تغيير الرتبة ولم يتم تسجيل الإنذار أو قرار الفصل.",
-          code: errorCode
-        });
+        dmStatus = "failed";
+        dmError = String(error.code || error.message || "dm_delivery_failed").slice(0, 100);
+        console.warn("Disciplinary DM failed; continuing with the warning action:", dmError);
       }
     }
 
@@ -1999,10 +2001,11 @@ export default async function handler(req, res) {
       }
       await rpc(cfg, "complete_disciplinary_action_v2", {
         p_action_id: start.action_id, p_role_sync_status: rollbackFailed ? "succeeded" : "failed",
-        p_dm_status: dmResult ? "failed" : "skipped",
+        p_dm_status: dmStatus,
         p_dm_channel_id: dmResult?.channelId || null, p_dm_message_id: dmResult?.messageId || null,
         p_channel_status: "failed", p_channel_message_id: null, p_warning_expires_at: null,
-        p_error_code: (rollbackFailed ? "channel_failed_rollback_failed:" : "channel_failed:") + errorCode
+        p_error_code: ((rollbackFailed ? "channel_failed_rollback_failed:" : "channel_failed:") + errorCode +
+          (dmStatus === "failed" && dmError ? ";dm_failed:" + dmError : "")).slice(0, 120)
       });
       return json(res, 502, {
         ok: false, status: "failed",
@@ -2014,13 +2017,13 @@ export default async function handler(req, res) {
     const completion = await rpc(cfg, "complete_disciplinary_action_v2", {
       p_action_id: start.action_id,
       p_role_sync_status: "succeeded",
-      p_dm_status: dmResult ? "sent" : "skipped",
+      p_dm_status: dmStatus,
       p_dm_channel_id: dmResult?.channelId || null,
       p_dm_message_id: dmResult?.messageId || null,
       p_channel_status: "sent",
       p_channel_message_id: channelMessage.id || null,
       p_warning_expires_at: expiresAt,
-      p_error_code: null
+      p_error_code: dmStatus === "failed" ? "dm_failed:" + dmError : null
     });
     await forwardAuditToDiscord(user,{action:"create",entity_type:"disciplinary_action",entity_id:start.action_id,
       details:{type:actionType==="dismissal"?"فصل عضو":"إصدار تحذير",
@@ -2028,7 +2031,8 @@ export default async function handler(req, res) {
         target_discord_id:targetId}});
     return json(res, 200, {
       ok: true, status: completion.status, action_id: start.action_id,
-      dm_status: dmResult ? "sent" : "skipped",
+      dm_status: dmStatus,
+      dm_error: dmError,
       dm_message_id: dmResult?.messageId || null,
       channel_status: "sent", channel_message_id: channelMessage.id || null,
       warning_level: level, action_type: actionType, expires_at: expiresAt

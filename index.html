@@ -4042,16 +4042,17 @@ async function submitWarningAction(action){
  if(!confirm(confirmation))return;
  const buttons=['warningIssueButton','warningDismissButton'].map(id=>document.getElementById(id)).filter(Boolean);
  buttons.forEach(b=>b.disabled=true);
- const status=document.getElementById('warningActionStatus');if(status)status.textContent='جارٍ تحديث رتب ديسكورد وإرسال الإشعار الخاص ونشر السجل الرسمي...';
+ const status=document.getElementById('warningActionStatus');if(status)status.textContent='جارٍ تحديث الرتب ومحاولة إرسال الخاص ونشر السجل الرسمي...';
  try{
   const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,discord_user_id:id,warning_level:level,reason,details,request_id:crypto.randomUUID()})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تنفيذ الإجراء التأديبي.');
   const actionText=action==='dismiss'?'تم فصل العضو':'تم إصدار '+warningLevelLabel(level);
-  const dmText=data.dm_status==='skipped'?' لم تُرسل رسالة خاصة احترامًا لتفضيل العضو.':' وتم إرسال الإشعار الخاص.';
+  const dmText=data.dm_status==='failed'?' تعذّر إرسال الرسالة الخاصة، لكن هذا لا يمنع تسجيل الإجراء.':data.dm_status==='skipped'?' لم تُرسل رسالة خاصة احترامًا لتفضيل العضو.':' وتم إرسال الإشعار الخاص.';
   const channelText=' وتم نشر إعلان قناة التحذيرات.';
   if(status)status.textContent=actionText+'.'+dmText+channelText+(action==='dismiss'?'':' ينتهي بعد '+warningDurationDays(level)+' يومًا.');
   if(data.channel_status==='failed')toast('تم تحديث الرتب، لكن تعذّر نشر الإعلان في ديسكورد. راجع صلاحيات البوت في القناة.');
+  else if(data.dm_status==='failed')toast(actionText+' وتحديث الرتبة ونشر إعلان قناة التحذيرات، لكن تعذّر إرسال الخاص.');
   else if(data.dm_status==='skipped')toast(actionText+' بنجاح، وتم احترام إيقاف الرسائل الخاصة لدى العضو.');
   else toast(action==='dismiss'?'تم تنفيذ قرار الفصل بنجاح.':'تم إصدار الإنذار بنجاح.');
   document.getElementById('warningReason').value='';document.getElementById('warningDetails').value='';
