@@ -2015,6 +2015,10 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-messages .saved-message-title{font-size:16px;font-weight:800;overflow-wrap:anywhere}
 #page-messages .saved-message-meta{font-size:11px;color:#9299a4;margin-top:5px}
 #page-messages .saved-message-preview{white-space:pre-wrap;overflow-wrap:anywhere;background:#0b0d11;border:1px solid #272d36;border-radius:9px;padding:12px;color:#d8dce3;font-size:12px;line-height:1.8;max-height:150px;overflow:hidden;margin:12px 0}
+#page-messages .saved-message-image-gallery{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 12px;padding:10px;background:#0b0d11;border:1px solid #272d36;border-radius:9px}
+#page-messages .saved-message-image-link{display:block;border:1px solid #343b46;border-radius:7px;overflow:hidden;background:#080a0d}
+#page-messages .saved-message-image-link img{display:block;width:110px;height:82px;object-fit:cover}
+#page-messages .saved-message-image-missing{width:110px;height:82px;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;box-sizing:border-box;background:#171b22;border:1px dashed #4a515e;border-radius:7px;color:#aeb5c0;font-size:10px}
 #page-messages .saved-message-delivery{display:grid;gap:9px}
 #page-messages .saved-message-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}
 #page-messages .saved-message-control{min-width:0;display:grid;gap:6px}
@@ -5321,6 +5325,16 @@ function setDiscordMessageChannels(messageId,checked){
  if(button)button.hidden=!savedMessageDeliveryReady(messageId);
 }
 
+function renderDiscordSavedMessageImagePreview(item){
+ const images=Array.isArray(item?.images)?item.images:[];
+ if(!images.length)return '';
+ return '<div class="saved-message-image-gallery" aria-label="صور الرسالة">'+images.map((image,index)=>{
+  const src=String(image.preview_url||'');
+  const filename=String(image.filename||('الصورة '+(index+1)));
+  if(!src)return '<div class="saved-message-image-missing">'+esc(filename)+'</div>';
+  return '<a class="saved-message-image-link" href="'+esc(src)+'" target="_blank" rel="noopener noreferrer" title="'+esc(filename)+'"><img src="'+esc(src)+'" alt="'+esc(filename)+'" loading="lazy"></a>';
+ }).join('')+'</div>';
+}
 function renderDiscordSavedMessages(){
  closeAllDiscordPickerMenus();
  const list=document.getElementById('discordSavedMessageList');
@@ -5340,6 +5354,7 @@ function renderDiscordSavedMessages(){
   const isBulk=discordDeliveryModeIsBulk(mode);
   const isSingle=discordDeliveryModeIsSingle(mode);
   const preview=String(item.content_preview||'');
+  const imagePreview=renderDiscordSavedMessageImagePreview(item);
   const chars=Number(item.content_chars||0).toLocaleString('en-US');
   const bytes=Number(item.content_bytes||0).toLocaleString('en-US');
   const lastSent=item.last_sent_at?'آخر إرسال: '+formatAnnouncementDate(item.last_sent_at):'لم تُرسل بعد';
@@ -5372,6 +5387,7 @@ function renderDiscordSavedMessages(){
   return '<article class="saved-message-card">'+
    '<div class="saved-message-head"><div style="min-width:0"><div class="saved-message-title">'+esc(item.title||'رسالة بدون اسم')+'</div><div class="saved-message-meta">بواسطة '+esc(item.created_by_name||'الإدارة')+' • '+chars+' حرف • '+bytes+' بايت'+(Array.isArray(item.images)&&item.images.length?' • '+item.images.length+' صورة':'')+'</div></div><span class="tag gray">قالب محفوظ</span></div>'+
    '<div class="saved-message-preview '+(!preview?'empty-preview':'')+'">'+esc(preview||'لا يوجد نص محفوظ؛ سيظهر نص افتراضي عند الإرسال.')+(Number(item.content_chars||0)>preview.length?'\n…':'')+'</div>'+
+   imagePreview+
    '<div class="saved-message-delivery"><div class="saved-message-controls">'+
     '<div class="saved-message-control"><label>جهة الإرسال</label><select class="message-editor-input" id="discordDeliveryMode_'+id+'" onchange="setSavedMessageDeliveryMode('+jsArg(item.id)+',this.value)">'+options+'</select></div>'+
     recipientControl+channelControl+mentionControl+linkControl+
