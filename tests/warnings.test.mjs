@@ -83,6 +83,7 @@ test("warning DMs respect member opt-out while announcements and expiry remain a
   const migration = await readFile(new URL("../supabase/migrations/20261108084856_warning_expiry_and_required_dm.sql", import.meta.url), "utf8");
   const optOutMigration = await readFile(new URL("../supabase/migrations/20261109135000_allow_disciplinary_dm_opt_out.sql", import.meta.url), "utf8");
   const schedule = await readFile(new URL("../supabase/migrations/20261108085251_warning_expiry_endpoint_consolidation.sql", import.meta.url), "utf8");
+  const deliveryMigration = await readFile(new URL("../supabase/migrations/20261117175515_decouple_disciplinary_dm_delivery.sql", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
   assert.match(api, /memberPrivateNotificationsEnabled/);
@@ -90,8 +91,13 @@ test("warning DMs respect member opt-out while announcements and expiry remain a
   assert.match(api, /if \(dmAllowed\)/);
   assert.match(api, /await sendDirectNotice/);
   assert.match(api, /await sendAnnouncement/);
-  assert.match(api, /p_dm_status: dmResult \? "sent" : "skipped"/);
-  assert.match(api, /dm_status: dmResult \? "sent" : "skipped"/);
+  assert.match(api, /p_dm_status:dmStatus/,
+    "the completion RPC receives the explicit sent, failed, or skipped delivery state");
+  assert.match(api, /dmStatus="failed"/);
+  assert.match(api, /dmStatus="sent"/);
+  assert.match(api, /dmStatus="skipped"/);
+  assert.match(api, /p_dm_channel_id:dmResult\?\.channelId\|\|null/);
+  assert.match(api, /p_dm_message_id:dmResult\?\.messageId\|\|null/);
   assert.match(api, /restoreMemberRoles/);
   assert.match(api, /CRON_SECRET/);
   assert.match(api, /processExpiredWarningRoles/);
@@ -102,8 +108,10 @@ test("warning DMs respect member opt-out while announcements and expiry remain a
   assert.match(migration, /warning_expires_at timestamptz/);
   assert.match(migration, /dm_status text NOT NULL DEFAULT 'pending'/);
   assert.match(optOutMigration, /'pending', 'sent', 'failed', 'skipped'/);
-  assert.match(optOutMigration, /p_dm_status IN \('sent','skipped'\)/);
-  assert.match(optOutMigration, /p_dm_status = 'failed'/);
+  assert.match(deliveryMigration, /p_dm_status NOT IN \('sent', 'failed', 'skipped'\)/);
+  assert.match(deliveryMigration, /A DM is best-effort/);
+  assert.match(deliveryMigration, /p_role_sync_status = 'succeeded'/);
+  assert.match(deliveryMigration, /p_channel_status = 'sent'/);
   assert.match(migration, /claim_expired_warning_roles/);
   assert.match(migration, /complete_expired_warning_role/);
   assert.match(schedule, /\* \* \* \* \*/);
@@ -420,5 +428,8 @@ test("attendance roster checks live SWAT roles and keeps dismissed members in hi
   assert.match(api, /is_swat_member/);
   assert.match(api, /absence_started_at/);
   assert.match(html, /const activeRows=attendanceData\.members\.filter\(member=>member\.is_swat_member\)/);
-  assert.match(html, /منذ انضمام العضو:/);
+  assert.match(api, /days_since_last/);
+  assert.match(api, /last_attendance_at/);
+  assert.match(html, /const days=Math\.max\(0,Math\.floor\(Number\(member\.display_days_since_last\?\?member\.days_since_last\)\|\|0\)\)/);
+  assert.match(html, /attendanceDuration\(days\)/);
 });
