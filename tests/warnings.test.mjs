@@ -108,7 +108,7 @@ test("warning DMs respect member opt-out while announcements and expiry remain a
   assert.match(migration, /warning_expires_at timestamptz/);
   assert.match(migration, /dm_status text NOT NULL DEFAULT 'pending'/);
   assert.match(optOutMigration, /'pending', 'sent', 'failed', 'skipped'/);
-  assert.match(deliveryMigration, /p_dm_status NOT IN \('sent', 'failed', 'skipped'\)/);
+  assert.match(deliveryMigration, /p_dm_status NOT IN \('sent','failed','skipped'\)/);
   assert.match(deliveryMigration, /A DM is best-effort/);
   assert.match(deliveryMigration, /p_role_sync_status = 'succeeded'/);
   assert.match(deliveryMigration, /p_channel_status = 'sent'/);
