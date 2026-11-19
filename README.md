@@ -150,6 +150,19 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 - Apply `20261110165500_schedule_swat_attendance_poller.sql` only after `/api/notifications/send?task=attendance` is deployed to production.
 - Apply `20261111034000_swat_attendance_lease_recovery.sql` before deploying the version of `lib/attendance-poller.js` that uses the versioned lease RPCs.
 
+## S.W.A.T. Attention Alert
+
+- The portal remains on Vercel. `bot/` contains a separate, always-on Node.js 22+ Discord Gateway worker using discord.js 14.28.1; the Vercel serverless runtime does not host the persistent Gateway connection.
+- The worker registers one guild User Context Menu command named **S.W.A.T. Attention Alert** by upserting that command only. It does not bulk-replace other application commands.
+- The worker listens for `GUILD_VOICE_STATES` and checks `selfDeaf`. It moves a member from the captured original voice-channel ID to the configured attention channel and back, one confirmed move at a time. It never changes self-deafen, server-deafen, mute, or microphone state.
+- The Discord command is limited to members with `Move Members` and `DISCORD_WARNING_MANAGER_ROLE_ID`. The bot checks `View Channel`, `Connect`, and `Move Members` on both channels before starting and before later moves. The site stop action is restricted server-side to the protected owner or Website Admin.
+- Active rows and stop requests use the service-only `attention_alerts` table. Apply `20261119090000_attention_alerts.sql` to the same Supabase project before starting the worker. RLS is enabled, browser roles have no table privileges, and a partial unique index prevents two active alerts for one member. A database lease prevents overlapping worker instances.
+- The worker must have these existing server-side settings: `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_WARNING_MANAGER_ROLE_ID`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`. Add `DISCORD_ATTENTION_ALERT_CHANNEL_ID` for the dedicated voice channel. Never put the bot token or service-role key in browser code or repository files.
+- The timing settings are centralized in `bot/config.mjs`: `ATTENTION_ALERT_CYCLE_MS` defaults to 5000, `ATTENTION_ALERT_DWELL_MS` to 0, `ATTENTION_ALERT_MAX_DURATION_MS` to 120000, `ATTENTION_ALERT_COOLDOWN_MS` to 60000, `ATTENTION_ALERT_STOP_POLL_MS` to 1000, and `ATTENTION_ALERT_MOVE_TIMEOUT_MS` to 8000. The two-minute maximum duration is an adjustable safety stop. Timing bounds are validated during worker startup.
+- To host the worker, deploy the `bot/` directory as a long-running Node service with `npm start` and keep one service replica. Use a provider that supports a persistent WebSocket/Gateway process. The site continues to deploy from the repository's existing Vercel Git connection. Deploy the site change first, apply the migration, configure the worker environment, then start the worker so it registers the command.
+- A worker restart marks old `active` rows as `interrupted`, clears them from the active dashboard, and does not resume or force-move members. If the process stops during the brief channel transition, check the member's current channel and move them manually if needed.
+- Run `node --test bot/*.test.mjs` and the repository quality checks before release. These tests exercise mocked Discord state; a controlled Discord test guild is still required to verify actual role/channel permissions and live move delivery.
+
 
 ## Leave Requests and Early Leave Cutoff
 

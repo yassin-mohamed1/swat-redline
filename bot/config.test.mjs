@@ -1,0 +1,34 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { ATTENTION_ALERT_DEFAULTS, readConfig } from "./config.mjs";
+
+const base = {
+  DISCORD_BOT_TOKEN: "test-only-token",
+  DISCORD_GUILD_ID: "12345678901234567",
+  DISCORD_WARNING_MANAGER_ROLE_ID: "22345678901234567",
+  DISCORD_ATTENTION_ALERT_CHANNEL_ID: "32345678901234567",
+  SUPABASE_URL: "https://database.test/",
+  SUPABASE_SERVICE_ROLE_KEY: "test-only-service-key"
+};
+
+test("uses one clear set of safe Attention Alert defaults", () => {
+  const config = readConfig(base);
+  assert.equal(config.supabaseUrl, "https://database.test");
+  assert.equal(config.cycleMs, 5_000);
+  assert.equal(config.dwellMs, 0);
+  assert.equal(config.maxDurationMs, 120_000);
+  assert.equal(config.cooldownMs, 60_000);
+  assert.equal(config.stopPollMs, 1_000);
+  assert.equal(ATTENTION_ALERT_DEFAULTS.moveTimeoutMs, 8_000);
+});
+
+test("accepts configured timing values and rejects unsafe invalid values", () => {
+  const config = readConfig({ ...base, ATTENTION_ALERT_CYCLE_MS: "7000", ATTENTION_ALERT_DWELL_MS: "250", ATTENTION_ALERT_MAX_DURATION_MS: "90000", ATTENTION_ALERT_COOLDOWN_MS: "30000" });
+  assert.equal(config.cycleMs, 7_000);
+  assert.equal(config.dwellMs, 250);
+  assert.equal(config.maxDurationMs, 90_000);
+  assert.equal(config.cooldownMs, 30_000);
+  assert.throws(() => readConfig({ ...base, ATTENTION_ALERT_CYCLE_MS: "10" }), /ATTENTION_ALERT_CYCLE_MS/);
+  assert.throws(() => readConfig({ ...base, ATTENTION_ALERT_DWELL_MS: "-1" }), /ATTENTION_ALERT_DWELL_MS/);
+  assert.throws(() => readConfig({ ...base, DISCORD_ATTENTION_ALERT_CHANNEL_ID: "not-a-channel" }), /DISCORD_ATTENTION_ALERT_CHANNEL_ID/);
+});

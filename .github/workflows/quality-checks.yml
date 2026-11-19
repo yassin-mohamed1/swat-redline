@@ -31,3 +31,10 @@ jobs:
         run: |
           node --check api/notifications/send.js
           node --check lib/attendance-poller.js
+      - name: Validate Attention Alert worker
+        run: |
+          node --check bot/index.mjs
+          node --check bot/attention-alerts.mjs
+          node --check bot/config.mjs
+          node --check bot/repository.mjs
+          node --test bot/*.test.mjs
