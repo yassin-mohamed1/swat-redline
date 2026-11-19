@@ -16,7 +16,7 @@ test("uses one clear set of safe Attention Alert defaults", () => {
   assert.equal(config.supabaseUrl, "https://database.test");
   assert.equal(config.cycleMs, 5_000);
   assert.equal(config.dwellMs, 0);
-  assert.equal(config.maxDurationMs, 120_000);
+  assert.equal(config.maxDurationMs, 0);
   assert.equal(config.cooldownMs, 60_000);
   assert.equal(config.stopPollMs, 1_000);
   assert.equal(ATTENTION_ALERT_DEFAULTS.moveTimeoutMs, 8_000);
