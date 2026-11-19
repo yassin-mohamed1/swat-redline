@@ -31,6 +31,8 @@ jobs:
         run: |
           node --check api/notifications/send.js
           node --check lib/attendance-poller.js
+          node --check lib/attendance-poller.mjs
+          node --check lib/leave-poller.js
       - name: Validate Attention Alert worker
         run: |
           node --check bot/index.mjs
