@@ -128,6 +128,76 @@ async function requireManager(cfg, user) {
   if (user.isOwner || await isWebsiteAdmin(user)) return;
   throw Object.assign(new Error("يجب امتلاك رتبة Website Admin لإدارة التحذيرات."), { status: 403 });
 }
+async function attentionAlertsApi(req, res, user) {
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
+    return json(res, 405, { error: "طريقة الطلب غير مسموح بها." });
+  }
+  if (req.method === "POST" && !requireSameOrigin(req, res)) return;
+  const base = process.env.SUPABASE_URL?.replace(/\/+$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const guildId = String(process.env.DISCORD_GUILD_ID || "");
+  if (!base || !key || !/^\d{15,22}$/.test(guildId)) {
+    return json(res, 503, { error: "إعدادات قاعدة البيانات أو السيرفر غير مكتملة." });
+  }
+  const cfg = { base, key };
+  try {
+    await requireManager(cfg, user);
+    if (req.method === "GET") {
+      const query = new URLSearchParams({
+        guild_id: `eq.${guildId}`,
+        status: "eq.active",
+        select: "id,discord_user_id,member_name,original_channel_id,original_channel_name,alert_channel_id,alert_channel_name,started_by_discord_id,started_by_name,started_at,stop_requested_at,stop_requested_by_name",
+        order: "started_at.asc",
+        limit: "100"
+      });
+      const response = await db(cfg, `attention_alerts?${query}`);
+      if (!response.ok) throw Object.assign(new Error("تعذر تحميل التنبيهات النشطة."), { status: response.status });
+      return json(res, 200, { alerts: await response.json() });
+    }
+
+    const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+    const alertId = String(body.alert_id || "");
+    if (body.action !== "stop" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(alertId)) {
+      return json(res, 400, { error: "طلب إيقاف التنبيه غير صالح." });
+    }
+    const query = new URLSearchParams({
+      id: `eq.${alertId}`,
+      guild_id: `eq.${guildId}`,
+      status: "eq.active",
+      stop_requested_at: "is.null",
+      select: "id,discord_user_id,member_name,started_at,stop_requested_at"
+    });
+    const stopped = await db(cfg, `attention_alerts?${query}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        stop_requested_at: new Date().toISOString(),
+        stop_requested_by_discord_id: user.id,
+        stop_requested_by_name: user.displayName
+      })
+    });
+    if (!stopped.ok) throw Object.assign(new Error("تعذر إرسال طلب إيقاف التنبيه."), { status: stopped.status });
+    const stoppedRows = await stopped.json();
+    if (stoppedRows.length) return json(res, 200, { alert: stoppedRows[0], stop_requested: true });
+
+    const currentQuery = new URLSearchParams({
+      id: `eq.${alertId}`,
+      guild_id: `eq.${guildId}`,
+      select: "id,status,stop_requested_at",
+      limit: "1"
+    });
+    const currentResponse = await db(cfg, `attention_alerts?${currentQuery}`);
+    if (!currentResponse.ok) throw Object.assign(new Error("تعذر التحقق من حالة التنبيه."), { status: currentResponse.status });
+    const current = await currentResponse.json();
+    if (!current[0]) return json(res, 404, { error: "التنبيه غير موجود." });
+    if (current[0].status !== "active") return json(res, 200, { alert: current[0], stop_requested: false, already_stopped: true });
+    return json(res, 200, { alert: current[0], stop_requested: false, already_requested: true });
+  } catch (error) {
+    console.error("Attention alert API failed:", error?.status || error?.message || "unknown");
+    return json(res, Number(error?.status) === 404 ? 404 : Number(error?.status) === 401 || Number(error?.status) === 403 ? Number(error.status) : 502, { error: error?.message || "تعذر إكمال طلب تنبيه الانتباه." });
+  }
+}
 function unionPermissions(roleList) {
   return roleList.reduce((value, role) => value | BigInt(role?.permissions || "0"), 0n);
 }
@@ -1098,6 +1168,9 @@ export default async function handler(req, res) {
   }
   const user = readSession(req);
   if (!user) return json(res, 401, { error: "يجب تسجيل الدخول أولًا." });
+  if (requestUrl.searchParams.get("attention_alerts") === "1") {
+    return attentionAlertsApi(req, res, user);
+  }
   const cfg = config();
   if (cfg.error) return json(res, 503, { error: cfg.error });
   try {

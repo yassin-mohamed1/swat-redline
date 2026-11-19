@@ -1,0 +1,111 @@
+function responseError(response, operation) {
+  return Object.assign(new Error(`${operation} failed with status ${response.status}.`), {
+    status: response.status,
+    operation
+  });
+}
+
+export class AttentionAlertRepository {
+  constructor({ baseUrl, serviceRoleKey, fetchImpl = globalThis.fetch, timeoutMs = 8_000 }) {
+    this.baseUrl = String(baseUrl || "").replace(/\/+$/, "");
+    this.serviceRoleKey = String(serviceRoleKey || "");
+    this.fetchImpl = fetchImpl;
+    this.timeoutMs = timeoutMs;
+  }
+
+  async request(path, options = {}, operation = "Attention alert database request") {
+    const response = await this.fetchImpl(`${this.baseUrl}/rest/v1/${path}`, {
+      ...options,
+      signal: options.signal || AbortSignal.timeout(this.timeoutMs),
+      headers: {
+        apikey: this.serviceRoleKey,
+        Authorization: `Bearer ${this.serviceRoleKey}`,
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+    if (!response.ok) throw responseError(response, operation);
+    return response.status === 204 ? [] : response.json();
+  }
+
+  async createActive(alert) {
+    const rows = await this.request("attention_alerts?select=*", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(alert)
+    }, "Create attention alert");
+    if (!Array.isArray(rows) || !rows[0]) throw new Error("Create attention alert returned no row.");
+    return rows[0];
+  }
+
+  async getLatestForUser(guildId, userId) {
+    const query = new URLSearchParams({
+      guild_id: `eq.${guildId}`,
+      discord_user_id: `eq.${userId}`,
+      select: "id,status,started_at",
+      order: "started_at.desc",
+      limit: "1"
+    });
+    const rows = await this.request(`attention_alerts?${query}`, {}, "Read recent attention alert");
+    return rows[0] || null;
+  }
+
+  async listActive(guildId) {
+    const query = new URLSearchParams({
+      guild_id: `eq.${guildId}`,
+      status: "eq.active",
+      select: "id,discord_user_id,alert_channel_id,original_channel_id",
+      limit: "500"
+    });
+    return this.request(`attention_alerts?${query}`, {}, "List active attention alerts");
+  }
+
+  async listStopRequests(guildId) {
+    const query = new URLSearchParams({
+      guild_id: `eq.${guildId}`,
+      status: "eq.active",
+      stop_requested_at: "not.is.null",
+      select: "id,stop_requested_by_discord_id,stop_requested_by_name",
+      limit: "500"
+    });
+    return this.request(`attention_alerts?${query}`, {}, "List attention alert stop requests");
+  }
+
+  async finish(id, values) {
+    const query = new URLSearchParams({ id: `eq.${id}`, status: "eq.active" });
+    const rows = await this.request(`attention_alerts?${query}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(values)
+    }, "Finish attention alert");
+    return rows[0] || null;
+  }
+
+  async interruptAll(guildId, endedAt) {
+    const query = new URLSearchParams({ guild_id: `eq.${guildId}`, status: "eq.active" });
+    return this.request(`attention_alerts?${query}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ status: "interrupted", end_reason: "bot_restarted", ended_at: endedAt })
+    }, "Mark stale attention alerts interrupted");
+  }
+
+  async leaseRpc(name, instanceId) {
+    return this.request(`rpc/${name}`, {
+      method: "POST",
+      body: JSON.stringify({ p_instance_id: instanceId })
+    }, name);
+  }
+
+  async claimWorker(instanceId) {
+    return Boolean(await this.leaseRpc("claim_attention_alert_worker", instanceId));
+  }
+
+  async renewWorker(instanceId) {
+    return Boolean(await this.leaseRpc("renew_attention_alert_worker", instanceId));
+  }
+
+  async releaseWorker(instanceId) {
+    return Boolean(await this.leaseRpc("release_attention_alert_worker", instanceId));
+  }
+}
