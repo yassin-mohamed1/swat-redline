@@ -18,15 +18,6 @@ function channelPermissionSet(channel, botMember) {
   }
 }
 
-function memberCanJoinChannel(channel, member) {
-  try {
-    const permissions = channel?.permissionsFor?.(member);
-    return Boolean(permissions?.has?.(["ViewChannel", "Connect"]));
-  } catch {
-    return false;
-  }
-}
-
 export function validateStartConditions({
   expectedGuildId,
   guildId,
@@ -109,7 +100,7 @@ export class AttentionAlertManager {
       if (!channel || channel.type !== 2 || String(channel.guildId) !== String(guild.id)) return false;
       if (channel.id === original.id || channel.id === guild.afkChannelId) return false;
       if (channel.userLimit > 0 && (channel.members?.size || 0) >= channel.userLimit) return false;
-      return channelPermissionSet(channel, botMember) && memberCanJoinChannel(channel, member);
+      return channelPermissionSet(channel, botMember);
     });
 
     // Prefer the least occupied room to avoid placing the alerted member into
