@@ -25,10 +25,15 @@ test("assignment and personnel APIs use the same warning manager role and enforc
 test("assignment API exposes every Discord role and explains hierarchy and permission limits", async () => {
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  for (const role of [
+  const currentAssignmentRanks = [
     "swatcommander", "deputyswatcommander", "swatteamleader",
-    "swatsupervisor", "swatsenioroperator", "swatoperator", "swatrecruit"
-  ]) assert.ok(api.includes(role), "missing screenshot rank " + role);
+    "swatsupervisor", "swatoperator"
+  ];
+  for (const role of currentAssignmentRanks) {
+    assert.match(api, new RegExp('key: "' + role + '"'), "missing current assignment rank " + role);
+  }
+  assert.doesNotMatch(api, /swatsenioroperator|swatrecruit/,
+    "removed legacy ranks must not be required by the assignment API");
   assert.match(api, /return roles\.map\(role =>/);
   assert.match(api, /unavailableReason/);
   assert.match(api, /position >= Number\(botPosition\)/);
@@ -228,7 +233,9 @@ test("member identity publishing sends one card and updates the stored Discord m
   const end = api.indexOf("\nasync function handleAddNextCallsign(", start);
   assert.ok(start >= 0 && end > start, "identity publisher exists");
   const handler = api.slice(start, end);
-  assert.match(handler, /SWAT_MEMBERS_CHANNEL_ID/);
+  assert.match(handler, /MEMBER_IDENTITIES_CHANNEL_ID/);
+  assert.match(api, /const MEMBER_IDENTITIES_CHANNEL_ID = "1561490450953670817"/);
+  assert.match(handler, /identity\?\.channel_id===MEMBER_IDENTITIES_CHANNEL_ID/);
   assert.match(handler, /method:"PATCH"/);
   assert.match(handler, /method:"POST"/);
   assert.match(handler, /Number\(error\?\.status\)!==404/);
@@ -254,7 +261,7 @@ test("member identity publishing sends one card and updates the stored Discord m
   assert.doesNotMatch(embedBuilder, /author:|title:|footer:|timestamp:/);
   assert.match(embedBuilder, /CITY RANK/);
   assert.match(embedBuilder, /CALL SIGN/);
-  assert.match(api, /SWAT_MEMBERS_CHANNEL_ID = "1561489833505849505"/);
+  assert.doesNotMatch(api, /SWAT_MEMBERS_CHANNEL_ID/);
   assert.match(html, /id="assignmentRows"/);
   assert.match(html, /City Rank/);
   assert.match(html, /publishMemberIdentity\(/);
