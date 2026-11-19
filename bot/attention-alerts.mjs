@@ -309,7 +309,7 @@ export class AttentionAlertManager {
         entry.resolveReady();
       }
       while (!entry.controller.signal.aborted) {
-        if (this.now() - entry.startedAtMs >= this.config.maxDurationMs) {
+        if (this.config.maxDurationMs > 0 && this.now() - entry.startedAtMs >= this.config.maxDurationMs) {
           this.requestStop(entry, "max_duration");
           break;
         }

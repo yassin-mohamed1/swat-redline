@@ -1,7 +1,7 @@
 const DEFAULTS = Object.freeze({
   cycleMs: 5_000,
   dwellMs: 0,
-  maxDurationMs: 120_000,
+  maxDurationMs: 0,
   cooldownMs: 60_000,
   stopPollMs: 1_000,
   moveTimeoutMs: 8_000
@@ -31,7 +31,7 @@ export function readConfig(env = process.env) {
     supabaseServiceRoleKey: String(env.SUPABASE_SERVICE_ROLE_KEY || ""),
     cycleMs: numberSetting(env, "ATTENTION_ALERT_CYCLE_MS", DEFAULTS.cycleMs, 1_000, 60_000),
     dwellMs: numberSetting(env, "ATTENTION_ALERT_DWELL_MS", DEFAULTS.dwellMs, 0, 10_000),
-    maxDurationMs: numberSetting(env, "ATTENTION_ALERT_MAX_DURATION_MS", DEFAULTS.maxDurationMs, 10_000, 900_000),
+    maxDurationMs: numberSetting(env, "ATTENTION_ALERT_MAX_DURATION_MS", DEFAULTS.maxDurationMs, 0, 900_000),
     cooldownMs: numberSetting(env, "ATTENTION_ALERT_COOLDOWN_MS", DEFAULTS.cooldownMs, 0, 86_400_000),
     stopPollMs: numberSetting(env, "ATTENTION_ALERT_STOP_POLL_MS", DEFAULTS.stopPollMs, 500, 10_000),
     moveTimeoutMs: numberSetting(env, "ATTENTION_ALERT_MOVE_TIMEOUT_MS", DEFAULTS.moveTimeoutMs, 1_000, 30_000)
