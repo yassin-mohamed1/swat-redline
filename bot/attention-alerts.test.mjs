@@ -14,7 +14,6 @@ const quietLogger = { info() {}, error() {}, warn() {} };
 const config = {
   guildId: GUILD_ID,
   managerRoleId: ROLE_ID,
-  alertChannelId: ALERT_ID,
   cycleMs: 30,
   dwellMs: 0,
   maxDurationMs: 5_000,
@@ -39,7 +38,7 @@ function makeSetup({ selfDeaf = true, channelPermissions = true, moveDelayMs = 0
   channels.set(ALERT_ID, makeChannel(ALERT_ID, "Attention"));
   const guild = {
     id: GUILD_ID,
-    channels: { fetch: async id => channels.get(String(id)) || null },
+    channels: { fetch: async id => id ? channels.get(String(id)) || null : new Map(channels) },
     members: { me: { id: "bot" }, fetchMe: async () => ({ id: "bot" }) }
   };
   let channelId = ORIGIN_ID;
@@ -262,7 +261,7 @@ test("rejects missing channels, missing permissions, wrong roles, non-voice targ
   };
   assert.equal(validateStartConditions(base), null);
   assert.equal(validateStartConditions({ ...base, moderatorRoleIds: [], moderatorIsAdministrator: true }), null);
-  assert.match(validateStartConditions({ ...base, alertChannel: null }), /روم التنبيه غير موجود/);
+  assert.match(validateStartConditions({ ...base, alertChannel: null }), /قناة صوتية أخرى متاحة/);
   assert.match(validateStartConditions({ ...base, moderatorRoleIds: [] }), /مديري التحذيرات/);
   assert.match(validateStartConditions({ ...base, moderatorCanMoveMembers: false }), /Move Members/);
   assert.match(validateStartConditions({ ...base, target: { ...base.target, voice: { channelId: null, selfDeaf: true } } }), /ليس في روم صوتي/);

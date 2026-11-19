@@ -18,6 +18,15 @@ function channelPermissionSet(channel, botMember) {
   }
 }
 
+function memberCanJoinChannel(channel, member) {
+  try {
+    const permissions = channel?.permissionsFor?.(member);
+    return Boolean(permissions?.has?.(["ViewChannel", "Connect"]));
+  } catch {
+    return false;
+  }
+}
+
 export function validateStartConditions({
   expectedGuildId,
   guildId,
@@ -37,7 +46,7 @@ export function validateStartConditions({
   if (target.voice.selfDeaf !== true) return "يجب أن يكون العضو قد فعّل Self Deafen قبل بدء التنبيه.";
   if (!moderatorCanMoveMembers) return "تحتاج إلى صلاحية Move Members لاستخدام التنبيه.";
   if (!moderatorIsAdministrator && (!managerRoleId || !moderatorRoleIds.includes(managerRoleId))) return "هذه الخاصية متاحة لمديري التحذيرات أو مسؤولي السيرفر فقط.";
-  if (!alertChannel) return "روم التنبيه غير موجود. تحقق من DISCORD_ATTENTION_ALERT_CHANNEL_ID.";
+  if (!alertChannel) return "لم أجد قناة صوتية أخرى متاحة يملك البوت صلاحيات نقل العضو إليها.";
   if (!originalChannel || !ALLOWED_CHANNEL_TYPES.has(originalChannel.type) || !ALLOWED_CHANNEL_TYPES.has(alertChannel.type)) {
     return "يجب أن يكون الروم الأصلي وروم التنبيه رومين صوتيين صالحين.";
   }
@@ -88,16 +97,32 @@ export class AttentionAlertManager {
     this.client.on("voiceStateUpdate", (oldState, newState) => this.onVoiceStateUpdate(oldState, newState));
   }
 
-  async getChannels(guild, member) {
+  async getChannels(guild, member, botMember) {
     const currentId = member.voice?.channelId;
     const original = currentId ? await guild.channels.fetch(currentId).catch(() => null) : null;
-    const alert = await guild.channels.fetch(this.config.alertChannelId).catch(() => null);
+    if (!original) return { original, alert: null };
+
+    if (!botMember) return { original, alert: null };
+
+    const channels = await guild.channels.fetch().catch(() => null);
+    const candidates = [...(channels?.values?.() || [])].filter(channel => {
+      if (!channel || channel.type !== 2 || String(channel.guildId) !== String(guild.id)) return false;
+      if (channel.id === original.id || channel.id === guild.afkChannelId) return false;
+      if (channel.userLimit > 0 && (channel.members?.size || 0) >= channel.userLimit) return false;
+      return channelPermissionSet(channel, botMember) && memberCanJoinChannel(channel, member);
+    });
+
+    // Prefer the least occupied room to avoid placing the alerted member into
+    // an active conversation when an empty voice channel is available.
+    candidates.sort((left, right) => (left.members?.size || 0) - (right.members?.size || 0)
+      || Number(left.rawPosition || 0) - Number(right.rawPosition || 0));
+    const alert = candidates[0] || null;
     return { original, alert };
   }
 
   async validate({ guild, member, moderator, moderatorRoleIds, moderatorIsAdministrator, moderatorCanMoveMembers }) {
     const botMember = guild.members.me || await guild.members.fetchMe().catch(() => null);
-    const { original, alert } = await this.getChannels(guild, member);
+    const { original, alert } = await this.getChannels(guild, member, botMember);
     const error = validateStartConditions({
       expectedGuildId: this.config.guildId,
       guildId: guild.id,
