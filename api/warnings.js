@@ -729,7 +729,7 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
       await db(cfg, "attendance_records?" + legacyQuery.toString(), {
         method: "PATCH",
         headers: { Prefer: "return=minimal" },
-        body: JSON.stringify({ voice_verification_status: "legacy" })
+        body: JSON.stringify({ voice_verification_status: "legacy", voice_check_status: "not_required" })
       });
       continue;
     }
