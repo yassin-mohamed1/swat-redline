@@ -67,7 +67,7 @@ async function registerContextCommand(applicationId) {
 
 function isSwatRoleName(name) {
   const normalized = String(name || "");
-  return /s\\s*\\.?\\s*w\\s*\\.?\\s*a\\s*\\.?\\s*t/i.test(normalized) &&
+  return /s\s*\.?\s*w\s*\.?\s*a\s*\.?\s*t/i.test(normalized) &&
     !/(warning|website|admin|manager|bot)/i.test(normalized);
 }
 
@@ -147,7 +147,7 @@ async function ensureLeaveRequestPanel(guild) {
       "**📋 طلب إجازة S.W.A.T**",
       "اضغط الزر الأخضر بالأسفل، واملأ البيانات الثلاثة. سيصل طلبك إلى الإدارة لمراجعته من الموقع.",
       "لن تُحتسب الإجازة إلا بعد اعتمادها من الإدارة."
-    ].join("\\n"),
+    ].join("\n"),
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
