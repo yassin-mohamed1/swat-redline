@@ -26,6 +26,7 @@ export function readConfig(env = process.env) {
     token: String(env.DISCORD_BOT_TOKEN || ""),
     guildId: String(env.DISCORD_GUILD_ID || ""),
     managerRoleId: String(env.DISCORD_WARNING_MANAGER_ROLE_ID || ""),
+    leaveRequestChannelId: String(env.LEAVE_REQUEST_CHANNEL_ID || ""),
     supabaseUrl: String(env.SUPABASE_URL || "").replace(/\/+$/, ""),
     supabaseServiceRoleKey: String(env.SUPABASE_SERVICE_ROLE_KEY || ""),
     cycleMs: numberSetting(env, "ATTENTION_ALERT_CYCLE_MS", DEFAULTS.cycleMs, 1_000, 60_000),
@@ -40,6 +41,7 @@ export function readConfig(env = process.env) {
   if (!config.token) missing.push("DISCORD_BOT_TOKEN");
   if (!snowflake(config.guildId)) missing.push("DISCORD_GUILD_ID");
   if (!snowflake(config.managerRoleId)) missing.push("DISCORD_WARNING_MANAGER_ROLE_ID");
+  if (!snowflake(config.leaveRequestChannelId)) missing.push("LEAVE_REQUEST_CHANNEL_ID");
   if (!/^https:\/\//i.test(config.supabaseUrl)) missing.push("SUPABASE_URL");
   if (!config.supabaseServiceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
   if (missing.length) throw new Error(`Missing or invalid configuration: ${missing.join(", ")}.`);
