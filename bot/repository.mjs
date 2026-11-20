@@ -91,7 +91,7 @@ export class AttentionAlertRepository {
   }
 
   async getActiveStaffProfile(userId) {
-    if (!/^\\d{15,22}$/.test(String(userId || ""))) return null;
+    if (!/^\d{15,22}$/.test(String(userId || ""))) return null;
     const query = new URLSearchParams({
       discord_user_id: "eq." + String(userId),
       is_active: "eq.true",
