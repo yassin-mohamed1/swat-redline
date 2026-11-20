@@ -135,6 +135,31 @@ export class AttentionAlertRepository {
     return rows[0];
   }
 
+  async recordAttendanceVoiceJoinEvent(userId, channelId, joinedAt = new Date()) {
+    const stamp = joinedAt instanceof Date ? joinedAt : new Date(joinedAt);
+    if (!/^\d{15,22}$/.test(String(userId || "")) ||
+        !/^\d{15,22}$/.test(String(channelId || "")) ||
+        !Number.isFinite(stamp.getTime())) return null;
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(stamp);
+    const get = type => parts.find(part => part.type === type)?.value || "";
+    const attendanceDate = get("year") + "-" + get("month") + "-" + get("day");
+    const eventKey = String(userId) + ":" + String(channelId) + ":" + stamp.getTime();
+    const rows = await this.request("rpc/record_swat_attendance_voice_join", {
+      method: "POST",
+      body: JSON.stringify({
+        p_event_key: eventKey,
+        p_discord_user_id: String(userId),
+        p_attendance_date: attendanceDate,
+        p_voice_channel_id: String(channelId),
+        p_joined_at: stamp.toISOString()
+      })
+    }, "Record post-stamp voice join event");
+    return rows && typeof rows === "object" ? rows : null;
+  }
+
+
   async leaseRpc(name, instanceId) {
     return this.request(`rpc/${name}`, {
       method: "POST",
