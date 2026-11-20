@@ -162,6 +162,102 @@ async function ensureLeaveRequestPanel(guild) {
   return panel;
 }
 
+async function prepareAdminAlertsChannel(guild) {
+  const channel = await guild.channels.fetch(config.adminAlertsChannelId).catch(() => null);
+  if (!channel || !channel.isTextBased?.() || !channel.messages || typeof channel.send !== "function") {
+    throw new Error("admin_alerts_channel_unavailable");
+  }
+  const managerRole = await guild.roles.fetch(config.managerRoleId).catch(() => null);
+  if (!managerRole) throw new Error("admin_alerts_manager_role_unavailable");
+  const botMember = guild.members.me || await guild.members.fetchMe();
+  const channelPermissions = channel.permissionsFor(botMember);
+  if (channelPermissions?.has(PermissionFlagsBits.ManageChannels)) {
+    await channel.permissionOverwrites.set([
+      {
+        id: guild.id,
+        type: 0,
+        deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+      },
+      {
+        id: managerRole.id,
+        type: 0,
+        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.EmbedLinks]
+      },
+      {
+        id: client.user.id,
+        type: 1,
+        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ManageMessages]
+      }
+    ], "S.W.A.T. REDLINE admin alerts channel privacy");
+  } else {
+    safeLog("warn", "admin_alerts_channel_privacy_not_updated", { channelId: channel.id, reason: "manage_channels_permission_missing" });
+  }
+  const required = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks];
+  const current = channel.permissionsFor(botMember);
+  if (!current?.has(required)) throw new Error("admin_alerts_channel_permissions_missing");
+  safeLog("info", "admin_alerts_channel_ready", { channelId: channel.id, managerRoleId: managerRole.id });
+  return channel;
+}
+
+async function clearAdminAlertsChannelHistoryOnce(guild, channel) {
+  if (!config.clearAdminAlertsHistoryOnStartup) return { skipped: true, deleted: 0 };
+  const permissions = channel.permissionsFor(guild.members.me || await guild.members.fetchMe());
+  const required = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages];
+  if (!permissions?.has(required)) throw new Error("admin_alerts_cleanup_permissions_missing");
+  const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+  let before;
+  let deleted = 0;
+  let failed = 0;
+  while (true) {
+    const page = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    if (!page.size) break;
+    const oldest = page.last();
+    before = oldest?.id;
+    const recent = page.filter(message => Date.now() - message.createdTimestamp < fourteenDays);
+    const old = page.filter(message => Date.now() - message.createdTimestamp >= fourteenDays);
+    if (recent.size) {
+      try { const removed = await channel.bulkDelete(recent, true); deleted += removed.size; }
+      catch (error) { failed += recent.size; safeLog("warn", "admin_alerts_recent_bulk_delete_failed", { status: error?.status || null }); }
+    }
+    for (const message of old.values()) {
+      try { await message.delete(); deleted++; }
+      catch (error) { failed++; safeLog("warn", "admin_alerts_old_message_delete_failed", { messageId: message.id, status: error?.status || null }); }
+    }
+    if (page.size < 100) break;
+  }
+  safeLog(failed ? "warn" : "info", "admin_alerts_history_cleanup_completed", { channelId: channel.id, deleted, failed });
+  if (failed) throw new Error("admin_alerts_cleanup_incomplete_" + failed);
+  return { deleted, failed };
+}
+
+async function handleVoiceStateUpdate(oldState, newState) {
+  if (!leaseHealthy || stopping || newState.guild?.id !== config.guildId) return;
+  if (!newState.channelId || newState.channelId === oldState.channelId ||
+      newState.channelId === newState.guild.afkChannelId) return;
+  const userId = String(newState.id || newState.member?.id || "");
+  if (!/^\d{15,22}$/.test(userId)) return;
+  try {
+    let member = newState.member || newState.guild.members.cache.get(userId);
+    if (!member) member = await newState.guild.members.fetch(userId).catch(() => null);
+    if (!member || ![...swatRoleIds].some(roleId => member.roles.cache.has(roleId))) return;
+    const joinedAt = new Date(newState.joinedTimestamp || Date.now());
+    const record = await repository.markAttendanceVoiceJoin(userId, newState.channelId, joinedAt);
+    if (record) safeLog("info", "attendance_voice_verified", {
+      userId,
+      attendanceDate: record.attendance_date,
+      channelId: newState.channelId,
+      joinedAt: joinedAt.toISOString()
+    });
+  } catch (error) {
+    safeLog("warn", "attendance_voice_verification_failed", {
+      userId,
+      channelId: newState.channelId,
+      status: error?.status || null,
+      operation: error?.operation || null
+    });
+  }
+}
+
 async function handleLeaveRequestButton(interaction) {
   if (!interaction.inGuild() || interaction.guildId !== config.guildId ||
       interaction.channelId !== config.leaveRequestChannelId) {
@@ -300,6 +396,18 @@ client.once(Events.ClientReady, async readyClient => {
     if (!botMember) throw new Error("bot_member_lookup_failed");
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     try {
+      const adminAlertsChannel = await prepareAdminAlertsChannel(guild);
+      if (config.clearAdminAlertsHistoryOnStartup) {
+        try { await clearAdminAlertsChannelHistoryOnce(guild, adminAlertsChannel); }
+        catch (cleanupError) {
+          safeLog("error", "admin_alerts_history_cleanup_failed", { status: cleanupError?.status || null, message: cleanupError?.message || "unknown" });
+        }
+      }
+    } catch (adminChannelError) {
+      safeLog("warn", "admin_alerts_channel_startup_failed", { status: adminChannelError?.status || null, message: adminChannelError?.message || "unknown" });
+    }
+    if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
+    try {
       swatRoleIds = await loadSwatRoleIds(guild);
       await ensureLeaveRequestPanel(guild);
     } catch (leavePanelError) {
@@ -375,6 +483,7 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
+client.on(Events.VoiceStateUpdate, (oldState, newState) => { void handleVoiceStateUpdate(oldState, newState); });
 client.on(Events.Error, error => safeLog("error", "discord_gateway_error", { message: error?.message || "unknown" }));
 client.on(Events.Warn, message => safeLog("warn", "discord_gateway_warning", { message }));
 
