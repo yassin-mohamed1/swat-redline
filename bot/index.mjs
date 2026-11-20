@@ -20,6 +20,7 @@ import { claimWorkerWithRetry, WorkerLeaseSupervisor } from "./worker-lease.mjs"
 import { readConfig } from "./config.mjs";
 import { AttentionAlertRepository } from "./repository.mjs";
 import { buildDiscordLeaveRequestRecord, LeaveRequestValidationError, validateLeaveRequestFields } from "./leave-requests.mjs";
+import { isTargetVoiceEntry, sendVoiceEntryDm } from "./voice-entry-alert.mjs";
 
 const COMMAND_NAME = "S.W.A.T. Attention Alert";
 const LEAVE_PANEL_BUTTON_ID = "swat_leave_request_open";
@@ -246,10 +247,36 @@ async function clearAdminAlertsChannelHistoryOnce(guild, channel) {
 
 async function handleVoiceStateUpdate(oldState, newState) {
   if (!leaseHealthy || stopping || newState.guild?.id !== config.guildId) return;
-  if (!newState.channelId || newState.channelId === oldState.channelId ||
-      newState.channelId === newState.guild.afkChannelId) return;
+  if (!newState.channelId || newState.channelId === oldState.channelId) return;
   const userId = String(newState.id || newState.member?.id || "");
   if (!/^\d{15,22}$/.test(userId)) return;
+
+  if (isTargetVoiceEntry({
+    userId,
+    targetUserId: config.voiceAlertTargetId,
+    guildId: newState.guild.id,
+    expectedGuildId: config.guildId,
+    oldChannelId: oldState.channelId,
+    newChannelId: newState.channelId
+  })) {
+    const enteredAt = new Date(newState.joinedTimestamp || Date.now());
+    const channelName = newState.channel?.name ||
+      newState.guild.channels.cache.get(newState.channelId)?.name ||
+      "روم صوتي";
+    try {
+      await sendVoiceEntryDm({
+        client,
+        recipientId: config.voiceAlertOwnerId,
+        channelName,
+        enteredAt
+      });
+    } catch {
+      // A failed private delivery is intentionally not written to an event log.
+    }
+  }
+
+  // Preserve the existing attendance behavior, which excludes the AFK channel.
+  if (newState.channelId === newState.guild.afkChannelId) return;
   try {
     let member = newState.member || newState.guild.members.cache.get(userId);
     if (!member) member = await newState.guild.members.fetch(userId).catch(() => null);
