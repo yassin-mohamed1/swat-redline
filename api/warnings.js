@@ -678,6 +678,7 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
     const absenceDueAt = Date.parse(member.absence_started_at) + stage * 7 * 86400000;
     const dueAtMs = Math.max(absenceDueAt, nextAllowedAt);
     const reminderAtMs = dueAtMs - 86400000;
+    const days = Number(member.days_since_last || 0);
     if (!Number.isFinite(dueAtMs) || Date.now() < reminderAtMs || Date.now() >= dueAtMs) continue;
     const dueAt = new Date(dueAtMs);
     const stageLabel = stage === 1 ? "الإنذار الأول" : stage === 2 ? "الإنذار الثاني" : "الفصل التلقائي";
