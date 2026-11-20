@@ -709,6 +709,7 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
   const voiceQuery = new URLSearchParams({
     attendance_date: "lt." + today,
     voice_verification_status: "eq.pending",
+    voice_check_status: "eq.pending",
     voice_joined_at: "is.null",
     select: "id,discord_user_id,display_name,attendance_date,first_seen_at",
     order: "attendance_date.asc,first_seen_at.asc",
@@ -722,6 +723,7 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
       const legacyQuery = new URLSearchParams({
         id: "eq." + row.id,
         voice_verification_status: "eq.pending",
+        voice_check_status: "eq.pending",
         voice_joined_at: "is.null"
       });
       await db(cfg, "attendance_records?" + legacyQuery.toString(), {
@@ -752,6 +754,7 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
     const patchQuery = new URLSearchParams({
       id: "eq." + row.id,
       voice_verification_status: "eq.pending",
+      voice_check_status: "eq.pending",
       voice_joined_at: "is.null"
     });
     const marked = await db(cfg, "attendance_records?" + patchQuery.toString(), {
@@ -759,6 +762,8 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
       headers: { Prefer: "return=minimal" },
       body: JSON.stringify({
         voice_verification_status: "notified",
+        voice_check_status: "alerted",
+        voice_alerted_at: new Date().toISOString(),
         voice_alert_queued_at: new Date().toISOString()
       })
     });
