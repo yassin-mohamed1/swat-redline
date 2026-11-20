@@ -44,6 +44,8 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
   assert.match(bot, /admin_alerts_channel_manage_channels_missing/);
   assert.match(bot, /admin_alerts_channel_privacy_verification_failed/);
   assert.match(bot, /channel\.permissionOverwrites\.set/);
+  assert.match(bot, /guild\.channels\.fetch\(channel\.id, \{ force: true \}\)/);
+  assert.doesNotMatch(bot, /channel\.permissionOverwrites\.fetch/);
   assert.match(bot, /clearAdminAlertsChannelHistoryOnce/);
   assert.match(config, /DISCORD_ADMIN_ALERTS_CHANNEL_ID/);
   assert.match(config, /ADMIN_ALERTS_CLEAR_HISTORY_ON_STARTUP/);
