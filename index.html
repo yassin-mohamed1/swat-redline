@@ -1825,6 +1825,43 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #attendanceLeaveModalBack .attendance-leave-status.rejected,#attendanceLeaveModalBack .attendance-leave-status.cancelled{background:#351015;color:#ff8a91}
 #attendanceLeaveModalBack .attendance-leave-status.cut{background:#332715;color:#ffd18a}
 @media(max-width:760px){#page-attendance .attendance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#attendanceLeaveModalBack .attendance-leave-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:14px 0 10px}
+#attendanceLeaveModalBack .attendance-leave-filters{display:flex;gap:8px;flex-wrap:wrap}
+#attendanceLeaveModalBack .attendance-leave-filters input,#attendanceLeaveModalBack .attendance-leave-filters select{min-height:39px;background:#0c0f13;border:1px solid #343b46;color:#eef1f5;border-radius:9px;padding:8px 11px;outline:none}
+#attendanceLeaveModalBack .attendance-leave-filters input{min-width:min(260px,65vw)}
+#attendanceLeaveModalBack .attendance-leave-list{display:grid;gap:12px;max-height:min(62vh,720px);overflow:auto;padding:2px 3px 3px 0}
+#attendanceLeaveModalBack .leave-request-card{min-width:0;border:1px solid #303743;border-radius:13px;padding:14px;background:linear-gradient(145deg,#151b25,#10141b);box-shadow:0 7px 22px #0002}
+#attendanceLeaveModalBack .leave-request-card.pending{border-color:#765627;box-shadow:inset -3px 0 #e2a746,0 7px 22px #0002}
+#attendanceLeaveModalBack .leave-request-card.approved{border-color:#245b49}
+#attendanceLeaveModalBack .leave-request-card.rejected,#attendanceLeaveModalBack .leave-request-card.cancelled{border-color:#65343a}
+#attendanceLeaveModalBack .leave-request-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+#attendanceLeaveModalBack .leave-request-person{display:flex;align-items:center;gap:10px;min-width:0}
+#attendanceLeaveModalBack .leave-request-avatar{width:44px;height:44px;flex:0 0 44px;border-radius:50%;object-fit:cover;background:#252b35;border:1px solid #454e5b}
+#attendanceLeaveModalBack .leave-request-account{font-weight:800;color:#f5f6f8;font-size:13px;overflow-wrap:anywhere}
+#attendanceLeaveModalBack .leave-request-id{font:10px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:#98a2b1;overflow-wrap:anywhere}
+#attendanceLeaveModalBack .leave-request-source{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:3px;color:#aab3c0;font-size:10px}
+#attendanceLeaveModalBack .leave-request-source-tag{display:inline-flex;padding:3px 7px;border:1px solid #3a4654;border-radius:99px;color:#ccd6e2;background:#202a37;font-weight:700}
+#attendanceLeaveModalBack .leave-request-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
+#attendanceLeaveModalBack .leave-request-fact{min-width:0;padding:10px 11px;border:1px solid #2d3541;border-radius:9px;background:#0d1117}
+#attendanceLeaveModalBack .leave-request-label{display:block;color:#9ba7b7;font-size:10px;margin-bottom:5px}
+#attendanceLeaveModalBack .leave-request-value{display:block;color:#f0f2f6;font-size:12px;font-weight:700;line-height:1.7;overflow-wrap:anywhere}
+#attendanceLeaveModalBack .leave-request-value.missing{color:#858f9d;font-weight:500}
+#attendanceLeaveModalBack .leave-request-reason{padding:11px 12px;border:1px solid #303844;border-radius:9px;background:#0b0e13}
+#attendanceLeaveModalBack .leave-request-reason-text{margin:4px 0 0;color:#e3e7ed;font-size:12px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+#attendanceLeaveModalBack .leave-request-period{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:9px;padding:9px 11px;border-radius:9px;background:#171e28;color:#c7d0dc;font-size:11px;line-height:1.7}
+#attendanceLeaveModalBack .leave-request-period strong{color:#f0f2f6}
+#attendanceLeaveModalBack .leave-request-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid #2b323d}
+#attendanceLeaveModalBack .leave-request-decision{font-size:11px;color:#c1c8d2;line-height:1.8}
+#attendanceLeaveModalBack .leave-request-extra{margin-top:8px;padding:8px 10px;border-radius:8px;background:#1b1c20;color:#c4cbd5;font-size:10px;line-height:1.8;overflow-wrap:anywhere}
+#attendanceLeaveModalBack .leave-request-link{color:#9fbaff;text-decoration:none;font-size:10px;font-weight:700}
+#attendanceLeaveModalBack .leave-request-link:hover{text-decoration:underline}
+#attendanceLeaveModalBack .leave-request-actions{display:flex;gap:7px;flex-wrap:wrap}
+#attendanceLeaveModalBack .leave-request-actions .btn{min-width:88px}
+#attendanceLeaveModalBack .attendance-leave-empty{padding:26px 14px;border:1px dashed #394352;border-radius:11px;color:#9da7b5;text-align:center;line-height:1.9;background:#0d1117}
+#attendanceLeaveModalBack .leave-review-context{margin:0 0 16px;padding:12px 14px;border:1px solid #3a4655;border-radius:10px;background:#0d1219;color:#dce2ea;font-size:12px;line-height:1.9}
+#attendanceLeaveModalBack .leave-review-context strong{color:#fff}
+@media(max-width:680px){#attendanceLeaveModalBack .leave-request-facts{grid-template-columns:1fr}#attendanceLeaveModalBack .leave-request-head{align-items:flex-start}#attendanceLeaveModalBack .leave-request-card{padding:11px}#attendanceLeaveModalBack .leave-request-footer{align-items:stretch}#attendanceLeaveModalBack .leave-request-actions{width:100%}#attendanceLeaveModalBack .leave-request-actions .btn{flex:1}}
+@media(max-width:760px){#page-attendance .attendance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 </style>
 <div class="sectionhead">
@@ -2274,12 +2311,16 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    <div><h4>طلبات الإجازة</h4><span class="sub" id="attendanceLeaveUpdatedAt">الطلبات المعلقة والسابقة</span></div>
    <button class="btn" type="button" onclick="loadAttendanceLeaveRequests()">↻ تحديث</button>
   </div>
-  <div class="tablewrap">
-   <table class="attendance-table attendance-leave-table">
-    <thead><tr><th>الموظف ومصدر الطلب</th><th>المدة المعتمدة</th><th>نص الطلب الأصلي</th><th>الحالة</th><th>قرار الإدارة</th></tr></thead>
-    <tbody id="attendanceLeaveRows"><tr><td colspan="5">جارٍ تحميل الطلبات...</td></tr></tbody>
-   </table>
+  <div class="attendance-leave-toolbar">
+   <div class="sub">كل طلب مفصول إلى بيانات العضو، الاسم العسكري، المدة المطلوبة، سبب الإجازة، والقرار المعتمد.</div>
+   <div class="attendance-leave-filters">
+    <input id="attendanceLeaveSearch" type="search" placeholder="ابحث بالاسم أو الرقم أو السبب..." aria-label="بحث في طلبات الإجازة" oninput="renderAttendanceLeaveRows()">
+    <select id="attendanceLeaveFilter" aria-label="تصفية طلبات الإجازة" onchange="renderAttendanceLeaveRows()">
+     <option value="all">كل الطلبات</option><option value="pending">قيد المراجعة</option><option value="approved">مقبولة</option><option value="rejected">مرفوضة</option><option value="cut">مقطوعة أو ملغاة</option>
+    </select>
+   </div>
   </div>
+  <div id="attendanceLeaveRows" class="attendance-leave-list" aria-live="polite"><div class="attendance-leave-empty">جارٍ تحميل طلبات الإجازة...</div></div>
   <div id="attendanceLeaveStatus" class="muted" aria-live="polite" style="min-height:20px;margin-top:10px"></div>
  </div>
 </div>
@@ -2290,6 +2331,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    <div><h3 id="attendanceLeaveReviewTitle">مراجعة طلب الإجازة</h3><div class="sub">حدد المدة المعتمدة أو اكتب سبب الرفض</div></div>
    <button class="close" type="button" onclick="closeAttendanceLeaveReviewModal()">×</button>
   </div>
+  <div id="attendanceLeaveReviewContext" class="leave-review-context" hidden></div>
   <div id="attendanceLeaveApproveFields" class="formgrid">
    <div class="field full"><label for="attendanceLeaveReviewStart">تاريخ بداية الإجازة *</label><input id="attendanceLeaveReviewStart" type="date" required></div>
    <div class="field full"><label for="attendanceLeaveReviewDuration">مدة الإجازة المعتمدة *</label>
@@ -3579,7 +3621,7 @@ async function loadAttendanceLeaveRequests(){
  if(!currentCanManageWarnings||attendanceLeaveLoadBusy)return;
  attendanceLeaveLoadBusy=true;
  const body=document.getElementById('attendanceLeaveRows');
- if(body)body.innerHTML='<tr><td colspan="5">جارٍ تحميل الطلبات...</td></tr>';
+ if(body)body.innerHTML='<div class="attendance-leave-empty">جارٍ تحميل طلبات الإجازة...</div>';
  try{
   const response=await fetch('/api/warnings?leave_requests=1',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
@@ -3587,9 +3629,9 @@ async function loadAttendanceLeaveRequests(){
   attendanceLeaveRequests=Array.isArray(data.requests)?data.requests:[];
   const pending=attendanceLeaveRequests.filter(item=>item.status==='pending').length;
   const badge=document.getElementById('attendancePendingLeaveCount');if(badge)badge.textContent=String(pending);
-  const updated=document.getElementById('attendanceLeaveUpdatedAt');if(updated)updated.textContent='عدد الطلبات المعلقة: '+pending;
+  const updated=document.getElementById('attendanceLeaveUpdatedAt');if(updated)updated.textContent='إجمالي الطلبات: '+attendanceLeaveRequests.length+' • المعلقة: '+pending;
   renderAttendanceLeaveRows();
- }catch(error){if(body)body.innerHTML='<tr><td colspan="5">'+adminEscape(error.message||'تعذّر تحميل الطلبات.')+'</td></tr>';}
+ }catch(error){if(body)body.innerHTML='<div class="attendance-leave-empty" role="alert">'+adminEscape(error.message||'تعذّر تحميل الطلبات.')+'</div>';}
  finally{attendanceLeaveLoadBusy=false;}
 }
 function attendanceLeaveDate(value){
@@ -3605,37 +3647,81 @@ function attendanceLeavePreviousDate(value){
 }
 function renderAttendanceLeaveRows(){
  const body=document.getElementById('attendanceLeaveRows');if(!body)return;
- body.innerHTML=attendanceLeaveRequests.map(item=>{
+ const search=String(document.getElementById('attendanceLeaveSearch')?.value||'').trim().toLocaleLowerCase('ar');
+ const filter=String(document.getElementById('attendanceLeaveFilter')?.value||'all');
+ const visible=attendanceLeaveRequests.filter(item=>{
+  const wasCut=Boolean(item.cutoff_date);
+  const effectiveStatus=wasCut?'cut':item.status;
+  if(filter!=='all'&&effectiveStatus!==filter)return false;
+  if(!search)return true;
+  return [item.display_name,item.military_name,item.discord_user_id,item.reason,item.source,item.reviewed_by_name]
+   .some(value=>String(value||'').toLocaleLowerCase('ar').includes(search));
+ });
+ body.innerHTML=visible.map(item=>{
   const wasCut=Boolean(item.cutoff_date),cancelled=wasCut&&item.start_date&&item.cutoff_date<=item.start_date;
-  const statusLabel=wasCut?(cancelled?'ملغاة':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
+  const statusKey=wasCut?(cancelled?'cancelled':'cut'):item.status;
+  const statusLabel=wasCut?(cancelled?'ملغاة':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبولة':item.status==='rejected'?'مرفوضة':'ملغاة';
   const sourceLabel=item.source==='discord'?'Discord':'الموقع';
   const avatar=item.avatar_url
-   ?'<img src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 38px">'
-   :'<span style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#242830;flex:0 0 38px">👤</span>';
+   ?'<img class="leave-request-avatar" src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer">'
+   :'<span class="leave-request-avatar" style="display:grid;place-items:center">👤</span>';
   const submitted=item.submitted_at||item.created_at;
+  const sourceMeta='<span class="leave-request-source-tag">'+sourceLabel+'</span>'+(submitted?'<span>تاريخ الإرسال: '+adminEscape(fmtWarningDate(submitted))+'</span>':'');
+  const militaryValue=item.military_name
+   ?'<span class="leave-request-value">'+adminEscape(item.military_name)+'</span>'
+   :'<span class="leave-request-value missing">غير مسجل في هذا الطلب</span>';
   const requestedDays=Number(item.requested_duration_days);
-  const requestedDurationLabel=Number.isInteger(requestedDays)&&requestedDays>=1
-   ?'<div class="attendance-admin-meta">المدة المطلوبة: '+adminEscape(requestedDays)+' يوم</div>':'';
-  const militaryNameLabel=item.military_name
-   ?'<div class="attendance-admin-meta">الاسم العسكري: '+adminEscape(item.military_name)+'</div>':'';
-  const dateRange=(item.start_date&&item.end_date
-   ?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>'+(wasCut?'<div class="attendance-admin-meta">'+(cancelled?'لا توجد أيام إجازة محتسبة':'تتوقف من: '+adminEscape(attendanceLeaveDate(item.cutoff_date))+' • آخر يوم مشمول: '+adminEscape(attendanceLeavePreviousDate(item.cutoff_date)))+'</div>':'')
-   :'<span class="muted">تُحدد عند الموافقة</span>')+requestedDurationLabel;
-  const originalLink=item.discord_message_url?'<div style="margin-top:7px"><a href="'+adminEscape(item.discord_message_url)+'" target="_blank" rel="noopener noreferrer">فتح الرسالة الأصلية في Discord ↗</a></div>':'';
-  const sourceTag='<span class="attendance-admin-meta">'+sourceLabel+(submitted?' • '+adminEscape(fmtWarningDate(submitted)):'')+'</span>';
-  const dmLabel=item.dm_status==='sent'?'وصلت رسالة الخاص':item.dm_status==='failed'?'فشل إرسال الخاص':item.dm_status==='skipped'?'الخاص غير مفعّل':'لم يُرسل الخاص بعد';
-  const cutDmLabel=item.cut_dm_status==='sent'?'وصل إشعار الإلغاء أو القطع':item.cut_dm_status==='failed'?'فشل إرسال إشعار الإلغاء أو القطع':'لم يُرسل إشعار الإلغاء أو القطع بعد';
-  const canCut=item.status==='approved'&&!wasCut&&item.end_date>=portalRiyadhToday();
+  const requestedValue=Number.isInteger(requestedDays)&&requestedDays>=1
+   ?'<span class="leave-request-value">'+adminEscape(requestedDays)+' '+(requestedDays===1?'يوم':requestedDays===2?'يومان':'أيام')+'</span>'
+   :'<span class="leave-request-value missing">لم تُحدد في الطلب</span>';
+  const approvedDays=Number(item.approved_duration_days);
+  const approvedValue=item.status==='approved'&&Number.isInteger(approvedDays)&&approvedDays>=1
+   ?'<span class="leave-request-value">'+adminEscape(approvedDays)+' '+(approvedDays===1?'يوم':approvedDays===2?'يومان':'أيام')+'</span>'
+   :'<span class="leave-request-value missing">'+(item.status==='pending'?'بانتظار قرار الإدارة':'لا توجد مدة معتمدة')+'</span>';
+  const reason=item.reason
+   ?adminEscape(item.reason)
+   :'<span class="leave-request-value missing">لم يُسجل سبب للطلب</span>';
+  const period=item.start_date&&item.end_date
+   ?adminEscape(attendanceLeaveDate(item.start_date))+' — '+adminEscape(attendanceLeaveDate(item.end_date))
+   :item.status==='pending'?'سيتم تحديد تاريخ البداية والنهاية عند الموافقة':'لم تُسجل فترة إجازة';
+  const originalLink=item.discord_message_url
+   ?'<a class="leave-request-link" href="'+adminEscape(item.discord_message_url)+'" target="_blank" rel="noopener noreferrer">فتح رسالة Discord الأصلية ↗</a>'
+   :'';
+  const cutDetails=wasCut
+   ?'<div class="leave-request-extra">'+(cancelled?'تم إلغاء الإجازة قبل بدايتها.':'تتوقف الإجازة من '+adminEscape(attendanceLeaveDate(item.cutoff_date))+' • آخر يوم مشمول: '+adminEscape(attendanceLeaveDate(attendanceLeavePreviousDate(item.cutoff_date)))+'.')+
+     (item.cut_reason?'<br>سبب الإلغاء أو القطع: '+adminEscape(item.cut_reason):'')+
+     (item.cut_by_name?'<br>بواسطة: '+adminEscape(item.cut_by_name):'')+
+     '<br>'+(item.cut_dm_status==='sent'?'تم إرسال إشعار Discord.':item.cut_dm_status==='failed'?'فشل إرسال إشعار Discord.':'لم يُرسل إشعار Discord.')+
+     (item.cut_dm_error?'<br>'+adminEscape(item.cut_dm_error):'')+'</div>'
+   :'';
+  let decision='';
   let actions='';
   if(item.status==='pending'){
-   actions='<div class="attendance-leave-actions"><button class="btn primary" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'approved\')">موافقة</button><button class="btn danger" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'rejected\')">رفض</button></div>';
+   decision='<div class="leave-request-decision"><strong>قرار الإدارة:</strong> لم يصدر بعد</div>';
+   actions='<div class="leave-request-actions"><button class="btn primary" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'approved\')">✓ موافقة</button><button class="btn danger" type="button" onclick="reviewAttendanceLeave(\''+adminEscape(item.id)+'\',\'rejected\')">✕ رفض</button></div>';
   }else{
-   actions='<span class="muted">'+adminEscape(item.reviewed_by_name||'—')+'</span><div class="attendance-admin-meta">'+dmLabel+'</div>'+(item.dm_error?'<div class="attendance-admin-meta">'+adminEscape(item.dm_error)+'</div>':'')+(item.review_note?'<div class="attendance-admin-meta">السبب/الملاحظة: '+adminEscape(item.review_note)+'</div>':'');
-   if(canCut)actions+='<div class="attendance-leave-actions" style="margin-top:8px"><button class="btn danger" type="button" onclick="openAttendanceLeaveCut(\''+adminEscape(item.id)+'\')">إلغاء أو قطع</button></div>';
-   if(wasCut)actions+='<div class="attendance-admin-meta" style="margin-top:6px">'+cutDmLabel+'</div>'+(item.cut_dm_error?'<div class="attendance-admin-meta">'+adminEscape(item.cut_dm_error)+'</div>':'')+(item.cut_reason?'<div class="attendance-admin-meta">سبب الإلغاء أو القطع: '+adminEscape(item.cut_reason)+'</div>':'')+(item.cut_by_name?'<div class="attendance-admin-meta">بواسطة: '+adminEscape(item.cut_by_name)+'</div>':'');
+   const dmLabel=item.dm_status==='sent'?'تم إرسال رسالة القرار للعضو':item.dm_status==='failed'?'فشل إرسال رسالة القرار':item.dm_status==='skipped'?'الإشعارات الخاصة غير مفعّلة':'لم يُسجل إرسال رسالة القرار';
+   decision='<div class="leave-request-decision"><strong>قرار الإدارة:</strong> '+adminEscape(item.reviewed_by_name||'غير محدد')+
+    (item.reviewed_at?' • '+adminEscape(fmtWarningDate(item.reviewed_at)):'')+
+    '<br>'+dmLabel+(item.dm_error?' • '+adminEscape(item.dm_error):'')+
+    (item.review_note?'<br><strong>ملاحظة الإدارة:</strong> '+adminEscape(item.review_note):'')+'</div>';
+   const canCut=item.status==='approved'&&!wasCut&&item.end_date>=portalRiyadhToday();
+   if(canCut)actions='<div class="leave-request-actions"><button class="btn danger" type="button" onclick="openAttendanceLeaveCut(\''+adminEscape(item.id)+'\')">إلغاء أو قطع الإجازة</button></div>';
   }
-  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><div class="attendance-name">'+adminEscape(item.display_name||'عضو')+'</div>'+militaryNameLabel+'<div class="attendance-meta"><code>'+adminEscape(item.discord_user_id)+'</code></div>'+sourceTag+'</div></div></td><td>'+dateRange+'</td><td><div style="white-space:pre-wrap;word-break:break-word;max-width:460px;line-height:1.75">'+adminEscape(item.reason||'—')+'</div>'+originalLink+'</td><td><span class="attendance-leave-status '+(wasCut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+statusLabel+'</span></td><td>'+actions+'</td></tr>';
- }).join('')||'<tr><td colspan="5"><div class="empty">لا توجد طلبات إجازة حتى الآن.</div></td></tr>';
+  return '<article class="leave-request-card '+(statusKey==='cut'?'cut':statusKey)+'">'+
+   '<div class="leave-request-head"><div class="leave-request-person">'+avatar+'<div style="min-width:0"><div class="leave-request-account">'+adminEscape(item.display_name||'عضو')+'</div><div class="leave-request-id">Discord ID: '+adminEscape(item.discord_user_id||'—')+'</div><div class="leave-request-source">'+sourceMeta+'</div></div></div>'+
+   '<span class="attendance-leave-status '+statusKey+'">'+statusLabel+'</span></div>'+
+   '<div class="leave-request-facts">'+
+    '<div class="leave-request-fact"><span class="leave-request-label">الاسم العسكري</span>'+militaryValue+'</div>'+
+    '<div class="leave-request-fact"><span class="leave-request-label">مدة الإجازة المطلوبة</span>'+requestedValue+'</div>'+
+    '<div class="leave-request-fact"><span class="leave-request-label">مدة الإجازة المعتمدة</span>'+approvedValue+'</div>'+
+   '</div>'+
+   '<div class="leave-request-reason"><span class="leave-request-label">سبب الإجازة</span><p class="leave-request-reason-text">'+reason+'</p></div>'+
+   '<div class="leave-request-period"><span><strong>فترة الإجازة:</strong> '+period+'</span>'+(originalLink?'<span>'+originalLink+'</span>':'')+'</div>'+
+   cutDetails+
+   '<div class="leave-request-footer">'+decision+actions+'</div>'+
+  '</article>';
+ }).join('')||'<div class="attendance-leave-empty">'+(attendanceLeaveRequests.length?'لا توجد طلبات تطابق البحث أو التصفية.':'لا توجد طلبات إجازة حتى الآن.')+'</div>';
 }
 function updateMyAttendanceLeaveDateBounds(){
  const today=portalRiyadhToday();
@@ -3780,6 +3866,14 @@ function reviewAttendanceLeave(id,statusValue){
  const rejectFields=document.getElementById('attendanceLeaveRejectFields');
  const submit=document.getElementById('attendanceLeaveReviewSubmitButton');
  if(title)title.textContent=statusValue==='approved'?'تأكيد الموافقة على الإجازة':'رفض طلب الإجازة';
+ const context=document.getElementById('attendanceLeaveReviewContext');
+ if(context){
+  context.hidden=false;
+  context.innerHTML='<strong>المتقدم:</strong> '+adminEscape(item.display_name||'عضو')+
+   '<br><strong>الاسم العسكري:</strong> '+adminEscape(item.military_name||'غير مسجل')+
+   '<br><strong>مدة الإجازة المطلوبة:</strong> '+(item.requested_duration_days?adminEscape(item.requested_duration_days)+' يوم':'غير محددة')+
+   '<br><strong>سبب الطلب:</strong> '+adminEscape(item.reason||'غير مسجل');
+ }
  if(approveFields)approveFields.style.display=statusValue==='approved'?'grid':'none';
  if(rejectFields)rejectFields.style.display=statusValue==='rejected'?'grid':'none';
  if(submit){submit.textContent=statusValue==='approved'?'اعتماد الإجازة':'تأكيد الرفض';submit.className='btn '+(statusValue==='approved'?'primary':'danger');}
