@@ -104,7 +104,7 @@ test("Discord modal, same website review queue, and old-text intake retirement s
   assert.match(bot, /interaction\.isModalSubmit\(\)/);
   assert.match(bot, /findLeaveRequestByInteraction/);
   assert.match(bot, /findPendingLeaveRequest/);
-  assert.match(bot, /repository\.createLeaveRequest\(record\)/);
+  assert.match(bot, /repository\.createLeaveRequest\(\{ \.\.\.record, admin_alert_status: "pending" \}\)/);
 
   assert.match(repository, /attendance_leave_requests\?select=id,status,discord_user_id/);
   assert.match(repository, /discord_interaction_id/);
