@@ -114,7 +114,10 @@ test("Discord modal, same website review queue, and old-text intake retirement s
   assert.match(html, /item\.approved_duration_days\|\|item\.requested_duration_days/);
 
   assert.match(poller, /legacy_free_text_intake_disabled/);
-  assert.doesNotMatch(poller, /createOrLoadRequest\(config, message/);
+  const processStart = poller.indexOf("async function processMessage(");
+  const processEnd = poller.indexOf("\\nexport async function handleLeaveRequestPoller", processStart);
+  assert.ok(processStart >= 0 && processEnd > processStart);
+  assert.doesNotMatch(poller.slice(processStart, processEnd), /createOrLoadRequest\(/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS military_name text/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS requested_duration_days smallint/);
   assert.match(migration, /attendance_leave_requests_interaction_unique/);
