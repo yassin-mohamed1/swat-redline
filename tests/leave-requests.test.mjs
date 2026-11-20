@@ -83,13 +83,14 @@ test("rejects malformed Discord references before a request can be stored", () =
 
 test("Discord modal, same website review queue, and old-text intake retirement stay connected", async () => {
   const read = path => readFile(new URL(path, import.meta.url), "utf8");
-  const [bot, repository, config, api, html, poller, migration, adminAlertsMigration] = await Promise.all([
+  const [bot, repository, config, api, html, poller, attendancePoller, migration, adminAlertsMigration] = await Promise.all([
     read("../bot/index.mjs"),
     read("../bot/repository.mjs"),
     read("../bot/config.mjs"),
     read("../api/warnings.js"),
     read("../index.html"),
     read("../lib/leave-poller.js"),
+    read("../lib/attendance-poller.mjs"),
     read("../supabase/migrations/20261120130000_discord_leave_request_modal_fields.sql"),
     read("../supabase/migrations/20261120193000_admin_alerts_and_voice_attendance.sql")
   ]);
@@ -138,8 +139,8 @@ test("Discord modal, same website review queue, and old-text intake retirement s
   assert.match(bot, /sendLeaveRequestAdminAlert/);
   assert.match(repository, /claim_swat_admin_alert/);
   assert.match(repository, /markAttendanceVoiceJoined/);
-  assert.match(poller, /scheduleAttendanceVoiceCheck/);
-  assert.match(poller, /voice_check_deadline_at/);
+  assert.match(attendancePoller, /scheduleAttendanceVoiceCheck/);
+  assert.match(attendancePoller, /voice_check_deadline_at/);
   assert.match(api, /processUpcomingAttendanceWarningAlerts/);
   assert.match(api, /processPendingLeaveRequestAlerts/);
   assert.match(api, /processExpiredAttendanceVoiceChecks/);
