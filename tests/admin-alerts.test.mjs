@@ -11,7 +11,7 @@ test("voice verification uses the Riyadh calendar day boundary", () => {
 
 test("admin alert routing, voice verification, and one-time channel cleanup are wired together", async () => {
   const read = path => readFile(new URL(path, import.meta.url), "utf8");
-  const [notifications, poller, alerts, warnings, bot, config, repository, migration, voiceMigration] = await Promise.all([
+  const [notifications, poller, alerts, warnings, bot, config, repository, migration, voiceMigration, statusMigration, index] = await Promise.all([
     read("../api/notifications/send.js"),
     read("../lib/leave-poller.js"),
     read("../lib/admin-alerts.js"),
@@ -20,7 +20,9 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
     read("../bot/config.mjs"),
     read("../bot/repository.mjs"),
     read("../supabase/migrations/20261120160000_admin_alerts_voice_attendance.sql"),
-    read("../supabase/migrations/20261120180000_voice_join_event_race_protection.sql")
+    read("../supabase/migrations/20261120180000_voice_join_event_race_protection.sql"),
+    read("../supabase/migrations/20261120193000_sync_voice_check_status.sql"),
+    read("../index.html")
   ]);
 
   assert.match(notifications, /config\.notificationChannelId/);
@@ -38,6 +40,13 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
   assert.match(warnings, /stage \* 7 \* 86400000/);
   assert.match(warnings, /voice_verification_status: "eq.pending"/);
   assert.match(warnings, /attendance_date: "lt\." \+ today/);
+  assert.match(warnings, /voice_check_status: "eq.pending"/);
+  assert.match(warnings, /voice_check_status: "alerted"/);
+  assert.match(statusMigration, /voice_check_status = 'confirmed'/);
+  assert.match(index, /التحقق من دخول الصوت بعد البصمة/);
+  assert.match(index, /باستثناء روم AFK/);
+  assert.match(index, /Post-Stamp Voice Check/);
+  assert.match(index, /It does not record or listen to audio/);
   assert.match(bot, /Events\.VoiceStateUpdate/);
   assert.match(bot, /newState\.guild\.afkChannelId/);
   assert.match(bot, /recordAttendanceVoiceJoinEvent/);
