@@ -109,6 +109,8 @@ test("Discord modal, same website review queue, and old-text intake retirement s
   assert.match(repository, /discord_interaction_id/);
   assert.match(api, /military_name,requested_duration_days/);
   assert.match(api, /discord_interaction_id/);
+  assert.match(api, /name: "الاسم العسكري"/);
+  assert.match(api, /name: "المدة المطلوبة"/);
   assert.match(html, /militaryNameLabel/);
   assert.match(html, /requestedDurationLabel/);
   assert.match(html, /item\.approved_duration_days\|\|item\.requested_duration_days/);
