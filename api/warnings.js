@@ -214,7 +214,7 @@ async function deliverPendingLeaveRequestAlert(cfg, item) {
 
 async function processPendingLeaveRequestAlerts(cfg) {
   if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
-    return { ok: false, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, sent: 0, failed: 0 };
+    return { ok: true, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, sent: 0, failed: 0 };
   }
   const query = new URLSearchParams({
     status: "eq.pending",
@@ -257,13 +257,13 @@ async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
     if (stage < 1 || stage > 3) continue;
     const absenceStartMs = Date.parse(member.absence_started_at);
     if (!Number.isFinite(absenceStartMs)) continue;
-    const targetMs = absenceStartMs + stage * 7 * 24 * 60 * 60 * 1000;
+    const thresholdMs = absenceStartMs + stage * 7 * 24 * 60 * 60 * 1000;
     if (targetMs <= nowMs || targetMs > windowEnd) continue;
     const lastActionMs = Date.parse(member.warning_updated_at || "");
     const nextAllowedAtMs = currentLevel > 0 && Number.isFinite(lastActionMs)
       ? lastActionMs + 7 * 24 * 60 * 60 * 1000
       : 0;
-    if (nextAllowedAtMs > targetMs) continue;
+    const targetMs = Math.max(thresholdMs, nextAllowedAtMs);
 
     const latest = await latestAttendanceForMember(cfg, member.discord_user_id);
     if ((latest?.first_seen_at || null) !== (member.last_attendance_at || null)) continue;
@@ -304,7 +304,7 @@ async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
 
 async function processExpiredAttendanceVoiceChecks(cfg) {
   if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
-    return { ok: false, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, alerted: 0, failed: 0 };
+    return { ok: true, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, alerted: 0, failed: 0 };
   }
   const query = new URLSearchParams({
     voice_check_status: "eq.pending",
