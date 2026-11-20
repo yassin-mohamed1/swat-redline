@@ -142,7 +142,7 @@ async function completeAdminAlert(cfg, eventKey, success, errorCode = null) {
 }
 
 async function sendAdminAlert(cfg, title, description, fields = [], userId = null) {
-  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+  if (!/^\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
     throw Object.assign(new Error("admin_alerts_channel_not_configured"), { code: "admin_alerts_channel_not_configured" });
   }
   const content = "<@&" + cfg.managerRoleId + "> 🔔 تنبيه إداري جديد";
@@ -179,7 +179,7 @@ async function deliverPendingLeaveRequestAlert(cfg, item) {
   if (!claim?.claimed) return { sent: false, skipped: true };
   try {
     const fields = [
-      { name: "المتقدم", value: String(item.display_name || "عضو") + "\\n<@" + item.discord_user_id + ">", inline: false }
+      { name: "المتقدم", value: String(item.display_name || "عضو") + "\n<@" + item.discord_user_id + ">", inline: false }
     ];
     if (item.military_name) fields.push({ name: "الاسم العسكري", value: String(item.military_name), inline: true });
     if (Number.isInteger(Number(item.requested_duration_days)) && Number(item.requested_duration_days) > 0) {
@@ -213,7 +213,7 @@ async function deliverPendingLeaveRequestAlert(cfg, item) {
 }
 
 async function processPendingLeaveRequestAlerts(cfg) {
-  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+  if (!/^\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
     return { ok: true, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, sent: 0, failed: 0 };
   }
   const query = new URLSearchParams({
@@ -236,7 +236,7 @@ async function processPendingLeaveRequestAlerts(cfg) {
 }
 
 async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
-  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+  if (!/^\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
     return { ok: false, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, sent: 0, failed: 0 };
   }
   const nowMs = Date.now();
@@ -302,7 +302,7 @@ async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
         "⏰ إجراء تأديبي متوقع غدًا",
         "تنبيه مسبق للإدارة: إذا لم يسجل العضو بصمته قبل الموعد المحدد، فسيصبح مؤهلًا للإجراء التأديبي التالي.",
         [
-          { name: "العضو", value: String(member.display_name || "عضو") + "\\n<@" + member.discord_user_id + ">", inline: false },
+          { name: "العضو", value: String(member.display_name || "عضو") + "\n<@" + member.discord_user_id + ">", inline: false },
           { name: "الإجراء المتوقع", value: actionLabel, inline: true },
           { name: "أيام الغياب الحالية", value: String(member.days_since_last || 0) + " يوم", inline: true },
           { name: "آخر بصمة", value: member.last_attendance_at ? riyadhDateTime(member.last_attendance_at) : "لا توجد بصمة مسجلة", inline: false },
@@ -322,7 +322,7 @@ async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
 }
 
 async function processExpiredAttendanceVoiceChecks(cfg) {
-  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+  if (!/^\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
     return { ok: true, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, alerted: 0, failed: 0 };
   }
   const query = new URLSearchParams({
@@ -364,7 +364,7 @@ async function processExpiredAttendanceVoiceChecks(cfg) {
         "⚠️ بصمة بدون حضور صوتي",
         "سجّل العضو بصمته اليومية، لكن لم يرصد النظام دخوله إلى أي روم صوتية مؤهلة قبل نهاية يوم البصمة. تم استثناء قناة AFK.",
         [
-          { name: "العضو", value: String(row.display_name || "عضو") + "\\n<@" + row.discord_user_id + ">", inline: false },
+          { name: "العضو", value: String(row.display_name || "عضو") + "\n<@" + row.discord_user_id + ">", inline: false },
           { name: "تاريخ البصمة", value: String(row.attendance_date), inline: true },
           { name: "وقت البصمة", value: riyadhDateTime(row.first_seen_at), inline: true },
           { name: "انتهت مهلة التحقق", value: riyadhDateTime(row.voice_check_deadline_at), inline: false }
