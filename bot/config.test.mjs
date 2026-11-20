@@ -7,6 +7,7 @@ const base = {
   DISCORD_GUILD_ID: "12345678901234567",
   DISCORD_WARNING_MANAGER_ROLE_ID: "22345678901234567",
   LEAVE_REQUEST_CHANNEL_ID: "52345678901234567",
+  DISCORD_ADMIN_ALERTS_CHANNEL_ID: "62345678901234567",
   SUPABASE_URL: "https://database.test/",
   SUPABASE_SERVICE_ROLE_KEY: "test-only-service-key"
 };
@@ -15,6 +16,7 @@ test("uses one clear set of safe Attention Alert defaults", () => {
   const config = readConfig(base);
   assert.equal(config.supabaseUrl, "https://database.test");
   assert.equal(config.leaveRequestChannelId, "52345678901234567");
+  assert.equal(config.adminAlertsChannelId, "62345678901234567");
   assert.equal(config.cycleMs, 5_000);
   assert.equal(config.dwellMs, 0);
   assert.equal(config.maxDurationMs, 0);
@@ -32,5 +34,6 @@ test("accepts configured timing values and rejects unsafe invalid values", () =>
   assert.throws(() => readConfig({ ...base, ATTENTION_ALERT_CYCLE_MS: "10" }), /ATTENTION_ALERT_CYCLE_MS/);
   assert.throws(() => readConfig({ ...base, ATTENTION_ALERT_DWELL_MS: "-1" }), /ATTENTION_ALERT_DWELL_MS/);
   assert.throws(() => readConfig({ ...base, LEAVE_REQUEST_CHANNEL_ID: "not-a-channel" }), /LEAVE_REQUEST_CHANNEL_ID/);
+  assert.throws(() => readConfig({ ...base, DISCORD_ADMIN_ALERTS_CHANNEL_ID: "not-a-channel" }), /DISCORD_ADMIN_ALERTS_CHANNEL_ID/);
   assert.doesNotThrow(() => readConfig({ ...base, DISCORD_ATTENTION_ALERT_CHANNEL_ID: "not-a-channel" }));
 });
