@@ -133,7 +133,7 @@ test("persists one-time administrator channel cleanup state", async () => {
     history_cleared_at: "2026-11-20T00:00:00.000Z",
     deleted_message_count: 12
   });
-  assert.equal(row.deleted_message_count, undefined); // The mock response controls returned fields.
+  assert.equal(row.channel_id, "62345678901234567");
   assert.match(calls[0].url, /discord_admin_channel_setup\\?on_conflict=channel_id/);
   assert.match(calls[0].init.headers.Prefer, /resolution=merge-duplicates/);
 });
