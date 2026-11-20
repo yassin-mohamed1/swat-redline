@@ -135,7 +135,7 @@ export class AttentionAlertRepository {
     return rows[0];
   }
 
-  async markAttendanceVoiceJoin(userId, channelId, joinedAt = new Date()) {
+  async recordAttendanceVoiceJoinEvent(userId, channelId, joinedAt = new Date()) {
     const stamp = joinedAt instanceof Date ? joinedAt : new Date(joinedAt);
     if (!/^\d{15,22}$/.test(String(userId || "")) ||
         !/^\d{15,22}$/.test(String(channelId || "")) ||
@@ -145,25 +145,20 @@ export class AttentionAlertRepository {
     }).formatToParts(stamp);
     const get = type => parts.find(part => part.type === type)?.value || "";
     const attendanceDate = get("year") + "-" + get("month") + "-" + get("day");
-    const query = new URLSearchParams({
-      discord_user_id: "eq." + String(userId),
-      attendance_date: "eq." + attendanceDate,
-      first_seen_at: "lte." + stamp.toISOString(),
-      voice_verification_status: "eq.pending",
-      voice_joined_at: "is.null",
-      select: "id,attendance_date,voice_joined_at"
-    });
-    const rows = await this.request("attendance_records?" + query.toString(), {
-      method: "PATCH",
-      headers: { Prefer: "return=representation" },
+    const eventKey = String(userId) + ":" + String(channelId) + ":" + stamp.getTime();
+    const rows = await this.request("rpc/record_swat_attendance_voice_join", {
+      method: "POST",
       body: JSON.stringify({
-        voice_joined_at: stamp.toISOString(),
-        voice_channel_id: String(channelId),
-        voice_verification_status: "verified"
+        p_event_key: eventKey,
+        p_discord_user_id: String(userId),
+        p_attendance_date: attendanceDate,
+        p_voice_channel_id: String(channelId),
+        p_joined_at: stamp.toISOString()
       })
-    }, "Record post-stamp voice attendance");
-    return rows[0] || null;
+    }, "Record post-stamp voice join event");
+    return rows && typeof rows === "object" ? rows : null;
   }
+
 
   async leaseRpc(name, instanceId) {
     return this.request(`rpc/${name}`, {
