@@ -405,7 +405,7 @@ test("automatic attendance discipline reuses the existing warning ladder at 7, 1
   assert.match(api, /updateMemberRoles\(cfg,discordUserId,level,actionType==="dismissal"\)/);
   assert.match(api, /await sendDirectNotice/);
   assert.match(api, /await sendAnnouncement/);
-  assert.match(api, /processAutomaticAttendanceDiscipline\(cronCfg\)/);
+  assert.match(api, /processAutomaticAttendanceDiscipline\(cronCfg, dashboard\)/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.attendance_discipline_claims/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.claim_swat_attendance_discipline/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.complete_swat_attendance_discipline/);
