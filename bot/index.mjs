@@ -171,31 +171,41 @@ async function prepareAdminAlertsChannel(guild) {
   if (!managerRole) throw new Error("admin_alerts_manager_role_unavailable");
   const botMember = guild.members.me || await guild.members.fetchMe();
   const channelPermissions = channel.permissionsFor(botMember);
-  if (channelPermissions?.has(PermissionFlagsBits.ManageChannels)) {
-    await channel.permissionOverwrites.set([
-      {
-        id: guild.id,
-        type: 0,
-        deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
-      },
-      {
-        id: managerRole.id,
-        type: 0,
-        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.EmbedLinks]
-      },
-      {
-        id: client.user.id,
-        type: 1,
-        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ManageMessages]
-      }
-    ], "S.W.A.T. REDLINE admin alerts channel privacy");
-  } else {
-    safeLog("warn", "admin_alerts_channel_privacy_not_updated", { channelId: channel.id, reason: "manage_channels_permission_missing" });
+  if (!channelPermissions?.has(PermissionFlagsBits.ManageChannels)) {
+    throw new Error("admin_alerts_channel_manage_channels_missing");
+  }
+  await channel.permissionOverwrites.set([
+    {
+      id: guild.id,
+      type: 0,
+      deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+    },
+    {
+      id: managerRole.id,
+      type: 0,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.EmbedLinks]
+    },
+    {
+      id: client.user.id,
+      type: 1,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ManageMessages]
+    }
+  ], "S.W.A.T. REDLINE admin alerts channel privacy");
+  const overwrites = await channel.permissionOverwrites.fetch();
+  const everyoneOverwrite = overwrites.get(guild.id);
+  const managerOverwrite = overwrites.get(managerRole.id);
+  const botOverwrite = overwrites.get(client.user.id);
+  if (!everyoneOverwrite?.deny.has(PermissionFlagsBits.ViewChannel) ||
+      !managerOverwrite?.allow.has(PermissionFlagsBits.ViewChannel) ||
+      !managerOverwrite?.allow.has(PermissionFlagsBits.ReadMessageHistory) ||
+      !botOverwrite?.allow.has(PermissionFlagsBits.ViewChannel) ||
+      !botOverwrite?.allow.has(PermissionFlagsBits.ManageMessages)) {
+    throw new Error("admin_alerts_channel_privacy_verification_failed");
   }
   const required = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks];
   const current = channel.permissionsFor(botMember);
   if (!current?.has(required)) throw new Error("admin_alerts_channel_permissions_missing");
-  safeLog("info", "admin_alerts_channel_ready", { channelId: channel.id, managerRoleId: managerRole.id });
+  safeLog("info", "admin_alerts_channel_privacy_verified", { channelId: channel.id, managerRoleId: managerRole.id });
   return channel;
 }
 
@@ -241,8 +251,8 @@ async function handleVoiceStateUpdate(oldState, newState) {
     if (!member) member = await newState.guild.members.fetch(userId).catch(() => null);
     if (!member || ![...swatRoleIds].some(roleId => member.roles.cache.has(roleId))) return;
     const joinedAt = new Date(newState.joinedTimestamp || Date.now());
-    const record = await repository.markAttendanceVoiceJoin(userId, newState.channelId, joinedAt);
-    if (record) safeLog("info", "attendance_voice_verified", {
+    const record = await repository.recordAttendanceVoiceJoinEvent(userId, newState.channelId, joinedAt);
+    if (record?.recorded) safeLog("info", "attendance_voice_event_recorded", {
       userId,
       attendanceDate: record.attendance_date,
       channelId: newState.channelId,
