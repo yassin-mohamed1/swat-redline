@@ -1184,7 +1184,7 @@ export default async function handler(req, res) {
       await requireActiveStaff(cfg, user);
       const q = new URLSearchParams({
         discord_user_id: "eq." + user.id,
-        select: "id,reason,start_date,end_date,status,review_note,reviewed_at,cutoff_date,cut_reason,cut_dm_status,created_at",
+        select: "id,reason,military_name,requested_duration_days,start_date,end_date,status,review_note,reviewed_at,cutoff_date,cut_reason,cut_dm_status,created_at",
         order: "created_at.desc",
         limit: "100"
       });
@@ -1202,7 +1202,7 @@ export default async function handler(req, res) {
     }
     if (req.method === "GET" && params.get("leave_requests") === "1") {
       const q = new URLSearchParams({
-        select: "id,discord_user_id,display_name,avatar_url,reason,start_date,end_date,approved_duration_days,status,source,discord_channel_id,discord_message_id,discord_message_url,submitted_at,acknowledgement_message_id,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,cutoff_date,cut_by_discord_id,cut_by_name,cut_at,cut_reason,cut_dm_status,cut_dm_error,created_at",
+        select: "id,discord_user_id,display_name,military_name,requested_duration_days,avatar_url,reason,start_date,end_date,approved_duration_days,status,source,discord_channel_id,discord_message_id,discord_message_url,discord_interaction_id,submitted_at,acknowledgement_message_id,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,cutoff_date,cut_by_discord_id,cut_by_name,cut_at,cut_reason,cut_dm_status,cut_dm_error,created_at",
         order: "created_at.desc",
         limit: "500"
       });
@@ -1465,7 +1465,7 @@ export default async function handler(req, res) {
       const pendingQuery = new URLSearchParams({
         id: "eq." + requestId,
         status: "eq.pending",
-        select: "id,discord_user_id,display_name,reason,source",
+        select: "id,discord_user_id,display_name,military_name,requested_duration_days,reason,source",
         limit: "1"
       });
       const pendingResponse = await db(cfg, "attendance_leave_requests?" + pendingQuery.toString());
