@@ -108,7 +108,7 @@ test("confirms a voice join only for the current Riyadh day after the attendance
   });
   const rows = await repository.markAttendanceVoiceJoined("22345678901234567", new Date("2026-11-20T18:00:00.000Z"));
   assert.equal(rows[0].voice_check_status, "confirmed");
-  assert.match(calls[0].url, /attendance_records\\?/);
+  assert.ok(calls[0].url.includes("attendance_records?"));
   assert.match(calls[0].url, /voice_check_status=eq.pending/);
   assert.match(calls[0].url, /voice_check_deadline_at=gt/);
   assert.match(calls[0].url, /first_seen_at=lte/);
@@ -134,6 +134,6 @@ test("persists one-time administrator channel cleanup state", async () => {
     deleted_message_count: 12
   });
   assert.equal(row.channel_id, "62345678901234567");
-  assert.match(calls[0].url, /discord_admin_channel_setup\\?on_conflict=channel_id/);
+  assert.ok(calls[0].url.includes("discord_admin_channel_setup?on_conflict=channel_id"));
   assert.match(calls[0].init.headers.Prefer, /resolution=merge-duplicates/);
 });
