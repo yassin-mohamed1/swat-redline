@@ -171,7 +171,7 @@ export class AttentionAlertRepository {
 
   async markAttendanceVoiceJoined(userId, eventAt = new Date()) {
     const at = eventAt instanceof Date ? eventAt : new Date(eventAt);
-    if (Number.isNaN(at.getTime()) || !/^\\d{15,22}$/.test(String(userId || ""))) return [];
+    if (Number.isNaN(at.getTime()) || !/^\d{15,22}$/.test(String(userId || ""))) return [];
     const parts = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit"
     }).formatToParts(at);
