@@ -16,6 +16,7 @@ import {
   Routes
 } from "discord.js";
 import { AttentionAlertError, AttentionAlertManager } from "./attention-alerts.mjs";
+import { claimWorkerWithRetry, WorkerLeaseSupervisor } from "./worker-lease.mjs";
 import { readConfig } from "./config.mjs";
 import { AttentionAlertRepository } from "./repository.mjs";
 import { buildDiscordLeaveRequestRecord, LeaveRequestValidationError, validateLeaveRequestFields } from "./leave-requests.mjs";
@@ -33,9 +34,8 @@ let leaseHealthy = false;
 let manager;
 let swatRoleIds = new Set();
 let stopPollTimer = null;
-let leaseRenewTimer = null;
+let leaseSupervisor = null;
 let stopping = false;
-let leaseRenewBusy = false;
 const instanceId = randomUUID();
 
 function safeLog(level, event, values = {}) {
@@ -364,28 +364,43 @@ function replyText(error) {
 }
 
 function startLeaseRenewal() {
-  if (leaseRenewTimer) return;
-  leaseRenewTimer = setInterval(async () => {
-    if (leaseRenewBusy || stopping) return;
-    leaseRenewBusy = true;
-    try {
-      const renewed = await repository.renewWorker(instanceId);
-      if (!renewed) throw new Error("worker_lease_lost");
-    } catch (error) {
+  if (leaseSupervisor) return;
+  leaseSupervisor = new WorkerLeaseSupervisor({
+    repository,
+    instanceId,
+    intervalMs: 5_000,
+    retryGraceMs: 45_000,
+    onRetry(error, elapsedMs) {
+      safeLog("warn", "attention_alert_worker_lease_renewal_retry", {
+        status: error?.status || null,
+        secondsSinceConfirmation: Math.floor(elapsedMs / 1_000)
+      });
+    },
+    onLost: async error => {
       leaseHealthy = false;
       process.exitCode = 1;
       safeLog("error", "attention_alert_worker_lease_lost", { status: error?.status || null });
       await shutdown("lease_lost");
-    } finally {
-      leaseRenewBusy = false;
     }
-  }, 3_000);
-  leaseRenewTimer.unref?.();
+  });
+  leaseSupervisor.start();
 }
 
 client.once(Events.ClientReady, async readyClient => {
   try {
-    const claimed = await repository.claimWorker(instanceId);
+    const claimed = await claimWorkerWithRetry(repository, instanceId, {
+      attempts: 24,
+      intervalMs: 3_000,
+      onRetry(error, attempt, reason) {
+        if (attempt === 1 || attempt % 5 === 0) {
+          safeLog("warn", "attention_alert_worker_claim_retry", {
+            attempt,
+            reason,
+            status: error?.status || null
+          });
+        }
+      }
+    });
     if (!claimed) {
       safeLog("error", "attention_alert_worker_lease_unavailable", { guildId: config.guildId });
       client.destroy();
@@ -505,7 +520,7 @@ async function shutdown(reason = "bot_shutdown") {
   if (stopping) return;
   stopping = true;
   clearInterval(stopPollTimer);
-  clearInterval(leaseRenewTimer);
+  leaseSupervisor?.stop();
   if (manager) await manager.stopAll(reason);
   if (leaseHealthy) {
     await repository.releaseWorker(instanceId).catch(error => {
