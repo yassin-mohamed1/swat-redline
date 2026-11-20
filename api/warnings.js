@@ -3,6 +3,7 @@ import { requireSameOrigin } from "../lib/request-security.js";
 import { discordApiRequest } from "../lib/discord-rest.js";
 import { forwardAuditToDiscord } from "../lib/audit-log.js";
 import { isWebsiteAdmin } from "../lib/portal-admin.js";
+import { deliverPendingAdminAlerts, queueAdminAlert } from "../lib/admin-alerts.js";
 
 const WARNING_LEVELS = [1, 2];
 
@@ -38,6 +39,7 @@ function config() {
   const token = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID;
   const channelId = process.env.DISCORD_WARNINGS_CHANNEL_ID;
+  const adminAlertsChannelId = process.env.DISCORD_ADMIN_ALERTS_CHANNEL_ID;
   const managerRoleId = process.env.DISCORD_WARNING_MANAGER_ROLE_ID;
   const botRoleId = process.env.DISCORD_BOT_ROLE_ID;
   const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
@@ -46,7 +48,7 @@ function config() {
     1: process.env.DISCORD_WARNING_ROLE_1_ID,
     2: process.env.DISCORD_WARNING_ROLE_2_ID
   };
-  if (!base || !key || !token || !guildId || !channelId || !managerRoleId ||
+  if (!base || !key || !token || !guildId || !channelId || !managerRoleId || !adminAlertsChannelId ||
       !/^\d{15,22}$/.test(String(swatRoleId || "")) ||
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
     return { error: "لم يتم إعداد نظام التحذيرات بالكامل." };
@@ -54,7 +56,7 @@ function config() {
   if (!/^\d{17,20}$/.test(String(notificationRoleId || ""))) {
     return { error: "تعذر تحديد رتبة SWAT الخاصة بمنشن الإعلانات. راجع إعداد DISCORD_NOTIFICATION_ROLE_ID." };
   }
-  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, notificationRoleId, warningRoles, swatRoleId };
+  return { base, key, token, guildId, channelId, adminAlertsChannelId, managerRoleId, botRoleId, notificationRoleId, warningRoles, swatRoleId };
 }
 async function db(cfg, path, init = {}) {
   return fetch(cfg.base + "/rest/v1/" + path, { ...init, headers: {
@@ -648,6 +650,106 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   }catch(error){console.error("Automatic attendance audit forwarding failed:",error?.message||"unknown");}
   return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmStatus,dm_error:dmError,channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0,manual_override:Boolean(manualOverride)};
 }
+async function processAttendanceAdminNotifications(cfg, dashboard) {
+  const adminConfig = {
+    base: cfg.base,
+    key: cfg.key,
+    token: cfg.token,
+    adminAlertsChannelId: cfg.adminAlertsChannelId
+  };
+  let warningRemindersQueued = 0;
+  let voiceMissesQueued = 0;
+  const activeMembers = (dashboard.members || []).filter(member =>
+    member.is_swat_member && !member.is_attendance_exempt && !member.is_on_approved_leave &&
+    member.discord_user_id !== process.env.DISCORD_OWNER_ID
+  );
+
+  for (const member of activeMembers) {
+    const currentLevel = member.warning_status === "dismissed" ? 0 : Number(member.warning_level || 0);
+    const stage = currentLevel + 1;
+    if (stage < 1 || stage > 3 || !member.absence_started_at) continue;
+    const lastActionMs = Date.parse(member.warning_updated_at || "");
+    const nextAllowedAt = currentLevel > 0 && Number.isFinite(lastActionMs)
+      ? lastActionMs + 7 * 86400000
+      : 0;
+    const days = Number(member.days_since_last || 0);
+    if (days !== stage * 7 - 1 || Date.now() < nextAllowedAt) continue;
+    const dueAt = new Date(Date.parse(member.absence_started_at) + stage * 7 * 86400000);
+    const stageLabel = stage === 1 ? "الإنذار الأول" : stage === 2 ? "الإنذار الثاني" : "الفصل التلقائي";
+    const result = await queueAdminAlert(adminConfig, {
+      alertKey: "warning-due:" + member.discord_user_id + ":" + stage + ":" + member.absence_started_at,
+      alertType: "warning_due",
+      discordUserId: member.discord_user_id,
+      payload: {
+        title: "⏰ تنبيه إداري مسبق — إجراء متوقع غدًا",
+        description: "يوجد عضو اقترب من استحقاق إجراء الغياب. هذا تنبيه للمراجعة المسبقة فقط، ولم يُنفذ الإجراء بعد.",
+        color: 0xD9A441,
+        fields: [
+          { name: "العضو", value: String(member.display_name || member.username || "عضو"), inline: true },
+          { name: "الإجراء المتوقع", value: stageLabel, inline: true },
+          { name: "أيام الغياب حتى الآن", value: String(days) + " أيام", inline: true },
+          { name: "آخر بصمة", value: member.last_attendance_at ? formatRiyadhDate(member.last_attendance_at) : "لا توجد بصمة سابقة", inline: true },
+          { name: "موعد الاستحقاق المتوقع", value: formatRiyadhDate(dueAt), inline: true }
+        ],
+        url: process.env.SITE_URL || "https://swat-redline.vercel.app",
+        buttonLabel: "مراجعة سجل الحضور"
+      }
+    });
+    if (result.queued) warningRemindersQueued++;
+  }
+
+  const today = riyadhDateKey(new Date());
+  const voiceQuery = new URLSearchParams({
+    attendance_date: "lt." + today,
+    voice_verification_status: "eq.pending",
+    voice_joined_at: "is.null",
+    select: "id,discord_user_id,display_name,attendance_date,first_seen_at",
+    order: "attendance_date.asc,first_seen_at.asc",
+    limit: "200"
+  });
+  const voiceResponse = await db(cfg, "attendance_records?" + voiceQuery.toString());
+  if (!voiceResponse.ok) throw new Error("تعذّر تحميل سجلات التحقق الصوتي المنتهية.");
+  const missedRows = await voiceResponse.json();
+  for (const row of missedRows) {
+    const result = await queueAdminAlert(adminConfig, {
+      alertKey: "voice-missing:" + row.discord_user_id + ":" + row.attendance_date,
+      alertType: "voice_missing",
+      discordUserId: row.discord_user_id,
+      payload: {
+        title: "⚠️ تنبيه حضور — لم يتم رصد دخول صوتي",
+        description: "سجّل العضو بصمته اليومية، لكن لم يُرصد دخوله إلى أي روم صوتية مؤهلة بعد البصمة وحتى نهاية يوم الحضور. لم يتم تسجيل أو حفظ أي صوت.",
+        color: 0xC94C4C,
+        fields: [
+          { name: "العضو", value: String(row.display_name || "عضو"), inline: true },
+          { name: "تاريخ البصمة", value: String(row.attendance_date), inline: true },
+          { name: "وقت البصمة", value: row.first_seen_at ? formatRiyadhDate(row.first_seen_at) : "غير متاح", inline: true },
+          { name: "حالة التحقق", value: "لم يدخل رومًا صوتيًا بعد البصمة قبل منتصف الليل", inline: false }
+        ],
+        url: process.env.SITE_URL || "https://swat-redline.vercel.app",
+        buttonLabel: "مراجعة سجل الحضور"
+      }
+    });
+    const patchQuery = new URLSearchParams({
+      id: "eq." + row.id,
+      voice_verification_status: "eq.pending",
+      voice_joined_at: "is.null"
+    });
+    const marked = await db(cfg, "attendance_records?" + patchQuery.toString(), {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        voice_verification_status: "notified",
+        voice_alert_queued_at: new Date().toISOString()
+      })
+    });
+    if (!marked.ok) throw new Error("تعذّر تثبيت حالة تنبيه الحضور الصوتي.");
+    if (result.queued) voiceMissesQueued++;
+  }
+
+  const delivery = await deliverPendingAdminAlerts(adminConfig, { limit: 20 });
+  return { warning_reminders_queued: warningRemindersQueued, voice_misses_queued: voiceMissesQueued, delivery };
+}
+
 async function processAutomaticAttendanceDiscipline(cfg) {
   const dashboard = await listAttendanceDashboard(cfg);
   const candidates = dashboard.members
