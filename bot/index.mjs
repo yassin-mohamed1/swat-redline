@@ -105,7 +105,7 @@ function buildLeaveRequestModal() {
     .setLabel("مدة الإجازة (عدد الأيام)")
     .setStyle(TextInputStyle.Short)
     .setMinLength(1)
-    .setMaxLength(3)
+    .setMaxLength(10)
     .setPlaceholder("مثال: 5")
     .setRequired(true);
 
@@ -194,6 +194,12 @@ async function handleLeaveRequestModal(interaction) {
     }
     if (!hasCurrentSwatRole(interaction, profile)) {
       throw new LeaveRequestValidationError("يجب أن تحمل رتبة S.W.A.T الحالية في Discord لتقديم طلب إجازة.", "missing_swat_role");
+    }
+
+    const duplicate = await repository.findLeaveRequestByInteraction(interaction.id);
+    if (duplicate) {
+      await interaction.editReply("✅ تم استلام هذا الطلب بالفعل. يمكنك متابعة حالته من صفحة **الإجازات** في الموقع.");
+      return;
     }
 
     const values = validateLeaveRequestFields({
