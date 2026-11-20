@@ -758,6 +758,9 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
 
 async function processAutomaticAttendanceDiscipline(cfg) {
   const dashboard = await listAttendanceDashboard(cfg);
+  let adminNotifications = null;
+  try { adminNotifications = await processAttendanceAdminNotifications(cfg, dashboard); }
+  catch (error) { console.error("S.W.A.T. admin attendance notifications failed:", error?.detail || error?.message || "unknown"); }
   const candidates = dashboard.members
     .filter(member => member.is_swat_member && !member.is_attendance_exempt && !member.is_on_approved_leave &&
       member.discord_user_id !== process.env.DISCORD_OWNER_ID)
@@ -776,7 +779,7 @@ async function processAutomaticAttendanceDiscipline(cfg) {
     .sort((a, b) => Number(b.days_since_last) - Number(a.days_since_last));
 
   if (!candidates.length) {
-    return { ok: true, scanned: dashboard.total_members, due: 0, processed: 0, warnings: 0, dismissed: 0, failed: 0 };
+    return { ok: true, scanned: dashboard.total_members, due: 0, processed: 0, warnings: 0, dismissed: 0, failed: 0, admin_notifications: adminNotifications };
   }
 
   const botUser = await discord(cfg, "/users/@me");
@@ -942,6 +945,7 @@ async function processAutomaticAttendanceDiscipline(cfg) {
     warnings,
     dismissed,
     failed,
+    admin_notifications: adminNotifications,
     results
   };
 }
