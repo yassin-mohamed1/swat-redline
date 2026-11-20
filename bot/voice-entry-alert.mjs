@@ -1,5 +1,5 @@
 function isSnowflake(value) {
-  return /^\\d{15,22}$/.test(String(value || ""));
+  return /^\d{15,22}$/.test(String(value || ""));
 }
 
 export function isTargetVoiceEntry({
@@ -23,8 +23,8 @@ export async function sendVoiceEntryDm({ client, recipientId, channelName, enter
   if (!client?.users?.fetch) throw new Error("voice_alert_client_unavailable");
 
   const safeChannelName = String(channelName || "روم صوتي")
-    .replace(/[\\r\\n]/g, " ")
-    .replace(/@/g, "@\\u200b")
+    .replace(/[\r\n]/g, " ")
+    .replace(/@/g, "@\u200b")
     .slice(0, 80);
   const date = enteredAt instanceof Date ? enteredAt : new Date(enteredAt || Date.now());
   if (Number.isNaN(date.getTime())) throw new Error("voice_alert_timestamp_invalid");
@@ -40,7 +40,9 @@ export async function sendVoiceEntryDm({ client, recipientId, channelName, enter
   }
 
   await recipient.send({
-    content: `🔔 **تنبيه دخول صوتي**\\nدخل العضو المحدد روم **${safeChannelName}**.\\nالوقت: ${localTime} (بتوقيت الرياض).`,
+    content: "🔔 **تنبيه دخول صوتي**\n" +
+      "دخل العضو المحدد روم **" + safeChannelName + "**.\n" +
+      "الوقت: " + localTime + " (بتوقيت الرياض).",
     allowedMentions: { parse: [] }
   });
   return true;
