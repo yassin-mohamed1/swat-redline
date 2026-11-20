@@ -1538,6 +1538,8 @@ export default async function handler(req, res) {
             status,
             start_date: updated.start_date,
             end_date: updated.end_date,
+            military_name: updated.military_name,
+            requested_duration_days: updated.requested_duration_days,
             approved_duration_days: updated.approved_duration_days,
             review_note: note
           }
@@ -1563,7 +1565,9 @@ export default async function handler(req, res) {
               : "تم رفض طلب الإجازة المقدم من قبلك.\n\n**سبب الرفض:** " + note,
             color: status === "approved" ? 0x239B72 : 0xD92735,
             fields: [
-              { name: "المدة", value: status === "approved" ? String(updated.approved_duration_days) + " يوم" : "—", inline: true },
+              { name: "الاسم العسكري", value: String(updated.military_name || "—").slice(0, 100), inline: true },
+              { name: "المدة المطلوبة", value: updated.requested_duration_days ? String(updated.requested_duration_days) + " يوم" : "—", inline: true },
+              { name: "المدة المعتمدة", value: status === "approved" ? String(updated.approved_duration_days) + " يوم" : "—", inline: true },
               { name: "سبب الطلب", value: String(updated.reason || "—").slice(0, 1000), inline: false },
               { name: "قرار الإدارة", value: String(updated.reviewed_by_name || "الإدارة"), inline: true }
             ],
