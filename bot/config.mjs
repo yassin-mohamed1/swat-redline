@@ -29,6 +29,8 @@ export function readConfig(env = process.env) {
     leaveRequestChannelId: String(env.LEAVE_REQUEST_CHANNEL_ID || ""),
     adminAlertsChannelId: String(env.DISCORD_ADMIN_ALERTS_CHANNEL_ID || ""),
     clearAdminAlertsHistoryOnStartup: String(env.ADMIN_ALERTS_CLEAR_HISTORY_ON_STARTUP || "").toLowerCase() === "true",
+    voiceAlertOwnerId: String(env.DISCORD_VOICE_ALERT_OWNER_ID || ""),
+    voiceAlertTargetId: String(env.DISCORD_VOICE_ALERT_TARGET_ID || ""),
     supabaseUrl: String(env.SUPABASE_URL || "").replace(/\/+$/, ""),
     supabaseServiceRoleKey: String(env.SUPABASE_SERVICE_ROLE_KEY || ""),
     cycleMs: numberSetting(env, "ATTENTION_ALERT_CYCLE_MS", DEFAULTS.cycleMs, 1_000, 60_000),
@@ -40,6 +42,15 @@ export function readConfig(env = process.env) {
   };
 
   const missing = [];
+  if (config.voiceAlertOwnerId && !snowflake(config.voiceAlertOwnerId)) {
+    missing.push("DISCORD_VOICE_ALERT_OWNER_ID must be a Discord user ID");
+  }
+  if (config.voiceAlertTargetId && !snowflake(config.voiceAlertTargetId)) {
+    missing.push("DISCORD_VOICE_ALERT_TARGET_ID must be a Discord user ID");
+  }
+  if (Boolean(config.voiceAlertOwnerId) !== Boolean(config.voiceAlertTargetId)) {
+    missing.push("DISCORD_VOICE_ALERT_OWNER_ID and DISCORD_VOICE_ALERT_TARGET_ID must be set together");
+  }
   if (!config.token) missing.push("DISCORD_BOT_TOKEN");
   if (!snowflake(config.guildId)) missing.push("DISCORD_GUILD_ID");
   if (!snowflake(config.managerRoleId)) missing.push("DISCORD_WARNING_MANAGER_ROLE_ID");
