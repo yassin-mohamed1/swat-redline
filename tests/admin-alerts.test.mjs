@@ -43,10 +43,8 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
   assert.match(warnings, /voice_check_status: "eq.pending"/);
   assert.match(warnings, /voice_check_status: "alerted"/);
   assert.match(statusMigration, /voice_check_status = 'confirmed'/);
-  assert.match(index, /التحقق من دخول الصوت بعد البصمة/);
-  assert.match(index, /باستثناء روم AFK/);
-  assert.match(index, /Post-Stamp Voice Check/);
-  assert.match(index, /It does not record or listen to audio/);
+  assert.match(index, /id="page-rules"/);
+  assert.doesNotMatch(index, /التحقق من دخول الصوت بعد البصمة|باستثناء روم AFK|Post-Stamp Voice Check|must join at least one voice channel|It does not record or listen to audio/);
   assert.match(bot, /Events\.VoiceStateUpdate/);
   assert.match(bot, /newState\.guild\.afkChannelId/);
   assert.match(bot, /recordAttendanceVoiceJoinEvent/);
