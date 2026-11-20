@@ -193,6 +193,16 @@ async function setAdminAlertsChannelPrivacy(channel, guild, botMember) {
       const member = guild.members.cache.get(overwrite.id) ||
         await guild.members.fetch(overwrite.id).catch(() => null);
       if (member?.permissions?.has(PermissionFlagsBits.Administrator)) continue;
+      if (member?.roles?.cache?.has(config.managerRoleId)) {
+        await channel.permissionOverwrites.edit(overwrite.id, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true,
+          EmbedLinks: true,
+          AttachFiles: true
+        }, { reason: "Allow S.W.A.T. managers to review administrator alerts" });
+        continue;
+      }
     }
     await channel.permissionOverwrites.edit(overwrite.id, {
       ViewChannel: false
