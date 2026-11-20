@@ -191,7 +191,11 @@ async function prepareAdminAlertsChannel(guild) {
       allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.EmbedLinks, PermissionFlagsBits.ManageMessages]
     }
   ], "S.W.A.T. REDLINE admin alerts channel privacy");
-  const overwrites = await channel.permissionOverwrites.fetch();
+  const refreshedChannel = await guild.channels.fetch(channel.id, { force: true });
+  if (!refreshedChannel || !refreshedChannel.permissionOverwrites?.cache) {
+    throw new Error("admin_alerts_channel_overwrites_unavailable_after_update");
+  }
+  const overwrites = refreshedChannel.permissionOverwrites.cache;
   const everyoneOverwrite = overwrites.get(guild.id);
   const managerOverwrite = overwrites.get(managerRole.id);
   const botOverwrite = overwrites.get(client.user.id);
@@ -203,10 +207,10 @@ async function prepareAdminAlertsChannel(guild) {
     throw new Error("admin_alerts_channel_privacy_verification_failed");
   }
   const required = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks];
-  const current = channel.permissionsFor(botMember);
+  const current = refreshedChannel.permissionsFor(botMember);
   if (!current?.has(required)) throw new Error("admin_alerts_channel_permissions_missing");
-  safeLog("info", "admin_alerts_channel_privacy_verified", { channelId: channel.id, managerRoleId: managerRole.id });
-  return channel;
+  safeLog("info", "admin_alerts_channel_privacy_verified", { channelId: refreshedChannel.id, managerRoleId: managerRole.id });
+  return refreshedChannel;
 }
 
 async function clearAdminAlertsChannelHistoryOnce(guild, channel) {
