@@ -512,7 +512,7 @@ client.on(Events.VoiceStateUpdate, (oldState, newState) => {
   if (!leaseHealthy || stopping || newState.guild?.id !== config.guildId) return;
   if (!newState.channelId || oldState.channelId === newState.channelId) return;
   const channelName = String(newState.channel?.name || "");
-  const isAfk = newState.channelId === newState.guild.afkChannelId || /^afk(?:\\b|[-_ ])/i.test(channelName);
+  const isAfk = newState.channelId === newState.guild.afkChannelId || /^afk(?:\b|[-_ ])/i.test(channelName);
   if (isAfk) return;
 
   const currentRoles = roleIds({ member: newState.member });
