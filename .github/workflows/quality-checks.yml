@@ -39,4 +39,5 @@ jobs:
           node --check bot/attention-alerts.mjs
           node --check bot/config.mjs
           node --check bot/repository.mjs
+          node --check bot/leave-requests.mjs
           node --test bot/*.test.mjs
