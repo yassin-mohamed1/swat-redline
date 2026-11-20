@@ -49,7 +49,6 @@ function config() {
     2: process.env.DISCORD_WARNING_ROLE_2_ID
   };
   if (!base || !key || !token || !guildId || !channelId || !managerRoleId ||
-      !/^\d{15,22}$/.test(String(adminAlertsChannelId || "")) ||
       !/^\d{15,22}$/.test(String(swatRoleId || "")) ||
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
     return { error: "لم يتم إعداد نظام التحذيرات بالكامل." };
@@ -652,6 +651,9 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmStatus,dm_error:dmError,channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0,manual_override:Boolean(manualOverride)};
 }
 async function processAttendanceAdminNotifications(cfg, dashboard) {
+  if (!/^\d{15,22}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+    return { skipped: "admin_alert_channel_not_configured" };
+  }
   const adminConfig = {
     base: cfg.base,
     key: cfg.key,
