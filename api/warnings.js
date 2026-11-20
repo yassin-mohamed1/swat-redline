@@ -249,6 +249,17 @@ async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
     member.discord_user_id !== process.env.DISCORD_OWNER_ID &&
     member.absence_started_at
   );
+  const approvedLeavesById = new Map();
+  if (candidates.length) {
+    const leaveResponse = await db(cfg, "attendance_leave_requests?status=eq.approved&select=discord_user_id,start_date,end_date,cutoff_date&limit=2000");
+    if (!leaveResponse.ok) throw new Error("تعذّر التحقق من الإجازات القادمة قبل إرسال تنبيهات الإنذار.");
+    for (const leave of await leaveResponse.json()) {
+      const id = String(leave.discord_user_id || "");
+      if (!id) continue;
+      if (!approvedLeavesById.has(id)) approvedLeavesById.set(id, []);
+      approvedLeavesById.get(id).push(leave);
+    }
+  }
 
   for (const member of candidates) {
     scanned++;
@@ -270,6 +281,14 @@ async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
     if (await isAttendanceExempt(cfg, member.discord_user_id)) continue;
 
     const targetDate = new Date(targetMs);
+    const targetDateKey = riyadhDateKey(targetDate);
+    const leaveCoversTarget = (approvedLeavesById.get(String(member.discord_user_id)) || []).some(leave => {
+      const start = String(leave.start_date || "");
+      const end = String(leave.end_date || "");
+      const cutoff = String(leave.cutoff_date || "");
+      return Boolean(start && start <= targetDateKey && (cutoff ? cutoff > targetDateKey : end >= targetDateKey));
+    });
+    if (leaveCoversTarget) continue;
     const actionLabel = stage === 1 ? "الإنذار الأول" : stage === 2 ? "الإنذار الثاني" : "الفصل التلقائي (المرحلة الثالثة)";
     const eventKey = "attendance-warning-prealert:" + member.discord_user_id + ":" + stage + ":" + member.absence_started_at;
     const claim = await claimAdminAlert(cfg, eventKey, "warning_due_soon", member.discord_user_id, {
