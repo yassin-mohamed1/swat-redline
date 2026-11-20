@@ -90,6 +90,51 @@ export class AttentionAlertRepository {
     }, "Mark stale attention alerts interrupted");
   }
 
+  async getActiveStaffProfile(userId) {
+    if (!/^\d{15,22}$/.test(String(userId || ""))) return null;
+    const query = new URLSearchParams({
+      discord_user_id: "eq." + String(userId),
+      is_active: "eq.true",
+      is_banned: "eq.false",
+      select: "discord_user_id,display_name,username,avatar_url,discord_roles",
+      limit: "1"
+    });
+    const rows = await this.request("staff_profiles?" + query, {}, "Read active staff profile for leave request");
+    return rows[0] || null;
+  }
+
+  async findPendingLeaveRequest(userId) {
+    const query = new URLSearchParams({
+      discord_user_id: "eq." + String(userId),
+      status: "eq.pending",
+      select: "id,created_at",
+      order: "created_at.desc",
+      limit: "1"
+    });
+    const rows = await this.request("attendance_leave_requests?" + query, {}, "Check pending leave request");
+    return rows[0] || null;
+  }
+
+  async findLeaveRequestByInteraction(interactionId) {
+    const query = new URLSearchParams({
+      discord_interaction_id: "eq." + String(interactionId),
+      select: "id,status",
+      limit: "1"
+    });
+    const rows = await this.request("attendance_leave_requests?" + query, {}, "Check duplicate leave modal submission");
+    return rows[0] || null;
+  }
+
+  async createLeaveRequest(record) {
+    const rows = await this.request("attendance_leave_requests?select=id,status,discord_user_id", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(record)
+    }, "Create Discord leave request");
+    if (!Array.isArray(rows) || !rows[0]) throw new Error("Create leave request returned no row.");
+    return rows[0];
+  }
+
   async leaseRpc(name, instanceId) {
     return this.request(`rpc/${name}`, {
       method: "POST",

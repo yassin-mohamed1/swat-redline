@@ -3613,9 +3613,14 @@ function renderAttendanceLeaveRows(){
    ?'<img src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex:0 0 38px">'
    :'<span style="width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#242830;flex:0 0 38px">👤</span>';
   const submitted=item.submitted_at||item.created_at;
-  const dateRange=item.start_date&&item.end_date
-   ?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>'+(wasCut?'<div class="attendance-admin-meta">'+(cancelled?'لا توجد أيام إجازة محتسبة':'تتوقف من: '+adminEscape(attendanceLeaveDate(item.cutoff_date))+' • آخر يوم مشمول: '+adminEscape(attendanceLeaveDate(attendanceLeavePreviousDate(item.cutoff_date))))+'</div>':'')
-   :'<span class="muted">تُحدد عند الموافقة</span>';
+  const requestedDays=Number(item.requested_duration_days);
+  const requestedDurationLabel=Number.isInteger(requestedDays)&&requestedDays>=1
+   ?'<div class="attendance-admin-meta">المدة المطلوبة: '+adminEscape(requestedDays)+' يوم</div>':'';
+  const militaryNameLabel=item.military_name
+   ?'<div class="attendance-admin-meta">الاسم العسكري: '+adminEscape(item.military_name)+'</div>':'';
+  const dateRange=(item.start_date&&item.end_date
+   ?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>'+(wasCut?'<div class="attendance-admin-meta">'+(cancelled?'لا توجد أيام إجازة محتسبة':'تتوقف من: '+adminEscape(attendanceLeaveDate(item.cutoff_date))+' • آخر يوم مشمول: '+adminEscape(attendanceLeavePreviousDate(item.cutoff_date)))+'</div>':'')
+   :'<span class="muted">تُحدد عند الموافقة</span>')+requestedDurationLabel;
   const originalLink=item.discord_message_url?'<div style="margin-top:7px"><a href="'+adminEscape(item.discord_message_url)+'" target="_blank" rel="noopener noreferrer">فتح الرسالة الأصلية في Discord ↗</a></div>':'';
   const sourceTag='<span class="attendance-admin-meta">'+sourceLabel+(submitted?' • '+adminEscape(fmtWarningDate(submitted)):'')+'</span>';
   const dmLabel=item.dm_status==='sent'?'وصلت رسالة الخاص':item.dm_status==='failed'?'فشل إرسال الخاص':item.dm_status==='skipped'?'الخاص غير مفعّل':'لم يُرسل الخاص بعد';
@@ -3629,7 +3634,7 @@ function renderAttendanceLeaveRows(){
    if(canCut)actions+='<div class="attendance-leave-actions" style="margin-top:8px"><button class="btn danger" type="button" onclick="openAttendanceLeaveCut(\''+adminEscape(item.id)+'\')">إلغاء أو قطع</button></div>';
    if(wasCut)actions+='<div class="attendance-admin-meta" style="margin-top:6px">'+cutDmLabel+'</div>'+(item.cut_dm_error?'<div class="attendance-admin-meta">'+adminEscape(item.cut_dm_error)+'</div>':'')+(item.cut_reason?'<div class="attendance-admin-meta">سبب الإلغاء أو القطع: '+adminEscape(item.cut_reason)+'</div>':'')+(item.cut_by_name?'<div class="attendance-admin-meta">بواسطة: '+adminEscape(item.cut_by_name)+'</div>':'');
   }
-  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><div class="attendance-name">'+adminEscape(item.display_name||'عضو')+'</div><div class="attendance-meta"><code>'+adminEscape(item.discord_user_id)+'</code></div>'+sourceTag+'</div></div></td><td>'+dateRange+'</td><td><div style="white-space:pre-wrap;word-break:break-word;max-width:460px;line-height:1.75">'+adminEscape(item.reason||'—')+'</div>'+originalLink+'</td><td><span class="attendance-leave-status '+(wasCut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+statusLabel+'</span></td><td>'+actions+'</td></tr>';
+  return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><div class="attendance-name">'+adminEscape(item.display_name||'عضو')+'</div>'+militaryNameLabel+'<div class="attendance-meta"><code>'+adminEscape(item.discord_user_id)+'</code></div>'+sourceTag+'</div></div></td><td>'+dateRange+'</td><td><div style="white-space:pre-wrap;word-break:break-word;max-width:460px;line-height:1.75">'+adminEscape(item.reason||'—')+'</div>'+originalLink+'</td><td><span class="attendance-leave-status '+(wasCut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+statusLabel+'</span></td><td>'+actions+'</td></tr>';
  }).join('')||'<tr><td colspan="5"><div class="empty">لا توجد طلبات إجازة حتى الآن.</div></td></tr>';
 }
 function updateMyAttendanceLeaveDateBounds(){
@@ -3680,7 +3685,10 @@ function renderMyAttendanceLeaveRequests(){
   const label=cut?(cancelled?'ملغاة':'مقطوعة'):item.status==='pending'?'قيد المراجعة':item.status==='approved'?'مقبول':item.status==='rejected'?'مرفوض':'ملغي';
   const dates=item.start_date&&item.end_date?adminEscape(attendanceLeaveDate(item.start_date))+'<div class="attendance-admin-meta">إلى '+adminEscape(attendanceLeaveDate(item.end_date))+'</div>'+(cut?'<div class="attendance-admin-meta">'+(cancelled?'لا توجد أيام إجازة محتسبة':'تتوقف من: '+adminEscape(attendanceLeaveDate(item.cutoff_date))+' • آخر يوم مشمول: '+adminEscape(attendanceLeaveDate(attendanceLeavePreviousDate(item.cutoff_date))))+'</div>':''):'<span class="muted">تُحدد عند الموافقة</span>';
   const notes=(item.review_note?'<div>'+adminEscape(item.review_note)+'</div>':'')+(item.cut_reason?'<div>'+adminEscape(item.cut_reason)+'</div>':'');
-  return '<tr><td>'+dates+'</td><td style="white-space:pre-wrap">'+adminEscape(item.reason||'—')+'</td><td><span class="attendance-leave-status '+(cut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+label+'</span></td><td>'+notes+'</td></tr>';
+  const requestDetails=(item.military_name?'<div>الاسم العسكري: '+adminEscape(item.military_name)+'</div>':'')+
+   (item.requested_duration_days?'<div>المدة المطلوبة: '+adminEscape(item.requested_duration_days)+' يوم</div>':'')+
+   '<div>'+adminEscape(item.reason||'—')+'</div>';
+  return '<tr><td>'+dates+'</td><td style="white-space:pre-wrap">'+requestDetails+'</td><td><span class="attendance-leave-status '+(cut?(cancelled?'cancelled':'cut'):adminEscape(item.status))+'">'+label+'</span></td><td>'+notes+'</td></tr>';
  }).join('')||'<tr><td colspan="4"><div class="empty">لم ترسل أي طلب إجازة حتى الآن.</div></td></tr>';
 }
 async function submitMyAttendanceLeaveRequest(){
@@ -3779,7 +3787,7 @@ function reviewAttendanceLeave(id,statusValue){
   const start=document.getElementById('attendanceLeaveReviewStart');
   const durationSelect=document.getElementById('attendanceLeaveReviewDuration');
   const custom=document.getElementById('attendanceLeaveCustomDays');
-  const existingDays=item.approved_duration_days||(item.start_date&&item.end_date
+  const existingDays=item.approved_duration_days||item.requested_duration_days||(item.start_date&&item.end_date
    ?Math.round((Date.parse(item.end_date+'T00:00:00Z')-Date.parse(item.start_date+'T00:00:00Z'))/86400000)+1:1);
   const commonDays=['1','2','3','10','30','60'];
   if(start)start.value=item.start_date||portalRiyadhToday();

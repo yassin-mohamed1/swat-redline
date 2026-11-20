@@ -1184,7 +1184,7 @@ export default async function handler(req, res) {
       await requireActiveStaff(cfg, user);
       const q = new URLSearchParams({
         discord_user_id: "eq." + user.id,
-        select: "id,reason,start_date,end_date,status,review_note,reviewed_at,cutoff_date,cut_reason,cut_dm_status,created_at",
+        select: "id,reason,military_name,requested_duration_days,start_date,end_date,status,review_note,reviewed_at,cutoff_date,cut_reason,cut_dm_status,created_at",
         order: "created_at.desc",
         limit: "100"
       });
@@ -1202,7 +1202,7 @@ export default async function handler(req, res) {
     }
     if (req.method === "GET" && params.get("leave_requests") === "1") {
       const q = new URLSearchParams({
-        select: "id,discord_user_id,display_name,avatar_url,reason,start_date,end_date,approved_duration_days,status,source,discord_channel_id,discord_message_id,discord_message_url,submitted_at,acknowledgement_message_id,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,cutoff_date,cut_by_discord_id,cut_by_name,cut_at,cut_reason,cut_dm_status,cut_dm_error,created_at",
+        select: "id,discord_user_id,display_name,military_name,requested_duration_days,avatar_url,reason,start_date,end_date,approved_duration_days,status,source,discord_channel_id,discord_message_id,discord_message_url,discord_interaction_id,submitted_at,acknowledgement_message_id,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,cutoff_date,cut_by_discord_id,cut_by_name,cut_at,cut_reason,cut_dm_status,cut_dm_error,created_at",
         order: "created_at.desc",
         limit: "500"
       });
@@ -1465,7 +1465,7 @@ export default async function handler(req, res) {
       const pendingQuery = new URLSearchParams({
         id: "eq." + requestId,
         status: "eq.pending",
-        select: "id,discord_user_id,display_name,reason,source",
+        select: "id,discord_user_id,display_name,military_name,requested_duration_days,reason,source",
         limit: "1"
       });
       const pendingResponse = await db(cfg, "attendance_leave_requests?" + pendingQuery.toString());
@@ -1538,6 +1538,8 @@ export default async function handler(req, res) {
             status,
             start_date: updated.start_date,
             end_date: updated.end_date,
+            military_name: updated.military_name,
+            requested_duration_days: updated.requested_duration_days,
             approved_duration_days: updated.approved_duration_days,
             review_note: note
           }
@@ -1563,7 +1565,9 @@ export default async function handler(req, res) {
               : "تم رفض طلب الإجازة المقدم من قبلك.\n\n**سبب الرفض:** " + note,
             color: status === "approved" ? 0x239B72 : 0xD92735,
             fields: [
-              { name: "المدة", value: status === "approved" ? String(updated.approved_duration_days) + " يوم" : "—", inline: true },
+              { name: "الاسم العسكري", value: String(updated.military_name || "—").slice(0, 100), inline: true },
+              { name: "المدة المطلوبة", value: updated.requested_duration_days ? String(updated.requested_duration_days) + " يوم" : "—", inline: true },
+              { name: "المدة المعتمدة", value: status === "approved" ? String(updated.approved_duration_days) + " يوم" : "—", inline: true },
               { name: "سبب الطلب", value: String(updated.reason || "—").slice(0, 1000), inline: false },
               { name: "قرار الإدارة", value: String(updated.reviewed_by_name || "الإدارة"), inline: true }
             ],
