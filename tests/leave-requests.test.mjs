@@ -115,7 +115,7 @@ test("Discord modal, same website review queue, and old-text intake retirement s
 
   assert.match(poller, /legacy_free_text_intake_disabled/);
   const processStart = poller.indexOf("async function processMessage(");
-  const processEnd = poller.indexOf("\\nexport async function handleLeaveRequestPoller", processStart);
+  const processEnd = poller.indexOf("\nexport async function handleLeaveRequestPoller", processStart);
   assert.ok(processStart >= 0 && processEnd > processStart);
   assert.doesNotMatch(poller.slice(processStart, processEnd), /createOrLoadRequest\(/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS military_name text/);
