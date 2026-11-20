@@ -11,7 +11,7 @@ test("voice verification uses the Riyadh calendar day boundary", () => {
 
 test("admin alert routing, voice verification, and one-time channel cleanup are wired together", async () => {
   const read = path => readFile(new URL(path, import.meta.url), "utf8");
-  const [notifications, poller, alerts, warnings, bot, config, repository, migration] = await Promise.all([
+  const [notifications, poller, alerts, warnings, bot, config, repository, migration, voiceMigration] = await Promise.all([
     read("../api/notifications/send.js"),
     read("../lib/leave-poller.js"),
     read("../lib/admin-alerts.js"),
@@ -19,7 +19,8 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
     read("../bot/index.mjs"),
     read("../bot/config.mjs"),
     read("../bot/repository.mjs"),
-    read("../supabase/migrations/20261120160000_admin_alerts_voice_attendance.sql")
+    read("../supabase/migrations/20261120160000_admin_alerts_voice_attendance.sql"),
+    read("../supabase/migrations/20261120180000_voice_join_event_race_protection.sql")
   ]);
 
   assert.match(notifications, /config\.notificationChannelId/);
@@ -29,6 +30,8 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
   assert.match(alerts, /resolution=ignore-duplicates/);
   assert.match(alerts, /status: "processing"/);
   assert.match(alerts, /next_attempt_at/);
+  assert.match(alerts, /ADMIN_ALERTS_ENABLED/);
+  assert.match(alerts, /if \(!config.enabled\)/);
   assert.match(warnings, /processAttendanceAdminNotifications/);
   assert.match(warnings, /processAttendanceAdminNotifications\(cfg, dashboard\)/);
   assert.match(warnings, /admin_notifications: adminNotifications/);
@@ -37,13 +40,19 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
   assert.match(warnings, /attendance_date: "lt\." \+ today/);
   assert.match(bot, /Events\.VoiceStateUpdate/);
   assert.match(bot, /newState\.guild\.afkChannelId/);
-  assert.match(bot, /markAttendanceVoiceJoin/);
+  assert.match(bot, /recordAttendanceVoiceJoinEvent/);
+  assert.match(bot, /admin_alerts_channel_manage_channels_missing/);
+  assert.match(bot, /admin_alerts_channel_privacy_verification_failed/);
   assert.match(bot, /channel\.permissionOverwrites\.set/);
   assert.match(bot, /clearAdminAlertsChannelHistoryOnce/);
   assert.match(config, /DISCORD_ADMIN_ALERTS_CHANNEL_ID/);
   assert.match(config, /ADMIN_ALERTS_CLEAR_HISTORY_ON_STARTUP/);
-  assert.match(repository, /voice_verification_status: "eq.pending"/);
-  assert.match(repository, /voice_verification_status: "verified"/);
+  assert.match(repository, /record_swat_attendance_voice_join/);
+  assert.match(repository, /p_event_key: eventKey/);
+  assert.match(voiceMigration, /CREATE TABLE IF NOT EXISTS public\.attendance_voice_join_events/);
+  assert.match(voiceMigration, /record_swat_attendance_voice_join/);
+  assert.match(voiceMigration, /attendance_match_voice_join_before_insert/);
+  assert.match(voiceMigration, /attendance_voice_join_apply_existing/);
   assert.match(migration, /voice_verification_status IN \('pending','verified','notified','legacy'\)/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.attendance_admin_alerts/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS admin_alert_queued_at timestamptz/);
