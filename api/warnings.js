@@ -48,7 +48,8 @@ function config() {
     1: process.env.DISCORD_WARNING_ROLE_1_ID,
     2: process.env.DISCORD_WARNING_ROLE_2_ID
   };
-  if (!base || !key || !token || !guildId || !channelId || !managerRoleId || !adminAlertsChannelId ||
+  if (!base || !key || !token || !guildId || !channelId || !managerRoleId ||
+      !/^\d{15,22}$/.test(String(adminAlertsChannelId || "")) ||
       !/^\d{15,22}$/.test(String(swatRoleId || "")) ||
       WARNING_LEVELS.some(level => !/^\d{15,22}$/.test(String(warningRoles[level] || "")))) {
     return { error: "لم يتم إعداد نظام التحذيرات بالكامل." };
@@ -673,8 +674,11 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
       ? lastActionMs + 7 * 86400000
       : 0;
     const days = Number(member.days_since_last || 0);
-    if (days !== stage * 7 - 1 || Date.now() < nextAllowedAt) continue;
-    const dueAt = new Date(Date.parse(member.absence_started_at) + stage * 7 * 86400000);
+    const absenceDueAt = Date.parse(member.absence_started_at) + stage * 7 * 86400000;
+    const dueAtMs = Math.max(absenceDueAt, nextAllowedAt);
+    const reminderAtMs = dueAtMs - 86400000;
+    if (days !== stage * 7 - 1 || Date.now() < reminderAtMs || Date.now() >= dueAtMs) continue;
+    const dueAt = new Date(dueAtMs);
     const stageLabel = stage === 1 ? "الإنذار الأول" : stage === 2 ? "الإنذار الثاني" : "الفصل التلقائي";
     const result = await queueAdminAlert(adminConfig, {
       alertKey: "warning-due:" + member.discord_user_id + ":" + stage + ":" + member.absence_started_at,
