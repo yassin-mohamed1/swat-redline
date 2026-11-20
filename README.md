@@ -166,6 +166,15 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 
 ## Leave Requests and Early Leave Cutoff
 
+- Staff submit a Discord leave request using the persistent green **طلب إجازة** button in `LEAVE_REQUEST_CHANNEL_ID`. The button opens a modal for the member's in-city military name, reason, and requested duration in days.
+- The bot validates an active staff portal profile and a current S.W.A.T. Discord role, accepts Arabic/Persian or English digits for the duration, and prevents a second pending request for the same member. Each modal interaction is stored idempotently in `attendance_leave_requests`.
+- Discord submissions use `source='discord'`, keep the requested duration separately from the approved dates, and remain `pending` until a Website Admin reviews them. The admin leave table shows the military name, reason, requested duration, and source. The approval dialog pre-fills the requested duration but allows the reviewer to change the start date and final duration.
+- The legacy free-text Discord intake is disabled. New messages in the leave room are directed to the green button; the existing poller remains active for channel cleanup.
+- The same website leave request ledger, review permissions, approval/rejection DMs, approved-leave attendance exemptions, and early-cutoff/audit behavior remain in use. The separate website leave form remains available.
+- Required Railway worker setting: `LEAVE_REQUEST_CHANNEL_ID`. The value must be the existing Discord leave room ID and must match the Vercel `LEAVE_REQUEST_CHANNEL_ID` used by the old cleanup poller.
+- Apply the migration `20261120130000_discord_leave_request_modal_fields.sql` to the same Supabase project before deploying the updated Railway worker and Vercel portal.
+
+
 - Staff can submit a leave request from the standalone **الإجازات** portal page and see only their own requests and decisions.
 - Only Website Admins (and the protected owner, following the existing admin access rule) can open the full request list, approve or reject requests, or cancel or end an approved leave.
 - An early cutoff preserves the original approved end date and records the cutoff date, admin, reason, Discord DM delivery state, and audit entry. The employee receives a Discord DM with the cancellation or last covered day.
