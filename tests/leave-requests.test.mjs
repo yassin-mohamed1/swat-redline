@@ -111,9 +111,15 @@ test("Discord modal, same website review queue, and old-text intake retirement s
   assert.match(api, /discord_interaction_id/);
   assert.match(api, /name: "الاسم العسكري"/);
   assert.match(api, /name: "المدة المطلوبة"/);
-  assert.match(html, /militaryNameLabel/);
-  assert.match(html, /requestedDurationLabel/);
+  assert.match(html, /leave-request-label">الاسم العسكري/);
+  assert.match(html, /leave-request-label">مدة الإجازة المطلوبة/);
+  assert.match(html, /leave-request-label">مدة الإجازة المعتمدة/);
+  assert.match(html, /leave-request-reason-text/);
+  assert.match(html, /attendanceLeaveReviewContext/);
+  assert.match(html, /attendanceLeaveSearch/);
+  assert.match(html, /attendanceLeaveFilter/);
   assert.match(html, /item\.approved_duration_days\|\|item\.requested_duration_days/);
+  assert.doesNotMatch(html, /const dateRange=.*requestedDurationLabel/);
 
   assert.match(poller, /legacy_free_text_intake_disabled/);
   const processStart = poller.indexOf("async function processMessage(");
