@@ -83,14 +83,16 @@ test("rejects malformed Discord references before a request can be stored", () =
 
 test("Discord modal, same website review queue, and old-text intake retirement stay connected", async () => {
   const read = path => readFile(new URL(path, import.meta.url), "utf8");
-  const [bot, repository, config, api, html, poller, migration] = await Promise.all([
+  const [bot, repository, config, api, html, poller, attendancePoller, migration, adminAlertsMigration] = await Promise.all([
     read("../bot/index.mjs"),
     read("../bot/repository.mjs"),
     read("../bot/config.mjs"),
     read("../api/warnings.js"),
     read("../index.html"),
     read("../lib/leave-poller.js"),
-    read("../supabase/migrations/20261120130000_discord_leave_request_modal_fields.sql")
+    read("../lib/attendance-poller.mjs"),
+    read("../supabase/migrations/20261120130000_discord_leave_request_modal_fields.sql"),
+    read("../supabase/migrations/20261120193000_admin_alerts_and_voice_attendance.sql")
   ]);
 
   assert.match(config, /leaveRequestChannelId: String\(env\.LEAVE_REQUEST_CHANNEL_ID \|\| ""\)/);
@@ -103,7 +105,7 @@ test("Discord modal, same website review queue, and old-text intake retirement s
   assert.match(bot, /interaction\.isModalSubmit\(\)/);
   assert.match(bot, /findLeaveRequestByInteraction/);
   assert.match(bot, /findPendingLeaveRequest/);
-  assert.match(bot, /repository\.createLeaveRequest\(record\)/);
+  assert.match(bot, /repository\.createLeaveRequest\(\{ \.\.\.record, admin_alert_status: "pending" \}\)/);
 
   assert.match(repository, /attendance_leave_requests\?select=id,status,discord_user_id/);
   assert.match(repository, /discord_interaction_id/);
@@ -129,4 +131,23 @@ test("Discord modal, same website review queue, and old-text intake retirement s
   assert.match(migration, /ADD COLUMN IF NOT EXISTS military_name text/);
   assert.match(migration, /ADD COLUMN IF NOT EXISTS requested_duration_days smallint/);
   assert.match(migration, /attendance_leave_requests_interaction_unique/);
+  assert.match(config, /adminAlertsChannelId: String\(env\.DISCORD_ADMIN_ALERTS_CHANNEL_ID \|\| ""\)/);
+  assert.match(bot, /Events\.VoiceStateUpdate/);
+  assert.match(bot, /guild\.afkChannelId/);
+  assert.match(bot, /ensureAdminAlertsChannel\(guild, botMember\)/);
+  assert.match(bot, /purgeAdminAlertsHistory/);
+  assert.match(bot, /sendLeaveRequestAdminAlert/);
+  assert.match(repository, /claim_swat_admin_alert/);
+  assert.match(repository, /markAttendanceVoiceJoined/);
+  assert.match(attendancePoller, /scheduleAttendanceVoiceCheck/);
+  assert.match(attendancePoller, /voice_check_deadline_at/);
+  assert.match(api, /processUpcomingAttendanceWarningAlerts/);
+  assert.match(api, /processPendingLeaveRequestAlerts/);
+  assert.match(api, /processExpiredAttendanceVoiceChecks/);
+  assert.match(api, /adminAlertsChannelId/);
+  assert.match(adminAlertsMigration, /attendance_admin_alert_claims/);
+  assert.match(adminAlertsMigration, /voice_check_status/);
+  assert.match(adminAlertsMigration, /admin_alert_status/);
+  assert.match(adminAlertsMigration, /claim_swat_admin_alert/);
+  assert.match(adminAlertsMigration, /discord_admin_channel_setup/);
 });

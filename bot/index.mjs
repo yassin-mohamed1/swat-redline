@@ -5,6 +5,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   Client,
+  EmbedBuilder,
   Events,
   GatewayIntentBits,
   MessageFlags,
@@ -31,6 +32,7 @@ const repository = new AttentionAlertRepository({
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
 let leaseHealthy = false;
 let manager;
+let adminAlertsChannelReady = false;
 let swatRoleIds = new Set();
 let stopPollTimer = null;
 let leaseRenewTimer = null;
@@ -162,6 +164,174 @@ async function ensureLeaveRequestPanel(guild) {
   return panel;
 }
 
+async function setAdminAlertsChannelPrivacy(channel, guild, botMember) {
+  const managerRole = await guild.roles.fetch(config.managerRoleId).catch(() => null);
+  if (!managerRole) throw new Error("admin_alerts_manager_role_missing");
+
+  await channel.permissionOverwrites.edit(botMember.id, {
+    ViewChannel: true,
+    SendMessages: true,
+    ReadMessageHistory: true,
+    EmbedLinks: true,
+    ManageMessages: true
+  }, { reason: "Configure private S.W.A.T. administrator alerts" });
+
+  await channel.permissionOverwrites.edit(managerRole.id, {
+    ViewChannel: true,
+    SendMessages: true,
+    ReadMessageHistory: true,
+    EmbedLinks: true,
+    AttachFiles: true
+  }, { reason: "Allow S.W.A.T. managers to review administrator alerts" });
+
+  const overwrites = [...channel.permissionOverwrites.cache.values()];
+  for (const overwrite of overwrites) {
+    if (overwrite.id === guild.id || overwrite.id === botMember.id || overwrite.id === managerRole.id) continue;
+    if (overwrite.type === 0) {
+      const role = guild.roles.cache.get(overwrite.id);
+      if (role?.permissions?.has(PermissionFlagsBits.Administrator)) continue;
+    } else {
+      const member = guild.members.cache.get(overwrite.id) ||
+        await guild.members.fetch(overwrite.id).catch(() => null);
+      if (member?.permissions?.has(PermissionFlagsBits.Administrator)) continue;
+      if (member?.roles?.cache?.has(config.managerRoleId)) {
+        await channel.permissionOverwrites.edit(overwrite.id, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true,
+          EmbedLinks: true,
+          AttachFiles: true
+        }, { reason: "Allow S.W.A.T. managers to review administrator alerts" });
+        continue;
+      }
+    }
+    await channel.permissionOverwrites.edit(overwrite.id, {
+      ViewChannel: false
+    }, { reason: "Restrict S.W.A.T. administrator alerts to managers and server administrators" });
+  }
+
+  await channel.permissionOverwrites.edit(guild.id, {
+    ViewChannel: false
+  }, { reason: "Make S.W.A.T. administrator alerts private" });
+}
+
+async function purgeAdminAlertsHistory(channel) {
+  const maxPages = 10_000;
+  let before;
+  let scanned = 0;
+  let deleted = 0;
+  for (let pageNumber = 0; pageNumber < maxPages; pageNumber++) {
+    const page = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+    if (!page.size) return { scanned, deleted };
+
+    const ids = [...page.keys()];
+    let oldestId = ids[0];
+    for (const id of ids) if (BigInt(id) < BigInt(oldestId)) oldestId = id;
+
+    const bulk = page.filter(message => Date.now() - message.createdTimestamp < 14 * 24 * 60 * 60 * 1000);
+    const individual = page.filter(message => Date.now() - message.createdTimestamp >= 14 * 24 * 60 * 60 * 1000);
+    if (bulk.size) {
+      const removed = await channel.bulkDelete(bulk, true);
+      deleted += removed.size;
+    }
+    for (const message of individual.values()) {
+      try {
+        await message.delete();
+        deleted++;
+      } catch (error) {
+        if (Number(error?.code) !== 10008) throw error;
+      }
+    }
+    scanned += page.size;
+    before = oldestId;
+    safeLog("info", "admin_alerts_channel_cleanup_progress", {
+      channelId: channel.id,
+      pages: pageNumber + 1,
+      scanned,
+      deleted
+    });
+    if (page.size < 100) return { scanned, deleted };
+  }
+  throw new Error("admin_alerts_channel_cleanup_page_limit_reached");
+}
+
+async function ensureAdminAlertsChannel(guild, botMember) {
+  const channel = await guild.channels.fetch(config.adminAlertsChannelId).catch(() => null);
+  if (!channel || !channel.isTextBased?.() || !channel.messages || typeof channel.send !== "function") {
+    throw new Error("admin_alerts_channel_unavailable");
+  }
+
+  await setAdminAlertsChannelPrivacy(channel, guild, botMember);
+  await repository.saveAdminChannelSetup(channel.id, { privacy_configured_at: new Date().toISOString() });
+
+  const setup = await repository.getAdminChannelSetup(channel.id);
+  if (!setup?.history_cleared_at) {
+    safeLog("info", "admin_alerts_channel_cleanup_started", { channelId: channel.id });
+    const result = await purgeAdminAlertsHistory(channel);
+    await repository.saveAdminChannelSetup(channel.id, {
+      history_cleared_at: new Date().toISOString(),
+      deleted_message_count: Number(result.deleted || 0),
+      privacy_configured_at: new Date().toISOString()
+    });
+    safeLog("info", "admin_alerts_channel_cleanup_completed", {
+      channelId: channel.id,
+      scanned: result.scanned,
+      deleted: result.deleted
+    });
+  } else {
+    safeLog("info", "admin_alerts_channel_ready", { channelId: channel.id, historyAlreadyCleared: true });
+  }
+
+  return channel;
+}
+
+async function sendLeaveRequestAdminAlert(interaction, request, values) {
+  if (!adminAlertsChannelReady) return false;
+  const eventKey = "leave-request:" + String(request.id);
+  const claim = await repository.claimAdminAlert(eventKey, "leave_request", interaction.user.id, {
+    request_id: request.id,
+    source: "discord"
+  });
+  if (!claim?.claimed) return false;
+
+  try {
+    const channel = await interaction.guild.channels.fetch(config.adminAlertsChannelId);
+    if (!channel || !channel.isTextBased?.() || typeof channel.send !== "function") {
+      throw new Error("admin_alerts_channel_unavailable");
+    }
+    const memberName = String(interaction.member?.displayName || interaction.user.globalName || interaction.user.username || "عضو");
+    const embed = new EmbedBuilder()
+      .setColor(0x22c55e)
+      .setTitle("📋 طلب إجازة جديد")
+      .setDescription("وصل طلب إجازة جديد إلى الموقع ويحتاج إلى مراجعة الإدارة.")
+      .addFields(
+        { name: "المتقدم", value: memberName + " • <@" + interaction.user.id + ">", inline: false },
+        { name: "الاسم العسكري", value: String(values.militaryName).slice(0, 100), inline: true },
+        { name: "المدة المطلوبة", value: String(values.durationDays) + " يوم", inline: true },
+        { name: "سبب الإجازة", value: String(values.reason).slice(0, 1024), inline: false }
+      )
+      .setFooter({ text: "S.W.A.T. REDLINE • طلب جديد • راجع صفحة الإجازات" })
+      .setTimestamp(new Date());
+
+    await channel.send({
+      content: "<@&" + config.managerRoleId + "> 📌 يوجد طلب إجازة جديد يحتاج إلى مراجعتكم.",
+      embeds: [embed],
+      allowedMentions: { parse: [], roles: [config.managerRoleId] }
+    });
+    await repository.markLeaveAdminAlertSent(request.id);
+    await repository.completeAdminAlert(eventKey, true);
+    return true;
+  } catch (error) {
+    await repository.completeAdminAlert(eventKey, false, String(error?.code || error?.status || error?.message || "leave_admin_alert_failed").slice(0, 160)).catch(() => {});
+    safeLog("error", "leave_request_admin_alert_failed", {
+      requestId: request.id,
+      status: error?.status || null,
+      code: error?.code || null
+    });
+    return false;
+  }
+}
+
 async function handleLeaveRequestButton(interaction) {
   if (!interaction.inGuild() || interaction.guildId !== config.guildId ||
       interaction.channelId !== config.leaveRequestChannelId) {
@@ -224,7 +394,10 @@ async function handleLeaveRequestModal(interaction) {
       reason: values.reason,
       durationDays: values.durationDays
     });
-    const created = await repository.createLeaveRequest(record);
+    const created = await repository.createLeaveRequest({ ...record, admin_alert_status: "pending" });
+    await sendLeaveRequestAdminAlert(interaction, created, values).catch(error => {
+      safeLog("error", "leave_request_admin_alert_unhandled", { requestId: created.id, status: error?.status || null });
+    });
     await interaction.editReply("✅ تم استلام طلب الإجازة وإرساله إلى الإدارة. يمكنك متابعة القرار من صفحة **الإجازات** في الموقع.");
     safeLog("info", "leave_request_submitted", {
       requestId: created.id,
@@ -300,6 +473,18 @@ client.once(Events.ClientReady, async readyClient => {
     if (!botMember) throw new Error("bot_member_lookup_failed");
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     try {
+      await ensureAdminAlertsChannel(guild, botMember);
+      adminAlertsChannelReady = true;
+    } catch (adminChannelError) {
+      adminAlertsChannelReady = false;
+      safeLog("error", "admin_alerts_channel_setup_failed", {
+        channelId: config.adminAlertsChannelId,
+        status: adminChannelError?.status || null,
+        code: adminChannelError?.code || null,
+        message: adminChannelError?.message || "unknown"
+      });
+    }
+    try {
       swatRoleIds = await loadSwatRoleIds(guild);
       await ensureLeaveRequestPanel(guild);
     } catch (leavePanelError) {
@@ -321,6 +506,32 @@ client.once(Events.ClientReady, async readyClient => {
     await shutdown("startup_failed");
     process.exitCode = 1;
   }
+});
+
+client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+  if (!leaseHealthy || stopping || newState.guild?.id !== config.guildId) return;
+  if (!newState.channelId || oldState.channelId === newState.channelId) return;
+  const channelName = String(newState.channel?.name || "");
+  const isAfk = newState.channelId === newState.guild.afkChannelId || /^afk(?:\b|[-_ ])/i.test(channelName);
+  if (isAfk) return;
+
+  const currentRoles = roleIds({ member: newState.member });
+  if (swatRoleIds.size && ![...swatRoleIds].some(id => currentRoles.includes(id))) return;
+
+  void repository.markAttendanceVoiceJoined(newState.id, new Date())
+    .then(rows => {
+      if (Array.isArray(rows) && rows.length) {
+        safeLog("info", "attendance_voice_requirement_confirmed", {
+          userId: newState.id,
+          attendanceDate: rows[0].attendance_date
+        });
+      }
+    })
+    .catch(error => safeLog("warn", "attendance_voice_confirmation_failed", {
+      userId: newState.id,
+      status: error?.status || null,
+      operation: error?.operation || null
+    }));
 });
 
 client.on(Events.InteractionCreate, async interaction => {

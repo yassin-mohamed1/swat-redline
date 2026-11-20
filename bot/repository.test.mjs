@@ -67,3 +67,73 @@ test("finds one existing pending leave request before allowing another submissio
   const pending = await repository.findPendingLeaveRequest("22345678901234567");
   assert.equal(pending.id, "leave-pending");
 });
+
+test("claims admin notifications idempotently and completes delivery", async () => {
+  const calls = [];
+  const repository = new AttentionAlertRepository({
+    baseUrl: "https://database.test",
+    serviceRoleKey: "test-only-service-key",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify({ claimed: true, status: "processing" }), { status: 200 });
+    }
+  });
+  const result = await repository.claimAdminAlert("leave-request:request-1", "leave_request", "22345678901234567", { request_id: "request-1" });
+  assert.equal(result.claimed, true);
+  assert.match(calls[0].url, /rpc\/claim_swat_admin_alert$/);
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    p_event_key: "leave-request:request-1",
+    p_alert_type: "leave_request",
+    p_discord_user_id: "22345678901234567",
+    p_payload: { request_id: "request-1" }
+  });
+  await repository.completeAdminAlert("leave-request:request-1", true);
+  assert.match(calls[1].url, /rpc\/complete_swat_admin_alert$/);
+  assert.deepEqual(JSON.parse(calls[1].init.body), {
+    p_event_key: "leave-request:request-1",
+    p_success: true,
+    p_error_code: null
+  });
+});
+
+test("confirms a voice join only for the current Riyadh day after the attendance stamp", async () => {
+  const calls = [];
+  const repository = new AttentionAlertRepository({
+    baseUrl: "https://database.test",
+    serviceRoleKey: "test-only-service-key",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify([{ attendance_date: "2026-11-20", voice_check_status: "confirmed" }]), { status: 200 });
+    }
+  });
+  const rows = await repository.markAttendanceVoiceJoined("22345678901234567", new Date("2026-11-20T18:00:00.000Z"));
+  assert.equal(rows[0].voice_check_status, "confirmed");
+  assert.ok(calls[0].url.includes("attendance_records?"));
+  assert.match(calls[0].url, /voice_check_status=eq.pending/);
+  assert.match(calls[0].url, /voice_check_deadline_at=gt/);
+  assert.match(calls[0].url, /first_seen_at=lte/);
+  assert.equal(calls[0].init.method, "PATCH");
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    voice_check_status: "confirmed",
+    voice_joined_at: "2026-11-20T18:00:00.000Z"
+  });
+});
+
+test("persists one-time administrator channel cleanup state", async () => {
+  const calls = [];
+  const repository = new AttentionAlertRepository({
+    baseUrl: "https://database.test",
+    serviceRoleKey: "test-only-service-key",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify([{ channel_id: "62345678901234567", history_cleared_at: "2026-11-20T00:00:00.000Z" }]), { status: 200 });
+    }
+  });
+  const row = await repository.saveAdminChannelSetup("62345678901234567", {
+    history_cleared_at: "2026-11-20T00:00:00.000Z",
+    deleted_message_count: 12
+  });
+  assert.equal(row.channel_id, "62345678901234567");
+  assert.ok(calls[0].url.includes("discord_admin_channel_setup?on_conflict=channel_id"));
+  assert.match(calls[0].init.headers.Prefer, /resolution=merge-duplicates/);
+});

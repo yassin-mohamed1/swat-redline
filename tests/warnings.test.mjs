@@ -397,7 +397,7 @@ test("attendance dashboard is a separate page directly below warnings", async ()
 test("automatic attendance discipline reuses the existing warning ladder at 7, 14, and 21 days", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261110175528_attendance_disciplinary_automation.sql", import.meta.url), "utf8");
-  assert.match(api, /async function processAutomaticAttendanceDiscipline\(cfg\)/);
+  assert.match(api, /async function processAutomaticAttendanceDiscipline\(cfg(?:, dashboardInput = null)?\)/);
   assert.match(api, /member\.next_stage \* 7/);
   assert.match(api, /applyAutomaticAttendanceAction\(/);
   assert.match(api, /begin_disciplinary_action/);
@@ -405,7 +405,7 @@ test("automatic attendance discipline reuses the existing warning ladder at 7, 1
   assert.match(api, /updateMemberRoles\(cfg,discordUserId,level,actionType==="dismissal"\)/);
   assert.match(api, /await sendDirectNotice/);
   assert.match(api, /await sendAnnouncement/);
-  assert.match(api, /processAutomaticAttendanceDiscipline\(cronCfg\)/);
+  assert.match(api, /processAutomaticAttendanceDiscipline\(cronCfg, dashboard\)/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.attendance_discipline_claims/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.claim_swat_attendance_discipline/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.complete_swat_attendance_discipline/);
