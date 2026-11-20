@@ -41,6 +41,7 @@ function config() {
   const managerRoleId = process.env.DISCORD_WARNING_MANAGER_ROLE_ID;
   const botRoleId = process.env.DISCORD_BOT_ROLE_ID;
   const notificationRoleId = process.env.DISCORD_NOTIFICATION_ROLE_ID;
+  const adminAlertsChannelId = String(process.env.DISCORD_ADMIN_ALERTS_CHANNEL_ID || "");
   const swatRoleId = process.env.DISCORD_ROLE_ID;
   const warningRoles = {
     1: process.env.DISCORD_WARNING_ROLE_1_ID,
@@ -54,7 +55,7 @@ function config() {
   if (!/^\d{17,20}$/.test(String(notificationRoleId || ""))) {
     return { error: "تعذر تحديد رتبة SWAT الخاصة بمنشن الإعلانات. راجع إعداد DISCORD_NOTIFICATION_ROLE_ID." };
   }
-  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, notificationRoleId, warningRoles, swatRoleId };
+  return { base, key, token, guildId, channelId, managerRoleId, botRoleId, notificationRoleId, adminAlertsChannelId, warningRoles, swatRoleId };
 }
 async function db(cfg, path, init = {}) {
   return fetch(cfg.base + "/rest/v1/" + path, { ...init, headers: {
@@ -113,6 +114,268 @@ function discordAvatarUrl(member, guildId) {
   }
   return null;
 }
+function riyadhDateTime(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "غير محدد";
+  return new Intl.DateTimeFormat("ar-SA", {
+    timeZone: "Asia/Riyadh",
+    dateStyle: "full",
+    timeStyle: "short"
+  }).format(date);
+}
+
+async function claimAdminAlert(cfg, eventKey, alertType, userId, payload = {}) {
+  return rpc(cfg, "claim_swat_admin_alert", {
+    p_event_key: eventKey,
+    p_alert_type: alertType,
+    p_discord_user_id: userId || null,
+    p_payload: payload
+  });
+}
+
+async function completeAdminAlert(cfg, eventKey, success, errorCode = null) {
+  return rpc(cfg, "complete_swat_admin_alert", {
+    p_event_key: eventKey,
+    p_success: Boolean(success),
+    p_error_code: errorCode
+  });
+}
+
+async function sendAdminAlert(cfg, title, description, fields = [], userId = null) {
+  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+    throw Object.assign(new Error("admin_alerts_channel_not_configured"), { code: "admin_alerts_channel_not_configured" });
+  }
+  const content = "<@&" + cfg.managerRoleId + "> 🔔 تنبيه إداري جديد";
+  const embed = {
+    title: String(title || "تنبيه إداري").slice(0, 256),
+    description: String(description || "").slice(0, 4000),
+    color: 0xe0a43a,
+    fields: fields.slice(0, 25).map(field => ({
+      name: String(field.name || "تفاصيل").slice(0, 256),
+      value: String(field.value || "—").slice(0, 1024),
+      inline: Boolean(field.inline)
+    })),
+    footer: { text: "S.W.A.T. REDLINE • Admin Alerts" },
+    timestamp: new Date().toISOString()
+  };
+  const message = await discord(cfg, "/channels/" + cfg.adminAlertsChannelId + "/messages", {
+    method: "POST",
+    body: JSON.stringify({
+      content,
+      embeds: [embed],
+      components: portalLinkComponents(),
+      allowed_mentions: { parse: [], roles: [cfg.managerRoleId], users: [] }
+    })
+  });
+  if (!message?.id) throw Object.assign(new Error("admin_alert_message_not_confirmed"), { code: "admin_alert_message_not_confirmed" });
+  return message;
+}
+
+async function deliverPendingLeaveRequestAlert(cfg, item) {
+  const requestId = String(item.id || "");
+  if (!requestId) return { sent: false, skipped: true };
+  const eventKey = "leave-request:" + requestId;
+  const claim = await claimAdminAlert(cfg, eventKey, "leave_request", item.discord_user_id, { request_id: requestId });
+  if (!claim?.claimed) return { sent: false, skipped: true };
+  try {
+    const fields = [
+      { name: "المتقدم", value: String(item.display_name || "عضو") + "\\n<@" + item.discord_user_id + ">", inline: false }
+    ];
+    if (item.military_name) fields.push({ name: "الاسم العسكري", value: String(item.military_name), inline: true });
+    if (Number.isInteger(Number(item.requested_duration_days)) && Number(item.requested_duration_days) > 0) {
+      fields.push({ name: "المدة المطلوبة", value: Number(item.requested_duration_days) + " يوم", inline: true });
+    }
+    fields.push({ name: "مصدر الطلب", value: item.source === "discord" ? "Discord" : "الموقع", inline: true });
+    fields.push({ name: "سبب الإجازة", value: String(item.reason || "لم يُسجل سبب").slice(0, 1000), inline: false });
+    if (item.start_date && item.end_date) {
+      fields.push({ name: "الفترة المقترحة", value: String(item.start_date) + " — " + String(item.end_date), inline: false });
+    }
+    await sendAdminAlert(cfg, "📋 طلب إجازة جديد يحتاج إلى مراجعة", "تم استلام طلب إجازة جديد. افتح صفحة الإجازات في الموقع لاتخاذ قرار الموافقة أو الرفض.", fields, item.discord_user_id);
+    await completeAdminAlert(cfg, eventKey, true);
+    const update = await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId) + "&admin_alert_status=eq.pending", {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ admin_alert_status: "sent", admin_alert_error: null, updated_at: new Date().toISOString() })
+    });
+    if (!update.ok) console.error("Leave admin alert status update failed:", update.status);
+    return { sent: true, request_id: requestId };
+  } catch (error) {
+    const code = String(error?.code || error?.status || error?.message || "leave_admin_alert_failed").slice(0, 160);
+    await completeAdminAlert(cfg, eventKey, false, code).catch(() => {});
+    await db(cfg, "attendance_leave_requests?id=eq." + encodeURIComponent(requestId), {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ admin_alert_error: code, updated_at: new Date().toISOString() })
+    }).catch(() => {});
+    console.error("Leave request admin alert failed:", code);
+    return { sent: false, request_id: requestId, error: code };
+  }
+}
+
+async function processPendingLeaveRequestAlerts(cfg) {
+  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+    return { ok: false, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, sent: 0, failed: 0 };
+  }
+  const query = new URLSearchParams({
+    status: "eq.pending",
+    admin_alert_status: "eq.pending",
+    select: "id,discord_user_id,display_name,military_name,requested_duration_days,reason,start_date,end_date,source,created_at",
+    order: "created_at.asc",
+    limit: "50"
+  });
+  const response = await db(cfg, "attendance_leave_requests?" + query.toString());
+  if (!response.ok) throw new Error("تعذّر تحميل طلبات الإجازة لتنبيه الإدارة.");
+  const requests = await response.json();
+  let sent = 0, failed = 0;
+  for (const item of requests) {
+    const result = await deliverPendingLeaveRequestAlert(cfg, item);
+    if (result.sent) sent++;
+    else if (!result.skipped) failed++;
+  }
+  return { ok: failed === 0, scanned: requests.length, sent, failed };
+}
+
+async function processUpcomingAttendanceWarningAlerts(cfg, dashboard) {
+  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+    return { ok: false, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, sent: 0, failed: 0 };
+  }
+  const nowMs = Date.now();
+  const windowEnd = nowMs + 24 * 60 * 60 * 1000;
+  let scanned = 0, sent = 0, failed = 0;
+  const candidates = (dashboard?.members || []).filter(member =>
+    member.is_swat_member &&
+    !member.is_attendance_exempt &&
+    !member.is_on_approved_leave &&
+    member.discord_user_id !== process.env.DISCORD_OWNER_ID &&
+    member.absence_started_at
+  );
+
+  for (const member of candidates) {
+    scanned++;
+    const currentLevel = member.warning_status === "dismissed" ? 0 : Number(member.warning_level || 0);
+    const stage = currentLevel + 1;
+    if (stage < 1 || stage > 3) continue;
+    const absenceStartMs = Date.parse(member.absence_started_at);
+    if (!Number.isFinite(absenceStartMs)) continue;
+    const targetMs = absenceStartMs + stage * 7 * 24 * 60 * 60 * 1000;
+    if (targetMs <= nowMs || targetMs > windowEnd) continue;
+    const lastActionMs = Date.parse(member.warning_updated_at || "");
+    const nextAllowedAtMs = currentLevel > 0 && Number.isFinite(lastActionMs)
+      ? lastActionMs + 7 * 24 * 60 * 60 * 1000
+      : 0;
+    if (nextAllowedAtMs > targetMs) continue;
+
+    const latest = await latestAttendanceForMember(cfg, member.discord_user_id);
+    if ((latest?.first_seen_at || null) !== (member.last_attendance_at || null)) continue;
+    if (await isAttendanceExempt(cfg, member.discord_user_id)) continue;
+
+    const targetDate = new Date(targetMs);
+    const actionLabel = stage === 1 ? "الإنذار الأول" : stage === 2 ? "الإنذار الثاني" : "الفصل التلقائي (المرحلة الثالثة)";
+    const eventKey = "attendance-warning-prealert:" + member.discord_user_id + ":" + stage + ":" + member.absence_started_at;
+    const claim = await claimAdminAlert(cfg, eventKey, "warning_due_soon", member.discord_user_id, {
+      stage, target_at: targetDate.toISOString(), absence_started_at: member.absence_started_at
+    });
+    if (!claim?.claimed) continue;
+
+    try {
+      await sendAdminAlert(
+        cfg,
+        "⏰ إجراء تأديبي متوقع غدًا",
+        "تنبيه مسبق للإدارة: إذا لم يسجل العضو بصمته قبل الموعد المحدد، فسيصبح مؤهلًا للإجراء التأديبي التالي.",
+        [
+          { name: "العضو", value: String(member.display_name || "عضو") + "\\n<@" + member.discord_user_id + ">", inline: false },
+          { name: "الإجراء المتوقع", value: actionLabel, inline: true },
+          { name: "أيام الغياب الحالية", value: String(member.days_since_last || 0) + " يوم", inline: true },
+          { name: "آخر بصمة", value: member.last_attendance_at ? riyadhDateTime(member.last_attendance_at) : "لا توجد بصمة مسجلة", inline: false },
+          { name: "موعد استحقاق المرحلة", value: riyadhDateTime(targetDate), inline: false }
+        ],
+        member.discord_user_id
+      );
+      await completeAdminAlert(cfg, eventKey, true);
+      sent++;
+    } catch (error) {
+      failed++;
+      await completeAdminAlert(cfg, eventKey, false, String(error?.code || error?.status || error?.message || "warning_prealert_failed").slice(0, 160)).catch(() => {});
+      console.error("Upcoming attendance warning alert failed:", error?.message || "unknown");
+    }
+  }
+  return { ok: failed === 0, scanned, sent, failed };
+}
+
+async function processExpiredAttendanceVoiceChecks(cfg) {
+  if (!/^\\d{17,20}$/.test(String(cfg.adminAlertsChannelId || ""))) {
+    return { ok: false, skipped: true, reason: "admin_alerts_channel_not_configured", scanned: 0, alerted: 0, failed: 0 };
+  }
+  const query = new URLSearchParams({
+    voice_check_status: "eq.pending",
+    voice_check_deadline_at: "lte." + new Date().toISOString(),
+    select: "discord_user_id,attendance_date,display_name,first_seen_at,voice_check_deadline_at",
+    order: "voice_check_deadline_at.asc",
+    limit: "100"
+  });
+  const response = await db(cfg, "attendance_records?" + query.toString());
+  if (!response.ok) throw new Error("تعذّر تحميل سجلات التحقق الصوتي المستحقة.");
+  const rows = await response.json();
+  let alerted = 0, failed = 0;
+
+  for (const row of rows) {
+    const eventKey = "attendance-voice-missing:" + row.discord_user_id + ":" + row.attendance_date;
+    const claim = await claimAdminAlert(cfg, eventKey, "voice_attendance_missing", row.discord_user_id, {
+      attendance_date: row.attendance_date, stamped_at: row.first_seen_at
+    });
+    if (!claim?.claimed) continue;
+
+    try {
+      const latestQuery = new URLSearchParams({
+        discord_user_id: "eq." + row.discord_user_id,
+        attendance_date: "eq." + row.attendance_date,
+        select: "voice_check_status,voice_joined_at,voice_check_deadline_at",
+        limit: "1"
+      });
+      const latestResponse = await db(cfg, "attendance_records?" + latestQuery.toString());
+      if (!latestResponse.ok) throw new Error("voice_check_recheck_failed");
+      const latestRow = (await latestResponse.json())[0];
+      if (!latestRow || latestRow.voice_check_status !== "pending" || latestRow.voice_joined_at) {
+        await completeAdminAlert(cfg, eventKey, true);
+        continue;
+      }
+
+      await sendAdminAlert(
+        cfg,
+        "⚠️ بصمة بدون حضور صوتي",
+        "سجّل العضو بصمته اليومية، لكن لم يرصد النظام دخوله إلى أي روم صوتية مؤهلة قبل نهاية يوم البصمة. تم استثناء قناة AFK.",
+        [
+          { name: "العضو", value: String(row.display_name || "عضو") + "\\n<@" + row.discord_user_id + ">", inline: false },
+          { name: "تاريخ البصمة", value: String(row.attendance_date), inline: true },
+          { name: "وقت البصمة", value: riyadhDateTime(row.first_seen_at), inline: true },
+          { name: "انتهت مهلة التحقق", value: riyadhDateTime(row.voice_check_deadline_at), inline: false }
+        ],
+        row.discord_user_id
+      );
+
+      const updateQuery = new URLSearchParams({
+        discord_user_id: "eq." + row.discord_user_id,
+        attendance_date: "eq." + row.attendance_date,
+        voice_check_status: "eq.pending",
+        select: "discord_user_id"
+      });
+      const update = await db(cfg, "attendance_records?" + updateQuery.toString(), {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ voice_check_status: "alerted", voice_alerted_at: new Date().toISOString() })
+      });
+      if (!update.ok) throw new Error("voice_check_alert_status_update_failed");
+      await completeAdminAlert(cfg, eventKey, true);
+      alerted++;
+    } catch (error) {
+      failed++;
+      await completeAdminAlert(cfg, eventKey, false, String(error?.code || error?.status || error?.message || "voice_alert_failed").slice(0, 160)).catch(() => {});
+      console.error("Attendance voice alert failed:", error?.message || "unknown");
+    }
+  }
+  return { ok: failed === 0, scanned: rows.length, alerted, failed };
+}
+
 async function requireActiveStaff(cfg, user) {
   if (user.isOwner) return;
   const q = new URLSearchParams({ discord_user_id: "eq." + user.id, select: "is_active,is_banned", limit: "1" });
@@ -648,8 +911,8 @@ async function applyAutomaticAttendanceAction(cfg, actor, discordUserId, stage, 
   }catch(error){console.error("Automatic attendance audit forwarding failed:",error?.message||"unknown");}
   return {ok:completion.status==="completed",action_id:start.action_id,action_type:actionType,warning_level:actionType==="warning"?level:null,dm_status:dmStatus,dm_error:dmError,channel_status:"sent",removed_role_count:roleResult.removedRoleCount||0,manual_override:Boolean(manualOverride)};
 }
-async function processAutomaticAttendanceDiscipline(cfg) {
-  const dashboard = await listAttendanceDashboard(cfg);
+async function processAutomaticAttendanceDiscipline(cfg, dashboardInput = null) {
+  const dashboard = dashboardInput || await listAttendanceDashboard(cfg);
   const candidates = dashboard.members
     .filter(member => member.is_swat_member && !member.is_attendance_exempt && !member.is_on_approved_leave &&
       member.discord_user_id !== process.env.DISCORD_OWNER_ID)
@@ -1155,10 +1418,18 @@ export default async function handler(req, res) {
     if (cronCfg.error) return json(res, 503, { error: cronCfg.error });
     try {
       const expiry = await processExpiredWarningRoles(cronCfg);
-      const attendance = await processAutomaticAttendanceDiscipline(cronCfg);
+      const dashboard = await listAttendanceDashboard(cronCfg);
+      const upcomingAttendanceAlerts = await processUpcomingAttendanceWarningAlerts(cronCfg, dashboard);
+      const leaveRequestAlerts = await processPendingLeaveRequestAlerts(cronCfg);
+      const voiceAttendanceAlerts = await processExpiredAttendanceVoiceChecks(cronCfg);
+      const attendance = await processAutomaticAttendanceDiscipline(cronCfg, dashboard);
       return json(res, 200, {
-        ok: expiry.ok !== false && attendance.ok !== false,
+        ok: expiry.ok !== false && attendance.ok !== false &&
+          upcomingAttendanceAlerts.ok !== false && leaveRequestAlerts.ok !== false && voiceAttendanceAlerts.ok !== false,
         warning_role_expiry: expiry,
+        upcoming_attendance_alerts: upcomingAttendanceAlerts,
+        leave_request_alerts: leaveRequestAlerts,
+        voice_attendance_alerts: voiceAttendanceAlerts,
         attendance_discipline: attendance
       });
     } catch (error) {
@@ -1412,7 +1683,8 @@ export default async function handler(req, res) {
           reason,
           start_date: startDate,
           end_date: endDate,
-          status: "pending"
+          status: "pending",
+          ...(selfRequest ? { admin_alert_status: "pending" } : {})
         })
       });
       if (!insertResponse.ok) {
@@ -1420,6 +1692,17 @@ export default async function handler(req, res) {
         return json(res, 502, { error: "تعذّر تسجيل طلب الإجازة." });
       }
       const created = (await insertResponse.json())[0];
+      if (selfRequest && created?.id) {
+        await deliverPendingLeaveRequestAlert(cfg, {
+          ...created,
+          discord_user_id: targetId,
+          display_name: profile.display_name || profile.username || "SWAT Member",
+          reason,
+          start_date: startDate,
+          end_date: endDate,
+          source: "website"
+        }).catch(error => console.error("New leave request alert delivery failed:", error?.message || "unknown"));
+      }
       try { await appendAttendanceAdminAudit(cfg, user, {
         action: "create",
         entity_type: "attendance_leave_request",
