@@ -32,6 +32,7 @@ const repository = new AttentionAlertRepository({
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
 let leaseHealthy = false;
 let manager;
+let adminAlertsChannelReady = false;
 let swatRoleIds = new Set();
 let stopPollTimer = null;
 let leaseRenewTimer = null;
@@ -285,6 +286,7 @@ async function ensureAdminAlertsChannel(guild, botMember) {
 }
 
 async function sendLeaveRequestAdminAlert(interaction, request, values) {
+  if (!adminAlertsChannelReady) return false;
   const eventKey = "leave-request:" + String(request.id);
   const claim = await repository.claimAdminAlert(eventKey, "leave_request", interaction.user.id, {
     request_id: request.id,
@@ -470,7 +472,18 @@ client.once(Events.ClientReady, async readyClient => {
     const botMember = guild.members.me || await guild.members.fetchMe().catch(() => null);
     if (!botMember) throw new Error("bot_member_lookup_failed");
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
-    await ensureAdminAlertsChannel(guild, botMember);
+    try {
+      await ensureAdminAlertsChannel(guild, botMember);
+      adminAlertsChannelReady = true;
+    } catch (adminChannelError) {
+      adminAlertsChannelReady = false;
+      safeLog("error", "admin_alerts_channel_setup_failed", {
+        channelId: config.adminAlertsChannelId,
+        status: adminChannelError?.status || null,
+        code: adminChannelError?.code || null,
+        message: adminChannelError?.message || "unknown"
+      });
+    }
     try {
       swatRoleIds = await loadSwatRoleIds(guild);
       await ensureLeaveRequestPanel(guild);
