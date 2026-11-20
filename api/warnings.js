@@ -666,6 +666,7 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
     member.is_swat_member && !member.is_attendance_exempt && !member.is_on_approved_leave &&
     member.discord_user_id !== process.env.DISCORD_OWNER_ID
   );
+  const activeMemberIds = new Set(activeMembers.map(member => String(member.discord_user_id)));
 
   for (const member of activeMembers) {
     const currentLevel = member.warning_status === "dismissed" ? 0 : Number(member.warning_level || 0);
@@ -717,6 +718,19 @@ async function processAttendanceAdminNotifications(cfg, dashboard) {
   if (!voiceResponse.ok) throw new Error("تعذّر تحميل سجلات التحقق الصوتي المنتهية.");
   const missedRows = await voiceResponse.json();
   for (const row of missedRows) {
+    if (!activeMemberIds.has(String(row.discord_user_id))) {
+      const legacyQuery = new URLSearchParams({
+        id: "eq." + row.id,
+        voice_verification_status: "eq.pending",
+        voice_joined_at: "is.null"
+      });
+      await db(cfg, "attendance_records?" + legacyQuery.toString(), {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ voice_verification_status: "legacy" })
+      });
+      continue;
+    }
     const result = await queueAdminAlert(adminConfig, {
       alertKey: "voice-missing:" + row.discord_user_id + ":" + row.attendance_date,
       alertType: "voice_missing",
