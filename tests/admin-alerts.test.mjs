@@ -30,6 +30,8 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
   assert.match(alerts, /status: "processing"/);
   assert.match(alerts, /next_attempt_at/);
   assert.match(warnings, /processAttendanceAdminNotifications/);
+  assert.match(warnings, /processAttendanceAdminNotifications\(cfg, dashboard\)/);
+  assert.match(warnings, /admin_notifications: adminNotifications/);
   assert.match(warnings, /stage \* 7 \* 86400000/);
   assert.match(warnings, /voice_verification_status: "eq.pending"/);
   assert.match(warnings, /attendance_date: "lt\." \+ today/);
