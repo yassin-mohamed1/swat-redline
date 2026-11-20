@@ -135,6 +135,89 @@ export class AttentionAlertRepository {
     return rows[0];
   }
 
+  async claimAdminAlert(eventKey, alertType, userId = null, payload = {}) {
+    const rows = await this.request("rpc/claim_swat_admin_alert", {
+      method: "POST",
+      body: JSON.stringify({
+        p_event_key: eventKey,
+        p_alert_type: alertType,
+        p_discord_user_id: userId,
+        p_payload: payload
+      })
+    }, "Claim admin alert");
+    return rows;
+  }
+
+  async completeAdminAlert(eventKey, success, errorCode = null) {
+    return this.request("rpc/complete_swat_admin_alert", {
+      method: "POST",
+      body: JSON.stringify({ p_event_key: eventKey, p_success: Boolean(success), p_error_code: errorCode })
+    }, "Complete admin alert");
+  }
+
+  async markLeaveAdminAlertSent(requestId) {
+    const query = new URLSearchParams({
+      id: "eq." + String(requestId),
+      status: "eq.pending",
+      admin_alert_status: "eq.pending",
+      select: "id"
+    });
+    return this.request("attendance_leave_requests?" + query.toString(), {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ admin_alert_status: "sent", admin_alert_error: null, updated_at: new Date().toISOString() })
+    }, "Mark leave admin alert sent");
+  }
+
+  async markAttendanceVoiceJoined(userId, eventAt = new Date()) {
+    const at = eventAt instanceof Date ? eventAt : new Date(eventAt);
+    if (Number.isNaN(at.getTime()) || !/^\\d{15,22}$/.test(String(userId || ""))) return [];
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(at);
+    const value = type => parts.find(part => part.type === type)?.value || "";
+    const attendanceDate = value("year") + "-" + value("month") + "-" + value("day");
+    const timestamp = at.toISOString();
+    const query = new URLSearchParams({
+      discord_user_id: "eq." + String(userId),
+      attendance_date: "eq." + attendanceDate,
+      voice_check_status: "eq.pending",
+      voice_check_deadline_at: "gt." + timestamp,
+      first_seen_at: "lte." + timestamp,
+      voice_joined_at: "is.null",
+      select: "attendance_date,voice_check_status"
+    });
+    return this.request("attendance_records?" + query.toString(), {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ voice_check_status: "confirmed", voice_joined_at: timestamp })
+    }, "Confirm daily voice attendance");
+  }
+
+  async getAdminChannelSetup(channelId) {
+    const query = new URLSearchParams({
+      channel_id: "eq." + String(channelId),
+      select: "channel_id,history_cleared_at,deleted_message_count,privacy_configured_at",
+      limit: "1"
+    });
+    const rows = await this.request("discord_admin_channel_setup?" + query.toString(), {}, "Read admin channel setup");
+    return rows[0] || null;
+  }
+
+  async saveAdminChannelSetup(channelId, values) {
+    const payload = {
+      channel_id: String(channelId),
+      ...values,
+      updated_at: new Date().toISOString()
+    };
+    const rows = await this.request("discord_admin_channel_setup?on_conflict=channel_id", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify(payload)
+    }, "Save admin channel setup");
+    return rows[0] || null;
+  }
+
   async leaseRpc(name, instanceId) {
     return this.request(`rpc/${name}`, {
       method: "POST",
