@@ -10,7 +10,7 @@ test("manual bulk DMs require live S.W.A.T. role verification before any DM is s
   assert.match(api, /async function verifyDiscordSwatRole\(config, discordUserIds\)/);
   assert.match(api, /\/guilds\/.*\/members\//);
   assert.match(api, /roles\.includes\(REQUIRED_SWT_DM_ROLE_ID\)/);
-  assert.match(api, /return res\.status\(error\.status \|\| 503\)[\s\S]*dm_sent: 0/);
+  assert.match(api, /private broadcast withheld/);\n  assert.match(api, /role_check: roleCheck/);
   const verificationAt = api.indexOf("verifyDiscordSwatRole(config, candidateRecipients.map");
   const batchAt = api.indexOf('supabaseRequest(config, "discord_notification_batches"', verificationAt);
   const dmAt = api.indexOf("async function deliverToRecipient(recipient)", verificationAt);
