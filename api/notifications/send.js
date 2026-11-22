@@ -19,7 +19,7 @@ const MAX_DISCORD_MEMBER_CHECKS = 200;
 
 async function verifyDiscordSwatRole(config, discordUserIds) {
   const guildId = String(process.env.DISCORD_GUILD_ID || "").trim();
-  if (!/^\\d{15,22}$/.test(guildId)) {
+  if (!/^\d{15,22}$/.test(guildId)) {
     throw Object.assign(new Error("تعذر التحقق من عضوية S.W.A.T. لأن إعداد السيرفر غير صالح. لم يتم إرسال أي رسائل خاصة."), { status: 503 });
   }
   if (!config?.botToken) {
@@ -28,7 +28,7 @@ async function verifyDiscordSwatRole(config, discordUserIds) {
 
   const ids = [...new Set((Array.isArray(discordUserIds) ? discordUserIds : [])
     .map(value => String(value || "").trim())
-    .filter(value => /^\\d{15,22}$/.test(value)))];
+    .filter(value => /^\d{15,22}$/.test(value)))];
 
   if (ids.length > MAX_DISCORD_MEMBER_CHECKS) {
     throw Object.assign(new Error("عدد المستلمين يتجاوز الحد الآمن للتحقق من رتبة S.W.A.T."), { status: 409 });
@@ -60,7 +60,7 @@ async function verifyDiscordSwatRole(config, discordUserIds) {
 
 function normalizeExplicitDmRecipientIds(value) {
   const raw = Array.isArray(value) ? value : value ? [value] : [];
-  return [...new Set(raw.map(item => String(item || "").trim()).filter(id => /^\\d{15,22}$/.test(id)))];
+  return [...new Set(raw.map(item => String(item || "").trim()).filter(id => /^\d{15,22}$/.test(id)))];
 }
 
 
