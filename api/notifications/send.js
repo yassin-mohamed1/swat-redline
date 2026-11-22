@@ -1388,15 +1388,23 @@ export default async function handler(req, res) {
       try {
         verification = await verifyDiscordSwatRole(config, candidateRecipients.map(row => row.discord_user_id));
       } catch (error) {
-        console.error("Live S.W.A.T. role verification failed; bulk DMs blocked:", error?.code || error?.status || error?.message || "unknown");
-        return res.status(error.status || 503).json({
-          error: "تعذر التحقق من رتبة S.W.A.T. لجميع المستلمين حاليًا. تم إيقاف الرسائل الخاصة بالكامل لحماية خصوصية الأعضاء.",
-          code: String(error?.code || error?.status || "role_verification_failed"),
-          dm_sent: 0
-        });
+        const code = String(error?.code || error?.status || "role_verification_failed");
+        console.error("Live S.W.A.T. role verification failed; private broadcast withheld:", code);
+        // Channel publication is independent: fail closed for DMs but continue
+        // with any explicitly enabled Discord channel publication.
+        recipients = [];
+        roleCheck = {
+          checked: candidateRecipients.length,
+          excluded: candidateRecipients.length,
+          roleId: REQUIRED_SWT_DM_ROLE_ID,
+          verified: false,
+          error_code: code
+        };
       }
-      recipients = candidateRecipients.filter(row => verification.eligible.has(String(row.discord_user_id)));
-      roleCheck = { checked: verification.checked, excluded: verification.rejected.size, roleId: REQUIRED_SWT_DM_ROLE_ID };
+      if (verification) {
+        recipients = candidateRecipients.filter(row => verification.eligible.has(String(row.discord_user_id)));
+        roleCheck = { checked: verification.checked, excluded: verification.rejected.size, roleId: REQUIRED_SWT_DM_ROLE_ID, verified: true };
+      }
     }
     const ownerIncluded = recipients.some(row => String(row.discord_user_id) === ownerDiscordId);
 
@@ -1747,7 +1755,7 @@ export default async function handler(req, res) {
       channel_disabled: !channelEnabled,
       members_dm_enabled: memberDmEnabled && broadcastEnabled,
       members_dm_disabled: !(memberDmEnabled && broadcastEnabled),
-      owner_included: ownerIncluded,
+      owner_included: ownerIncluded,\n      role_check: roleCheck,
       owner_dm_sent: ownerDmSent,
       owner_dm_error_code: ownerDmErrorCode,
       role_ping_sent: channelSent && !notificationRoleMentionDisabled,
