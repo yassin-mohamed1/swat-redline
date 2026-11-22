@@ -344,7 +344,7 @@ test("SWAT UNITS channel controls clear the specified channel and republish exis
   const clearHandler = api.slice(clearStart, publishStart);
   const publishHandler = api.slice(publishStart, handlerEnd);
   assert.ok(clearStart >= 0 && publishStart > clearStart && handlerEnd > publishStart);
-  assert.match(clearHandler, /listUnitChannelMessages\(token, UNIT_CARD_CHANNEL_ID/);
+  assert.match(clearHandler, /listUnitChannelMessages\(token, UNIT_CARDS_CHANNEL_ID/);
   assert.match(clearHandler, /deleteUnitChannelMessages\(token,messages\)/);
   assert.match(clearHandler, /channel_id:null,message_id:null,published_at:null/);
   assert.match(clearHandler, /staff_member_identities\?channel_id=eq\./);
