@@ -313,7 +313,7 @@ test("unit identity cards can be manually reordered from the portal without movi
   assert.match(html, /function resetUnitCardOrderToAlpha/);
   assert.match(html, /action:'save_unit_card_order'/);
   assert.match(html, /unit_sort_order/);
-  assert.match(html, /ترتيبها كما تريد، ثم امسح رسائل الروم وأعد نشرها كلها/);
+  assert.match(html, /رتّب البطاقات كما تريد، ثم امسح رسائل الروم وأعد نشرها كلها/);
 
   assert.match(migration, /ADD COLUMN IF NOT EXISTS unit_sort_order integer/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.save_staff_unit_card_order/);
