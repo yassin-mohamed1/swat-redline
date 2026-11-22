@@ -1684,6 +1684,18 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-assignments .assignment-role-choice span{display:grid;gap:4px;min-width:0}
 #page-assignments .assignment-role-choice small{color:#9ba0aa;font-size:10px;line-height:1.5;overflow-wrap:anywhere}
 #page-assignments .assignment-role-choice.unavailable{opacity:.55;cursor:not-allowed}
+#page-assignments .unit-order-list{display:grid;gap:8px}
+#page-assignments .unit-order-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;border:1px solid #303744;background:#11151c;border-radius:10px}
+#page-assignments .unit-order-number{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:rgba(217,39,53,.13);color:#fff;font-weight:800}
+#page-assignments .unit-order-meta{min-width:0;display:grid;gap:3px}
+#page-assignments .unit-order-meta small{color:#9ba4b2;overflow-wrap:anywhere}
+#page-assignments .unit-order-controls{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+#page-assignments .unit-order-controls .btn{min-width:72px;padding:7px 10px}
+#page-assignments .unit-order-controls .btn:disabled{opacity:.3;cursor:not-allowed}
+#page-assignments .unit-order-status{font-size:12px;color:#aab4c2}
+#page-assignments .unit-order-status.dirty{color:#ffc46b}
+@media(max-width:640px){#page-assignments .unit-order-row{grid-template-columns:34px minmax(0,1fr)}#page-assignments .unit-order-controls{grid-column:1/-1;justify-content:flex-start}}
+
 
 @media(max-width:760px){#page-assignments .assignment-summary{grid-template-columns:repeat(2,minmax(0,1fr))}#page-assignments .assignment-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
@@ -1699,6 +1711,21 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 </div>
 <div id="assignmentBotNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
+<div class="panel" id="unitCardOrderPanel" style="margin-bottom:14px">
+ <div class="panelhead">
+  <div><h3>ترتيب بطاقات الوحدات</h3><span class="sub">ارفع البطاقة أو أنزلها يدويًا. الترتيب مستقل عن كود Alpha ويُحفظ في الموقع.</span></div>
+  <span class="tag gray" id="unitCardOrderCount">0 بطاقة</span>
+ </div>
+ <div class="panelbody">
+  <div class="unit-order-status" id="unitCardOrderStatus" aria-live="polite">جارٍ تحميل ترتيب البطاقات...</div>
+  <div class="unit-order-list" id="unitCardOrderRows" style="margin-top:11px"></div>
+  <div class="assignment-actions" style="justify-content:space-between;margin-top:14px">
+   <button class="btn" type="button" onclick="resetUnitCardOrderToAlpha()">ترتيب حسب Alpha</button>
+   <button class="btn primary" id="saveUnitCardOrderButton" type="button" onclick="saveUnitCardOrder()" disabled>حفظ الترتيب</button>
+  </div>
+  <div class="muted" style="margin-top:10px;line-height:1.8">ملاحظة: هذا يتحكم في ترتيب قائمة البطاقات داخل الموقع فقط. Discord لا يسمح بنقل الرسائل القديمة داخل القناة؛ لن يتم حذف أي بطاقة أو إعادة نشرها.</div>
+ </div>
+</div>
 <div class="panel">
  <div class="panelhead"><div><h3>دليل الأفراد والتعيينات</h3><span class="sub">كل عضو يظهر هنا مع رتب Discord والتعيين وكود النداء ورتبته الرسمية في المدينة، مع إمكانية نشر هويته في روم الهويات.</span></div><span class="tag gray" id="assignmentMemberCount">0 عضو</span></div>
  <div class="panelbody">
@@ -2518,7 +2545,7 @@ const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let attentionAlerts=[];let attentionAlertsBusy=false;let attentionAlertsPollTimer=null;let attentionAlertsLastError="";
-let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordMessageImages=[];let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordMessageImages=[];let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let unitCardOrderIds=[];let unitCardOrderDirty=false;let unitCardOrderBusy=false;const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 const attendanceStageAdvanceBusy=new Set();
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
@@ -4505,6 +4532,9 @@ async function renderAssignments(){
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل قائمة التعيينات.');
   assignmentData={members:Array.isArray(data.members)?data.members:[],roles:Array.isArray(data.roles)?data.roles:[],callsigns:Array.isArray(data.callsigns)?data.callsigns:[],bot:data.bot||{can_manage_roles:false,top_role:''}};
+  unitCardOrderIds=getDefaultUnitCardOrder();
+  unitCardOrderDirty=false;
+  renderUnitCardOrder();
   const total=assignmentData.members.length;
   const assigned=assignmentData.members.filter(member=>member.assignment?.status==='assigned').length;
   const online=assignmentData.members.filter(member=>member.in_guild===true).length;
@@ -4528,6 +4558,114 @@ async function renderAssignments(){
  }catch(error){
   if(body)body.innerHTML='<tr><td colspan="7">'+assignmentEscape(error.message||'تعذّر تحميل القائمة.')+'</td></tr>';
   toast(error.message||'تعذّر تحميل التعيينات.');
+ }
+}
+const UNIT_CARD_CHANNEL_ID='1561490450953670817';
+function unitCardCallsignNumber(member){
+ const value=String(member?.assignment?.callsign||'').trim();
+ const match=value.match(/^Alpha (0|[1-9][0-9]*)$/i);
+ return match?Number(match[1]):Number.MAX_SAFE_INTEGER;
+}
+function getDefaultUnitCardOrder(){
+ const cards=assignmentData.members.filter(member=>
+  member.identity?.message_id&&member.identity?.channel_id===UNIT_CARD_CHANNEL_ID
+ );
+ cards.sort((a,b)=>{
+  const aOrder=Number.isInteger(a.identity?.unit_sort_order)?a.identity.unit_sort_order:null;
+  const bOrder=Number.isInteger(b.identity?.unit_sort_order)?b.identity.unit_sort_order:null;
+  if(aOrder!==null&&bOrder!==null&&aOrder!==bOrder)return aOrder-bOrder;
+  if(aOrder!==null&&bOrder===null)return -1;
+  if(aOrder===null&&bOrder!==null)return 1;
+  const byCallsign=unitCardCallsignNumber(a)-unitCardCallsignNumber(b);
+  if(byCallsign!==0)return byCallsign;
+  return String(a.live_name||a.display_name||'').localeCompare(String(b.live_name||b.display_name||''));
+ });
+ return cards.map(member=>String(member.discord_user_id));
+}
+function renderUnitCardOrder(){
+ const root=document.getElementById('unitCardOrderRows');
+ if(!root)return;
+ const ids=unitCardOrderIds.filter(id=>assignmentData.members.some(member=>
+  String(member.discord_user_id)===String(id)&&member.identity?.message_id&&member.identity?.channel_id===UNIT_CARD_CHANNEL_ID
+ ));
+ unitCardOrderIds=ids;
+ const count=document.getElementById('unitCardOrderCount');
+ if(count)count.textContent=ids.length+' بطاقة';
+ const status=document.getElementById('unitCardOrderStatus');
+ if(status){
+  status.textContent=unitCardOrderDirty?'لديك تغييرات غير محفوظة. اضغط «حفظ الترتيب» لاعتمادها.':'الترتيب الحالي محفوظ. استخدم أزرار أعلى وأسفل لتغيير المواضع.';
+  status.classList.toggle('dirty',unitCardOrderDirty);
+ }
+ const save=document.getElementById('saveUnitCardOrderButton');
+ if(save)save.disabled=!ids.length||!unitCardOrderDirty||unitCardOrderBusy;
+ root.innerHTML=ids.map((id,index)=>{
+  const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
+  const callsign=member?.assignment?.callsign||'بدون كود نداء';
+  const name=member?.live_name||member?.display_name||'عضو';
+  const rank=member?.identity?.city_rank_label||'City Rank غير محددة';
+  const upDisabled=index===0||unitCardOrderBusy?'disabled':'';
+  const downDisabled=index===ids.length-1||unitCardOrderBusy?'disabled':'';
+  return '<div class="unit-order-row">'+
+   '<div class="unit-order-number">'+(index+1)+'</div>'+
+   '<div class="unit-order-meta"><b>'+assignmentEscape(callsign)+' • '+assignmentEscape(name)+'</b><small>'+assignmentEscape(rank)+'</small></div>'+
+   '<div class="unit-order-controls">'+
+    '<button class="btn" type="button" '+upDisabled+' onclick="moveUnitCard(\''+id+'\',-1)" aria-label="رفع '+assignmentEscape(callsign)+'">↑ أعلى</button>'+
+    '<button class="btn" type="button" '+downDisabled+' onclick="moveUnitCard(\''+id+'\',1)" aria-label="تنزيل '+assignmentEscape(callsign)+'">↓ أسفل</button>'+
+   '</div>'+
+  '</div>';
+ }).join('')||'<div class="empty">لا توجد بطاقات منشورة في روم الوحدات حاليًا.</div>';
+}
+function moveUnitCard(discordUserId,direction){
+ if(unitCardOrderBusy)return;
+ const index=unitCardOrderIds.indexOf(String(discordUserId));
+ const next=index+Number(direction);
+ if(index<0||next<0||next>=unitCardOrderIds.length)return;
+ const nextOrder=[...unitCardOrderIds];
+ [nextOrder[index],nextOrder[next]]=[nextOrder[next],nextOrder[index]];
+ unitCardOrderIds=nextOrder;
+ unitCardOrderDirty=true;
+ renderUnitCardOrder();
+}
+function resetUnitCardOrderToAlpha(){
+ if(unitCardOrderBusy)return;
+ const cards=assignmentData.members.filter(member=>
+  member.identity?.message_id&&member.identity?.channel_id===UNIT_CARD_CHANNEL_ID
+ );
+ cards.sort((a,b)=>{
+  const diff=unitCardCallsignNumber(a)-unitCardCallsignNumber(b);
+  return diff||String(a.live_name||a.display_name||'').localeCompare(String(b.live_name||b.display_name||''));
+ });
+ unitCardOrderIds=cards.map(member=>String(member.discord_user_id));
+ unitCardOrderDirty=true;
+ renderUnitCardOrder();
+}
+async function saveUnitCardOrder(){
+ if((!currentCanAdmin&&!currentCanManageAssignments)||unitCardOrderBusy||!unitCardOrderDirty)return;
+ const ids=[...unitCardOrderIds];
+ if(!ids.length){toast('لا توجد بطاقات منشورة لحفظ ترتيبها.');return;}
+ const button=document.getElementById('saveUnitCardOrderButton');
+ unitCardOrderBusy=true;
+ renderUnitCardOrder();
+ if(button)button.textContent='جارٍ الحفظ...';
+ try{
+  const response=await fetch('/api/admin/members',{
+   method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'save_unit_card_order',discord_user_ids:ids})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر حفظ ترتيب البطاقات.');
+  ids.forEach((id,index)=>{
+   const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
+   if(member?.identity)member.identity.unit_sort_order=index;
+  });
+  unitCardOrderDirty=false;
+  toast('تم حفظ ترتيب '+Number(data.updated_count||ids.length)+' بطاقة بنجاح.');
+ }catch(error){
+  toast(error.message||'تعذّر حفظ ترتيب البطاقات.');
+ }finally{
+  unitCardOrderBusy=false;
+  if(button)button.textContent='حفظ الترتيب';
+  renderUnitCardOrder();
  }
 }
 function openAssignmentModal(id){
