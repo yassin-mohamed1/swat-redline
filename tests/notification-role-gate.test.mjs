@@ -13,7 +13,7 @@ test("manual bulk DMs require live S.W.A.T. role verification before any DM is s
   assert.match(api, /return res\.status\(error\.status \|\| 503\)[\s\S]*dm_sent: 0/);
   const verificationAt = api.indexOf("verifyDiscordSwatRole(config, candidateRecipients.map");
   const batchAt = api.indexOf('supabaseRequest(config, "discord_notification_batches"', verificationAt);
-  const dmAt = api.indexOf('"/users/@me/channels"', verificationAt);
+  const dmAt = api.indexOf("async function deliverToRecipient(recipient)", verificationAt);
   assert.ok(verificationAt > 0 && batchAt > verificationAt && dmAt > verificationAt);
   assert.match(api, /mode: broadcastEnabled \? "broadcast_swat_role_only" : "test_self"/);
 });
