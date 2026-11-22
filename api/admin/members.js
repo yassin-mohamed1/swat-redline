@@ -1066,7 +1066,7 @@ async function handlePublishAllUnitCards(url,key,token,guildId,user,res) {
   if (!user?.isOwner && !user?.isWebsiteAdmin) {
     return send(res,403,{error:"Website Admin permission required to publish all unit cards."});
   }
-  if (!token || !/^\\d{15,22}$/.test(String(guildId||""))) {
+  if (!token || !/^\d{15,22}$/.test(String(guildId||""))) {
     return send(res,503,{error:"إعدادات بوت Discord والسيرفر غير مكتملة."});
   }
 
