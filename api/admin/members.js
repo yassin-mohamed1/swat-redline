@@ -513,6 +513,21 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
     const catalog=await supabase(url,key,"staff_callsigns?callsign=eq."+encodeURIComponent(callsign)+"&is_active=eq.true&select=callsign&limit=1");
     if(!catalog.ok)return send(res,503,{error:"تعذّر التحقق من قائمة أكواد النداء."});
     if(!(await catalog.json()).length)return send(res,409,{error:"كود النداء غير موجود في القائمة. أضفه من زر إضافة كود نداء جديد أولًا."});
+    const conflictQuery=new URLSearchParams({
+      select:"discord_user_id",
+      callsign:"eq."+callsign,
+      status:"eq.assigned",
+      discord_user_id:"neq."+targetId,
+      limit:"1"
+    });
+    const conflictResponse=await supabase(url,key,"staff_assignments?"+conflictQuery.toString());
+    if(!conflictResponse.ok)return send(res,503,{error:"تعذّر التحقق من أن كود النداء غير مستخدم حاليًا. لم يتم تغيير التعيين."});
+    if((await conflictResponse.json()).length)
+      return send(res,409,{
+        error:"كود النداء "+callsign+" مستخدم بالفعل مع عضو آخر. اختر كودًا متاحًا أو حرّر الكود من التعيين الحالي أولًا.",
+        code:"CALLSIGN_ALREADY_ASSIGNED",
+        callsign
+      });
   }
   const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+targetId);
   const displayName=assignmentMemberName(member,profile.display_name||"Discord member");
@@ -619,11 +634,16 @@ async function handleAssignmentPost(url,key,token,guildId,user,body,res) {
       message:String(error?.message||"Unknown database error").slice(0,240)
     };
     console.error("Assignment database save failed:",JSON.stringify({...diagnostic,rollback_failed:rollbackFailed}));
-    const errorText=rollbackFailed
-      ?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا."
-      :"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord.";
-    return send(res,502,{
-      error:errorText,rollback_failed:rollbackFailed,
+    const callsignConflict=diagnostic.code==="23505"&&diagnostic.message.includes("staff_assignments_callsign_unique_idx");
+    const errorText=callsignConflict
+      ?"كود النداء "+(callsign||"المحدد")+" تم حجزه لعضو آخر أثناء الحفظ. تم التراجع عن تغيير رتب Discord؛ اختر كودًا متاحًا ثم أعد المحاولة."
+      :rollbackFailed
+        ?"فشل حفظ التعيين وفشل التراجع عن رتب Discord. يلزم مراجعة العضو يدويًا."
+        :"تعذّر حفظ سجل التعيين؛ تم التراجع عن تغيير رتب Discord.";
+    return send(res,callsignConflict?409:502,{
+      error:errorText,
+      ...(callsignConflict?{code:"CALLSIGN_ALREADY_ASSIGNED",callsign}:{}),
+      rollback_failed:rollbackFailed,
       database_diagnostic:diagnostic
     });
   }
