@@ -321,5 +321,5 @@ test("unit identity cards can be manually reordered from the portal without movi
   assert.match(migration, /identity\.channel_id = '1561490450953670817'/);
   assert.match(migration, /identity\.message_id IS NOT NULL/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.save_staff_unit_card_order/);
-  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.save_staff_unit_card_order\(text\[\]\) TO service_role/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.save_staff_unit_card_order\(text\[\]\)\s+TO service_role/);
 });
