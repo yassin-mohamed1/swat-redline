@@ -359,7 +359,7 @@ async function listAssignments(url,key,token,guildId,allowWebsiteAdminRole=false
     supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,registration_source,last_login,login_count,created_at&order=display_name.asc"),
     supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,rank_role_ids,rank_role_names,callsign,status,assigned_by_name,updated_at"),
     supabase(url,key,"staff_callsigns?select=callsign&is_active=eq.true&order=callsign.asc"),
-    supabase(url,key,"staff_member_identities?select=discord_user_id,city_rank,channel_id,message_id,published_at")
+    supabase(url,key,"staff_member_identities?select=discord_user_id,city_rank,channel_id,message_id,published_at,unit_sort_order")
   ]);
   if(!profileResponse.ok)throw new Error("تعذّر تحميل أعضاء الموقع المسجلين.");
   if(!assignmentResponse.ok)throw new Error("تعذّر تحميل سجل التعيينات.");
@@ -406,7 +406,7 @@ async function listAssignments(url,key,token,guildId,allowWebsiteAdminRole=false
     const assignment=rawAssignment?{...rawAssignment,rank_role_ids:Array.isArray(rawAssignment.rank_role_ids)&&rawAssignment.rank_role_ids.length?rawAssignment.rank_role_ids:(rawAssignment.rank_role_id?[rawAssignment.rank_role_id]:[]),rank_role_names:Array.isArray(rawAssignment.rank_role_names)&&rawAssignment.rank_role_names.length?rawAssignment.rank_role_names:(rawAssignment.rank_role_name?[rawAssignment.rank_role_name]:[])}:null;
     const identity=byIdentity.get(id)||null;
     const cityRank=CITY_RANKS.find(item=>item.key===identity?.city_rank)||null;
-    return {...profile,assignment,identity:identity?{...identity,city_rank_label:cityRank?.label||""}:null,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
+    return {...profile,assignment,identity:identity?{...identity,unit_sort_order:Number.isInteger(identity.unit_sort_order)?identity.unit_sort_order:null,city_rank_label:cityRank?.label||""}:null,live_name:liveName,avatar_url:liveAvatar||profile.avatar_url||null,
       in_guild:inGuild,current_roles:currentRoles,current_rank_roles:currentRankRoles,role_data_source:roleDataSource,
       account_status:profile.is_banned?"banned":profile.is_active===false?"inactive":"active"};
   });
@@ -895,6 +895,37 @@ async function handleAddNextCallsign(url,key,user,res){
   return send(res,201,{ok:true,callsign});
 }
 
+async function handleSaveUnitCardOrder(url,key,body,res) {
+  const discordUserIds=Array.isArray(body.discord_user_ids)
+    ?body.discord_user_ids.map(value=>String(value||"").trim())
+    :[];
+  if(!discordUserIds.length||discordUserIds.length>250||
+     discordUserIds.some(id=>!/^\\d{15,22}$/.test(id))||
+     new Set(discordUserIds).size!==discordUserIds.length) {
+    return send(res,400,{error:"قائمة ترتيب البطاقات غير صالحة. حدّث الصفحة وحاول مرة أخرى."});
+  }
+  const saved=await supabase(url,key,"rpc/save_staff_unit_card_order",{
+    method:"POST",
+    body:JSON.stringify({p_discord_user_ids:discordUserIds})
+  });
+  if(!saved.ok) {
+    const detail=await saved.text();
+    console.error("Unit card order save failed:",saved.status,detail.slice(0,350));
+    let code="";
+    try{code=String(JSON.parse(detail)?.code||"");}catch{}
+    return send(res,saved.status>=400&&saved.status<500?409:502,{
+      error:code==="unit_card_identity_not_found"
+        ?"تغيرت قائمة البطاقات أثناء الترتيب. حدّث القائمة ثم أعد ترتيبها."
+        :"تعذّر حفظ ترتيب البطاقات. لم يتم حذف أو تعديل أي رسالة في Discord.",
+      code:code||"UNIT_CARD_ORDER_SAVE_FAILED"
+    });
+  }
+  const payload=await saved.json().catch(()=>null);
+  if(!payload?.ok||Number(payload.updated_count)!==discordUserIds.length)
+    return send(res,502,{error:"لم تؤكد قاعدة البيانات حفظ ترتيب جميع البطاقات."});
+  return send(res,200,{ok:true,updated_count:Number(payload.updated_count)});
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -1012,6 +1043,8 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       if (!requireSameOrigin(req,res)) return;
       const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+      if(body.action==="save_unit_card_order")
+        return await handleSaveUnitCardOrder(url,key,body,res);
       if(body.action==="add_manual_member")
         return await handleAddManualMember(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,body,res);
       if(body.action==="add_next_callsign")
