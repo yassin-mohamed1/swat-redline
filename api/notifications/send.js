@@ -1383,7 +1383,7 @@ export default async function handler(req, res) {
 
     let recipients = candidateRecipients;
     let roleCheck = { checked: 0, excluded: 0, roleId: REQUIRED_SWT_DM_ROLE_ID };
-    if (memberDmEnabled && broadcastEnabled && candidateRecipients.length) {
+    if (candidateRecipients.length) {
       let verification;
       try {
         verification = await verifyDiscordSwatRole(config, candidateRecipients.map(row => row.discord_user_id));
