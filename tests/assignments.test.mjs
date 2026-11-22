@@ -288,3 +288,38 @@ test("assignment API blocks a callsign reserved by another member before touchin
   assert.match(html, /assignmentCallsignAvailability/);
   assert.match(html, /reserved\?'disabled':''/);
 });
+
+
+test("unit identity cards can be manually reordered from the portal without moving, deleting, or recreating Discord messages", async () => {
+  const api = await read("../api/admin/members.js");
+  const html = await read("../index.html");
+  const migration = await read("../supabase/migrations/20261123010000_add_unit_card_sort_order.sql");
+
+  assert.match(api, /unit_sort_order/);
+  assert.match(api, /async function handleSaveUnitCardOrder/);
+  assert.match(api, /rpc\/save_staff_unit_card_order/);
+  assert.match(api, /body\.action==="save_unit_card_order"/);
+
+  const handlerStart = api.indexOf("async function handleSaveUnitCardOrder");
+  const handlerEnd = api.indexOf("\nexport default async function handler", handlerStart);
+  const handler = api.slice(handlerStart, handlerEnd);
+  assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
+  assert.doesNotMatch(handler, /assignmentDiscord|\/channels\/|method:"DELETE"|method:"PATCH"/);
+
+  assert.match(html, /id="unitCardOrderPanel"/);
+  assert.match(html, /id="unitCardOrderRows"/);
+  assert.match(html, /function moveUnitCard/);
+  assert.match(html, /function saveUnitCardOrder/);
+  assert.match(html, /function resetUnitCardOrderToAlpha/);
+  assert.match(html, /action:'save_unit_card_order'/);
+  assert.match(html, /unit_sort_order/);
+  assert.match(html, /لن يتم حذف أي بطاقة أو إعادة نشرها/);
+
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS unit_sort_order integer/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.save_staff_unit_card_order/);
+  assert.match(migration, /unit_sort_order = requested\.sort_position - 1/);
+  assert.match(migration, /identity\.channel_id = '1561490450953670817'/);
+  assert.match(migration, /identity\.message_id IS NOT NULL/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.save_staff_unit_card_order/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.save_staff_unit_card_order\(text\[\]\) TO service_role/);
+});
