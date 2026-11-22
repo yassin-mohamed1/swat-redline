@@ -58,12 +58,6 @@ async function verifyDiscordSwatRole(config, discordUserIds) {
   return { eligible, rejected, checked: ids.length, roleId: REQUIRED_SWT_DM_ROLE_ID };
 }
 
-function normalizeExplicitDmRecipientIds(value) {
-  const raw = Array.isArray(value) ? value : value ? [value] : [];
-  return [...new Set(raw.map(item => String(item || "").trim()).filter(id => /^\d{15,22}$/.test(id)))];
-}
-
-
 function parseCookies(header = "") {
   const out = {};
   for (const part of header.split(";")) {
@@ -1210,42 +1204,6 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(error.status || 400).json({ error: error.message || "Invalid request body." });
   }
-  if (body.action === "send_dm_to_specific_member") {
-    const recipientIds = normalizeExplicitDmRecipientIds(body.recipientDiscordIds || body.recipientDiscordId);
-    if (recipientIds.length !== 1) {
-      return res.status(400).json({ error: "اختر عضوًا واحدًا محددًا لإرسال الرسالة الخاصة." });
-    }
-    const config = getConfig();
-    if (config.error === "bot_token_missing") return res.status(503).json({ error: "بوت Discord غير متصل." });
-    if (config.error) return res.status(503).json({ error: "إعدادات الإرسال غير مكتملة." });
-    const recipientId = recipientIds[0];
-    const content = typeof body.content === "string" ? body.content.trim() : "";
-    const title = typeof body.title === "string" ? body.title.trim() : "";
-    const description = typeof body.description === "string" ? body.description.trim() : "";
-    if (!content && !title && !description) {
-      return res.status(400).json({ error: "اكتب محتوى الرسالة قبل الإرسال." });
-    }
-    try {
-      const dm = await discordRequest(config, "/users/@me/channels", {
-        method: "POST",
-        body: JSON.stringify({ recipient_id: recipientId })
-      });
-      if (!dm?.id) throw new Error("discord_dm_channel_missing");
-      const sent = await discordRequest(config, "/channels/" + encodeURIComponent(dm.id) + "/messages", {
-        method: "POST",
-        body: JSON.stringify({
-          ...(content ? { content } : {}),
-          ...(title || description ? { embeds: [{ title: truncate(title || "رسالة من S.W.A.T. REDLINE", 256), description: truncate(description || content, 4000), color: 0xD92735 }] } : {}),
-          allowed_mentions: { parse: [] }
-        })
-      });
-      return res.status(200).json({ ok: true, mode: "specific_member", recipient_discord_id: recipientId, message_id: sent?.id || null });
-    } catch (error) {
-      console.error("Specific-member DM failed:", error?.code || error?.status || "unknown");
-      return res.status(502).json({ error: "تعذر إرسال الرسالة الخاصة للعضو المحدد.", code: String(error?.code || error?.status || "dm_failed") });
-    }
-  }
-
   if (String(body.action || "").startsWith("saved_message_")) {
     const config = getConfig();
     if (config.error === "bot_token_missing") return res.status(503).json({ error: "بوت Discord غير متصل." });
