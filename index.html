@@ -1713,7 +1713,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 <div id="assignmentSyncNotice" class="notice" style="display:none;margin:0 0 14px"></div>
 <div class="panel" id="unitCardOrderPanel" style="margin-bottom:14px">
  <div class="panelhead">
-  <div><h3>ترتيب بطاقات الوحدات</h3><span class="sub">ارفع البطاقة أو أنزلها يدويًا. الترتيب مستقل عن كود Alpha ويُحفظ في الموقع.</span></div>
+  <div><h3>ترتيب بطاقات الوحدات</h3><span class="sub">رتّب البطاقات كما تريد، ثم امسح رسائل الروم وأعد نشرها كلها بنفس الترتيب. الترتيب محفوظ حتى بعد المسح.</span></div>
   <span class="tag gray" id="unitCardOrderCount">0 بطاقة</span>
  </div>
  <div class="panelbody">
@@ -1723,7 +1723,11 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    <button class="btn" type="button" onclick="resetUnitCardOrderToAlpha()">ترتيب حسب Alpha</button>
    <button class="btn primary" id="saveUnitCardOrderButton" type="button" onclick="saveUnitCardOrder()" disabled>حفظ الترتيب</button>
   </div>
-  <div class="muted" style="margin-top:10px;line-height:1.8">ملاحظة: هذا يتحكم في ترتيب قائمة البطاقات داخل الموقع فقط. Discord لا يسمح بنقل الرسائل القديمة داخل القناة؛ لن يتم حذف أي بطاقة أو إعادة نشرها.</div>
+  <div class="assignment-actions" style="justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid #303744">
+   <button class="btn danger" id="clearUnitChannelButton" type="button" onclick="clearUnitChannelMessages()">مسح كل رسائل الروم</button>
+   <button class="btn primary" id="publishUnitCardsButton" type="button" onclick="publishUnitCardsInOrder()">نشر كل البطاقات بالترتيب</button>
+  </div>
+  <div class="muted" style="margin-top:10px;line-height:1.8">ملاحظة: زر المسح يحذف كل رسائل روم SWAT UNITS المحددة، وبعده زر النشر ينشئ بطاقات الأعضاء من جديد حسب الترتيب المحفوظ. لن تُحذف بيانات الأعضاء أو التعيينات أو أكواد النداء. استخدم المسح فقط بعد التأكد من محتويات الروم.</div>
  </div>
 </div>
 <div class="panel">
@@ -4568,7 +4572,7 @@ function unitCardCallsignNumber(member){
 }
 function getDefaultUnitCardOrder(){
  const cards=assignmentData.members.filter(member=>
-  member.identity?.message_id&&member.identity?.channel_id===UNIT_CARD_CHANNEL_ID
+  member.identity?.city_rank&&member.assignment?.status==='assigned'
  );
  cards.sort((a,b)=>{
   const aOrder=Number.isInteger(a.identity?.unit_sort_order)?a.identity.unit_sort_order:null;
@@ -4586,7 +4590,7 @@ function renderUnitCardOrder(){
  const root=document.getElementById('unitCardOrderRows');
  if(!root)return;
  const ids=unitCardOrderIds.filter(id=>assignmentData.members.some(member=>
-  String(member.discord_user_id)===String(id)&&member.identity?.message_id&&member.identity?.channel_id===UNIT_CARD_CHANNEL_ID
+  String(member.discord_user_id)===String(id)&&member.identity?.city_rank&&member.assignment?.status==='assigned'
  ));
  unitCardOrderIds=ids;
  const count=document.getElementById('unitCardOrderCount');
@@ -4598,6 +4602,10 @@ function renderUnitCardOrder(){
  }
  const save=document.getElementById('saveUnitCardOrderButton');
  if(save)save.disabled=!ids.length||!unitCardOrderDirty||unitCardOrderBusy;
+ const clearButton=document.getElementById('clearUnitChannelButton');
+ if(clearButton)clearButton.disabled=!ids.length||unitCardOrderBusy;
+ const publishButton=document.getElementById('publishUnitCardsButton');
+ if(publishButton)publishButton.disabled=!ids.length||unitCardOrderDirty||unitCardOrderBusy;
  root.innerHTML=ids.map((id,index)=>{
   const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
   const callsign=member?.assignment?.callsign||'بدون كود نداء';
@@ -4629,7 +4637,7 @@ function moveUnitCard(discordUserId,direction){
 function resetUnitCardOrderToAlpha(){
  if(unitCardOrderBusy)return;
  const cards=assignmentData.members.filter(member=>
-  member.identity?.message_id&&member.identity?.channel_id===UNIT_CARD_CHANNEL_ID
+  member.identity?.city_rank&&member.assignment?.status==='assigned'
  );
  cards.sort((a,b)=>{
   const diff=unitCardCallsignNumber(a)-unitCardCallsignNumber(b);
@@ -4665,6 +4673,88 @@ async function saveUnitCardOrder(){
  }finally{
   unitCardOrderBusy=false;
   if(button)button.textContent='حفظ الترتيب';
+  renderUnitCardOrder();
+ }
+}
+async function clearUnitChannelMessages(){
+ if(!currentCanAdmin||unitCardOrderBusy)return;
+ if(unitCardOrderDirty){
+  toast('احفظ ترتيب البطاقات أولًا قبل مسح الروم.');
+  return;
+ }
+ const phrase='امسح كل رسائل SWAT UNITS';
+ const typed=window.prompt(
+  'تحذير: سيتم حذف كل الرسائل الموجودة في روم SWAT UNITS، بما فيها الرسائل غير التابعة لبطاقات الأعضاء.\n\nلن يتم حذف سجلات الأعضاء أو التعيينات أو ترتيب البطاقات.\n\nاكتب العبارة التالية حرفيًا للتأكيد:\n'+phrase
+ );
+ if(typed!==phrase)return;
+ if(!window.confirm('تأكيد أخير: هل تريد حذف كل رسائل روم SWAT UNITS الآن؟ لا يمكن استرجاع الرسائل المحذوفة.'))return;
+
+ const button=document.getElementById('clearUnitChannelButton');
+ const publish=document.getElementById('publishUnitCardsButton');
+ const status=document.getElementById('unitCardOrderStatus');
+ unitCardOrderBusy=true;
+ renderUnitCardOrder();
+ if(button)button.textContent='جارٍ مسح رسائل الروم...';
+ if(publish)publish.disabled=true;
+ if(status)status.textContent='جارٍ حذف رسائل روم SWAT UNITS. لا تغلق الصفحة أثناء التنفيذ.';
+ try{
+  const response=await fetch('/api/admin/members',{
+   method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'clear_unit_channel_messages'})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok||!data.complete){
+   throw new Error(data.error||data.warning||'لم يكتمل مسح رسائل الروم.');
+  }
+  toast('تم مسح '+Number(data.deleted_count||0)+' رسالة من روم SWAT UNITS. بيانات وترتيب البطاقات محفوظة.');
+  await renderAssignments();
+  const fresh=document.getElementById('unitCardOrderStatus');
+  if(fresh)fresh.textContent='الروم فارغ الآن. الترتيب محفوظ؛ اضغط «نشر كل البطاقات بالترتيب» لإعادة النشر.';
+ }catch(error){
+  toast(error.message||'تعذّر مسح رسائل الروم.');
+  if(status)status.textContent=error.message||'تعذّر مسح رسائل الروم.';
+ }finally{
+  unitCardOrderBusy=false;
+  if(button)button.textContent='مسح كل رسائل الروم';
+  renderUnitCardOrder();
+ }
+}
+async function publishUnitCardsInOrder(){
+ if(!currentCanAdmin||unitCardOrderBusy)return;
+ if(unitCardOrderDirty){
+  toast('احفظ الترتيب أولًا قبل نشر البطاقات.');
+  return;
+ }
+ const count=unitCardOrderIds.length;
+ if(!count){toast('لا توجد بطاقات جاهزة للنشر.');return;}
+ if(!window.confirm('سيتم نشر '+count+' بطاقة في روم SWAT UNITS حسب الترتيب المحفوظ، بدايةً من أول بطاقة. يجب أن تكون الروم فارغة. متابعة؟'))return;
+
+ const button=document.getElementById('publishUnitCardsButton');
+ const clear=document.getElementById('clearUnitChannelButton');
+ const status=document.getElementById('unitCardOrderStatus');
+ unitCardOrderBusy=true;
+ renderUnitCardOrder();
+ if(button)button.textContent='جارٍ نشر البطاقات...';
+ if(clear)clear.disabled=true;
+ if(status)status.textContent='جارٍ التحقق من الأعضاء ثم نشر البطاقات بالترتيب. لا تغلق الصفحة أثناء التنفيذ.';
+ try{
+  const response=await fetch('/api/admin/members',{
+   method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'publish_all_unit_cards'})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok||!data.complete){
+   const countText=Number.isFinite(Number(data.published_count))?' تم نشر '+Number(data.published_count)+' من '+Number(data.total_count||count)+' بطاقة.':'';
+   throw new Error((data.error||'تعذّر نشر كل البطاقات.')+countText);
+  }
+  toast('تم نشر '+Number(data.published_count||0)+' بطاقة في روم SWAT UNITS بالترتيب المحفوظ.');
+  await renderAssignments();
+ }catch(error){
+  toast(error.message||'تعذّر نشر البطاقات.');
+  if(status)status.textContent=error.message||'تعذّر نشر البطاقات.';
+ }finally{
+  unitCardOrderBusy=false;
+  if(button)button.textContent='نشر كل البطاقات بالترتيب';
   renderUnitCardOrder();
  }
 }
