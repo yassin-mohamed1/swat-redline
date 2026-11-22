@@ -18,17 +18,18 @@ test("manual bulk DMs require live S.W.A.T. role verification before any DM is s
   assert.match(api, /roleCheck = \{ checked: verification\.checked/);
 });
 
-test("manual specific-member DM remains a separate single-recipient action and bypasses bulk-role filtering", async () => {
-  const api = await read("../api/notifications/send.js");
-  const start = api.indexOf('if (body.action === "send_dm_to_specific_member")');
-  const end = api.indexOf('if (String(body.action || "").startsWith("saved_message_"))', start);
-  const action = api.slice(start, end);
-  assert.ok(start > 0 && end > start);
-  assert.match(action, /recipientIds\.length !== 1/);
-  assert.match(action, /recipient_id: recipientId/);
-  assert.match(api, /async function verifyDiscordSwatRole/);
+test("saved-message bulk delivery verifies live S.W.A.T. role while a targeted single member is exempt", async () => {
+  const saved = await read("../lib/saved-discord-messages.js");
+  assert.ok(saved.includes('const REQUIRED_SWT_DM_ROLE_ID = "1561561038263029900"'));
+  assert.ok(saved.includes("async function filterSavedMessageBulkRecipientsBySwatRole"));
+  assert.ok(saved.includes("roles.includes(REQUIRED_SWT_DM_ROLE_ID)"));
+  assert.ok(saved.includes("Number(error?.status) === 404"));
+  const singleAt = saved.indexOf('if (mode === "single")');
+  const verifyAt = saved.indexOf('if (String(input?.recipient_mode || "") === "all")');
+  assert.ok(singleAt > 0 && verifyAt > singleAt);
+  assert.ok(saved.slice(singleAt, verifyAt).includes("return [selected]"));
+  assert.ok(saved.slice(verifyAt).includes("filterSavedMessageBulkRecipientsBySwatRole(config, recipients)"));
 });
-
 test("announcement channel forwarder also verifies current S.W.A.T. membership and fails closed", async () => {
   const forwarder = await read("../lib/announcement-forwarder.js");
   assert.match(forwarder, /const REQUIRED_SWT_DM_ROLE_ID = "1561561038263029900"/);
