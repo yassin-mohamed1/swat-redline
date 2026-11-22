@@ -42,7 +42,8 @@ test("channel publishing remains independent from the DM recipient gate", async 
   const api = await read("../api/notifications/send.js");
   const channelAt = api.indexOf("if (channelEnabled)");
   const dmVerificationAt = api.indexOf("verifyDiscordSwatRole(config, candidateRecipients.map");
-  assert.ok(channelAt > 0 && dmVerificationAt > 0);
   const channelBlockEnd = api.indexOf("let sent = 0;", channelAt);
-  assert.ok(channelBlockEnd > channelAt && dmVerificationAt > channelBlockEnd);
+  assert.ok(channelAt > 0 && dmVerificationAt > 0 && channelBlockEnd > channelAt);
+  assert.match(api.slice(channelAt, channelBlockEnd), /discordRequest/);
+  assert.match(api.slice(dmVerificationAt, channelAt), /recipients = candidateRecipients\.filter/);
 });
