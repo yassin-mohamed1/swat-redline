@@ -1748,6 +1748,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
      <button class="btn" type="button" id="addCallsignButton" onclick="addNextCallsign()">＋ إضافة كود نداء جديد</button>
     </div>
     <select id="assignmentCallsignSelect" class="assignment-input" style="width:100%"></select>
+    <div id="assignmentCallsignAvailability" class="muted" aria-live="polite">الأكواد المحجوزة لأعضاء آخرين تظهر معطّلة.</div>
    </div>
    <div id="assignmentActionStatus" class="muted" aria-live="polite"></div>
    <div class="assignment-actions">
@@ -4549,8 +4550,17 @@ function openAssignmentModal(id){
   const options=[...assignmentData.callsigns];
   if(saved?.callsign&&!options.includes(saved.callsign))options.push(saved.callsign);
   options.sort((a,b)=>Number(String(a).slice(6))-Number(String(b).slice(6)));
-  callsign.innerHTML='<option value="">بدون كود نداء</option>'+options.map(value=>'<option value="'+assignmentEscape(value)+'">'+assignmentEscape(value)+'</option>').join('');
+  const reservedByOthers=new Set(assignmentData.members
+   .filter(item=>String(item.discord_user_id)!==assignmentTargetId&&item.assignment?.status==='assigned'&&item.assignment?.callsign)
+   .map(item=>String(item.assignment.callsign).toLowerCase()));
+  const availableCount=options.filter(value=>!reservedByOthers.has(String(value).toLowerCase())).length;
+  callsign.innerHTML='<option value="">بدون كود نداء</option>'+options.map(value=>{
+   const reserved=reservedByOthers.has(String(value).toLowerCase());
+   return '<option value="'+assignmentEscape(value)+'" '+(reserved?'disabled':'')+'>'+assignmentEscape(value)+(reserved?' • محجوز لعضو آخر':'')+'</option>';
+  }).join('');
   callsign.value=saved?.callsign||'';
+  const callSignNotice=document.getElementById('assignmentCallsignAvailability');
+  if(callSignNotice)callSignNotice.textContent='المتاح لهذا العضو: '+availableCount+' كود. الأكواد المحجوزة لأعضاء آخرين تظهر معطّلة.';
  }
  const status=document.getElementById('assignmentActionStatus');if(status)status.textContent='';
  const save=document.getElementById('assignmentSaveButton');if(save)save.disabled=!assignmentData.bot.can_manage_roles;
