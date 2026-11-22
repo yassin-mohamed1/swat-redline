@@ -15,7 +15,7 @@ test("manual bulk DMs require live S.W.A.T. role verification before any DM is s
   const batchAt = api.indexOf('supabaseRequest(config, "discord_notification_batches"', verificationAt);
   const dmAt = api.indexOf("async function deliverToRecipient(recipient)", verificationAt);
   assert.ok(verificationAt > 0 && batchAt > verificationAt && dmAt > verificationAt);
-  assert.match(api, /mode: broadcastEnabled \? "broadcast_swat_role_only" : "test_self"/);
+  assert.match(api, /roleCheck = \{ checked: verification\.checked/);
 });
 
 test("manual specific-member DM remains a separate single-recipient action and bypasses bulk-role filtering", async () => {
