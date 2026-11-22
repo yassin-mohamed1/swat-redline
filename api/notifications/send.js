@@ -14,6 +14,50 @@ const MAX_NOTIFICATION_IMAGES = 4;
 const MAX_NOTIFICATION_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_NOTIFICATION_TOTAL_IMAGE_BYTES = 8 * 1024 * 1024;
 
+const REQUIRED_SWT_DM_ROLE_ID = "1561561038263029900";
+const MAX_DISCORD_MEMBER_CHECKS = 200;
+
+async function verifyDiscordSwatRole(config, discordUserIds) {
+  const guildId = String(process.env.DISCORD_GUILD_ID || "").trim();
+  if (!/^\d{15,22}$/.test(guildId)) {
+    throw Object.assign(new Error("تعذر التحقق من عضوية S.W.A.T. لأن إعداد السيرفر غير صالح. لم يتم إرسال أي رسائل خاصة."), { status: 503 });
+  }
+  if (!config?.botToken) {
+    throw Object.assign(new Error("بوت Discord غير متصل. لم يتم إرسال أي رسائل خاصة."), { status: 503 });
+  }
+
+  const ids = [...new Set((Array.isArray(discordUserIds) ? discordUserIds : [])
+    .map(value => String(value || "").trim())
+    .filter(value => /^\d{15,22}$/.test(value)))];
+
+  if (ids.length > MAX_DISCORD_MEMBER_CHECKS) {
+    throw Object.assign(new Error("عدد المستلمين يتجاوز الحد الآمن للتحقق من رتبة S.W.A.T."), { status: 409 });
+  }
+
+  const eligible = new Set();
+  const rejected = new Set();
+  for (let offset = 0; offset < ids.length; offset += 10) {
+    const chunk = ids.slice(offset, offset + 10);
+    const results = await Promise.all(chunk.map(async id => {
+      try {
+        const member = await discordRequest(config,
+          "/guilds/" + encodeURIComponent(guildId) + "/members/" + encodeURIComponent(id)
+        );
+        const roles = Array.isArray(member?.roles) ? member.roles.map(String) : [];
+        return { id, eligible: member?.user?.bot !== true && roles.includes(REQUIRED_SWT_DM_ROLE_ID) };
+      } catch (error) {
+        if (Number(error?.status) === 404) return { id, eligible: false };
+        throw error;
+      }
+    }));
+    for (const result of results) {
+      if (result.eligible) eligible.add(result.id);
+      else rejected.add(result.id);
+    }
+  }
+  return { eligible, rejected, checked: ids.length, roleId: REQUIRED_SWT_DM_ROLE_ID };
+}
+
 function parseCookies(header = "") {
   const out = {};
   for (const part of header.split(";")) {
@@ -1314,9 +1358,8 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: "The protected owner Discord ID is not configured; no notification was sent." });
     }
 
-    // Personal opt-out applies to every account, including the portal owner.
-    // When broadcast is disabled, only the owner is considered, and only if the
-    // owner's own private-notification preference remains enabled.
+    // Bulk DMs require current Discord role membership, not portal registration.
+    // Explicit single-member DMs are handled by send_dm_to_specific_member above.
     const broadcastEnabled = process.env.DISCORD_NOTIFICATIONS_BROADCAST_ENABLED === "true";
     const recipientQuery = new URLSearchParams({
       select: "discord_user_id,display_name",
@@ -1331,12 +1374,38 @@ export default async function handler(req, res) {
     const recipientResponse = await supabaseRequest(config, "staff_profiles?" + recipientQuery, { method: "GET" });
     if (!recipientResponse.ok) {
       console.error("Notification recipient lookup failed:", recipientResponse.status, (await recipientResponse.text()).slice(0, 250));
-      return res.status(502).json({ error: "Could not load notification recipients." });
+      return res.status(502).json({ error: "تعذر تحميل قائمة المستلمين. لم يتم إرسال أي رسائل خاصة." });
     }
     const recipientRows = await recipientResponse.json();
-    const recipients = recipientRows
-      .filter(row => /^\d{17,20}$/.test(String(row.discord_user_id || "")))
+    const candidateRecipients = recipientRows
+      .filter(row => /^\d{15,22}$/.test(String(row.discord_user_id || "")))
       .sort((a, b) => String(a.discord_user_id).localeCompare(String(b.discord_user_id)));
+
+    let recipients = candidateRecipients;
+    let roleCheck = { checked: 0, excluded: 0, roleId: REQUIRED_SWT_DM_ROLE_ID };
+    if (candidateRecipients.length) {
+      let verification;
+      try {
+        verification = await verifyDiscordSwatRole(config, candidateRecipients.map(row => row.discord_user_id));
+      } catch (error) {
+        const code = String(error?.code || error?.status || "role_verification_failed");
+        console.error("Live S.W.A.T. role verification failed; private broadcast withheld:", code);
+        // Channel publication is independent: fail closed for DMs but continue
+        // with any explicitly enabled Discord channel publication.
+        recipients = [];
+        roleCheck = {
+          checked: candidateRecipients.length,
+          excluded: candidateRecipients.length,
+          roleId: REQUIRED_SWT_DM_ROLE_ID,
+          verified: false,
+          error_code: code
+        };
+      }
+      if (verification) {
+        recipients = candidateRecipients.filter(row => verification.eligible.has(String(row.discord_user_id)));
+        roleCheck = { checked: verification.checked, excluded: verification.rejected.size, roleId: REQUIRED_SWT_DM_ROLE_ID, verified: true };
+      }
+    }
     const ownerIncluded = recipients.some(row => String(row.discord_user_id) === ownerDiscordId);
 
     if (recipients.length > MAX_RECIPIENTS_PER_BATCH) {
@@ -1553,7 +1622,7 @@ export default async function handler(req, res) {
 
 
     // Every manual alert is published once to the channel selected for its record type.
-    // The DM recipient list, opt-ins, batching and delivery flow remain unchanged.
+    // Private broadcast recipients have already passed live S.W.A.T. role verification.
     // This is independent from per-member DM preferences.
     let channelSent = false;
     let channelMessageId = null;
@@ -1687,6 +1756,7 @@ export default async function handler(req, res) {
       members_dm_enabled: memberDmEnabled && broadcastEnabled,
       members_dm_disabled: !(memberDmEnabled && broadcastEnabled),
       owner_included: ownerIncluded,
+      role_check: roleCheck,
       owner_dm_sent: ownerDmSent,
       owner_dm_error_code: ownerDmErrorCode,
       role_ping_sent: channelSent && !notificationRoleMentionDisabled,
@@ -1699,7 +1769,9 @@ export default async function handler(req, res) {
         other: Object.entries(failureReasons).filter(([code]) => !["50278", "50007"].includes(code)).reduce((sum, [, count]) => sum + count, 0)
       },
       mode: broadcastEnabled ? "broadcast" : "test_self",
-      message: !recipients.length
+      message: roleCheck.error_code
+        ? (channelSent ? "Channel post published; private messages withheld because S.W.A.T. role verification failed." : "Private messages withheld because S.W.A.T. role verification failed.")
+        : !recipients.length
         ? "No eligible recipients have private notifications enabled."
         : channelStatus === "disabled"
           ? `Channel publishing is disabled by the owner. ${sent} private messages sent.`
