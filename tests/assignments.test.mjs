@@ -270,3 +270,21 @@ test("member identity publishing sends one card and updates the stored Discord m
   assert.match(migration, /staff_member_identities_message_pair_check/);
   assert.match(migration, /staff_member_identities_message_unique/);
 });
+
+test("assignment API blocks a callsign reserved by another member before touching Discord roles", async () => {
+  const api = await read("../api/admin/members.js");
+  const html = await read("../index.html");
+  assert.match(api, /callsign:"eq\."\+callsign/);
+  assert.match(api, /status:"eq\.assigned"/);
+  assert.match(api, /discord_user_id:"neq\."\+targetId/);
+  assert.match(api, /CALLSIGN_ALREADY_ASSIGNED/);
+  const conflictCheckAt = api.indexOf('staff_assignments?"+conflictQuery.toString()');
+  const roleChangeAt = api.indexOf('if(roleChanged)await assignmentDiscord');
+  assert.ok(conflictCheckAt > 0 && roleChangeAt > conflictCheckAt,
+    "reserved callsigns must be rejected before any Discord role update");
+  assert.match(api, /staff_assignments_callsign_unique_idx/);
+  assert.match(html, /reservedByOthers/);
+  assert.match(html, /محجوز لعضو آخر/);
+  assert.match(html, /assignmentCallsignAvailability/);
+  assert.match(html, /reserved\?'disabled':''/);
+});
