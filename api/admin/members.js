@@ -895,6 +895,368 @@ async function handleAddNextCallsign(url,key,user,res){
   return send(res,201,{ok:true,callsign});
 }
 
+const UNIT_CARDS_CHANNEL_ID = "1561490450953670817";
+const DISCORD_EPOCH_MS = 1420070400000n;
+const DISCORD_BULK_DELETE_MAX_AGE_MS = 14n * 24n * 60n * 60n * 1000n;
+
+async function listUnitChannelMessages(token, channelId, maxMessages = 5000) {
+  const messages = [];
+  let before = "";
+  for (let page = 0; page < Math.ceil(maxMessages / 100) + 1; page++) {
+    const query = new URLSearchParams({ limit: "100" });
+    if (before) query.set("before", before);
+    const rows = await assignmentDiscord(
+      token,
+      "/channels/" + encodeURIComponent(channelId) + "/messages?" + query.toString()
+    );
+    if (!Array.isArray(rows)) {
+      throw Object.assign(new Error("Discord لم يُرجع سجل رسائل الروم بشكل صحيح."), { status: 502 });
+    }
+    if (!rows.length) return messages;
+    messages.push(...rows);
+    if (messages.length > maxMessages) {
+      throw Object.assign(new Error("الروم يحتوي على أكثر من " + maxMessages + " رسالة. لم يبدأ المسح؛ قلّل العدد أو نفّذ المسح على دفعات."), { status: 413 });
+    }
+    before = String(rows[rows.length - 1]?.id || "");
+    if (!before || rows.length < 100) return messages;
+  }
+  throw Object.assign(new Error("تعذّر قراءة كامل سجل الروم ضمن الحد الآمن. لم يبدأ المسح."), { status: 413 });
+}
+
+function isDiscordBulkDeleteEligible(messageId, now = Date.now()) {
+  try {
+    const createdAt = (BigInt(messageId) >> 22n) + DISCORD_EPOCH_MS;
+    return createdAt > BigInt(now) - DISCORD_BULK_DELETE_MAX_AGE_MS;
+  } catch {
+    return false;
+  }
+}
+
+async function deleteUnitChannelMessages(token, messages) {
+  const recent = messages.filter(item => isDiscordBulkDeleteEligible(item.id));
+  const old = messages.filter(item => !isDiscordBulkDeleteEligible(item.id));
+  let deleted = 0;
+
+  const deleteOne = async item => {
+    await assignmentDiscord(
+      token,
+      "/channels/" + UNIT_CARDS_CHANNEL_ID + "/messages/" + encodeURIComponent(String(item.id)),
+      { method: "DELETE" }
+    );
+    deleted++;
+  };
+
+  for (let offset = 0; offset < recent.length; offset += 100) {
+    const batch = recent.slice(offset, offset + 100);
+    if (batch.length >= 2) {
+      try {
+        await assignmentDiscord(
+          token,
+          "/channels/" + UNIT_CARDS_CHANNEL_ID + "/messages/bulk-delete",
+          {
+            method: "POST",
+            body: JSON.stringify({ messages: batch.map(item => String(item.id)) })
+          }
+        );
+        deleted += batch.length;
+      } catch (error) {
+        // If Discord rejects a bulk batch (for example due to a special
+        // message type), retry its entries individually. Permission and
+        // rate-limit errors still propagate so the caller can report them.
+        if (Number(error?.status) !== 400) {
+          error.deletedCount = deleted;
+          throw error;
+        }
+        for (const item of batch) {
+          try { await deleteOne(item); }
+          catch (singleError) {
+            singleError.deletedCount = deleted;
+            throw singleError;
+          }
+        }
+      }
+    } else if (batch.length === 1) {
+      try { await deleteOne(batch[0]); }
+      catch (error) { error.deletedCount = deleted; throw error; }
+    }
+  }
+
+  for (const item of old) {
+    try { await deleteOne(item); }
+    catch (error) { error.deletedCount = deleted; throw error; }
+  }
+  return deleted;
+}
+
+async function handleClearUnitCardChannel(url,key,token,user,res) {
+  if (!user?.isOwner && !user?.isWebsiteAdmin) {
+    return send(res,403,{error:"Website Admin permission required to clear the SWAT UNITS channel."});
+  }
+  if (!token) return send(res,503,{error:"بوت Discord غير متصل."});
+
+  let messages;
+  try {
+    messages = await listUnitChannelMessages(token, UNIT_CARDS_CHANNEL_ID, 5000);
+  } catch (error) {
+    return send(res,error.status||502,{
+      error:error.message||"تعذّر قراءة رسائل روم الوحدات. لم يتم حذف أي رسالة.",
+      deleted_count:0
+    });
+  }
+
+  let deletedCount = 0;
+  try {
+    deletedCount = await deleteUnitChannelMessages(token,messages);
+  } catch (error) {
+    console.error("SWAT UNITS channel clear partially failed:",error?.status||"",error?.code||"");
+    return send(res,error.status||502,{
+      error:"توقف المسح بعد حذف " + Number(error.deletedCount||0) + " من " + messages.length + " رسالة. راجع صلاحيات Manage Messages وحدّث الصفحة قبل إعادة المحاولة.",
+      deleted_count:Number(error.deletedCount||0),
+      total_count:messages.length,
+      complete:false
+    });
+  }
+
+  const clearRefs = await supabase(
+    url,key,
+    "staff_member_identities?channel_id=eq." + encodeURIComponent(UNIT_CARDS_CHANNEL_ID),
+    {
+      method:"PATCH",
+      headers:{Prefer:"return=minimal"},
+      body:JSON.stringify({channel_id:null,message_id:null,published_at:null})
+    }
+  );
+  if (!clearRefs.ok) {
+    console.error("SWAT UNITS identity references could not be cleared:",clearRefs.status,(await clearRefs.text()).slice(0,300));
+    return send(res,502,{
+      ok:false,
+      complete:true,
+      deleted_count:deletedCount,
+      total_count:messages.length,
+      warning:"تم مسح رسائل Discord، لكن تعذّر تحديث مراجع الرسائل في قاعدة البيانات. ترتيب البطاقات وبيانات الأعضاء محفوظة؛ يمكن متابعة النشر بعد تحديث القائمة."
+    });
+  }
+
+  const auditEvent={
+    actor_discord_id:user.id,
+    actor_name:user.displayName||user.username||"Portal administrator",
+    action:"delete",
+    entity_type:"discord_channel_messages",
+    entity_id:UNIT_CARDS_CHANNEL_ID,
+    details:{
+      type:"مسح روم بطاقات وحدات S.W.A.T.",
+      detail:"تم مسح "+deletedCount+" رسالة من روم SWAT UNITS بطلب إداري. لم تُحذف سجلات الأعضاء أو التعيينات أو ترتيب البطاقات.",
+      channel_id:UNIT_CARDS_CHANNEL_ID,
+      deleted_count:deletedCount
+    }
+  };
+  try {
+    const audit=await supabase(url,key,"audit_logs",{
+      method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(auditEvent)
+    });
+    if(audit.ok)await forwardAuditToDiscord(user,auditEvent);
+  } catch(error) {
+    console.warn("SWAT UNITS clear audit failed:",error?.code||error?.message||"unknown");
+  }
+
+  return send(res,200,{ok:true,complete:true,deleted_count:deletedCount,total_count:messages.length,channel_id:UNIT_CARDS_CHANNEL_ID});
+}
+
+async function handlePublishAllUnitCards(url,key,token,guildId,user,res) {
+  if (!user?.isOwner && !user?.isWebsiteAdmin) {
+    return send(res,403,{error:"Website Admin permission required to publish all unit cards."});
+  }
+  if (!token || !/^\\d{15,22}$/.test(String(guildId||""))) {
+    return send(res,503,{error:"إعدادات بوت Discord والسيرفر غير مكتملة."});
+  }
+
+  let channelMessages;
+  try {
+    channelMessages=await assignmentDiscord(
+      token,
+      "/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages?limit=1"
+    );
+  } catch(error) {
+    return send(res,error.status||502,{error:"تعذّر التحقق من أن روم الوحدات فارغ. لم يبدأ النشر."});
+  }
+  if(!Array.isArray(channelMessages)) {
+    return send(res,502,{error:"Discord لم يُرجع حالة روم الوحدات بشكل صحيح."});
+  }
+  if(channelMessages.length) {
+    return send(res,409,{
+      error:"روم SWAT UNITS ليس فارغًا. استخدم زر «مسح كل رسائل الروم» أولًا لتجنب تكرار البطاقات.",
+      existing_messages:true
+    });
+  }
+
+  const [profilesResponse,assignmentsResponse,identitiesResponse]=await Promise.all([
+    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,avatar_url,is_active,is_banned"),
+    supabase(url,key,"staff_assignments?select=discord_user_id,callsign,status&status=eq.assigned"),
+    supabase(url,key,"staff_member_identities?select=discord_user_id,city_rank,channel_id,message_id,unit_sort_order&city_rank=not.is.null")
+  ]);
+  if(!profilesResponse.ok||!assignmentsResponse.ok||!identitiesResponse.ok) {
+    return send(res,502,{error:"تعذّر تحميل كل بيانات البطاقات من قاعدة البيانات. لم يبدأ النشر."});
+  }
+  const [profiles,assignments,identities]=await Promise.all([
+    profilesResponse.json(),assignmentsResponse.json(),identitiesResponse.json()
+  ]);
+  const profileMap=new Map(profiles.map(item=>[String(item.discord_user_id),item]));
+  const assignmentMap=new Map(assignments.map(item=>[String(item.discord_user_id),item]));
+  const cards=identities.filter(identity=>
+    identity?.city_rank&&(
+      String(identity.channel_id||"")===UNIT_CARDS_CHANNEL_ID||
+      Number.isInteger(identity.unit_sort_order)
+    )
+  ).map(identity=>({
+    identity,
+    profile:profileMap.get(String(identity.discord_user_id)),
+    assignment:assignmentMap.get(String(identity.discord_user_id))
+  })).filter(item=>
+    item.profile&&item.profile.is_active!==false&&!item.profile.is_banned&&item.assignment
+  );
+
+  const callsignNumber=value=>{
+    const match=String(value||"").match(/^Alpha (0|[1-9][0-9]*)$/);
+    return match?Number(match[1]):Number.MAX_SAFE_INTEGER;
+  };
+  cards.sort((a,b)=>{
+    const ao=Number.isInteger(a.identity.unit_sort_order)?a.identity.unit_sort_order:null;
+    const bo=Number.isInteger(b.identity.unit_sort_order)?b.identity.unit_sort_order:null;
+    if(ao!==null&&bo!==null&&ao!==bo)return ao-bo;
+    if(ao!==null&&bo===null)return -1;
+    if(ao===null&&bo!==null)return 1;
+    const byCallsign=callsignNumber(a.assignment.callsign)-callsignNumber(b.assignment.callsign);
+    return byCallsign||String(a.profile.display_name||"").localeCompare(String(b.profile.display_name||""));
+  });
+
+  if(!cards.length) {
+    return send(res,409,{error:"لا توجد بطاقات ذات City Rank وتعيين فعال يمكن نشرها."});
+  }
+  if(cards.length>100) {
+    return send(res,409,{error:"عدد البطاقات يتجاوز الحد الآمن للنشر في عملية واحدة."});
+  }
+
+  const prepared=await assignmentMapLimit(cards,4,async card=>{
+    const id=String(card.identity.discord_user_id);
+    try {
+      const member=await assignmentDiscord(token,"/guilds/"+guildId+"/members/"+encodeURIComponent(id));
+      const cityRank=CITY_RANKS.find(item=>item.key===card.identity.city_rank);
+      if(!cityRank)throw Object.assign(new Error("رتبة المدينة غير معروفة"),{status:409});
+      return {
+        ...card,
+        id,
+        member,
+        name:assignmentMemberName(member,card.profile.display_name||"S.W.A.T. Member"),
+        avatar:assignmentAvatar(member,guildId)||card.profile.avatar_url||null,
+        cityRankLabel:cityRank.label
+      };
+    } catch(error) {
+      return { ...card,id,error };
+    }
+  });
+  const unavailable=prepared.filter(item=>item.error);
+  if(unavailable.length) {
+    return send(res,409,{
+      error:"لم يبدأ النشر لأن "+unavailable.length+" عضوًا من البطاقات غير متاح حاليًا داخل سيرفر Discord أو تعذّر التحقق منه. حدّث العضوية وحاول مرة أخرى.",
+      unavailable:unavailable.map(item=>({discord_user_id:item.id,name:item.profile?.display_name||"Member",status:item.error?.status||0}))
+    });
+  }
+
+  let published=0;
+  const publishedCards=[];
+  for(let index=0;index<prepared.length;index++) {
+    const card=prepared[index];
+    let message;
+    try {
+      const embed=memberIdentityEmbed({
+        name:card.name,
+        avatar:card.avatar,
+        cityRank:card.cityRankLabel,
+        callsign:card.assignment.callsign||null
+      });
+      message=await assignmentDiscord(token,"/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages",{
+        method:"POST",
+        body:JSON.stringify({
+          content:"<@"+card.id+">",
+          embeds:[embed],
+          allowed_mentions:{parse:[],users:[card.id]}
+        })
+      });
+      if(!message?.id)throw Object.assign(new Error("Discord لم يؤكد إنشاء البطاقة."),{status:502});
+    } catch(error) {
+      return send(res,error.status||502,{
+        ok:false,
+        complete:false,
+        published_count:published,
+        total_count:prepared.length,
+        error:"توقف النشر بعد "+published+" من "+prepared.length+" بطاقة. لم تُحذف البطاقات التي تم نشرها؛ امسح الروم ثم أعد المحاولة بعد معالجة الخطأ.",
+        discord_code:String(error.code||error.status||"publish_failed")
+      });
+    }
+
+    const saved=await supabase(url,key,
+      "staff_member_identities?discord_user_id=eq."+encodeURIComponent(card.id),
+      {
+        method:"PATCH",
+        headers:{Prefer:"return=minimal"},
+        body:JSON.stringify({
+          channel_id:UNIT_CARDS_CHANNEL_ID,
+          message_id:String(message.id),
+          published_at:new Date().toISOString(),
+          unit_sort_order:index
+        })
+      }
+    );
+    if(!saved.ok) {
+      try {
+        await assignmentDiscord(token,"/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages/"+encodeURIComponent(String(message.id)),{method:"DELETE"});
+      } catch(cleanupError) {
+        console.warn("Unit identity rollback failed:",cleanupError?.code||cleanupError?.status||"unknown");
+      }
+      return send(res,502,{
+        ok:false,
+        complete:false,
+        published_count:published,
+        total_count:prepared.length,
+        error:"توقف النشر بعد "+published+" بطاقة لأن تعذّر حفظ مرجع البطاقة التالية في قاعدة البيانات. لم نحذف البطاقات السابقة."
+      });
+    }
+    published++;
+    publishedCards.push({discord_user_id:card.id,message_id:String(message.id),callsign:card.assignment.callsign||null});
+  }
+
+  const auditEvent={
+    actor_discord_id:user.id,
+    actor_name:user.displayName||user.username||"Portal administrator",
+    action:"create",
+    entity_type:"discord_unit_cards",
+    entity_id:UNIT_CARDS_CHANNEL_ID,
+    details:{
+      type:"نشر بطاقات وحدات S.W.A.T. بالترتيب",
+      detail:"تم نشر "+published+" بطاقة حسب الترتيب المحفوظ من بوابة القيادة.",
+      channel_id:UNIT_CARDS_CHANNEL_ID,
+      published_count:published
+    }
+  };
+  try {
+    const audit=await supabase(url,key,"audit_logs",{
+      method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(auditEvent)
+    });
+    if(audit.ok)await forwardAuditToDiscord(user,auditEvent);
+  } catch(error) {
+    console.warn("Unit card publish audit failed:",error?.code||error?.message||"unknown");
+  }
+
+  return send(res,200,{
+    ok:true,
+    complete:true,
+    published_count:published,
+    total_count:prepared.length,
+    channel_id:UNIT_CARDS_CHANNEL_ID,
+    cards:publishedCards
+  });
+}
+
 async function handleSaveUnitCardOrder(url,key,body,res) {
   const discordUserIds=Array.isArray(body.discord_user_ids)
     ?body.discord_user_ids.map(value=>String(value||"").trim())
@@ -925,6 +1287,8 @@ async function handleSaveUnitCardOrder(url,key,body,res) {
     return send(res,502,{error:"لم تؤكد قاعدة البيانات حفظ ترتيب جميع البطاقات."});
   return send(res,200,{ok:true,updated_count:Number(payload.updated_count)});
 }
+
+export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -1043,6 +1407,10 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       if (!requireSameOrigin(req,res)) return;
       const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
+      if(body.action==="clear_unit_channel_messages")
+        return await handleClearUnitCardChannel(url,key,process.env.DISCORD_BOT_TOKEN,user,res);
+      if(body.action==="publish_all_unit_cards")
+        return await handlePublishAllUnitCards(url,key,process.env.DISCORD_BOT_TOKEN,process.env.DISCORD_GUILD_ID,user,res);
       if(body.action==="save_unit_card_order")
         return await handleSaveUnitCardOrder(url,key,body,res);
       if(body.action==="add_manual_member")
