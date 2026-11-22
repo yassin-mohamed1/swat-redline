@@ -1755,7 +1755,8 @@ export default async function handler(req, res) {
       channel_disabled: !channelEnabled,
       members_dm_enabled: memberDmEnabled && broadcastEnabled,
       members_dm_disabled: !(memberDmEnabled && broadcastEnabled),
-      owner_included: ownerIncluded,\n      role_check: roleCheck,
+      owner_included: ownerIncluded,
+      role_check: roleCheck,
       owner_dm_sent: ownerDmSent,
       owner_dm_error_code: ownerDmErrorCode,
       role_ping_sent: channelSent && !notificationRoleMentionDisabled,
@@ -1768,7 +1769,9 @@ export default async function handler(req, res) {
         other: Object.entries(failureReasons).filter(([code]) => !["50278", "50007"].includes(code)).reduce((sum, [, count]) => sum + count, 0)
       },
       mode: broadcastEnabled ? "broadcast" : "test_self",
-      message: !recipients.length
+      message: roleCheck.error_code
+        ? (channelSent ? "Channel post published; private messages withheld because S.W.A.T. role verification failed." : "Private messages withheld because S.W.A.T. role verification failed.")
+        : !recipients.length
         ? "No eligible recipients have private notifications enabled."
         : channelStatus === "disabled"
           ? `Channel publishing is disabled by the owner. ${sent} private messages sent.`
