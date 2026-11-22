@@ -900,7 +900,7 @@ async function handleSaveUnitCardOrder(url,key,body,res) {
     ?body.discord_user_ids.map(value=>String(value||"").trim())
     :[];
   if(!discordUserIds.length||discordUserIds.length>250||
-     discordUserIds.some(id=>!/^\\d{15,22}$/.test(id))||
+     discordUserIds.some(id=>!/^\d{15,22}$/.test(id))||
      new Set(discordUserIds).size!==discordUserIds.length) {
     return send(res,400,{error:"قائمة ترتيب البطاقات غير صالحة. حدّث الصفحة وحاول مرة أخرى."});
   }
