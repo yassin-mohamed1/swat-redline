@@ -313,7 +313,7 @@ test("unit identity cards can be manually reordered from the portal without movi
   assert.match(html, /function resetUnitCardOrderToAlpha/);
   assert.match(html, /action:'save_unit_card_order'/);
   assert.match(html, /unit_sort_order/);
-  assert.match(html, /لن يتم حذف أي بطاقة أو إعادة نشرها/);
+  assert.match(html, /ترتيبها كما تريد، ثم امسح رسائل الروم وأعد نشرها كلها/);
 
   assert.match(migration, /ADD COLUMN IF NOT EXISTS unit_sort_order integer/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.save_staff_unit_card_order/);
@@ -322,4 +322,49 @@ test("unit identity cards can be manually reordered from the portal without movi
   assert.match(migration, /identity\.message_id IS NOT NULL/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.save_staff_unit_card_order/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.save_staff_unit_card_order\(text\[\]\)\s+TO service_role/);
+});
+
+test("SWAT UNITS channel controls clear the specified channel and republish existing identity cards in saved order", async () => {
+  const api = await read("../api/admin/members.js");
+  const html = await read("../index.html");
+  const migration = await read("../supabase/migrations/20261123020000_retain_unit_order_after_channel_clear.sql");
+
+  assert.match(api, /const UNIT_CARD_CHANNEL_ID = "1561490450953670817"/);
+  assert.match(api, /async function listUnitChannelMessages/);
+  assert.match(api, /\/messages\/bulk-delete/);
+  assert.match(api, /DISCORD_BULK_DELETE_MAX_AGE_MS/);
+  assert.match(api, /async function handleClearUnitCardChannel/);
+  assert.match(api, /async function handlePublishAllUnitCards/);
+  assert.match(api, /body\.action==="clear_unit_channel_messages"/);
+  assert.match(api, /body\.action==="publish_all_unit_cards"/);
+
+  const clearStart = api.indexOf("async function handleClearUnitCardChannel");
+  const publishStart = api.indexOf("async function handlePublishAllUnitCards", clearStart);
+  const handlerEnd = api.indexOf("async function handleSaveUnitCardOrder", publishStart);
+  const clearHandler = api.slice(clearStart, publishStart);
+  const publishHandler = api.slice(publishStart, handlerEnd);
+  assert.ok(clearStart >= 0 && publishStart > clearStart && handlerEnd > publishStart);
+  assert.match(clearHandler, /listUnitChannelMessages\(token, UNIT_CARD_CHANNEL_ID/);
+  assert.match(clearHandler, /deleteUnitChannelMessages\(token,messages\)/);
+  assert.match(clearHandler, /channel_id:null,message_id:null,published_at:null/);
+  assert.match(clearHandler, /staff_member_identities\?channel_id=eq\./);
+  assert.match(publishHandler, /messages\?limit=1/);
+  assert.match(publishHandler, /روم SWAT UNITS ليس فارغًا/);
+  assert.match(publishHandler, /assignmentMapLimit\(cards,4/);
+  assert.match(publishHandler, /memberIdentityEmbed/);
+  assert.match(publishHandler, /unit_sort_order:index/);
+  assert.match(publishHandler, /allowed_mentions:\{parse:\[\],users:\[card\.id\]\}/);
+
+  assert.match(html, /id="clearUnitChannelButton"/);
+  assert.match(html, /id="publishUnitCardsButton"/);
+  assert.match(html, /function clearUnitChannelMessages/);
+  assert.match(html, /function publishUnitCardsInOrder/);
+  assert.match(html, /امسح كل رسائل SWAT UNITS/);
+  assert.match(html, /action:\x27clear_unit_channel_messages\x27/);
+  assert.match(html, /action:\x27publish_all_unit_cards\x27/);
+  assert.match(html, /احفظ ترتيب البطاقات أولًا/);
+
+  assert.match(migration, /identity\.city_rank IS NOT NULL/);
+  assert.doesNotMatch(migration, /identity\.message_id IS NOT NULL/);
+  assert.match(migration, /unit_sort_order = requested\.sort_position - 1/);
 });
