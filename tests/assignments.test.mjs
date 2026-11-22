@@ -329,7 +329,7 @@ test("SWAT UNITS channel controls clear the specified channel and republish exis
   const html = await read("../index.html");
   const migration = await read("../supabase/migrations/20261123020000_retain_unit_order_after_channel_clear.sql");
 
-  assert.match(api, /const UNIT_CARD_CHANNEL_ID = "1561490450953670817"/);
+  assert.match(api, /const UNIT_CARDS_CHANNEL_ID = "1561490450953670817"/);
   assert.match(api, /async function listUnitChannelMessages/);
   assert.match(api, /\/messages\/bulk-delete/);
   assert.match(api, /DISCORD_BULK_DELETE_MAX_AGE_MS/);
