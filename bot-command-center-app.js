@@ -104,16 +104,16 @@ function renderMessages(data){
  '<div class="field"><label>'+t("تذييل الرسالة (اختياري)","Footer (optional)")+'</label><input name="footer" maxlength="2048" placeholder="S.W.A.T. REDLINE"></div>'+
  '<div class="row"><button class="btn primary" type="submit">'+t("إرسال Embed","Send Embed")+'</button><button class="btn" type="reset">'+t("مسح","Clear")+'</button></div></form></div></section>';
  $("#messageForm").addEventListener("submit",async event=>{
-  event.preventDefault();const values=new FormData(event.currentTarget);const channelId=String(values.get("channelId")||"");const content=String(values.get("content")||"").trim();if(!channelId||!content)return;
+  event.preventDefault();const form=event.currentTarget;const values=new FormData(form);const channelId=String(values.get("channelId")||"");const content=String(values.get("content")||"").trim();if(!channelId||!content)return;
   if(!confirm(t("سيتم إرسال الرسالة الآن إلى القناة المحددة. هل تريد المتابعة؟","Send this message to the selected channel now?")))return;
-  try{const result=await post({action:"send_message",channelId,content});toast(t("تم إرسال الرسالة إلى #"+result.channelName,"Message sent to #"+result.channelName));event.currentTarget.reset();}catch(error){toast(error.message);}
+  try{const result=await post({action:"send_message",channelId,content});toast(t("تم إرسال الرسالة إلى #"+result.channelName,"Message sent to #"+result.channelName));form.reset();}catch(error){toast(error.message);}
  });
  $("#embedForm").addEventListener("submit",async event=>{
-  event.preventDefault();const values=new FormData(event.currentTarget);
+  event.preventDefault();const form=event.currentTarget;const values=new FormData(form);
   const payload={action:"send_embed",channelId:String(values.get("channelId")||""),title:String(values.get("title")||"").trim(),description:String(values.get("description")||"").trim(),footer:String(values.get("footer")||"").trim(),color:String(values.get("color")||"#ed3545")};
   if(!payload.channelId||(!payload.title&&!payload.description)){toast(t("اختر قناة واكتب عنوانًا أو وصفًا.","Choose a channel and enter a title or description."));return;}
   if(!confirm(t("سيتم إرسال Embed الآن إلى القناة المختارة. هل تريد المتابعة؟","Send this embed to the selected channel now?")))return;
-  try{const result=await post(payload);toast(t("تم إرسال Embed إلى #"+result.channelName,"Embed sent to #"+result.channelName));event.currentTarget.reset();}catch(error){toast(error.message);}
+  try{const result=await post(payload);toast(t("تم إرسال Embed إلى #"+result.channelName,"Embed sent to #"+result.channelName));form.reset();}catch(error){toast(error.message);}
  });
 }
 function renderModeration(){
