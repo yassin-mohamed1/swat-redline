@@ -1,4 +1,4 @@
-import { mkdir, copyFile, rm } from "node:fs/promises";
+import { mkdir, copyFile, readFile, rm, writeFile } from "node:fs/promises";
 
 const output = new URL("../dist/", import.meta.url);
 await rm(output, { recursive: true, force: true });
@@ -8,5 +8,11 @@ for (const file of ["index.html", "swat-redline-logo.svg", "bot-command-center.h
   await copyFile(new URL(`../${file}`, import.meta.url), new URL(file, output));
 }
 await copyFile(new URL("../bot/welcome-nameplate.jpg", import.meta.url), new URL("welcome-nameplate.jpg", output));
+
+const welcomeApp = await readFile(new URL("../bot-command-center-app.js", import.meta.url), "utf8");
+await writeFile(
+  new URL("../cloudflare/welcome-app-source.js", import.meta.url),
+  `export default ${JSON.stringify(welcomeApp)};\n`,
+);
 
 console.log("Cloudflare static assets prepared: portal, logo, and bot command center assets.");

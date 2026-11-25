@@ -11,6 +11,7 @@ import siteImages from "../api/site-images.js";
 import sharedState from "../api/state.js";
 import userNotifications from "../api/user/notifications.js";
 import warnings from "../api/warnings.js";
+import welcomeAppSource from "./welcome-app-source.js";
 
 const API_ROUTES = new Map([
   ["/api/admin/media", adminMedia],
@@ -144,6 +145,15 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const handler = API_ROUTES.get(url.pathname);
+
+    if (url.pathname === "/bot-command-center-app.js" && ["GET", "HEAD"].includes(request.method)) {
+      return new Response(request.method === "HEAD" ? null : welcomeAppSource, {
+        headers: {
+          "cache-control": "no-store",
+          "content-type": "text/javascript; charset=utf-8",
+        },
+      });
+    }
 
     if (!url.pathname.startsWith("/api/")) {
       return env.ASSETS.fetch(request);
