@@ -11,9 +11,11 @@ for (const file of ["index.html", "swat-redline-logo.svg", "bot-command-center.h
 await copyFile(new URL("../bot/welcome-nameplate.jpg", import.meta.url), new URL("welcome-nameplate.jpg", output));
 
 const welcomeApp = await readFile(new URL("../bot-command-center-app.js", import.meta.url));
+const welcomeHtml = await readFile(new URL("../bot-command-center.html", import.meta.url));
 await writeFile(
   new URL("../cloudflare/welcome-app-source.js", import.meta.url),
-  `export default ${JSON.stringify(gzipSync(welcomeApp, { level: 9 }).toString("base64"))};\n`,
+  `export const welcomeAppGzipBase64 = ${JSON.stringify(gzipSync(welcomeApp, { level: 9 }).toString("base64"))};\n` +
+    `export const welcomeHtmlGzipBase64 = ${JSON.stringify(gzipSync(welcomeHtml, { level: 9 }).toString("base64"))};\n`,
 );
 
 console.log("Cloudflare static assets prepared: portal, logo, and bot command center assets.");

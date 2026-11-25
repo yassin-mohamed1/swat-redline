@@ -1,11 +1,11 @@
--- Register the one-minute poller through the existing notifications serverless function.
--- Apply this migration only after the updated function is deployed to production.
+-- Register the attendance poller through the notifications route on Cloudflare Workers.
+-- Apply this migration only after the updated route is deployed to production.
 SELECT cron.schedule(
   'swat-daily-attendance-poller',
   '5 seconds',
   $job$
     SELECT net.http_get(
-      url := 'https://swat-redline.vercel.app/api/notifications/send?task=attendance',
+      url := 'https://swat-redline.swat-redline.workers.dev/api/notifications/send?task=attendance',
       headers := jsonb_build_object(
         'x-announcement-sync-secret',
         (SELECT decrypted_secret

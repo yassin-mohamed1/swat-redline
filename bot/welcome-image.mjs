@@ -160,8 +160,8 @@ function contentSvg(image, member, nameplateBase64 = "") {
   const color = /^#[0-9a-f]{6}$/i.test(image.nameColor || "") ? image.nameColor : "#f1f3f4";
   const avatarClip = `<clipPath id="memberAvatar"><circle cx="${avatarX}" cy="${avatarY}" r="${avatarSize / 2}"/></clipPath>`;
   const shadow = `<filter id="nameShadow" x="-30%" y="-70%" width="160%" height="240%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity=".92"/></filter>`;
-  const plateLeft = nameX - WIDTH * 0.051 - plateWidth / 2;
-  const plateTop = nameY - plateHeight / 2;
+  const plateLeft = WIDTH * 0.46 - plateWidth / 2;
+  const plateTop = HEIGHT * 0.58 - plateHeight / 2;
   const plate = image.template === "redline-operator" && nameplateBase64
     ? `<image href="data:image/jpeg;base64,${nameplateBase64}" x="${plateLeft}" y="${plateTop}" width="${plateWidth}" height="${plateHeight}" preserveAspectRatio="none"/>`
     : "";

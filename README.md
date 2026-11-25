@@ -138,8 +138,8 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 
 ## SWAT Daily Attendance
 
-- The attendance sync runs as a Vercel API route called by a Supabase `pg_cron` job every 5 seconds. No always-on Railway worker is required.
-- The route is authenticated with the existing `ANNOUNCEMENT_SYNC_SECRET` and uses the existing Discord bot and Supabase service-role environment variables in Vercel.
+- The attendance sync runs as a Cloudflare Worker API route called by a Supabase `pg_cron` job every 5 seconds. No always-on Railway worker is required.
+- The route is authenticated with the existing `ANNOUNCEMENT_SYNC_SECRET` and uses the existing Discord bot and Supabase service-role environment variables in Cloudflare Workers.
 - It polls only attendance channel `1569735227146768434`, reads message author and timestamp metadata, and does not need message text.
 - Only non-bot members in the configured guild who hold `DISCORD_ROLE_ID` and have an active, non-banned `staff_profiles` record can be recorded.
 - The first message per member per Riyadh calendar day is stored in `attendance_records`; additional messages receive an already-recorded confirmation. The unique `(discord_user_id, attendance_date)` constraint makes this idempotent.

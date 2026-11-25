@@ -11,7 +11,7 @@ import siteImages from "../api/site-images.js";
 import sharedState from "../api/state.js";
 import userNotifications from "../api/user/notifications.js";
 import warnings from "../api/warnings.js";
-import welcomeAppGzipBase64 from "./welcome-app-source.js";
+import { welcomeAppGzipBase64, welcomeHtmlGzipBase64 } from "./welcome-app-source.js";
 
 const API_ROUTES = new Map([
   ["/api/admin/media", adminMedia],
@@ -29,14 +29,15 @@ const API_ROUTES = new Map([
   ["/api/warnings", warnings],
 ]);
 
-let welcomeAppSourcePromise;
-async function getWelcomeAppSource() {
-  if (!welcomeAppSourcePromise) {
-    const compressed = Uint8Array.from(atob(welcomeAppGzipBase64), (character) => character.charCodeAt(0));
+const welcomeSourceCache = new Map();
+function getWelcomeSource(name) {
+  if (!welcomeSourceCache.has(name)) {
+    const encoded = name === "app" ? welcomeAppGzipBase64 : welcomeHtmlGzipBase64;
+    const compressed = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
     const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
-    welcomeAppSourcePromise = new Response(stream).text();
+    welcomeSourceCache.set(name, new Response(stream).text());
   }
-  return welcomeAppSourcePromise;
+  return welcomeSourceCache.get(name);
 }
 
 function toNodeHeaders(headers, url) {
@@ -156,11 +157,16 @@ export default {
     const url = new URL(request.url);
     const handler = API_ROUTES.get(url.pathname);
 
-    if (url.pathname === "/bot-command-center-app.js" && ["GET", "HEAD"].includes(request.method)) {
-      return new Response(request.method === "HEAD" ? null : await getWelcomeAppSource(), {
+    const welcomeAsset = url.pathname === "/bot-command-center-app.js"
+      ? { name: "app", contentType: "text/javascript; charset=utf-8" }
+      : url.pathname === "/bot-command-center.html"
+        ? { name: "html", contentType: "text/html; charset=utf-8" }
+        : null;
+    if (welcomeAsset && ["GET", "HEAD"].includes(request.method)) {
+      return new Response(request.method === "HEAD" ? null : await getWelcomeSource(welcomeAsset.name), {
         headers: {
           "cache-control": "no-store",
-          "content-type": "text/javascript; charset=utf-8",
+          "content-type": welcomeAsset.contentType,
         },
       });
     }
