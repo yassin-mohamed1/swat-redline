@@ -52,7 +52,7 @@ export function createWelcomeAutomation({
 
       let image = null;
       const embeds = [];
-      if (isWelcome && welcome.image?.enabled !== false) {
+      if (isWelcome && welcome.image && welcome.image.enabled !== false) {
         const user = member?.user || {};
         let avatarUrl = "";
         try { avatarUrl = member.displayAvatarURL?.({ extension: "png", size: 512 }) || ""; } catch {}
