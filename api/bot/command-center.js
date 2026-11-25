@@ -217,6 +217,38 @@ async function handlePost(req, res, user, cfg) {
     });
     return reply(res, 200, { ok: true, messageId: String(sent?.id || ""), channelName: String(channel.name || "") });
   }
+  if (action === "send_embed") {
+    const channelId = String(body.channelId || "");
+    const title = String(body.title || "").trim().slice(0, 256);
+    const description = String(body.description || "").trim().slice(0, 4096);
+    const footer = String(body.footer || "").trim().slice(0, 2048);
+    const colorInput = String(body.color || "#ed3545").trim();
+    if (!SNOWFLAKE.test(channelId) || (!title && !description)) {
+      return reply(res, 400, { error: "اختر قناة واكتب عنوانًا أو وصفًا للـ Embed." });
+    }
+    if (!/^#[0-9a-fA-F]{6}$/.test(colorInput)) return reply(res, 400, { error: "لون الـ Embed غير صالح." });
+    const channel = await discord(cfg, "/channels/" + channelId);
+    if (String(channel.guild_id || "") !== cfg.guildId || ![0, 5].includes(Number(channel.type))) {
+      return reply(res, 400, { error: "يمكن الإرسال إلى قنوات النصوص والإعلانات التابعة لهذا السيرفر فقط." });
+    }
+    const embed = { color: Number.parseInt(colorInput.slice(1), 16) };
+    if (title) embed.title = title;
+    if (description) embed.description = description;
+    if (footer) embed.footer = { text: footer };
+    const sent = await discord(cfg, "/channels/" + channelId + "/messages", {
+      method: "POST",
+      body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } })
+    });
+    await writeAudit(cfg, user, "send_embed", sent?.id || channelId, {
+      type: "إرسال Embed من مركز تحكم البوت",
+      channel_id: channelId,
+      channel_name: String(channel.name || ""),
+      message_id: String(sent?.id || ""),
+      title: title.slice(0, 120),
+      description_preview: description.slice(0, 180)
+    });
+    return reply(res, 200, { ok: true, messageId: String(sent?.id || ""), channelName: String(channel.name || "") });
+  }
   if (action === "add_role" || action === "remove_role") {
     const targetId = String(body.userId || ""), roleId = String(body.roleId || "");
     if (!SNOWFLAKE.test(roleId)) return reply(res, 400, { error: "اختر رتبة صحيحة." });
