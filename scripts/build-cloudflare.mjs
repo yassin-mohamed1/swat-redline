@@ -1,4 +1,5 @@
 import { mkdir, copyFile, readFile, rm, writeFile } from "node:fs/promises";
+import { gzipSync } from "node:zlib";
 
 const output = new URL("../dist/", import.meta.url);
 await rm(output, { recursive: true, force: true });
@@ -9,10 +10,10 @@ for (const file of ["index.html", "swat-redline-logo.svg", "bot-command-center.h
 }
 await copyFile(new URL("../bot/welcome-nameplate.jpg", import.meta.url), new URL("welcome-nameplate.jpg", output));
 
-const welcomeApp = await readFile(new URL("../bot-command-center-app.js", import.meta.url), "utf8");
+const welcomeApp = await readFile(new URL("../bot-command-center-app.js", import.meta.url));
 await writeFile(
   new URL("../cloudflare/welcome-app-source.js", import.meta.url),
-  `export default ${JSON.stringify(welcomeApp)};\n`,
+  `export default ${JSON.stringify(gzipSync(welcomeApp, { level: 9 }).toString("base64"))};\n`,
 );
 
 console.log("Cloudflare static assets prepared: portal, logo, and bot command center assets.");

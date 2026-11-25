@@ -11,7 +11,7 @@ import siteImages from "../api/site-images.js";
 import sharedState from "../api/state.js";
 import userNotifications from "../api/user/notifications.js";
 import warnings from "../api/warnings.js";
-import welcomeAppSource from "./welcome-app-source.js";
+import welcomeAppGzipBase64 from "./welcome-app-source.js";
 
 const API_ROUTES = new Map([
   ["/api/admin/media", adminMedia],
@@ -28,6 +28,16 @@ const API_ROUTES = new Map([
   ["/api/user/notifications", userNotifications],
   ["/api/warnings", warnings],
 ]);
+
+let welcomeAppSourcePromise;
+async function getWelcomeAppSource() {
+  if (!welcomeAppSourcePromise) {
+    const compressed = Uint8Array.from(atob(welcomeAppGzipBase64), (character) => character.charCodeAt(0));
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
+    welcomeAppSourcePromise = new Response(stream).text();
+  }
+  return welcomeAppSourcePromise;
+}
 
 function toNodeHeaders(headers, url) {
   const output = {};
@@ -147,7 +157,7 @@ export default {
     const handler = API_ROUTES.get(url.pathname);
 
     if (url.pathname === "/bot-command-center-app.js" && ["GET", "HEAD"].includes(request.method)) {
-      return new Response(request.method === "HEAD" ? null : welcomeAppSource, {
+      return new Response(request.method === "HEAD" ? null : await getWelcomeAppSource(), {
         headers: {
           "cache-control": "no-store",
           "content-type": "text/javascript; charset=utf-8",
