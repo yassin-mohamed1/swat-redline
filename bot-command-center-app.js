@@ -12,7 +12,7 @@ function badge(label,kind){return '<span class="badge '+(kind||"")+'">'+label+'<
 function metric(label,value,note){return '<div class="card"><div class="kicker">'+label+'</div><div class="value">'+esc(value)+'</div><div class="caption">'+note+'</div></div>';}
 function head(title,description,action){return '<div class="view-head"><div><h1>'+title+'</h1><p>'+description+'</p></div>'+(action||"")+'</div>';}
 function apiError(data){return data&&data.error?data.error:t("تعذر تنفيذ العملية.","The request could not be completed.");}
-async function request(path,options){const response=await fetch(path,{credentials:"same-origin",cache:"no-store",...(options||{})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(apiError(data));return data;}
+async function request(path,options){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{const response=await fetch(path,{credentials:"same-origin",cache:"no-store",...(options||{}),signal:controller.signal});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(apiError(data));return data;}catch(error){if(error?.name==="AbortError")throw new Error(t("انتهت مهلة الاتصال. اضغط تحديث وحاول مرة أخرى.","The request timed out. Refresh and try again."));throw error;}finally{clearTimeout(timer);}}
 async function post(data){return request(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});}
 function render(){
   const data=state.data||{};
@@ -355,7 +355,7 @@ function renderWelcome(data){
   card.style.setProperty("--avatar-x",safeNumber("avatarX",82.8)+"%");card.style.setProperty("--avatar-y",safeNumber("avatarY",40.9)+"%");card.style.setProperty("--avatar-size",avatarSize+"%");
   card.style.setProperty("--name-x",safeNumber("nameX",51.1)+"%");card.style.setProperty("--name-y",safeNumber("nameY",58)+"%");card.style.setProperty("--name-width",nameWidth+"%");
   const previewName=$("#welcomePreviewName").textContent,previewWidth=card.getBoundingClientRect().width,maxNamePx=previewWidth*nameWidth/100;
-  const previewFontPx=Math.max(previewWidth*18/1200,Math.min(previewWidth*nameSize/100,maxNamePx/(Math.max(1,Array.from(previewName).length)*.72))));
+  const previewFontPx=Math.max(previewWidth*18/1200,Math.min(previewWidth*nameSize/100,maxNamePx/(Math.max(1,Array.from(previewName).length)*.72)));
   card.style.setProperty("--name-font-size",previewFontPx+"px");
   $("#welcomePreviewAvatar").style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
   $("#welcomePreviewName").style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
