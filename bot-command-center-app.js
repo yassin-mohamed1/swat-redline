@@ -61,7 +61,7 @@ function renderOverview(data){
   '<button class="btn" type="button" data-portal-page="attendance">'+t("البصمة والإجازات","Attendance & leaves")+'</button>'+
   '<button class="btn" type="button" data-portal-page="audit">'+t("سجل الإدارة","Audit log")+'</button>'+
   '</div><p class="muted">'+t("هذه الوظائف موجودة بالفعل في بوابة S.W.A.T. ويمكن فتحها من هنا.","These capabilities already exist in the S.W.A.T. portal and can be opened here.")+'</p></div></section>');
- $("[data-portal-page]").forEach(button=>button.addEventListener("click",()=>window.parent.postMessage({type:"swat-bot-open-portal-page",page:button.dataset.portalPage},location.origin)));
+ Array.prototype.forEach.call(document.querySelectorAll("[data-portal-page]"),button=>button.addEventListener("click",()=>window.parent.postMessage({type:"swat-bot-open-portal-page",page:button.dataset.portalPage},location.origin)));
 }
 function renderServer(data){
  const roles=data.roles||[],channels=data.channels||[];
