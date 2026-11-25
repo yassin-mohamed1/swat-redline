@@ -6471,7 +6471,16 @@ async function saveOperation(event){
   }
 }
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}document.getElementById('globalSearch').addEventListener('input',e=>{let v=e.target.value.trim();if(v){go('wanted');document.getElementById('wantedSearch').value=v;renderWanted()}});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();document.getElementById('globalSearch').focus()}});function updateClock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}setInterval(updateClock,1000);updateClock();
-let portalBootReady=false,portalSplashHoldElapsed=false,portalSplashDismissed=false;
+let portalBootReady=false,portalSplashHoldElapsed=false,portalSplashDismissed=false,portalSplashHoldTimerStarted=false;
+function markPortalBootReady(){
+ if(portalBootReady)return;
+ portalBootReady=true;
+ document.getElementById('portalSplash')?.classList.add('is-ready');
+ if(!portalSplashHoldTimerStarted){
+  portalSplashHoldTimerStarted=true;
+  setTimeout(()=>{portalSplashHoldElapsed=true;dismissPortalSplash();},3500);
+ }
+}
  function dismissPortalSplash(){
  if(portalSplashDismissed||!portalBootReady||!portalSplashHoldElapsed)return;
  portalSplashDismissed=true;
@@ -6483,7 +6492,7 @@ async function initAuth(){
   const app=document.querySelector('.app');
   const error=document.getElementById('authError');
   try{
-    const response=await fetch('/api/auth/session',{credentials:'same-origin',cache:'no-store'});
+    const response=await fetch('/api/auth/session',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(8000)});
     if(!response.ok) throw new Error('unauthorized');
     const data=await response.json();
     if(!data.authenticated||!data.user) throw new Error('unauthorized');
@@ -6495,7 +6504,7 @@ async function initAuth(){
     currentCanManageAssignments=currentCanAdmin;
     if(currentCanAdmin){
       try{
-        const warningAccess=await fetch('/api/warnings?access=1',{credentials:'same-origin',cache:'no-store'});
+        const warningAccess=await fetch('/api/warnings?access=1',{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(4000)});
         currentCanManageWarnings=warningAccess.ok;
       }catch{currentCanManageWarnings=false;}
     }
@@ -6535,6 +6544,8 @@ async function initAuth(){
     document.getElementById('profileRole').textContent=currentIsOwner?'المالك ADMIN':currentIsWebsiteAdmin?'ADMIN':'موثّق عبر Discord';
     app.classList.remove('auth-locked');
     gate.style.display='none';
+    // Reveal the authenticated portal shell before waiting on optional database/audit hydration.
+    markPortalBootReady();
     await pullSharedState(true);
     sharedSyncReady=true;
     if(currentCanAdmin)await loadAuditLog();
@@ -6548,9 +6559,8 @@ async function initAuth(){
     gate.style.display='grid';
     if(new URLSearchParams(location.search).has('authError')) error.style.display='block';
   }finally{
-    portalBootReady=true;
-    document.getElementById('portalSplash')?.classList.add('is-ready');
-    setTimeout(()=>{portalSplashHoldElapsed=true;dismissPortalSplash();},10000);
+    // Always release the splash, including when session verification or data hydration fails.
+    markPortalBootReady();
   }
 }
 
