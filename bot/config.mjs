@@ -28,6 +28,7 @@ export function readConfig(env = process.env) {
     managerRoleId: String(env.DISCORD_WARNING_MANAGER_ROLE_ID || ""),
     leaveRequestChannelId: String(env.LEAVE_REQUEST_CHANNEL_ID || ""),
     adminAlertsChannelId: String(env.DISCORD_ADMIN_ALERTS_CHANNEL_ID || ""),
+    logChannelId: String(env.DISCORD_LOG_CHANNEL_ID || ""),
     clearAdminAlertsHistoryOnStartup: String(env.ADMIN_ALERTS_CLEAR_HISTORY_ON_STARTUP || "").toLowerCase() === "true",
     voiceAlertOwnerId: String(env.DISCORD_VOICE_ALERT_OWNER_ID || ""),
     voiceAlertTargetId: String(env.DISCORD_VOICE_ALERT_TARGET_ID || ""),
@@ -56,6 +57,7 @@ export function readConfig(env = process.env) {
   if (!snowflake(config.managerRoleId)) missing.push("DISCORD_WARNING_MANAGER_ROLE_ID");
   if (!snowflake(config.leaveRequestChannelId)) missing.push("LEAVE_REQUEST_CHANNEL_ID");
   if (!snowflake(config.adminAlertsChannelId)) missing.push("DISCORD_ADMIN_ALERTS_CHANNEL_ID");
+  if (config.logChannelId && !snowflake(config.logChannelId)) missing.push("DISCORD_LOG_CHANNEL_ID must be a Discord channel ID");
   if (!/^https:\/\//i.test(config.supabaseUrl)) missing.push("SUPABASE_URL");
   if (!config.supabaseServiceRoleKey) missing.push("SUPABASE_SERVICE_ROLE_KEY");
   if (missing.length) throw new Error(`Missing or invalid configuration: ${missing.join(", ")}.`);
