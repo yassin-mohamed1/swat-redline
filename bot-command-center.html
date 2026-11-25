@@ -35,6 +35,7 @@
 .panel-head h2{font-size:13px;margin:0}.panel-body{padding:15px}
 .split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
 .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.switch{width:40px;height:22px;appearance:none;background:#344052;border:1px solid #4b5a6d;border-radius:99px;position:relative;cursor:pointer;transition:.18s;vertical-align:middle}.switch:before{content:"";position:absolute;width:14px;height:14px;top:3px;left:3px;border-radius:50%;background:#d8e0e9;transition:.18s}.switch:checked{background:#b82234;border-color:#f04a59}.switch:checked:before{left:21px;background:#fff}.checkline{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:700;cursor:pointer}.log-event-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.log-event{display:flex;align-items:center;gap:8px;background:#111c28;border:1px solid #27384a;border-radius:8px;padding:8px 10px;font-size:10px;color:#c5d1df}.log-event input{accent-color:#ec3545}.log-category{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.75fr);gap:13px;align-items:start}.status-note{font-size:10px;line-height:1.8;color:#95a4b6}.settings-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.welcome-token{display:inline-block;border:1px solid #3c4c60;background:#182434;border-radius:6px;padding:3px 7px;margin:2px;font:10px monospace;color:#d5e1ef}@media(max-width:720px){.log-event-grid,.log-category{grid-template-columns:1fr}}
 .muted{color:var(--muted);font-size:10px;line-height:1.9}.field{display:grid;gap:7px;margin-bottom:13px;min-width:0}.field label{font-size:10px;color:#b7c2d0;font-weight:700}
 .field input,.field select,.field textarea{width:100%;padding:11px 12px;border-radius:9px;border:1px solid #39485a;background:#080e16;color:#f1f5fb;outline:none;font-size:11px}
 .field textarea{min-height:130px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:#ec4654;box-shadow:0 0 0 3px #ec465419}
@@ -70,6 +71,8 @@
     <button data-view="messages"><span class="ic">✉</span>الرسائل والإعلانات</button>
     <button data-view="moderation"><span class="ic">⛨</span>الإشراف والعقوبات</button>
     <button data-view="automod"><span class="ic">⛉</span>الحماية التلقائية</button>
+    <button data-view="logs"><span class="ic">≋</span>إدارة اللوجات</button>
+    <button data-view="welcome"><span class="ic">✦</span>الترحيب والمغادرة</button>
     <button data-view="integrations"><span class="ic">⌁</span>التكاملات الخارجية</button>
     <button data-view="modules"><span class="ic">◈</span>حالة الأنظمة</button>
     <div class="side-foot">S.W.A.T. REDLINE<br>SECURE BOT MANAGEMENT<br><b style="color:#ed5360">AUTHORIZED PERSONNEL ONLY</b></div>
