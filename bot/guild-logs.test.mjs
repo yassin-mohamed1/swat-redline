@@ -1,3 +1,4 @@
+import { PermissionsBitField } from "discord.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createGuildLogService } from "./guild-logs.mjs";
@@ -83,6 +84,76 @@ test("records member role changes from the Discord audit log", async () => {
   const fields = sent[0].embeds[0].fields;
   assert.match(fields.find(field => field.name === "منفذ الإجراء").value, /Moderator/);
   assert.equal(fields.find(field => field.name === "السبب").value, "Promotion");
+});
+
+test("logs channel permission overwrite create, update and delete with decoded permissions", async () => {
+  const { service, sent } = harness();
+  const guild = { id: "12345678901234567" };
+  const role = { id: "62345678901234567", name: "REDLINE S.W.A.T" };
+  const channel = { id: "72345678901234567", name: "swat-logs" };
+  const viewChannel = String(PermissionsBitField.Flags.ViewChannel);
+
+  assert.equal(await service.auditLogEntry({
+    action: 13,
+    executor: { id: "82345678901234567", username: "Yassin" },
+    target: role, targetId: role.id,
+    extra: { id: role.id, type: "0", role_name: role.name, channel },
+    changes: [{ key: "allow", new_value: viewChannel }, { key: "deny", new_value: "0" }]
+  }, guild), true);
+
+  assert.equal(await service.auditLogEntry({
+    action: 14,
+    executor: { id: "82345678901234567", username: "Yassin" },
+    target: role, targetId: role.id,
+    extra: { id: role.id, type: "0", role_name: role.name, channel },
+    changes: [
+      { key: "allow", old_value: "0", new_value: viewChannel },
+      { key: "deny", old_value: viewChannel, new_value: "0" }
+    ]
+  }, guild), true);
+
+  assert.equal(await service.auditLogEntry({
+    action: 15,
+    executor: { id: "82345678901234567", username: "Yassin" },
+    target: role, targetId: role.id,
+    extra: { id: role.id, type: "0", role_name: role.name, channel },
+    changes: [{ key: "allow", old_value: viewChannel }, { key: "deny", old_value: "0" }]
+  }, guild), true);
+
+  assert.equal(sent.length, 3);
+  assert.match(sent[0].embeds[0].title, /إضافة صلاحيات/);
+  assert.match(sent[1].embeds[0].title, /تعديل صلاحيات/);
+  assert.match(sent[2].embeds[0].title, /إزالة صلاحيات/);
+  const updateFields = sent[1].embeds[0].fields;
+  assert.match(updateFields.find(field => field.name === "القناة").value, /swat-logs/);
+  assert.match(updateFields.find(field => field.name === "الرتبة المستهدفة").value, /REDLINE S.W.A.T/);
+  assert.match(updateFields.find(field => field.name.includes("المسموح بها")).value, /عرض القناة/);
+});
+
+test("routes every known and future audit action to an enabled log category", async () => {
+  const { service, sent } = harness();
+  const guild = { id: "12345678901234567" };
+  assert.equal(await service.auditLogEntry({
+    action: 1,
+    executor: { id: "82345678901234567", username: "Owner" },
+    targetId: guild.id,
+    changes: [{ key: "name", old_value: "Old", new_value: "New" }]
+  }, guild), true);
+  assert.equal(await service.auditLogEntry({
+    action: 121,
+    executor: { id: "82345678901234567", username: "Owner" },
+    targetId: "62345678901234567",
+    changes: [{ key: "permissions", old_value: "0", new_value: "1" }]
+  }, guild), true);
+  assert.equal(await service.auditLogEntry({
+    action: 999,
+    executor: { id: "82345678901234567", username: "Owner" },
+    targetId: "62345678901234567"
+  }, guild), true);
+  assert.equal(sent.length, 3);
+  assert.match(sent[0].embeds[0].title, /إعدادات السيرفر/);
+  assert.match(sent[1].embeds[0].title, /صلاحيات أوامر التطبيقات/);
+  assert.match(sent[2].embeds[0].fields.find(field => field.name === "رقم نوع الحدث").value, /999/);
 });
 
 test("records voice joins, leaves, and moves", async () => {
