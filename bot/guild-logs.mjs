@@ -136,7 +136,7 @@ function text(value, limit = MAX_FIELD_VALUE) {
 function displayUser(userOrMember) {
   const user = userOrMember?.user || userOrMember;
   if (!user) return "عضو غير معروف";
-  const name = user.tag || user.globalName || user.username || user.displayName || "Discord user";
+  const name = user.tag || user.globalName || user.username || user.displayName || user.name || "Discord user";
   return user.id ? text(name, 80) + " (<@" + user.id + ">) · " + user.id : text(name, 100);
 }
 function displayChannel(channelOrState, fallbackId = "") {
@@ -423,12 +423,14 @@ export function createGuildLogService({
 
     const action = Number(entry?.action);
     const known = AUDIT_ACTIONS[action];
-    const info = known || {
-      category: "audit",
-      eventKey: "auditLogOther",
-      label: "حدث إداري غير مصنف"
-    };
     const changes = Array.isArray(entry?.changes) ? entry.changes : [];
+    const info = action === 24 && changes.some(change => change.key === "communication_disabled_until")
+      ? { category: "moderation", eventKey: "timeout", label: "تغيير مهلة Timeout" }
+      : known || {
+          category: "audit",
+          eventKey: "auditLogOther",
+          label: "حدث إداري غير مصنف"
+        };
     const extra = entry?.extra && typeof entry.extra === "object" ? entry.extra : {};
     const targetId = String(entry?.targetId || entry?.target?.id || "");
     const channelId = String(
