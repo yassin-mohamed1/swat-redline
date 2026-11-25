@@ -126,6 +126,7 @@ export function normalizeBotControlSettings(raw, fallbackChannelId = "") {
     nameY: safeNumber(rawImage.nameY, 58, 0, 100, 1),
     nameSize: safeNumber(rawImage.nameSize, 4.8, 2, 10, 1),
     nameWidth: safeNumber(rawImage.nameWidth, 36, 10, 65, 1),
+    nameRotation: safeNumber(rawImage.nameRotation, 0, 0, 360, 0),
     nameColor: safeColor(rawImage.nameColor, "#f1f3f4"),
     backgroundImageUrl,
     backgroundColor: safeColor(rawImage.backgroundColor, "#11151d"),

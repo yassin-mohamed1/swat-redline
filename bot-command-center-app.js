@@ -304,10 +304,10 @@ function renderLogs(data){
 function renderWelcome(data){
  const control=botControlData(),welcome=control.welcome,channels=(data.channels||[]).filter(channel=>[0,5].includes(Number(channel.type)));
  const templateUrl=new URL("/redline-operator-template.png",location.origin).href;
- const image={enabled:true,template:"redline-operator",backgroundImageUrl:"",backgroundColor:"#101010",overlayColor:"#000000",overlayOpacity:0,font:"condensed",avatarX:82.8,avatarY:40.9,avatarSize:17.2,nameX:51.1,nameY:58,nameSize:4.8,nameWidth:23.5,nameColor:"#f1f3f4",...(welcome.image||{})};
+ const image={enabled:true,template:"redline-operator",backgroundImageUrl:"",backgroundColor:"#101010",overlayColor:"#000000",overlayOpacity:0,font:"condensed",avatarX:82.8,avatarY:40.9,avatarSize:17.2,nameX:51.1,nameY:58,nameSize:4.8,nameWidth:23.5,nameRotation:0,nameColor:"#f1f3f4",...(welcome.image||{})};
  image.backgroundImageUrl=image.backgroundImageUrl||welcome.imageUrl||"";
  if(image.template==="redline-operator")image.nameWidth=Math.min(Number(image.nameWidth)||23.5,23.5);
- const rangeField=(name,label,value,min,max,step="0.1")=>'<div class="field welcome-range-field"><label for="welcomeRange_'+name+'"><span>'+label+'</span><output id="welcomeRangeValue_'+name+'">'+Number(value)+'%</output></label><input id="welcomeRange_'+name+'" name="'+name+'" data-welcome-image-control type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+Number(value)+'"></div>';
+ const rangeField=(name,label,value,min,max,step="0.1",unit="%")=>'<div class="field welcome-range-field"><label for="welcomeRange_'+name+'"><span>'+label+'</span><output id="welcomeRangeValue_'+name+'">'+Number(value)+unit+'</output></label><input id="welcomeRange_'+name+'" name="'+name+'" data-welcome-image-control type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+Number(value)+'"></div>';
  const previewFonts={condensed:'"Noto Sans Condensed","Arial Narrow","Noto Kufi Arabic",Arial,sans-serif',discord:'Inter,"Noto Kufi Arabic",Arial,sans-serif',inter:'Inter,"Noto Kufi Arabic",Arial,sans-serif',arabic:'"Noto Sans Arabic","Noto Kufi Arabic",Arial,sans-serif',serif:'Georgia,"Noto Naskh Arabic",serif'};
  const nameplatePreview='<img class="welcome-preview-nameplate" src="/welcome-nameplate.jpg" alt="" aria-hidden="true">';
  $("#mainView").innerHTML=
@@ -327,11 +327,12 @@ function renderWelcome(data){
     rangeField("avatarX",t("الموضع الأفقي للصورة","Avatar horizontal position"),image.avatarX,0,100)+
     rangeField("avatarY",t("الموضع الرأسي للصورة","Avatar vertical position"),image.avatarY,0,100)+
     rangeField("avatarSize",t("حجم الصورة","Avatar size"),image.avatarSize,8,35,"0.5")+
-    '<div class="field full welcome-control-heading"><h3>'+t("اسم العضو على الزي","Member name on the uniform")+'</h3><p>'+t("يظهر الاسم داخل الشارة المعدنية. حرّكه إلى مكانه واضبط حجمه وعرضه.","The name sits inside the metal chest patch. Move it into place and adjust its size and width.")+'</p></div>'+
+    '<div class="field full welcome-control-heading"><h3>'+t("اسم العضو على الزي","Member name on the uniform")+'</h3><p>'+t("حرّك الاسم إلى مكانه واضبط حجمه وعرضه وميله داخل الشارة.","Place the name, then adjust its size, width, and angle inside the patch.")+'</p></div>'+
     rangeField("nameX",t("الموضع الأفقي للاسم","Name horizontal position"),image.nameX,0,100)+
     rangeField("nameY",t("الموضع الرأسي للاسم","Name vertical position"),image.nameY,0,100)+
     rangeField("nameSize",t("حجم الاسم","Name size"),image.nameSize,2,10,"0.1")+
     rangeField("nameWidth",t("أقصى عرض للاسم","Maximum name width"),image.nameWidth,10,image.template==="redline-operator"?23.5:65,"0.5")+
+    rangeField("nameRotation",t("زاوية الاسم (0–360°)","Name rotation (0–360°)"),image.nameRotation,0,360,"1","°")+
     '<div class="field"><label>'+t("لون الاسم","Name color")+'</label><div class="welcome-color-control"><input type="color" name="nameColor" data-welcome-image-control value="'+esc(image.nameColor)+'"><span id="welcomeColor_nameColor">'+esc(image.nameColor.toUpperCase())+'</span></div></div>'+
     '<div class="field"><label>'+t("خط الاسم","Name font")+'</label><select name="imageFont" data-welcome-image-control><option value="condensed"'+(image.font==="condensed"?" selected":"")+'>'+t("مكثّف / عسكري","Condensed / tactical")+'</option><option value="discord"'+(image.font==="discord"?" selected":"")+'>'+t("Discord","Discord")+'</option><option value="arabic"'+(image.font==="arabic"?" selected":"")+'>'+t("Noto Arabic","Noto Arabic")+'</option><option value="serif"'+(image.font==="serif"?" selected":"")+'>'+t("Serif","Serif")+'</option></select></div>'+
     '<div class="field full"><label>'+t("شفافية طبقة التعتيم","Overlay opacity")+'</label><div class="welcome-range-row"><input name="overlayOpacity" data-welcome-image-control type="range" min="0" max="70" step="1" value="'+Number(image.overlayOpacity)+'"><output id="welcomeOverlayOpacityLabel">'+Number(image.overlayOpacity)+'%</output></div></div>'+
@@ -353,7 +354,7 @@ function renderWelcome(data){
   let safeImage="";
   try{const parsed=new URL(imageUrl,location.href);if(parsed.protocol==="https:"||parsed.origin===location.origin)safeImage='url("'+parsed.href.replace(/"/g,"%22")+'")';}catch{}
   card.dataset.imageEnabled=String(form.elements.imageEnabled.checked);card.style.backgroundColor=backgroundColor;card.style.backgroundImage=safeImage||"none";
-  const avatarSize=safeNumber("avatarSize",17.2),requestedNameWidth=safeNumber("nameWidth",23.5),nameWidth=template==="redline-operator"?Math.min(requestedNameWidth,23.5):requestedNameWidth,nameSize=safeNumber("nameSize",4.8);
+  const avatarSize=safeNumber("avatarSize",17.2),requestedNameWidth=safeNumber("nameWidth",23.5),nameWidth=template==="redline-operator"?Math.min(requestedNameWidth,23.5):requestedNameWidth,nameSize=safeNumber("nameSize",4.8),nameRotation=safeNumber("nameRotation",0);
   const nameWidthControl=form.elements.nameWidth;if(nameWidthControl){nameWidthControl.max=template==="redline-operator"?"23.5":"65";if(template==="redline-operator"&&Number(nameWidthControl.value)>23.5)nameWidthControl.value="23.5";}
   card.style.setProperty("--avatar-x",safeNumber("avatarX",82.8)+"%");card.style.setProperty("--avatar-y",safeNumber("avatarY",40.9)+"%");card.style.setProperty("--avatar-size",avatarSize+"%");
   card.style.setProperty("--name-x",safeNumber("nameX",51.1)+"%");card.style.setProperty("--name-y",safeNumber("nameY",58)+"%");card.style.setProperty("--name-width",nameWidth+"%");
@@ -361,7 +362,7 @@ function renderWelcome(data){
   if(nameplate)nameplate.style.display=template==="redline-operator"?"block":"none";
   previewName.style.color=safeNameColor;previewName.style.fontFamily=previewFonts[font]||previewFonts.condensed;previewName.style.fontSize=Math.max(18,previewWidth*nameSize/100)+"px";previewName.style.maxWidth="none";previewName.style.transform="translate(-50%,-50%)";
   const naturalNameWidth=previewName.getBoundingClientRect().width,nameScale=Math.min(1,maxNamePx/Math.max(1,naturalNameWidth));
-  previewName.style.transform="translate(-50%,-50%) scaleX("+nameScale+")";
+  previewName.style.transform="translate(-50%,-50%) scaleX("+nameScale+") rotate("+nameRotation+"deg)";
   $("#welcomePreviewAvatar").style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
   previewName.style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
   if(nameplate)nameplate.style.visibility=String(values.get("imageEnabled"))==="on"&&template==="redline-operator"?"visible":"hidden";
@@ -371,7 +372,7 @@ function renderWelcome(data){
   $("#welcomeCustomBackgroundField").hidden=template!=="custom";
   form.elements.backgroundImageUrl.required=template==="custom";
   $("#welcomeOverlayOpacityLabel").textContent=opacity+"%";
-  for(const name of ["avatarX","avatarY","avatarSize","nameX","nameY","nameSize","nameWidth"]){const output=$("#welcomeRangeValue_"+name);if(output)output.textContent=Number(values.get(name)||0)+"%";}
+  for(const name of ["avatarX","avatarY","avatarSize","nameX","nameY","nameSize","nameWidth","nameRotation"]){const output=$("#welcomeRangeValue_"+name);if(output)output.textContent=Number(values.get(name)||0)+(name==="nameRotation"?"°":"%");}
   for(const name of ["nameColor"]){const output=$("#welcomeColor_"+name);if(output)output.textContent=String(values.get(name)||"").toUpperCase();}
  };
  const bindDrag=(element,xName,yName)=>{
@@ -399,6 +400,7 @@ function renderWelcome(data){
     nameY:Number(values.get("nameY")),
     nameSize:Number(values.get("nameSize")),
     nameWidth:Number(values.get("nameWidth")),
+    nameRotation:Number(values.get("nameRotation")),
     nameColor:String(values.get("nameColor")||"#f1f3f4"),
     backgroundImageUrl,
     backgroundColor:String(values.get("backgroundColor")||"#101010"),

@@ -142,6 +142,7 @@ function contentSvg(image, member, nameplateBase64 = "") {
   const avatarSize = WIDTH * bounded(image.avatarSize, 17.2, 8, 35) / 100;
   const nameX = WIDTH * coordinate(image.nameX, 51.1) / 100;
   const nameY = HEIGHT * coordinate(image.nameY, 58) / 100;
+  const nameRotation = bounded(image.nameRotation, 0, 0, 360);
   const configuredNameWidth = WIDTH * bounded(image.nameWidth, 23.5, 10, 65) / 100;
   const nameWidth = image.template === "redline-operator"
     ? Math.min(configuredNameWidth, WIDTH * 0.235)
@@ -170,7 +171,7 @@ function contentSvg(image, member, nameplateBase64 = "") {
     <defs>${avatarClip}${shadow}${nameMetal}</defs>
     ${plate}
     <image href="data:image/png;base64,${member.avatarBase64}" x="${avatarX - avatarSize / 2}" y="${avatarY - avatarSize / 2}" width="${avatarSize}" height="${avatarSize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#memberAvatar)"/>
-    <g transform="translate(${nameX} 0) scale(${nameScale} 1) translate(${-nameX} 0)"><text x="${nameX}" y="${nameY}" fill="url(#nameMetal)" stroke="#16191d" stroke-width="1.2" paint-order="stroke fill" font-family="${escapeXml(fontFamily)}" font-size="${nameFont}" font-weight="900" letter-spacing="1.1" text-anchor="middle" dominant-baseline="central" filter="url(#nameShadow)">${escapeXml(name)}</text></g>
+    <g transform="translate(${nameX} ${nameY}) rotate(${nameRotation}) scale(${nameScale} 1) translate(${-nameX} ${-nameY})"><text x="${nameX}" y="${nameY}" fill="url(#nameMetal)" stroke="#16191d" stroke-width="1.2" paint-order="stroke fill" font-family="${escapeXml(fontFamily)}" font-size="${nameFont}" font-weight="900" letter-spacing="1.1" text-anchor="middle" dominant-baseline="central" filter="url(#nameShadow)">${escapeXml(name)}</text></g>
   </svg>`);
 }
 
