@@ -55,8 +55,8 @@ test("DM eligibility uses the access role rather than the notification-mention r
   const saved = await read("../lib/saved-discord-messages.js");
   const forwarder = await read("../lib/announcement-forwarder.js");
   for (const source of [api, saved, forwarder]) {
-    assert.match(source, /process\\.env\\.DISCORD_ROLE_ID/);
+    assert.match(source, /process\.env\\.DISCORD_ROLE_ID/);
     assert.doesNotMatch(source, /1561561038263029900/);
   }
-  assert.match(api, /config\\.notificationRoleId/);
+  assert.match(api, /config\.notificationRoleId/);
 });
