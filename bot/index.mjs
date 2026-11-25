@@ -7,6 +7,7 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  Partials,
   MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
@@ -21,6 +22,7 @@ import { readConfig } from "./config.mjs";
 import { AttentionAlertRepository } from "./repository.mjs";
 import { buildDiscordLeaveRequestRecord, LeaveRequestValidationError, validateLeaveRequestFields } from "./leave-requests.mjs";
 import { isTargetVoiceEntry, sendVoiceEntryDm } from "./voice-entry-alert.mjs";
+import { createGuildLogService } from "./guild-logs.mjs";
 
 const COMMAND_NAME = "S.W.A.T. Attention Alert";
 const LEAVE_PANEL_BUTTON_ID = "swat_leave_request_open";
@@ -30,7 +32,17 @@ const repository = new AttentionAlertRepository({
   baseUrl: config.supabaseUrl,
   serviceRoleKey: config.supabaseServiceRoleKey
 });
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildVoiceStates
+  ],
+  partials: [Partials.Channel, Partials.Message]
+});
 let leaseHealthy = false;
 let manager;
 let swatRoleIds = new Set();
@@ -38,6 +50,13 @@ let stopPollTimer = null;
 let leaseSupervisor = null;
 let stopping = false;
 const instanceId = randomUUID();
+const guildLogs = createGuildLogService({
+  client,
+  guildId: config.guildId,
+  channelId: config.logChannelId,
+  enabled: () => leaseHealthy && !stopping,
+  logger: console
+});
 
 function safeLog(level, event, values = {}) {
   const details = Object.fromEntries(Object.entries(values).filter(([key, value]) =>
@@ -247,6 +266,7 @@ async function clearAdminAlertsChannelHistoryOnce(guild, channel) {
 
 async function handleVoiceStateUpdate(oldState, newState) {
   if (!leaseHealthy || stopping || newState.guild?.id !== config.guildId) return;
+  if (oldState.channelId !== newState.channelId) void guildLogs.voiceStateUpdated(oldState, newState);
   if (!newState.channelId || newState.channelId === oldState.channelId) return;
   const userId = String(newState.id || newState.member?.id || "");
   if (!/^\d{15,22}$/.test(userId)) return;
@@ -450,6 +470,19 @@ client.once(Events.ClientReady, async readyClient => {
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     const botMember = guild.members.me || await guild.members.fetchMe().catch(() => null);
     if (!botMember) throw new Error("bot_member_lookup_failed");
+    if (config.logChannelId) {
+      const logChannelStatus = await guildLogs.verify();
+      if (logChannelStatus.ok) {
+        safeLog("info", "discord_guild_log_channel_ready", { channelId: logChannelStatus.channelId });
+      } else {
+        safeLog("warn", "discord_guild_log_channel_unavailable", { reason: logChannelStatus.reason });
+      }
+    } else {
+      safeLog("warn", "discord_guild_log_channel_not_configured", { requiredVariable: "DISCORD_LOG_CHANNEL_ID" });
+    }
+    if (!botMember.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+      safeLog("warn", "discord_guild_log_audit_permission_missing", { requiredPermission: "View Audit Log" });
+    }
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     try {
       const adminAlertsChannel = await prepareAdminAlertsChannel(guild);
@@ -539,6 +572,46 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
+client.on(Events.MessageDelete, message => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.messageDeleted(message);
+});
+client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.messageUpdated(oldMessage, newMessage);
+});
+client.on(Events.MessageBulkDelete, (messages, channel) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.messagesBulkDeleted(messages, channel);
+});
+client.on(Events.GuildMemberAdd, member => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.memberJoined(member);
+});
+client.on(Events.GuildMemberRemove, member => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.memberLeft(member);
+});
+client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.memberUpdated(oldMember, newMember);
+});
+client.on(Events.GuildRoleCreate, role => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.roleCreated(role);
+});
+client.on(Events.GuildRoleDelete, role => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.roleDeleted(role);
+});
+client.on(Events.GuildRoleUpdate, (oldRole, newRole) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.roleUpdated(oldRole, newRole);
+});
+client.on(Events.GuildAuditLogEntryCreate, (entry, guild) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.auditLogEntry(entry, guild);
+});
 client.on(Events.VoiceStateUpdate, (oldState, newState) => { void handleVoiceStateUpdate(oldState, newState); });
 client.on(Events.Error, error => safeLog("error", "discord_gateway_error", { message: error?.message || "unknown" }));
 client.on(Events.Warn, message => safeLog("warn", "discord_gateway_warning", { message }));
