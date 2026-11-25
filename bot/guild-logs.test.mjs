@@ -22,6 +22,7 @@ function harness(options = {}) {
     guildId: channel.guildId,
     channelId: channel.id,
     enabled: () => options.enabled !== false,
+    getSettings: () => options.settings || {},
     logger: { warn: (...values) => warnings.push(values) },
     now: () => new Date("2026-11-25T08:00:00.000Z").getTime()
   });
@@ -68,28 +69,19 @@ test("ignores bot messages and message edits that did not change content", async
   assert.equal(sent.length, 0);
 });
 
-test("records member role additions and removals", async () => {
+test("records member role changes from the Discord audit log", async () => {
   const { service, sent } = harness();
-  const oldRoles = new Map([
-    ["role-old", { id: "role-old", name: "Old Role" }]
-  ]);
-  const newRoles = new Map([
-    ["role-new", { id: "role-new", name: "New Role" }]
-  ]);
-  const base = {
-    id: "92345678901234567",
-    guild: { id: "12345678901234567" },
-    user: { id: "92345678901234567", username: "Member" },
-    nickname: null
-  };
-  assert.equal(await service.memberUpdated(
-    { ...base, roles: { cache: oldRoles } },
-    { ...base, roles: { cache: newRoles } }
-  ), true);
+  assert.equal(await service.auditLogEntry({
+    action: 25,
+    executor: { id: "82345678901234567", username: "Moderator" },
+    target: { id: "92345678901234567", username: "Member" },
+    changes: [{ key: "$add", new_value: [{ id: "role-new", name: "New Role" }] }],
+    reason: "Promotion"
+  }, { id: "12345678901234567" }), true);
   assert.equal(sent.length, 1);
   const fields = sent[0].embeds[0].fields;
-  assert.match(fields.find(field => field.name === "رتب تمت إضافتها").value, /New Role/);
-  assert.match(fields.find(field => field.name === "رتب تمت إزالتها").value, /Old Role/);
+  assert.match(fields.find(field => field.name === "منفذ الإجراء").value, /Moderator/);
+  assert.equal(fields.find(field => field.name === "السبب").value, "Promotion");
 });
 
 test("records voice joins, leaves, and moves", async () => {
@@ -107,6 +99,67 @@ test("records voice joins, leaves, and moves", async () => {
   assert.equal(sent.length, 2);
   assert.match(sent[0].embeds[0].title, /دخل/);
   assert.match(sent[1].embeds[0].title, /غادر/);
+});
+
+test("can disable one event without disabling the whole category", async () => {
+  const { service, sent } = harness({ settings: { enabled: true, events: { messageDelete: false } } });
+  assert.equal(await service.messageDeleted({
+    guildId: "12345678901234567",
+    author: { id: "92345678901234567", username: "Member", bot: false },
+    content: "blocked"
+  }), false);
+  assert.equal(sent.length, 0);
+});
+
+test("can disable one category while other categories remain active", async () => {
+  const { service, sent } = harness({ settings: { enabled: true, categories: { messages: { enabled: false }, members: { enabled: true } } } });
+  assert.equal(await service.messageDeleted({
+    guildId: "12345678901234567",
+    author: { id: "92345678901234567", username: "Member", bot: false },
+    content: "blocked"
+  }), false);
+  assert.equal(await service.memberJoined({
+    guild: { id: "12345678901234567" },
+    user: { id: "92345678901234567", username: "Member" }
+  }), true);
+  assert.equal(sent.length, 1);
+});
+
+test("routes categories to their configured channels", async () => {
+  const sent = [];
+  const channels = new Map();
+  for (const id of ["72345678901234567", "82345678901234567"]) {
+    channels.set(id, {
+      id, guildId: "12345678901234567", name: "logs-" + id,
+      isTextBased: () => true,
+      permissionsFor: () => ({ has: () => true }),
+      send: async payload => { sent.push({ id, payload }); }
+    });
+  }
+  const service = createGuildLogService({
+    client: { user: { id: "92345678901234567" }, channels: { fetch: async id => channels.get(id) } },
+    guildId: "12345678901234567",
+    channelId: "72345678901234567",
+    enabled: () => true,
+    getSettings: () => ({ enabled: true, defaultChannelId: "72345678901234567", categories: { voice: { enabled: true, channelId: "82345678901234567" } } })
+  });
+  await service.voiceStateUpdated(
+    { guild: { id: "12345678901234567" }, channelId: null, channel: null, member: { user: { id: "92345678901234567", username: "Member" } } },
+    { guild: { id: "12345678901234567" }, channelId: "62345678901234567", channel: { id: "62345678901234567", name: "voice" }, member: { user: { id: "92345678901234567", username: "Member" } } }
+  );
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].id, "82345678901234567");
+});
+
+test("records channel create, update and delete events", async () => {
+  const { service, sent } = harness();
+  await service.channelCreated({ guildId: "12345678901234567", id: "82345678901234567", name: "new-room", type: 0 });
+  await service.channelUpdated(
+    { guildId: "12345678901234567", id: "82345678901234567", name: "old-room", topic: null, parentId: null },
+    { guildId: "12345678901234567", id: "82345678901234567", name: "new-room", topic: null, parentId: null }
+  );
+  await service.channelDeleted({ guildId: "12345678901234567", id: "82345678901234567", name: "new-room" });
+  assert.equal(sent.length, 3);
 });
 
 test("does not send anything while the log service is disabled", async () => {
