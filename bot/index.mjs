@@ -630,34 +630,6 @@ client.on(Events.GuildMemberRemove, member => {
   void guildLogs.memberLeft(member);
   void welcomeAutomation.memberLeft(member);
 });
-client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
-  if (!leaseHealthy || stopping) return;
-  void guildLogs.memberUpdated(oldMember, newMember);
-});
-client.on(Events.GuildRoleCreate, role => {
-  if (!leaseHealthy || stopping) return;
-  void guildLogs.roleCreated(role);
-});
-client.on(Events.GuildRoleDelete, role => {
-  if (!leaseHealthy || stopping) return;
-  void guildLogs.roleDeleted(role);
-});
-client.on(Events.GuildRoleUpdate, (oldRole, newRole) => {
-  if (!leaseHealthy || stopping) return;
-  void guildLogs.roleUpdated(oldRole, newRole);
-});
-client.on(Events.ChannelCreate, channel => {
-  if (!leaseHealthy || stopping) return;
-  void guildLogs.channelCreated(channel);
-});
-client.on(Events.ChannelDelete, channel => {
-  if (!leaseHealthy || stopping) return;
-  void guildLogs.channelDeleted(channel);
-});
-client.on(Events.ChannelUpdate, (oldChannel, newChannel) => {
-  if (!leaseHealthy || stopping) return;
-  void guildLogs.channelUpdated(oldChannel, newChannel);
-});
 client.on(Events.GuildAuditLogEntryCreate, (entry, guild) => {
   if (!leaseHealthy || stopping) return;
   void guildLogs.auditLogEntry(entry, guild);
