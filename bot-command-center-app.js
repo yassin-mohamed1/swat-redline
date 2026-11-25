@@ -185,21 +185,42 @@ function renderAutoMod(data){
  }));
 }
 const LOG_CATEGORY_UI=[
- {id:"messages",title:["الرسائل","Messages"],description:["حذف وتعديل الرسائل والحذف الجماعي","Message delete, edits and bulk deletion"],events:["messageDelete","messageUpdate","messageBulkDelete"]},
- {id:"members",title:["الأعضاء","Members"],description:["الدخول والمغادرة وتغيير الاسم","Join, leave and nickname changes"],events:["memberJoin","memberLeave","memberNicknameUpdate"]},
+ {id:"messages",title:["الرسائل","Messages"],description:["حذف وتعديل الرسائل والتثبيت والحذف الجماعي","Message delete, edits, pins and bulk deletion"],events:["messageDelete","messageUpdate","messageBulkDelete","messageDeleteAudit","messageBulkDeleteAudit","messagePin","messageUnpin"]},
+ {id:"members",title:["الأعضاء","Members"],description:["الدخول والمغادرة وتعديل بيانات العضو","Join, leave and member updates"],events:["memberJoin","memberLeave","memberNicknameUpdate","memberUpdate"]},
  {id:"voice",title:["الرومات الصوتية","Voice channels"],description:["الدخول والخروج والانتقال بين الرومات","Voice join, leave and channel moves"],events:["voiceJoin","voiceLeave","voiceMove"]},
- {id:"roles",title:["الرتب","Roles"],description:["إضافة وإزالة الرتب وإنشاؤها وتعديلها وحذفها","Member role changes and role create, update, delete"],events:["memberRoleUpdate","roleCreate","roleUpdate","roleDelete"]},
- {id:"moderation",title:["الإشراف والعقوبات","Moderation"],description:["Kick وBan وUnban وTimeout","Kick, ban, unban and timeout"],events:["kick","ban","unban","timeout"]},
- {id:"channels",title:["القنوات","Channels"],description:["إنشاء القنوات وتعديلها وحذفها","Channel create, update and delete"],events:["channelCreate","channelUpdate","channelDelete"]}
+ {id:"roles",title:["الرتب","Roles"],description:["تغييرات رتب الأعضاء والرتب نفسها وترتيبها","Member role changes, role edits and ordering"],events:["memberRoleUpdate","roleCreate","roleUpdate","roleDelete","rolePositionUpdate"]},
+ {id:"moderation",title:["الإشراف والعقوبات","Moderation"],description:["Kick وBan وUnban وTimeout وتنظيف ونقل الأعضاء","Kick, ban, unban, timeout, prune and member moves"],events:["kick","memberPrune","ban","unban","timeout","memberMove","memberDisconnect","botAdd"]},
+ {id:"channels",title:["القنوات والصلاحيات","Channels & permissions"],description:["إنشاء القنوات وتعديلها وحذفها وكل تغييرات صلاحيات الرتب والأعضاء","Channel changes and all role/member permission overwrite changes"],events:["channelCreate","channelUpdate","channelDelete","channelOverwriteCreate","channelOverwriteUpdate","channelOverwriteDelete","channelPositionUpdate"]},
+ {id:"server",title:["إعدادات السيرفر","Server settings"],description:["تغييرات إعدادات السيرفر الرئيسية","Guild-level settings changes"],events:["guildUpdate"]},
+ {id:"audit",title:["سجل الإدارة والتكاملات","Audit log & integrations"],description:["الدعوات وWebhooks وAutoMod والفعاليات وThreads وباقي أحداث Audit Log","Invites, webhooks, AutoMod, events, threads and other audit actions"],events:["inviteCreate","inviteUpdate","inviteDelete","webhookCreate","webhookUpdate","webhookDelete","emojiCreate","emojiUpdate","emojiDelete","integrationCreate","integrationUpdate","integrationDelete","stageInstanceCreate","stageInstanceUpdate","stageInstanceDelete","stickerCreate","stickerUpdate","stickerDelete","guildScheduledEventCreate","guildScheduledEventUpdate","guildScheduledEventDelete","threadCreate","threadUpdate","threadDelete","applicationCommandPermissionUpdate","soundboardSoundCreate","soundboardSoundUpdate","soundboardSoundDelete","autoModerationRuleCreate","autoModerationRuleUpdate","autoModerationRuleDelete","autoModerationBlockMessage","autoModerationFlagToChannel","autoModerationUserCommunicationDisabled","autoModerationQuarantineUser","creatorMonetizationRequestCreated","creatorMonetizationTermsAccepted","onboardingPromptCreate","onboardingPromptUpdate","onboardingPromptDelete","onboardingCreate","onboardingUpdate","homeSettingsCreate","homeSettingsUpdate","voiceChannelStatusCreate","voiceChannelStatusDelete","auditLogOther"]}
 ];
 const LOG_EVENT_LABELS={
- messageDelete:["حذف الرسائل","Message deleted"],messageUpdate:["تعديل الرسائل","Message edited"],messageBulkDelete:["حذف مجموعة رسائل","Bulk message delete"],
- memberJoin:["دخول عضو","Member joined"],memberLeave:["مغادرة عضو","Member left"],memberNicknameUpdate:["تغيير الاسم","Nickname changed"],
+ messageDelete:["حذف الرسائل","Message deleted"],messageUpdate:["تعديل الرسائل","Message edited"],messageBulkDelete:["حذف مجموعة رسائل","Bulk message delete"],messageDeleteAudit:["سجل حذف رسالة","Message deletion audit"],messageBulkDeleteAudit:["سجل حذف رسائل جماعي","Bulk deletion audit"],messagePin:["تثبيت رسالة","Message pinned"],messageUnpin:["إزالة تثبيت رسالة","Message unpinned"],
+ memberJoin:["دخول عضو","Member joined"],memberLeave:["مغادرة عضو","Member left"],memberNicknameUpdate:["تغيير الاسم","Nickname changed"],memberUpdate:["تعديل بيانات عضو","Member updated"],
  voiceJoin:["دخول روم صوتي","Joined voice"],voiceLeave:["خروج من روم صوتي","Left voice"],voiceMove:["انتقال بين الرومات","Moved voice channel"],
- memberRoleUpdate:["تغيير رتب عضو","Member roles changed"],roleCreate:["إنشاء رتبة","Role created"],roleUpdate:["تعديل رتبة","Role updated"],roleDelete:["حذف رتبة","Role deleted"],
- kick:["طرد عضو","Member kicked"],ban:["حظر عضو","Member banned"],unban:["إلغاء حظر عضو","Member unbanned"],timeout:["Timeout","Timeout"],
- channelCreate:["إنشاء قناة","Channel created"],channelUpdate:["تعديل قناة","Channel updated"],channelDelete:["حذف قناة","Channel deleted"]
+ memberRoleUpdate:["تغيير رتب عضو","Member roles changed"],roleCreate:["إنشاء رتبة","Role created"],roleUpdate:["تعديل رتبة","Role updated"],roleDelete:["حذف رتبة","Role deleted"],rolePositionUpdate:["تغيير ترتيب الرتب","Role position changed"],
+ kick:["طرد عضو","Member kicked"],memberPrune:["تنظيف أعضاء غير نشطين","Member prune"],ban:["حظر عضو","Member banned"],unban:["إلغاء حظر عضو","Member unbanned"],timeout:["Timeout","Timeout"],memberMove:["نقل عضو صوتيًا","Member moved"],memberDisconnect:["فصل عضو صوتيًا","Member disconnected"],botAdd:["إضافة بوت","Bot added"],
+ channelCreate:["إنشاء قناة","Channel created"],channelUpdate:["تعديل إعدادات قناة","Channel updated"],channelDelete:["حذف قناة","Channel deleted"],channelOverwriteCreate:["إضافة صلاحيات قناة","Channel permissions added"],channelOverwriteUpdate:["تعديل صلاحيات قناة","Channel permissions updated"],channelOverwriteDelete:["حذف صلاحيات قناة","Channel permissions removed"],channelPositionUpdate:["تغيير ترتيب القنوات","Channel position changed"],
+ guildUpdate:["تعديل إعدادات السيرفر","Server settings updated"],
+ auditLogOther:["أحداث Audit Log غير المصنفة","Unclassified audit event"]
 };
+const auditLabels={
+ inviteCreate:["إنشاء دعوة","Invite created"],inviteUpdate:["تعديل دعوة","Invite updated"],inviteDelete:["حذف دعوة","Invite deleted"],
+ webhookCreate:["إنشاء Webhook","Webhook created"],webhookUpdate:["تعديل Webhook","Webhook updated"],webhookDelete:["حذف Webhook","Webhook deleted"],
+ emojiCreate:["إضافة Emoji","Emoji created"],emojiUpdate:["تعديل Emoji","Emoji updated"],emojiDelete:["حذف Emoji","Emoji deleted"],
+ integrationCreate:["إضافة تكامل","Integration created"],integrationUpdate:["تعديل تكامل","Integration updated"],integrationDelete:["حذف تكامل","Integration deleted"],
+ stageInstanceCreate:["إنشاء Stage","Stage created"],stageInstanceUpdate:["تعديل Stage","Stage updated"],stageInstanceDelete:["حذف Stage","Stage deleted"],
+ stickerCreate:["إضافة ملصق","Sticker created"],stickerUpdate:["تعديل ملصق","Sticker updated"],stickerDelete:["حذف ملصق","Sticker deleted"],
+ guildScheduledEventCreate:["إنشاء فعالية","Scheduled event created"],guildScheduledEventUpdate:["تعديل فعالية","Scheduled event updated"],guildScheduledEventDelete:["حذف فعالية","Scheduled event deleted"],
+ threadCreate:["إنشاء Thread","Thread created"],threadUpdate:["تعديل Thread","Thread updated"],threadDelete:["حذف Thread","Thread deleted"],
+ applicationCommandPermissionUpdate:["تعديل صلاحيات أوامر التطبيقات","Application command permissions updated"],
+ soundboardSoundCreate:["إضافة صوت Soundboard","Soundboard sound created"],soundboardSoundUpdate:["تعديل صوت Soundboard","Soundboard sound updated"],soundboardSoundDelete:["حذف صوت Soundboard","Soundboard sound deleted"],
+ autoModerationRuleCreate:["إنشاء قاعدة AutoMod","AutoMod rule created"],autoModerationRuleUpdate:["تعديل قاعدة AutoMod","AutoMod rule updated"],autoModerationRuleDelete:["حذف قاعدة AutoMod","AutoMod rule deleted"],autoModerationBlockMessage:["AutoMod منع رسالة","AutoMod blocked a message"],autoModerationFlagToChannel:["AutoMod أرسل تنبيهًا","AutoMod flagged a message"],autoModerationUserCommunicationDisabled:["AutoMod قيّد عضوًا","AutoMod timed out a member"],autoModerationQuarantineUser:["AutoMod عزل عضوًا","AutoMod quarantined a member"],
+ creatorMonetizationRequestCreated:["طلب Creator Monetization","Creator monetization request"],creatorMonetizationTermsAccepted:["قبول شروط Creator Monetization","Creator terms accepted"],
+ onboardingPromptCreate:["إنشاء سؤال Onboarding","Onboarding prompt created"],onboardingPromptUpdate:["تعديل سؤال Onboarding","Onboarding prompt updated"],onboardingPromptDelete:["حذف سؤال Onboarding","Onboarding prompt deleted"],onboardingCreate:["إنشاء Onboarding","Onboarding created"],onboardingUpdate:["تعديل Onboarding","Onboarding updated"],
+ homeSettingsCreate:["إنشاء Home Settings","Home settings created"],homeSettingsUpdate:["تعديل Home Settings","Home settings updated"],voiceChannelStatusCreate:["تعيين حالة روم صوتي","Voice channel status set"],voiceChannelStatusDelete:["إزالة حالة روم صوتي","Voice channel status removed"]
+};
+Object.assign(LOG_EVENT_LABELS,Object.fromEntries(Object.entries(auditLabels)));
 const LOGGING_DEFAULTS={
  enabled:true,defaultChannelId:"1561771014977753268",
  categories:Object.fromEntries(LOG_CATEGORY_UI.map(item=>[item.id,{enabled:true,channelId:""}])),
