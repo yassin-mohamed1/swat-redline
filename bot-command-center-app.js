@@ -23,6 +23,8 @@ function render(){
   else if(state.view==="messages")renderMessages(data);
   else if(state.view==="moderation")renderModeration();
   else if(state.view==="automod")renderAutoMod(data);
+  else if(state.view==="logs")renderLogs(data);
+  else if(state.view==="welcome")renderWelcome(data);
   else if(state.view==="integrations")renderIntegrations();
   else renderModules(data);
   $("#connectionBadge").textContent=data.connection&&data.connection.rest==="verified"?t("Discord API تم التحقق","Discord API verified"):t("الاتصال غير متاح","Connection unavailable");
@@ -182,6 +184,139 @@ function renderAutoMod(data){
   try{await post({action:"delete_automod_rule",ruleId:button.dataset.automodDelete});toast(t("تم حذف القاعدة.","Rule deleted."));await load();state.view="automod";render();}catch(error){toast(error.message);}
  }));
 }
+const LOG_CATEGORY_UI=[
+ {id:"messages",title:["الرسائل","Messages"],description:["حذف وتعديل الرسائل والحذف الجماعي","Message delete, edits and bulk deletion"],events:["messageDelete","messageUpdate","messageBulkDelete"]},
+ {id:"members",title:["الأعضاء","Members"],description:["الدخول والمغادرة وتغيير الاسم","Join, leave and nickname changes"],events:["memberJoin","memberLeave","memberNicknameUpdate"]},
+ {id:"voice",title:["الرومات الصوتية","Voice channels"],description:["الدخول والخروج والانتقال بين الرومات","Voice join, leave and channel moves"],events:["voiceJoin","voiceLeave","voiceMove"]},
+ {id:"roles",title:["الرتب","Roles"],description:["إضافة وإزالة الرتب وإنشاؤها وتعديلها وحذفها","Member role changes and role create, update, delete"],events:["memberRoleUpdate","roleCreate","roleUpdate","roleDelete"]},
+ {id:"moderation",title:["الإشراف والعقوبات","Moderation"],description:["Kick وBan وUnban وTimeout","Kick, ban, unban and timeout"],events:["kick","ban","unban","timeout"]},
+ {id:"channels",title:["القنوات","Channels"],description:["إنشاء القنوات وتعديلها وحذفها","Channel create, update and delete"],events:["channelCreate","channelUpdate","channelDelete"]}
+];
+const LOG_EVENT_LABELS={
+ messageDelete:["حذف الرسائل","Message deleted"],messageUpdate:["تعديل الرسائل","Message edited"],messageBulkDelete:["حذف مجموعة رسائل","Bulk message delete"],
+ memberJoin:["دخول عضو","Member joined"],memberLeave:["مغادرة عضو","Member left"],memberNicknameUpdate:["تغيير الاسم","Nickname changed"],
+ voiceJoin:["دخول روم صوتي","Joined voice"],voiceLeave:["خروج من روم صوتي","Left voice"],voiceMove:["انتقال بين الرومات","Moved voice channel"],
+ memberRoleUpdate:["تغيير رتب عضو","Member roles changed"],roleCreate:["إنشاء رتبة","Role created"],roleUpdate:["تعديل رتبة","Role updated"],roleDelete:["حذف رتبة","Role deleted"],
+ kick:["طرد عضو","Member kicked"],ban:["حظر عضو","Member banned"],unban:["إلغاء حظر عضو","Member unbanned"],timeout:["Timeout","Timeout"],
+ channelCreate:["إنشاء قناة","Channel created"],channelUpdate:["تعديل قناة","Channel updated"],channelDelete:["حذف قناة","Channel deleted"]
+};
+const LOGGING_DEFAULTS={
+ enabled:true,defaultChannelId:"1561771014977753268",
+ categories:Object.fromEntries(LOG_CATEGORY_UI.map(item=>[item.id,{enabled:true,channelId:""}])),
+ events:Object.fromEntries(Object.keys(LOG_EVENT_LABELS).map(key=>[key,true]))
+};
+const WELCOME_DEFAULTS={enabled:false,channelId:"",message:"",imageUrl:"",goodbyeEnabled:false,goodbyeChannelId:"",goodbyeMessage:""};
+function botControlData(){
+ const source=state.data?.botControl||{};
+ const logging=source.logging||{};
+ const welcome=source.welcome||{};
+ return {
+  logging:{...LOGGING_DEFAULTS,...logging,categories:{...LOGGING_DEFAULTS.categories,...(logging.categories||{})},events:{...LOGGING_DEFAULTS.events,...(logging.events||{})}},
+  welcome:{...WELCOME_DEFAULTS,...welcome}
+ };
+}
+function channelControl(name,current,channels,placeholder){
+ const available=(channels||[]).filter(channel=>[0,5].includes(Number(channel.type)));
+ if(available.length){
+  return '<select name="'+name+'"><option value="">'+t("استخدم الروم الافتراضي","Use default channel")+'</option>'+
+   available.map(channel=>'<option value="'+esc(channel.id)+'"'+(String(current||"")===String(channel.id)?" selected":"")+'># '+esc(channel.name)+'</option>').join("")+'</select>';
+ }
+ return '<input name="'+name+'" inputmode="numeric" pattern="[0-9]{15,22}" value="'+esc(current||"")+'" placeholder="'+esc(placeholder||"Discord Channel ID")+'">';
+}
+function renderLogs(data){
+ const control=botControlData(),logging=control.logging,channels=data.channels||[];
+ const eventFields=LOG_CATEGORY_UI.map(category=>{
+  const current=logging.categories[category.id]||{enabled:true,channelId:""};
+  const events=category.events.map(eventKey=>{
+   const label=LOG_EVENT_LABELS[eventKey]||[eventKey,eventKey];
+   return '<label class="log-event"><input type="checkbox" data-log-event="'+eventKey+'"'+(logging.events[eventKey]!==false?" checked":"")+'><span>'+t(label[0],label[1])+'</span></label>';
+  }).join("");
+  return '<section class="panel"><div class="panel-head"><div><h2>'+t(category.title[0],category.title[1])+'</h2><div class="muted">'+t(category.description[0],category.description[1])+'</div></div>'+
+   '<label class="checkline"><input class="switch" type="checkbox" data-log-category="'+category.id+'"'+(current.enabled!==false?" checked":"")+'><span>'+t("القسم مفعّل","Category enabled")+'</span></label></div>'+
+   '<div class="panel-body"><div class="log-category"><div class="log-event-grid">'+events+'</div><div class="field"><label>'+t("روم استقبال هذا القسم","Destination channel for this category")+'</label>'+channelControl("channel_"+category.id,current.channelId,channels,"أدخل ID الروم أو اتركه فارغًا")+'<div class="muted">'+t("اتركه فارغًا لاستخدام الروم الافتراضي.","Leave blank to use the default log channel.")+'</div></div></div></div></section>';
+ }).join("");
+ $("#mainView").innerHTML=
+  head(t("إدارة اللوجات","Log management"),t("تحكم في تسجيل كل حدث داخل Discord، وحدد قناة مستقلة لكل مجموعة. التغييرات تُحفظ وتصل إلى البوت تلقائيًا.","Control each Discord event and route categories to separate channels. Changes are saved and picked up by the running bot."))+
+  '<form id="logSettingsForm">'+
+   '<section class="panel"><div class="panel-head"><div><h2>'+t("التحكم الرئيسي","Master logging control")+'</h2><div class="muted">'+t("إيقاف هذا المفتاح يوقف كل اللوجات فورًا، مع الاحتفاظ بباقي اختياراتك.","Turning this off pauses all log delivery while keeping your saved selections.")+'</div></div>'+
+    '<label class="checkline"><input class="switch" name="globalEnabled" type="checkbox"'+(logging.enabled!==false?" checked":"")+'><span>'+t("تشغيل نظام اللوجات بالكامل","Enable all server logs")+'</span></label></div>'+
+    '<div class="panel-body"><div class="field"><label>'+t("الروم الافتراضي","Default log channel")+'</label>'+channelControl("defaultChannelId",logging.defaultChannelId,channels,"1561771014977753268")+'<div class="muted">'+t("أي قسم ليس له روم خاص سيستخدم هذا الروم. لو قائمة الرومات فارغة، أدخل Discord Channel ID يدويًا.","Categories without a dedicated channel use this one. If channels are unavailable, enter the Discord Channel ID manually.")+'</div></div>'+
+    '<div class="settings-actions"><button class="btn primary" type="submit">'+t("حفظ إعدادات اللوجات","Save log settings")+'</button><button class="btn" type="button" id="testLogButton">'+t("إرسال Log تجريبي","Send test log")+'</button><span class="status-note" id="logSettingsStatus">'+t("آخر مزامنة عند حفظ الإعدادات. البوت يلتقط التغييرات خلال 15 ثانية.","On save, the bot picks up changes within 15 seconds.")+'</span></div></div></section>'+
+   '<div class="view-head"><div><h1>'+t("إعدادات كل نوع","Per-category controls")+'</h1><p>'+t("أوقف حدثًا منفردًا أو عطّل المجموعة بالكامل، واختر رومًا مختلفًا لها.","Disable an individual event or an entire category, and choose a different destination channel.")+'</p></div></div>'+
+   eventFields+
+  '</form>'+
+  '<div class="notice">'+t("حالة تشغيل اللوجات لا توقف أو تحذف أي رسائل في Discord؛ هي تتحكم فقط في الأحداث التي يسجلها بوت S.W.A.T. REDLINE من الآن فصاعدًا.","Logging controls do not delete Discord messages. They only enable or pause future event reporting by the S.W.A.T. REDLINE bot.")+'</div>';
+ $("#logSettingsForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const loggingPayload={enabled:form.elements.globalEnabled.checked,defaultChannelId:String(new FormData(form).get("defaultChannelId")||"").trim(),categories:{},events:{}};
+  for(const category of LOG_CATEGORY_UI){
+   const categoryToggle=$('[data-log-category="'+category.id+'"]',form);
+   loggingPayload.categories[category.id]={enabled:Boolean(categoryToggle?.checked),channelId:String(new FormData(form).get("channel_"+category.id)||"").trim()};
+   for(const eventKey of category.events)loggingPayload.events[eventKey]=Boolean($('[data-log-event="'+eventKey+'"]',form)?.checked);
+  }
+  const payload={logging:loggingPayload,welcome:control.welcome};
+  const status=$("#logSettingsStatus");
+  status.textContent=t("جاري حفظ الإعدادات...","Saving settings...");
+  try{
+   const response=await post({action:"save_bot_settings",settings:payload});
+   state.data.botControl=response.botControl;
+   status.textContent=t("تم الحفظ. البوت سيطبق التغييرات خلال 15 ثانية.","Saved. The bot will apply changes within 15 seconds.");
+   toast(t("تم حفظ إعدادات اللوجات.","Log settings saved."));
+   render();
+  }catch(error){status.textContent=t("فشل الحفظ: ","Save failed: ")+error.message;toast(error.message);}
+ });
+ $("#testLogButton").addEventListener("click",async()=>{
+  const form=$("#logSettingsForm");
+  const channelId=String(new FormData(form).get("defaultChannelId")||"").trim();
+  const status=$("#logSettingsStatus");
+  if(!channelId){toast(t("أدخل الروم الافتراضي أولًا.","Enter the default channel first."));return;}
+  if(!confirm(t("إرسال رسالة اختبار إلى روم اللوجات؟","Send a test message to the log channel?")))return;
+  status.textContent=t("جاري إرسال الاختبار...","Sending test...");
+  try{
+   const response=await post({action:"test_log",channelId});
+   status.textContent=t("وصل اختبار إلى #"+response.channelName,"Test delivered to #"+response.channelName);
+   toast(t("تم إرسال اللوج التجريبي.","Test log sent."));
+  }catch(error){status.textContent=t("فشل الاختبار: ","Test failed: ")+error.message;toast(error.message);}
+ });
+}
+function renderWelcome(data){
+ const control=botControlData(),welcome=control.welcome,channels=(data.channels||[]).filter(channel=>[0,5].includes(Number(channel.type)));
+ $("#mainView").innerHTML=
+  head(t("الترحيب والمغادرة","Welcome & goodbye"),t("جهّز إعدادات دخول وخروج الأعضاء. اترك النظام متوقفًا إلى أن تنتهي من صورة الترحيب والنصوص النهائية.","Prepare member join and leave messages. Keep these systems disabled until your welcome artwork and final copy are ready."))+
+  '<div class="notice">'+t("هنسيب الصورة والتصميم النهائي لك. تقدر تحفظ الإعدادات الآن وتبقي معطلة، ثم تضيف صورة الترحيب والنصوص النهائية لاحقًا من نفس الصفحة.","The artwork and final copy remain yours to provide. You can save the settings now and leave them disabled, then add your final image and text here later.")+'</div>'+
+  '<form id="welcomeSettingsForm"><section class="panel"><div class="panel-head"><div><h2>'+t("رسالة الترحيب","Welcome message")+'</h2><div class="muted">'+t("تظهر عند انضمام عضو جديد إلى السيرفر.","Sent when a member joins your server.")+'</div></div>'+
+   '<label class="checkline"><input class="switch" name="enabled" type="checkbox"'+(welcome.enabled?" checked":"")+'><span>'+t("مفعّل","Enabled")+'</span></label></div>'+
+   '<div class="panel-body"><div class="field"><label>'+t("روم الترحيب","Welcome channel")+'</label>'+channelControl("channelId",welcome.channelId,channels,"Discord Channel ID")+'</div>'+
+   '<div class="field"><label>'+t("نص الترحيب","Welcome text")+'</label><textarea name="message" maxlength="1800" placeholder="'+t("اكتب رسالة الترحيب النهائية بعد تجهيزها...","Add your final welcome message when it is ready...")+'">'+esc(welcome.message)+'</textarea></div>'+
+   '<div class="field"><label>'+t("رابط صورة الترحيب (اختياري)","Welcome image URL (optional)")+'</label><input name="imageUrl" type="url" maxlength="2048" value="'+esc(welcome.imageUrl)+'" placeholder="https://..."></div>'+
+   '<div class="muted">'+t("المتغيرات المتاحة: {{user}} لذكر العضو، {{username}} للاسم، {{server}} لاسم السيرفر، {{memberCount}} لعدد الأعضاء.","Available tokens: {{user}}, {{username}}, {{server}}, {{memberCount}}.")+'</div></div></section>'+
+  '<section class="panel"><div class="panel-head"><div><h2>'+t("رسالة المغادرة","Goodbye message")+'</h2><div class="muted">'+t("تظهر عند مغادرة عضو للسيرفر.","Sent when a member leaves your server.")+'</div></div>'+
+   '<label class="checkline"><input class="switch" name="goodbyeEnabled" type="checkbox"'+(welcome.goodbyeEnabled?" checked":"")+'><span>'+t("مفعّل","Enabled")+'</span></label></div>'+
+   '<div class="panel-body"><div class="field"><label>'+t("روم المغادرة","Goodbye channel")+'</label>'+channelControl("goodbyeChannelId",welcome.goodbyeChannelId,channels,"Discord Channel ID")+'</div>'+
+   '<div class="field"><label>'+t("نص المغادرة","Goodbye text")+'</label><textarea name="goodbyeMessage" maxlength="1800" placeholder="'+t("اكتب رسالة المغادرة التي تريدها لاحقًا...","Add your final goodbye message later...")+'">'+esc(welcome.goodbyeMessage)+'</textarea></div></div></section>'+
+   '<div class="settings-actions"><button class="btn primary" type="submit">'+t("حفظ إعدادات الترحيب","Save welcome settings")+'</button><span class="status-note" id="welcomeSettingsStatus">'+t("النظامان متوقفان افتراضيًا إلى أن تجهز الرسائل.","Both systems are disabled by default until the messages are ready.")+'</span></div></form>';
+ $("#welcomeSettingsForm").addEventListener("submit",async event=>{
+  event.preventDefault();const form=event.currentTarget,values=new FormData(form);
+  const payload={
+   enabled:form.elements.enabled.checked,
+   channelId:String(values.get("channelId")||"").trim(),
+   message:String(values.get("message")||"").trim(),
+   imageUrl:String(values.get("imageUrl")||"").trim(),
+   goodbyeEnabled:form.elements.goodbyeEnabled.checked,
+   goodbyeChannelId:String(values.get("goodbyeChannelId")||"").trim(),
+   goodbyeMessage:String(values.get("goodbyeMessage")||"").trim()
+  };
+  const status=$("#welcomeSettingsStatus");status.textContent=t("جاري حفظ الإعدادات...","Saving settings...");
+  try{
+   const response=await post({action:"save_bot_settings",settings:{logging:control.logging,welcome:payload}});
+   state.data.botControl=response.botControl;
+   status.textContent=t("تم حفظ الإعدادات. الترحيب سيبقى متوقفًا حتى تفعّله.","Settings saved. Welcome remains disabled until you enable it.");
+   toast(t("تم حفظ إعدادات الترحيب والمغادرة.","Welcome and goodbye settings saved."));
+   render();
+  }catch(error){status.textContent=t("فشل الحفظ: ","Save failed: ")+error.message;toast(error.message);}
+ });
+}
 function renderIntegrations(){
  const list=[
  ["YouTube",t("تنبيهات الفيديوهات والبث المباشر","Video and livestream alerts"),t("يتطلب إضافة مصدر القنوات ومراقب مستمر","Requires channel subscriptions and a persistent poller")],
@@ -211,7 +346,7 @@ async function load(){
 function init(){
  $$("[data-view]").forEach(button=>button.addEventListener("click",()=>{state.view=button.dataset.view;render();}));
  $("#refreshButton").addEventListener("click",load);
- $("#languageButton").addEventListener("click",()=>{state.lang=ar()?"en":"ar";document.documentElement.lang=state.lang;document.documentElement.dir=ar()?"rtl":"ltr";$("#languageButton").textContent=ar()?"EN":"عربي";$$("[data-view]").forEach(button=>{const labels={overview:["نظرة عامة","Overview"],server:["السيرفر والرتب","Server & roles"],messages:["الرسائل والإعلانات","Messages & announcements"],moderation:["الإشراف والعقوبات","Moderation"],integrations:["التكاملات الخارجية","Integrations"],modules:["حالة الأنظمة","System modules"]};const item=labels[button.dataset.view];button.lastChild.textContent=ar()?item[0]:item[1];});render();});
+ $("#languageButton").addEventListener("click",()=>{state.lang=ar()?"en":"ar";document.documentElement.lang=state.lang;document.documentElement.dir=ar()?"rtl":"ltr";$("#languageButton").textContent=ar()?"EN":"عربي";$$("[data-view]").forEach(button=>{const labels={overview:["نظرة عامة","Overview"],server:["السيرفر والرتب","Server & roles"],messages:["الرسائل والإعلانات","Messages & announcements"],moderation:["الإشراف والعقوبات","Moderation"],integrations:["التكاملات الخارجية","Integrations"],logs:["إدارة اللوجات","Log management"],welcome:["الترحيب والمغادرة","Welcome & goodbye"],modules:["حالة الأنظمة","System modules"]};const item=labels[button.dataset.view];button.lastChild.textContent=ar()?item[0]:item[1];});render();});
  $("#backButton").addEventListener("click",()=>window.parent.postMessage({type:"swat-bot-command-center-close"},location.origin));
  load();
 }
