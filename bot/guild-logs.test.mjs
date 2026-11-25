@@ -156,6 +156,37 @@ test("routes every known and future audit action to an enabled log category", as
   assert.match(sent[2].embeds[0].fields.find(field => field.name === "رقم نوع الحدث").value, /999/);
 });
 
+test("routes nickname changes and timeouts to their separate switches", async () => {
+  const nicknameHarness = harness({ settings: { events: { memberNicknameUpdate: false } } });
+  assert.equal(await nicknameHarness.service.auditLogEntry({
+    action: 24,
+    executor: { id: "82345678901234567", username: "Moderator" },
+    target: { id: "92345678901234567", username: "Member" },
+    changes: [{ key: "nick", old_value: "Old", new_value: "New" }]
+  }, { id: "12345678901234567" }), false);
+  assert.equal(nicknameHarness.sent.length, 0);
+
+  const timeoutHarness = harness({ settings: { events: { timeout: false } } });
+  assert.equal(await timeoutHarness.service.auditLogEntry({
+    action: 24,
+    executor: { id: "82345678901234567", username: "Moderator" },
+    target: { id: "92345678901234567", username: "Member" },
+    changes: [{ key: "communication_disabled_until", old_value: null, new_value: "2026-11-26T08:00:00.000Z" }]
+  }, { id: "12345678901234567" }), false);
+  assert.equal(timeoutHarness.sent.length, 0);
+});
+
+test("decodes role permission bitfields in role audit updates", async () => {
+  const { service, sent } = harness();
+  assert.equal(await service.auditLogEntry({
+    action: 31,
+    executor: { id: "82345678901234567", username: "Moderator" },
+    target: { id: "62345678901234567", name: "REDLINE S.W.A.T" },
+    changes: [{ key: "permissions", old_value: "0", new_value: String(PermissionsBitField.Flags.ViewChannel) }]
+  }, { id: "12345678901234567" }), true);
+  assert.match(sent[0].embeds[0].fields.find(field => field.name === "تفاصيل التغييرات").value, /عرض القناة/);
+});
+
 test("records voice joins, leaves, and moves", async () => {
   const { service, sent } = harness();
   const guild = { id: "12345678901234567" };
