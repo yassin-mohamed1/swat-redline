@@ -34,8 +34,16 @@
     document.body.style.overflow="";
   }
   window.addEventListener("message",event=>{
-    if(event.origin!==location.origin||event.data?.type!=="swat-bot-command-center-close")return;
-    close();
+    if(event.origin!==location.origin)return;
+    if(event.data?.type==="swat-bot-command-center-close"){close();return;}
+    if(event.data?.type==="swat-bot-open-portal-page"){
+      const allowed=new Set(["personnel","warnings","messages","attendance","audit"]);
+      const page=String(event.data.page||"");
+      if(!allowed.has(page))return;
+      if(typeof currentCanAdmin!=="undefined"&&!currentCanAdmin)return;
+      close();
+      if(typeof go==="function")go(page);
+    }
   });
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});else install();
   window.SWATBotCommandCenterLauncher={open,close};
