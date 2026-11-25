@@ -1,0 +1,133 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createGuildLogService } from "./guild-logs.mjs";
+
+function harness(options = {}) {
+  const sent = [];
+  const warnings = [];
+  const channel = {
+    id: "72345678901234567",
+    guildId: "12345678901234567",
+    name: "swat-logs",
+    isTextBased: () => true,
+    permissionsFor: () => ({ has: () => true }),
+    send: async payload => { sent.push(payload); return { id: String(sent.length) }; }
+  };
+  const client = {
+    user: { id: "92345678901234567" },
+    channels: { fetch: async () => channel }
+  };
+  const service = createGuildLogService({
+    client,
+    guildId: channel.guildId,
+    channelId: channel.id,
+    enabled: () => options.enabled !== false,
+    logger: { warn: (...values) => warnings.push(values) },
+    now: () => new Date("2026-11-25T08:00:00.000Z").getTime()
+  });
+  return { service, sent, warnings, channel };
+}
+
+test("verifies the configured log channel belongs to the expected guild", async () => {
+  const { service } = harness();
+  assert.deepEqual(await service.verify(), {
+    ok: true,
+    channelId: "72345678901234567",
+    guildId: "12345678901234567"
+  });
+});
+
+test("sends a deleted message log without allowing mentions", async () => {
+  const { service, sent } = harness();
+  const ok = await service.messageDeleted({
+    id: "82345678901234567",
+    guildId: "12345678901234567",
+    channelId: "72345678901234567",
+    channel: { id: "72345678901234567", name: "general" },
+    author: { id: "92345678901234567", username: "Member", bot: false },
+    content: "hello @everyone",
+    attachments: new Map([["1", { name: "image.png" }]])
+  });
+  assert.equal(ok, true);
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].embeds[0].title, /حذف رسالة/);
+  assert.match(sent[0].embeds[0].fields.find(field => field.name === "محتوى الرسالة").value, /@ everyone/);
+  assert.deepEqual(sent[0].allowedMentions, { parse: [], users: [], roles: [], repliedUser: false });
+});
+
+test("ignores bot messages and message edits that did not change content", async () => {
+  const { service, sent } = harness();
+  assert.equal(await service.messageDeleted({
+    guildId: "12345678901234567",
+    author: { id: "1", username: "Bot", bot: true }
+  }), false);
+  assert.equal(await service.messageUpdated(
+    { guildId: "12345678901234567", content: "same" },
+    { guildId: "12345678901234567", content: "same", author: { bot: false } }
+  ), false);
+  assert.equal(sent.length, 0);
+});
+
+test("records member role additions and removals", async () => {
+  const { service, sent } = harness();
+  const oldRoles = new Map([
+    ["role-old", { id: "role-old", name: "Old Role" }]
+  ]);
+  const newRoles = new Map([
+    ["role-new", { id: "role-new", name: "New Role" }]
+  ]);
+  const base = {
+    id: "92345678901234567",
+    guild: { id: "12345678901234567" },
+    user: { id: "92345678901234567", username: "Member" },
+    nickname: null
+  };
+  assert.equal(await service.memberUpdated(
+    { ...base, roles: { cache: oldRoles } },
+    { ...base, roles: { cache: newRoles } }
+  ), true);
+  assert.equal(sent.length, 1);
+  const fields = sent[0].embeds[0].fields;
+  assert.match(fields.find(field => field.name === "رتب تمت إضافتها").value, /New Role/);
+  assert.match(fields.find(field => field.name === "رتب تمت إزالتها").value, /Old Role/);
+});
+
+test("records voice joins, leaves, and moves", async () => {
+  const { service, sent } = harness();
+  const guild = { id: "12345678901234567" };
+  const member = { user: { id: "92345678901234567", username: "Member" } };
+  await service.voiceStateUpdated(
+    { guild, channelId: null, channel: null, member },
+    { guild, channelId: "72345678901234567", channel: { id: "72345678901234567", name: "Waiting" }, member }
+  );
+  await service.voiceStateUpdated(
+    { guild, channelId: "72345678901234567", channel: { id: "72345678901234567", name: "Waiting" }, member },
+    { guild, channelId: null, channel: null, member }
+  );
+  assert.equal(sent.length, 2);
+  assert.match(sent[0].embeds[0].title, /دخل/);
+  assert.match(sent[1].embeds[0].title, /غادر/);
+});
+
+test("does not send anything while the log service is disabled", async () => {
+  const { service, sent } = harness({ enabled: false });
+  assert.equal(await service.memberJoined({
+    guild: { id: "12345678901234567" },
+    user: { id: "92345678901234567", username: "Member" }
+  }), false);
+  assert.equal(sent.length, 0);
+});
+
+test("records moderator and reason from supported audit-log entries", async () => {
+  const { service, sent } = harness();
+  assert.equal(await service.auditLogEntry({
+    action: 22,
+    executor: { id: "92345678901234567", username: "Moderator" },
+    target: { id: "82345678901234567", username: "Member" },
+    reason: "rule violation"
+  }, { id: "12345678901234567" }), true);
+  assert.equal(sent.length, 1);
+  const fields = sent[0].embeds[0].fields;
+  assert.match(fields.find(field => field.name === "منفذ الإجراء").value, /Moderator/);
+  assert.equal(fields.find(field => field.name === "السبب").value, "rule violation");
+});
