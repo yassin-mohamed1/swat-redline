@@ -96,16 +96,16 @@ test("logs channel permission overwrite create, update and delete with decoded p
   assert.equal(await service.auditLogEntry({
     action: 13,
     executor: { id: "82345678901234567", username: "Yassin" },
-    target: role, targetId: role.id,
-    extra: { id: role.id, type: "0", role_name: role.name, channel },
+    target: channel, targetId: channel.id,
+    extra: { id: role.id, type: "role", name: role.name },
     changes: [{ key: "allow", new_value: viewChannel }, { key: "deny", new_value: "0" }]
   }, guild), true);
 
   assert.equal(await service.auditLogEntry({
     action: 14,
     executor: { id: "82345678901234567", username: "Yassin" },
-    target: role, targetId: role.id,
-    extra: { id: role.id, type: "0", role_name: role.name, channel },
+    target: channel, targetId: channel.id,
+    extra: { id: role.id, type: "role", name: role.name },
     changes: [
       { key: "allow", old_value: "0", new_value: viewChannel },
       { key: "deny", old_value: viewChannel, new_value: "0" }
@@ -115,8 +115,8 @@ test("logs channel permission overwrite create, update and delete with decoded p
   assert.equal(await service.auditLogEntry({
     action: 15,
     executor: { id: "82345678901234567", username: "Yassin" },
-    target: role, targetId: role.id,
-    extra: { id: role.id, type: "0", role_name: role.name, channel },
+    target: channel, targetId: channel.id,
+    extra: { id: role.id, type: "role", name: role.name },
     changes: [{ key: "allow", old_value: viewChannel }, { key: "deny", old_value: "0" }]
   }, guild), true);
 
