@@ -34,7 +34,8 @@ test("verifies the configured log channel belongs to the expected guild", async 
   assert.deepEqual(await service.verify(), {
     ok: true,
     channelId: "72345678901234567",
-    guildId: "12345678901234567"
+    guildId: "12345678901234567",
+    category: "messages"
   });
 });
 
