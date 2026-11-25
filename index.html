@@ -5282,6 +5282,8 @@ function setDiscordMessagesStatus(message,isError=false){
  if(!node)return;
  node.textContent=message||'';
  node.style.color=isError?'#ff8b92':'';
+ node.style.whiteSpace='pre-line';
+ node.style.lineHeight='1.75';
 }
 function discordDeliveryModeUsesChannels(mode){
  return ['channels','both_all','both_single'].includes(String(mode||'channels'));
@@ -6211,6 +6213,41 @@ async function sendSavedDiscordMessage(id,button){
   }
   const detail=failedChannels.length? '\n'+failedChannels.map(item=>item.name+': '+item.error).join('؛ '):'';
   toast(summaries.join(' • ')+detail+(linkButtons.length?' • أزرار الروابط: '+linkButtons.length:''));
+  if(wantsDm){
+   if(dmError){
+    setDiscordMessagesStatus('تعذّر إرسال الرسائل الخاصة: '+dmError,true);
+   }else if(dmResult){
+    const reasonLabels={
+     '50007':'Discord رفض استقبال الخاص من هذا الحساب (قد تكون إعدادات الخصوصية أو الحظر).',
+     '50278':'لا يوجد سيرفر مشترك بين العضو والبوت.',
+     '10007':'العضو غير موجود في السيرفر.',
+     '10013':'معرّف حساب Discord غير صالح.',
+     '429':'Discord فرض حدًا مؤقتًا على الإرسال.'
+    };
+    const failures=(Array.isArray(dmResult.recipients)?dmResult.recipients:[]).filter(item=>item.status==='failed');
+    const groups=new Map();
+    for(const item of failures){
+     const code=String(item.error_code||'unknown');
+     if(!groups.has(code))groups.set(code,[]);
+     groups.get(code).push(String(item.display_name||'عضو').slice(0,60));
+    }
+    const lines=['نتيجة الرسائل الخاصة: قبل Discord إرسال '+Number(dmResult.sent||0)+' من '+Number(dmResult.total||0)+' رسالة.'];
+    if(failures.length){
+     lines.push('تعذّر إرسال '+failures.length+' رسالة. التفاصيل:');
+     for(const [code,names] of groups){
+      const shown=names.slice(0,8).join('، ');
+      const extra=names.length>8?'، و'+(names.length-8)+' أعضاء آخرين':'';
+      lines.push('• '+names.length+' — '+(reasonLabels[code]||('رمز Discord: '+code))+'\n  '+shown+extra);
+     }
+    }else{
+     lines.push('لم يسجل Discord أي رفض لإرسال الرسائل الخاصة.');
+    }
+    if(Number(dmResult.excluded_without_swat_role||0)>0){
+     lines.push('تم استبعاد '+Number(dmResult.excluded_without_swat_role)+' عضوًا لعدم امتلاك رتبة S.W.A.T المطلوبة.');
+    }
+    setDiscordMessagesStatus(lines.join('\n'),failures.length>0);
+   }
+  }
  }finally{
   if(button){button.disabled=false;button.textContent=old;}
  }
