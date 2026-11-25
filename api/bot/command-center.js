@@ -2,8 +2,10 @@ import crypto from "node:crypto";
 import { requireSameOrigin } from "../../lib/request-security.js";
 import { discordApiRequest } from "../../lib/discord-rest.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
+import { normalizeBotControlSettings, LOG_CATEGORIES, DEFAULT_LOGGING_EVENTS } from "../../bot/control-settings.mjs";
 
 const STORE_ID = "swat-bot-control";
+const DEFAULT_LOG_CHANNEL_ID = "1561771014977753268";
 const SNOWFLAKE = /^\d{15,22}$/;
 
 function parseCookies(header = "") {
@@ -102,6 +104,67 @@ async function readStoredSettings(cfg) {
     updatedBy: rows[0]?.updated_by || null
   };
 }
+
+async function writeStoredSettings(cfg, user, data) {
+  const response = await supabase(cfg, "app_state?on_conflict=id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify({
+      id: STORE_ID,
+      data,
+      updated_at: new Date().toISOString(),
+      updated_by: String(user.id)
+    })
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error("Bot control settings save failed:", response.status, detail.slice(0, 350));
+    throw Object.assign(new Error("تعذر حفظ إعدادات البوت في قاعدة البيانات."), { status: 502 });
+  }
+  const rows = await response.json().catch(() => []);
+  return {
+    data: rows[0]?.data && typeof rows[0].data === "object" ? rows[0].data : data,
+    updatedAt: rows[0]?.updated_at || new Date().toISOString(),
+    updatedBy: rows[0]?.updated_by || String(user.id)
+  };
+}
+
+async function validateBotControlSettings(cfg, raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw Object.assign(new Error("إعدادات مركز تحكم البوت غير صالحة."), { status: 400 });
+  }
+  const settings = normalizeBotControlSettings({ botControl: raw }, process.env.DISCORD_LOG_CHANNEL_ID || DEFAULT_LOG_CHANNEL_ID);
+  const logging = settings.logging;
+  const ids = new Set();
+  if (logging.defaultChannelId) ids.add(logging.defaultChannelId);
+  for (const value of Object.values(logging.categories)) if (value.channelId) ids.add(value.channelId);
+  if (settings.welcome.channelId) ids.add(settings.welcome.channelId);
+  if (settings.welcome.goodbyeChannelId) ids.add(settings.welcome.goodbyeChannelId);
+
+  for (const channelId of ids) {
+    if (!SNOWFLAKE.test(channelId)) throw Object.assign(new Error("يوجد معرّف روم غير صالح."), { status: 400 });
+    const channel = await discord(cfg, "/channels/" + channelId);
+    if (String(channel.guild_id || "") !== cfg.guildId || ![0, 5].includes(Number(channel.type))) {
+      throw Object.assign(new Error("كل رومات اللوجات والترحيب لازم تكون قنوات نصية من نفس السيرفر."), { status: 400 });
+    }
+  }
+
+  if (settings.logging.enabled && !settings.logging.defaultChannelId &&
+      !Object.values(settings.logging.categories).some(item => item.enabled && item.channelId)) {
+    throw Object.assign(new Error("حدد رومًا افتراضيًا للوجات أو رومًا لكل قسم."), { status: 400 });
+  }
+  if (settings.welcome.enabled && (!settings.welcome.channelId || !settings.welcome.message)) {
+    throw Object.assign(new Error("لتفعيل الترحيب، اختر رومًا واكتب رسالة ترحيب أولًا."), { status: 400 });
+  }
+  if (settings.welcome.goodbyeEnabled && (!settings.welcome.goodbyeChannelId || !settings.welcome.goodbyeMessage)) {
+    throw Object.assign(new Error("لتفعيل رسالة المغادرة، اختر رومًا واكتب رسالة المغادرة أولًا."), { status: 400 });
+  }
+  const rawWelcome = raw.welcome || {};
+  if (rawWelcome.imageUrl && !settings.welcome.imageUrl) {
+    throw Object.assign(new Error("رابط صورة الترحيب لازم يكون HTTPS صالحًا."), { status: 400 });
+  }
+  return settings;
+}
 async function writeAudit(cfg, user, action, entityId, details = {}) {
   const response = await supabase(cfg, "audit_logs", {
     method: "POST",
@@ -174,6 +237,63 @@ async function overview(cfg) {
     }
   };
 }
+async function saveBotControlSettings(req, res, user, cfg, body) {
+  if (!requireSameOrigin(req, res)) return;
+  const settings = await validateBotControlSettings(cfg, body.settings);
+  const stored = await readStoredSettings(cfg);
+  const data = {
+    ...stored.data,
+    botControl: {
+      logging: settings.logging,
+      welcome: settings.welcome
+    }
+  };
+  const saved = await writeStoredSettings(cfg, user, data);
+  await writeAudit(cfg, user, "update_bot_control_settings", STORE_ID, {
+    type: "تحديث إعدادات اللوجات والترحيب",
+    logging_enabled: settings.logging.enabled,
+    categories_enabled: Object.fromEntries(Object.entries(settings.logging.categories).map(([key, value]) => [key, value.enabled])),
+    welcome_enabled: settings.welcome.enabled,
+    goodbye_enabled: settings.welcome.goodbyeEnabled
+  });
+  return reply(res, 200, {
+    ok: true,
+    botControl: settings,
+    updatedAt: saved.updatedAt,
+    updatedBy: saved.updatedBy,
+    propagation: "The running bot polls shared settings every 15 seconds."
+  });
+}
+
+async function sendLogTest(req, res, user, cfg, body) {
+  if (!requireSameOrigin(req, res)) return;
+  const channelId = String(body.channelId || process.env.DISCORD_LOG_CHANNEL_ID || DEFAULT_LOG_CHANNEL_ID);
+  if (!SNOWFLAKE.test(channelId)) return reply(res, 400, { error: "اختر روم لوجات صحيحًا." });
+  const channel = await discord(cfg, "/channels/" + channelId);
+  if (String(channel.guild_id || "") !== cfg.guildId || ![0, 5].includes(Number(channel.type))) {
+    return reply(res, 400, { error: "روم الاختبار يجب أن تكون قناة نصية في نفس السيرفر." });
+  }
+  const sent = await discord(cfg, "/channels/" + channelId + "/messages", {
+    method: "POST",
+    body: JSON.stringify({
+      embeds: [{
+        color: 0x35b779,
+        title: "✅ اختبار نظام اللوجات",
+        description: "نجح الاتصال من لوحة تحكم S.W.A.T. REDLINE.",
+        footer: { text: "S.W.A.T. REDLINE • SERVER LOGS" },
+        timestamp: new Date().toISOString()
+      }],
+      allowed_mentions: { parse: [] }
+    })
+  });
+  await writeAudit(cfg, user, "test_bot_log_channel", channelId, {
+    type: "اختبار روم اللوجات",
+    channel_id: channelId,
+    message_id: String(sent?.id || "")
+  });
+  return reply(res, 200, { ok: true, messageId: String(sent?.id || ""), channelName: String(channel.name || "") });
+}
+
 async function checkRoleHierarchy(cfg, targetId, roleId = null) {
   if (!SNOWFLAKE.test(targetId) || targetId === process.env.DISCORD_OWNER_ID) {
     throw Object.assign(new Error("معرّف العضو غير صالح أو محمي من التعديل."), { status: 400 });
@@ -200,6 +320,8 @@ async function handlePost(req, res, user, cfg) {
   if (!requireSameOrigin(req, res)) return;
   const body = bodyOf(req);
   const action = String(body.action || "");
+  if (action === "save_bot_settings") return saveBotControlSettings(req, res, user, cfg, body);
+  if (action === "test_log") return sendLogTest(req, res, user, cfg, body);
   if (action === "send_message") {
     const channelId = String(body.channelId || "");
     const content = String(body.content || "").trim();
@@ -376,11 +498,28 @@ export default async function handler(req, res) {
   catch (error) { return reply(res, error?.status || 500, { error: error?.message || "تعذر التحقق من صلاحيات مركز التحكم." }); }
   if (req.method === "GET") {
     try {
-      const [server, stored] = await Promise.all([overview(cfg), readStoredSettings(cfg)]);
+      const stored = await readStoredSettings(cfg);
+      let server;
+      let serverError = null;
+      try {
+        server = await overview(cfg);
+      } catch (error) {
+        serverError = error?.message || "Discord REST unavailable";
+        server = {
+          bot: null,
+          guild: { id: cfg.guildId, name: "Discord server", approximateMemberCount: 0, approximatePresenceCount: 0 },
+          roles: [],
+          channels: [],
+          automod: { available: false, rules: [] },
+          connection: { rest: "unavailable", gateway: "not_measured", error: serverError }
+        };
+      }
+      const botControl = normalizeBotControlSettings(stored.data, process.env.DISCORD_LOG_CHANNEL_ID || DEFAULT_LOG_CHANNEL_ID);
       return reply(res, 200, {
         ok: true,
         user: { id: user.id, displayName: user.displayName, isOwner: Boolean(user.isOwner) },
         ...server,
+        botControl,
         stored: { data: stored.data, updatedAt: stored.updatedAt, updatedBy: stored.updatedBy },
         capabilities: [
           { id: "member_directory", label: "دليل الأفراد وإدارة الحسابات", status: "existing" },
@@ -388,10 +527,11 @@ export default async function handler(req, res) {
           { id: "notifications", label: "إرسال الرسائل والإعلانات", status: "existing" },
           { id: "attendance", label: "البصمة وطلبات الإجازات", status: "existing" },
           { id: "attention_alerts", label: "Attention Alert", status: "existing" },
+          { id: "logging_control", label: "التحكم الكامل في اللوجات", status: "available_now" },
+          { id: "welcome_automation", label: "الترحيب والمغادرة الآليان", status: "available_now" },
           { id: "role_management", label: "إضافة وإزالة رتب Discord", status: "available_now" },
           { id: "moderation_actions", label: "Timeout / Kick / Ban", status: "available_now" },
-          { id: "welcome_automation", label: "الترحيب والمغادرة الآليان", status: "needs_gateway" },
-          { id: "automod", label: "Discord Auto Moderation rules", status: automodResult.available ? "available_now" : "needs_permission" },
+          { id: "automod", label: "Discord Auto Moderation rules", status: server.automod?.available ? "available_now" : "needs_permission" },
           { id: "tickets", label: "نظام التذاكر", status: "needs_gateway" },
           { id: "leveling", label: "المستويات وXP", status: "needs_gateway" },
           { id: "social_feeds", label: "YouTube / Twitch / Kick / RSS", status: "needs_integrations" }
