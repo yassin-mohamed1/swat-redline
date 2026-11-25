@@ -1,7 +1,128 @@
+import { PermissionsBitField } from "discord.js";
+
 const DEFAULT_COLOR = 0xed2635;
 const MAX_FIELD_VALUE = 1024;
 const MAX_DESCRIPTION = 3900;
 const SNOWFLAKE = /^\d{15,22}$/;
+
+const AUDIT_ACTIONS = Object.freeze({
+  1: { category: "server", eventKey: "guildUpdate", label: "تعديل إعدادات السيرفر" },
+  10: { category: "channels", eventKey: "channelCreate", label: "إنشاء قناة" },
+  11: { category: "channels", eventKey: "channelUpdate", label: "تعديل إعدادات قناة" },
+  12: { category: "channels", eventKey: "channelDelete", label: "حذف قناة" },
+  13: { category: "channels", eventKey: "channelOverwriteCreate", label: "إضافة صلاحيات لقناة" },
+  14: { category: "channels", eventKey: "channelOverwriteUpdate", label: "تعديل صلاحيات قناة" },
+  15: { category: "channels", eventKey: "channelOverwriteDelete", label: "حذف صلاحيات من قناة" },
+  16: { category: "channels", eventKey: "channelPositionUpdate", label: "تغيير ترتيب القنوات" },
+  20: { category: "moderation", eventKey: "kick", label: "طرد عضو" },
+  21: { category: "moderation", eventKey: "memberPrune", label: "تنظيف الأعضاء غير النشطين" },
+  22: { category: "moderation", eventKey: "ban", label: "حظر عضو" },
+  23: { category: "moderation", eventKey: "unban", label: "إلغاء حظر عضو" },
+  24: { category: "members", eventKey: "memberUpdate", label: "تعديل بيانات عضو" },
+  25: { category: "roles", eventKey: "memberRoleUpdate", label: "تعديل رتب عضو" },
+  26: { category: "moderation", eventKey: "memberMove", label: "نقل أعضاء بين الرومات الصوتية" },
+  27: { category: "moderation", eventKey: "memberDisconnect", label: "فصل أعضاء من الرومات الصوتية" },
+  28: { category: "moderation", eventKey: "botAdd", label: "إضافة بوت إلى السيرفر" },
+  30: { category: "roles", eventKey: "roleCreate", label: "إنشاء رتبة" },
+  31: { category: "roles", eventKey: "roleUpdate", label: "تعديل رتبة" },
+  32: { category: "roles", eventKey: "roleDelete", label: "حذف رتبة" },
+  33: { category: "roles", eventKey: "rolePositionUpdate", label: "تغيير ترتيب الرتب" },
+  40: { category: "audit", eventKey: "inviteCreate", label: "إنشاء دعوة" },
+  41: { category: "audit", eventKey: "inviteUpdate", label: "تعديل دعوة" },
+  42: { category: "audit", eventKey: "inviteDelete", label: "حذف دعوة" },
+  50: { category: "audit", eventKey: "webhookCreate", label: "إنشاء Webhook" },
+  51: { category: "audit", eventKey: "webhookUpdate", label: "تعديل Webhook" },
+  52: { category: "audit", eventKey: "webhookDelete", label: "حذف Webhook" },
+  60: { category: "audit", eventKey: "emojiCreate", label: "إضافة Emoji" },
+  61: { category: "audit", eventKey: "emojiUpdate", label: "تعديل Emoji" },
+  62: { category: "audit", eventKey: "emojiDelete", label: "حذف Emoji" },
+  72: { category: "messages", eventKey: "messageDeleteAudit", label: "حذف رسالة — سجل الإدارة" },
+  73: { category: "messages", eventKey: "messageBulkDeleteAudit", label: "حذف مجموعة رسائل — سجل الإدارة" },
+  74: { category: "messages", eventKey: "messagePin", label: "تثبيت رسالة" },
+  75: { category: "messages", eventKey: "messageUnpin", label: "إزالة تثبيت رسالة" },
+  80: { category: "audit", eventKey: "integrationCreate", label: "إضافة تكامل" },
+  81: { category: "audit", eventKey: "integrationUpdate", label: "تعديل تكامل" },
+  82: { category: "audit", eventKey: "integrationDelete", label: "حذف تكامل" },
+  83: { category: "audit", eventKey: "stageInstanceCreate", label: "إنشاء Stage" },
+  84: { category: "audit", eventKey: "stageInstanceUpdate", label: "تعديل Stage" },
+  85: { category: "audit", eventKey: "stageInstanceDelete", label: "حذف Stage" },
+  90: { category: "audit", eventKey: "stickerCreate", label: "إضافة ملصق" },
+  91: { category: "audit", eventKey: "stickerUpdate", label: "تعديل ملصق" },
+  92: { category: "audit", eventKey: "stickerDelete", label: "حذف ملصق" },
+  100: { category: "audit", eventKey: "guildScheduledEventCreate", label: "إنشاء فعالية مجدولة" },
+  101: { category: "audit", eventKey: "guildScheduledEventUpdate", label: "تعديل فعالية مجدولة" },
+  102: { category: "audit", eventKey: "guildScheduledEventDelete", label: "حذف فعالية مجدولة" },
+  110: { category: "audit", eventKey: "threadCreate", label: "إنشاء Thread" },
+  111: { category: "audit", eventKey: "threadUpdate", label: "تعديل Thread" },
+  112: { category: "audit", eventKey: "threadDelete", label: "حذف Thread" },
+  121: { category: "audit", eventKey: "applicationCommandPermissionUpdate", label: "تعديل صلاحيات أوامر التطبيقات" },
+  130: { category: "audit", eventKey: "soundboardSoundCreate", label: "إضافة صوت إلى Soundboard" },
+  131: { category: "audit", eventKey: "soundboardSoundUpdate", label: "تعديل صوت Soundboard" },
+  132: { category: "audit", eventKey: "soundboardSoundDelete", label: "حذف صوت Soundboard" },
+  140: { category: "audit", eventKey: "autoModerationRuleCreate", label: "إنشاء قاعدة AutoMod" },
+  141: { category: "audit", eventKey: "autoModerationRuleUpdate", label: "تعديل قاعدة AutoMod" },
+  142: { category: "audit", eventKey: "autoModerationRuleDelete", label: "حذف قاعدة AutoMod" },
+  143: { category: "audit", eventKey: "autoModerationBlockMessage", label: "AutoMod منع رسالة" },
+  144: { category: "audit", eventKey: "autoModerationFlagToChannel", label: "AutoMod أرسل تنبيهًا" },
+  145: { category: "audit", eventKey: "autoModerationUserCommunicationDisabled", label: "AutoMod قيّد عضوًا" },
+  146: { category: "audit", eventKey: "autoModerationQuarantineUser", label: "AutoMod عزل عضوًا" },
+  150: { category: "audit", eventKey: "creatorMonetizationRequestCreated", label: "طلب Creator Monetization" },
+  151: { category: "audit", eventKey: "creatorMonetizationTermsAccepted", label: "قبول شروط Creator Monetization" },
+  163: { category: "audit", eventKey: "onboardingPromptCreate", label: "إنشاء سؤال Onboarding" },
+  164: { category: "audit", eventKey: "onboardingPromptUpdate", label: "تعديل سؤال Onboarding" },
+  165: { category: "audit", eventKey: "onboardingPromptDelete", label: "حذف سؤال Onboarding" },
+  166: { category: "audit", eventKey: "onboardingCreate", label: "إنشاء إعدادات Onboarding" },
+  167: { category: "audit", eventKey: "onboardingUpdate", label: "تعديل إعدادات Onboarding" },
+  190: { category: "audit", eventKey: "homeSettingsCreate", label: "إنشاء إعدادات Home" },
+  191: { category: "audit", eventKey: "homeSettingsUpdate", label: "تعديل إعدادات Home" },
+  192: { category: "audit", eventKey: "voiceChannelStatusCreate", label: "تعيين حالة روم صوتي" },
+  193: { category: "audit", eventKey: "voiceChannelStatusDelete", label: "إزالة حالة روم صوتي" }
+});
+
+const PERMISSION_LABELS = Object.freeze({
+  ViewChannel: "عرض القناة",
+  SendMessages: "إرسال الرسائل",
+  ReadMessageHistory: "قراءة سجل الرسائل",
+  ManageChannels: "إدارة القنوات",
+  ManageRoles: "إدارة الرتب",
+  ManageMessages: "إدارة الرسائل",
+  EmbedLinks: "إضافة روابط مضمنة",
+  AttachFiles: "إرفاق ملفات",
+  Connect: "الاتصال الصوتي",
+  Speak: "التحدث صوتيًا",
+  MentionEveryone: "منشن الجميع",
+  ManageWebhooks: "إدارة Webhooks",
+  ViewAuditLog: "عرض Audit Log",
+  Administrator: "صلاحية Administrator",
+  AddReactions: "إضافة تفاعلات",
+  UseApplicationCommands: "استخدام أوامر التطبيقات",
+  MoveMembers: "نقل الأعضاء صوتيًا",
+  MuteMembers: "كتم الأعضاء",
+  DeafenMembers: "إسكات الأعضاء",
+  ModerateMembers: "Timeout للأعضاء",
+  CreateInstantInvite: "إنشاء دعوات"
+});
+
+function formatPermissionBits(value) {
+  if (value === undefined || value === null || value === "") return "غير مسجل";
+  try {
+    const bits = new PermissionsBitField(BigInt(value));
+    const names = bits.toArray();
+    if (!names.length) return "لا توجد صلاحيات";
+    return names.map(name => PERMISSION_LABELS[name] || name).join("، ");
+  } catch {
+    return text(String(value), 300);
+  }
+}
+
+function auditValue(value, key) {
+  if (key === "allow" || key === "deny") return formatPermissionBits(value);
+  if (value === undefined || value === null) return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return text(value, 220);
+  try { return text(JSON.stringify(value), 220); }
+  catch { return text(String(value), 220); }
+}
+
 
 function text(value, limit = MAX_FIELD_VALUE) {
   const normalized = String(value ?? "")
@@ -299,32 +420,111 @@ export function createGuildLogService({
   }
   async function auditLogEntry(entry, guild) {
     if (String(guild?.id || entry?.guild?.id || "") !== targetGuildId) return false;
+
     const action = Number(entry?.action);
-    let category = "moderation", eventKey = "", label = "";
+    const known = AUDIT_ACTIONS[action];
+    const info = known || {
+      category: "audit",
+      eventKey: "auditLogOther",
+      label: "حدث إداري غير مصنف"
+    };
     const changes = Array.isArray(entry?.changes) ? entry.changes : [];
-    if (action === 20) { eventKey = "kick"; label = "طرد عضو"; }
-    else if (action === 22) { eventKey = "ban"; label = "حظر عضو"; }
-    else if (action === 23) { eventKey = "unban"; label = "إلغاء حظر عضو"; }
-    else if (action === 24 && changes.some(change => change.key === "communication_disabled_until")) { eventKey = "timeout"; label = "تغيير مهلة Timeout"; }
-    else if (action === 25) { category = "roles"; eventKey = "memberRoleUpdate"; label = "تغيير رتب عضو"; }
-    else return false;
-    const changeLines = changes.slice(0, 8).map(change => {
-      const key = text(change.key || "تغيير", 80);
-      const before = change.old_value === undefined ? "" : JSON.stringify(change.old_value);
-      const after = change.new_value === undefined ? "" : JSON.stringify(change.new_value);
-      return key + ": " + (before ? text(before, 180) : "—") + " ← " + (after ? text(after, 180) : "—");
+    const extra = entry?.extra && typeof entry.extra === "object" ? entry.extra : {};
+    const targetId = String(entry?.targetId || entry?.target?.id || "");
+    const channelId = String(
+      extra.channel?.id || extra.channel_id || entry?.channel?.id || ""
+    );
+    const isOverwrite = action === 13 || action === 14 || action === 15;
+    const overwrittenId = String(extra.id || (isOverwrite ? targetId : ""));
+    const overwrittenType = String(extra.type ?? "");
+    const overwrittenName = overwrittenType === "0"
+      ? String(extra.role_name || entry?.target?.name || "رتبة غير معروفة")
+      : overwrittenType === "1"
+        ? String(entry?.target?.username || entry?.target?.globalName || "عضو")
+        : String(entry?.target?.name || entry?.target?.username || "");
+
+    const changeLines = changes.slice(0, 12).map(change => {
+      const key = text(change.key || "تغيير", 90);
+      const before = auditValue(change.old_value, change.key);
+      const after = auditValue(change.new_value, change.key);
+      if (change.new_value === undefined) return key + ": " + before + " ← تمت الإزالة";
+      if (change.old_value === undefined) return key + ": تمت الإضافة ← " + after;
+      return key + ": " + before + " ← " + after;
     });
-    const extra = entry?.extra;
-    const extraText = extra?.channel?.name ? "#" + extra.channel.name + " (" + extra.channel.id + ")" : extra?.count !== undefined ? "عدد العناصر: " + extra.count : "";
+
+    let title = "📋 سجل الإدارة: " + info.label;
+    let description = "تم تسجيل إجراء إداري داخل Discord Audit Log.";
+    let color = 0xb45bd3;
+    if (action === 13) { title = "🔐 تمت إضافة صلاحيات إلى قناة"; color = 0x35b779; }
+    else if (action === 14) { title = "🔐 تم تعديل صلاحيات قناة"; color = 0xe2a33b; }
+    else if (action === 15) { title = "🔐 تمت إزالة صلاحيات من قناة"; color = 0xe05252; }
+    else if (action === 10 || action === 30 || action === 40 || action === 50) color = 0x35b779;
+    else if (action === 12 || action === 32 || action === 42 || action === 52) color = 0xe05252;
+
+    const fields = [
+      { name: "منفذ الإجراء", value: displayUser(entry?.executor) },
+      { name: "الهدف", value: entry?.target ? displayUser(entry.target) : (targetId || "غير متاح") }
+    ];
+
+    if (channelId) {
+      fields.push({
+        name: "القناة",
+        value: displayChannel({ id: channelId, name: extra.channel?.name || entry?.channel?.name || "" })
+      });
+    }
+
+    if (isOverwrite) {
+      const targetLabel = overwrittenType === "0" ? "الرتبة المستهدفة" : overwrittenType === "1" ? "العضو المستهدف" : "العنصر المستهدف";
+      fields.push({
+        name: targetLabel,
+        value: (overwrittenName ? text(overwrittenName, 100) + " · " : "") + (overwrittenId || "غير متاح")
+      });
+
+      const allowChange = changes.find(change => change.key === "allow");
+      const denyChange = changes.find(change => change.key === "deny");
+      if (allowChange) {
+        fields.push({
+          name: action === 14 ? "الصلاحيات المسموح بها (قبل ← بعد)" : "الصلاحيات المسموح بها",
+          value: action === 14
+            ? formatPermissionBits(allowChange.old_value) + " ← " + formatPermissionBits(allowChange.new_value)
+            : formatPermissionBits(allowChange.new_value ?? allowChange.old_value)
+        });
+      }
+      if (denyChange) {
+        fields.push({
+          name: action === 14 ? "الصلاحيات الممنوعة (قبل ← بعد)" : "الصلاحيات الممنوعة",
+          value: action === 14
+            ? formatPermissionBits(denyChange.old_value) + " ← " + formatPermissionBits(denyChange.new_value)
+            : formatPermissionBits(denyChange.new_value ?? denyChange.old_value)
+        });
+      }
+    }
+
+    if (extra.count !== undefined) fields.push({ name: "عدد العناصر", value: String(extra.count) });
+    if (extra.delete_member_days !== undefined) fields.push({ name: "أيام عدم النشاط", value: String(extra.delete_member_days) });
+    if (extra.members_removed !== undefined) fields.push({ name: "عدد الأعضاء الذين تمت إزالتهم", value: String(extra.members_removed) });
+    if (extra.message_id !== undefined) fields.push({ name: "معرّف الرسالة", value: String(extra.message_id) });
+    if (extra.auto_moderation_rule_name) fields.push({ name: "قاعدة AutoMod", value: text(extra.auto_moderation_rule_name, 120) });
+    if (extra.status) fields.push({ name: "الحالة", value: text(extra.status, 300) });
+    if (entry?.reason) fields.push({ name: "السبب", value: text(entry.reason, 900) });
+
+    if (changeLines.length) {
+      fields.push({ name: "تفاصيل التغييرات", value: changeLines.join("\n") });
+    } else if (action === 121) {
+      fields.push({ name: "ملاحظة", value: "تم تعديل صلاحيات أمر أوامر التطبيقات. قد تكون التفاصيل التفصيلية غير متاحة في مدخل Audit Log." });
+    }
+
+    if (!known) {
+      fields.push({ name: "رقم نوع الحدث", value: String(action || "غير معروف") });
+    }
+
     return send({
-      category, eventKey, title: "📋 سجل الإدارة: " + label, description: "تم تسجيل إجراء إداري في Discord Audit Log.", color: 0xb45bd3,
-      fields: [
-        { name: "منفذ الإجراء", value: displayUser(entry?.executor) },
-        { name: "العضو أو العنصر المستهدف", value: entry?.target ? displayUser(entry.target) : String(entry?.targetId || "غير متاح") },
-        ...(extraText ? [{ name: "تفاصيل إضافية", value: extraText }] : []),
-        ...(entry?.reason ? [{ name: "السبب", value: text(entry.reason, 900) }] : []),
-        ...(changeLines.length ? [{ name: "التغييرات", value: changeLines.join("\n") }] : [])
-      ]
+      category: info.category,
+      eventKey: info.eventKey,
+      title,
+      description,
+      color,
+      fields
     });
   }
 
