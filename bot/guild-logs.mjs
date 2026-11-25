@@ -116,7 +116,7 @@ function formatPermissionBits(value) {
 }
 
 function auditValue(value, key) {
-  if (key === "allow" || key === "deny") return formatPermissionBits(value);
+  if (key === "allow" || key === "deny" || key === "permissions") return formatPermissionBits(value);
   if (value === undefined || value === null) return "—";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return text(value, 220);
   try { return text(JSON.stringify(value), 220); }
@@ -424,8 +424,12 @@ export function createGuildLogService({
     const action = Number(entry?.action);
     const known = AUDIT_ACTIONS[action];
     const changes = Array.isArray(entry?.changes) ? entry.changes : [];
-    const info = action === 24 && changes.some(change => change.key === "communication_disabled_until")
-      ? { category: "moderation", eventKey: "timeout", label: "تغيير مهلة Timeout" }
+    const info = action === 24
+      ? changes.some(change => change.key === "communication_disabled_until")
+        ? { category: "moderation", eventKey: "timeout", label: "تغيير مهلة Timeout" }
+        : changes.some(change => change.key === "nick" || change.key === "nickname")
+          ? { category: "members", eventKey: "memberNicknameUpdate", label: "تغيير اسم عضو" }
+          : { category: "members", eventKey: "memberUpdate", label: "تعديل بيانات عضو" }
       : known || {
           category: "audit",
           eventKey: "auditLogOther",
@@ -435,9 +439,9 @@ export function createGuildLogService({
     const targetId = String(entry?.targetId || entry?.target?.id || "");
     const isOverwrite = action === 13 || action === 14 || action === 15;
     const rawOverwriteType = String(extra.type ?? "");
-    const overwrittenType = rawOverwriteType === "0" || rawOverwriteType.toLowerCase() === "role" || Boolean(extra.role_name)
+    const overwrittenType = rawOverwriteType === "0" || rawOverwriteType.toLowerCase() === "role" || Boolean(extra.role_name) || extra.constructor?.name === "Role"
       ? "role"
-      : rawOverwriteType === "1" || rawOverwriteType.toLowerCase() === "member" || Boolean(extra.user)
+      : rawOverwriteType === "1" || rawOverwriteType.toLowerCase() === "member" || Boolean(extra.user) || extra.constructor?.name === "GuildMember" || extra.displayName
         ? "member"
         : "";
     const channelId = String(
@@ -445,7 +449,7 @@ export function createGuildLogService({
     );
     const overwrittenId = String(extra.id || extra.user?.id || (isOverwrite ? "" : targetId));
     const overwrittenName = String(
-      extra.role_name || extra.name || extra.user?.globalName || extra.user?.username ||
+      extra.role_name || extra.name || extra.displayName || extra.user?.globalName || extra.user?.username ||
       (overwrittenType === "role" ? "رتبة غير معروفة" : overwrittenType === "member" ? "عضو" : "")
     );
 
