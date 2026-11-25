@@ -433,17 +433,21 @@ export function createGuildLogService({
         };
     const extra = entry?.extra && typeof entry.extra === "object" ? entry.extra : {};
     const targetId = String(entry?.targetId || entry?.target?.id || "");
-    const channelId = String(
-      extra.channel?.id || extra.channel_id || entry?.channel?.id || ""
-    );
     const isOverwrite = action === 13 || action === 14 || action === 15;
-    const overwrittenId = String(extra.id || (isOverwrite ? targetId : ""));
-    const overwrittenType = String(extra.type ?? "");
-    const overwrittenName = overwrittenType === "0"
-      ? String(extra.role_name || entry?.target?.name || "رتبة غير معروفة")
-      : overwrittenType === "1"
-        ? String(entry?.target?.username || entry?.target?.globalName || "عضو")
-        : String(entry?.target?.name || entry?.target?.username || "");
+    const rawOverwriteType = String(extra.type ?? "");
+    const overwrittenType = rawOverwriteType === "0" || rawOverwriteType.toLowerCase() === "role" || Boolean(extra.role_name)
+      ? "role"
+      : rawOverwriteType === "1" || rawOverwriteType.toLowerCase() === "member" || Boolean(extra.user)
+        ? "member"
+        : "";
+    const channelId = String(
+      extra.channel?.id || extra.channel_id || entry?.channel?.id || (isOverwrite ? entry?.target?.id : "") || ""
+    );
+    const overwrittenId = String(extra.id || extra.user?.id || (isOverwrite ? "" : targetId));
+    const overwrittenName = String(
+      extra.role_name || extra.name || extra.user?.globalName || extra.user?.username ||
+      (overwrittenType === "role" ? "رتبة غير معروفة" : overwrittenType === "member" ? "عضو" : "")
+    );
 
     const changeLines = changes.slice(0, 12).map(change => {
       const key = text(change.key || "تغيير", 90);
@@ -464,19 +468,15 @@ export function createGuildLogService({
     else if (action === 12 || action === 32 || action === 42 || action === 52) color = 0xe05252;
 
     const fields = [
-      { name: "منفذ الإجراء", value: displayUser(entry?.executor) },
-      { name: "الهدف", value: entry?.target ? displayUser(entry.target) : (targetId || "غير متاح") }
+      { name: "منفذ الإجراء", value: displayUser(entry?.executor) }
     ];
 
-    if (channelId) {
+    if (isOverwrite) {
       fields.push({
         name: "القناة",
-        value: displayChannel({ id: channelId, name: extra.channel?.name || entry?.channel?.name || "" })
+        value: displayChannel({ id: channelId, name: entry?.target?.name || extra.channel?.name || entry?.channel?.name || "" })
       });
-    }
-
-    if (isOverwrite) {
-      const targetLabel = overwrittenType === "0" ? "الرتبة المستهدفة" : overwrittenType === "1" ? "العضو المستهدف" : "العنصر المستهدف";
+      const targetLabel = overwrittenType === "role" ? "الرتبة المستهدفة" : overwrittenType === "member" ? "العضو المستهدف" : "العنصر المستهدف";
       fields.push({
         name: targetLabel,
         value: (overwrittenName ? text(overwrittenName, 100) + " · " : "") + (overwrittenId || "غير متاح")
@@ -502,6 +502,7 @@ export function createGuildLogService({
       }
     }
 
+    if (!isOverwrite) fields.push({ name: "الهدف", value: entry?.target ? displayUser(entry.target) : (targetId || "غير متاح") });
     if (extra.count !== undefined) fields.push({ name: "عدد العناصر", value: String(extra.count) });
     if (extra.delete_member_days !== undefined) fields.push({ name: "أيام عدم النشاط", value: String(extra.delete_member_days) });
     if (extra.members_removed !== undefined) fields.push({ name: "عدد الأعضاء الذين تمت إزالتهم", value: String(extra.members_removed) });
