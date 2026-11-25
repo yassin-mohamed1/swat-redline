@@ -44,6 +44,17 @@ test("ignores malformed channel ids and rejects non-HTTPS welcome images", () =>
   assert.equal(settings.welcome.imageUrl, "");
 });
 
+test("enables channel overwrite, server and generic audit events by default", () => {
+  const settings = normalizeBotControlSettings({});
+  assert.equal(settings.logging.categories.channels.enabled, true);
+  assert.equal(settings.logging.events.channelOverwriteCreate, true);
+  assert.equal(settings.logging.events.channelOverwriteUpdate, true);
+  assert.equal(settings.logging.events.channelOverwriteDelete, true);
+  assert.equal(settings.logging.events.guildUpdate, true);
+  assert.equal(settings.logging.events.inviteCreate, true);
+  assert.equal(settings.logging.events.auditLogOther, true);
+});
+
 test("exposes the complete supported event catalog", () => {
   const categories = Object.values(LOG_CATEGORIES).flat();
   assert.equal(new Set(categories).size, categories.length);
