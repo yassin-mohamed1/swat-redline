@@ -1,12 +1,45 @@
 const SNOWFLAKE = /^\d{15,22}$/;
 
 export const LOG_CATEGORIES = Object.freeze({
-  messages: Object.freeze(["messageDelete", "messageUpdate", "messageBulkDelete"]),
-  members: Object.freeze(["memberJoin", "memberLeave", "memberNicknameUpdate"]),
+  messages: Object.freeze([
+    "messageDelete", "messageUpdate", "messageBulkDelete", "messagePin", "messageUnpin"
+  ]),
+  members: Object.freeze([
+    "memberJoin", "memberLeave", "memberNicknameUpdate", "memberUpdate"
+  ]),
   voice: Object.freeze(["voiceJoin", "voiceLeave", "voiceMove"]),
-  roles: Object.freeze(["memberRoleUpdate", "roleCreate", "roleUpdate", "roleDelete"]),
-  moderation: Object.freeze(["kick", "ban", "unban", "timeout"]),
-  channels: Object.freeze(["channelCreate", "channelUpdate", "channelDelete"])
+  roles: Object.freeze([
+    "memberRoleUpdate", "roleCreate", "roleUpdate", "roleDelete", "rolePositionUpdate"
+  ]),
+  moderation: Object.freeze([
+    "kick", "memberPrune", "ban", "unban", "timeout", "memberMove", "memberDisconnect", "botAdd"
+  ]),
+  channels: Object.freeze([
+    "channelCreate", "channelUpdate", "channelDelete",
+    "channelOverwriteCreate", "channelOverwriteUpdate", "channelOverwriteDelete", "channelPositionUpdate"
+  ]),
+  server: Object.freeze(["guildUpdate"]),
+  audit: Object.freeze([
+    "inviteCreate", "inviteUpdate", "inviteDelete",
+    "webhookCreate", "webhookUpdate", "webhookDelete",
+    "emojiCreate", "emojiUpdate", "emojiDelete",
+    "integrationCreate", "integrationUpdate", "integrationDelete",
+    "stageInstanceCreate", "stageInstanceUpdate", "stageInstanceDelete",
+    "stickerCreate", "stickerUpdate", "stickerDelete",
+    "guildScheduledEventCreate", "guildScheduledEventUpdate", "guildScheduledEventDelete",
+    "threadCreate", "threadUpdate", "threadDelete",
+    "applicationCommandPermissionUpdate",
+    "soundboardSoundCreate", "soundboardSoundUpdate", "soundboardSoundDelete",
+    "autoModerationRuleCreate", "autoModerationRuleUpdate", "autoModerationRuleDelete",
+    "autoModerationBlockMessage", "autoModerationFlagToChannel",
+    "autoModerationUserCommunicationDisabled", "autoModerationQuarantineUser",
+    "creatorMonetizationRequestCreated", "creatorMonetizationTermsAccepted",
+    "onboardingPromptCreate", "onboardingPromptUpdate", "onboardingPromptDelete",
+    "onboardingCreate", "onboardingUpdate",
+    "homeSettingsCreate", "homeSettingsUpdate",
+    "voiceChannelStatusCreate", "voiceChannelStatusDelete",
+    "auditLogOther"
+  ])
 });
 
 export const DEFAULT_LOGGING_EVENTS = Object.freeze(
