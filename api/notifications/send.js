@@ -14,7 +14,16 @@ const MAX_NOTIFICATION_IMAGES = 4;
 const MAX_NOTIFICATION_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_NOTIFICATION_TOTAL_IMAGE_BYTES = 8 * 1024 * 1024;
 
-const REQUIRED_SWT_DM_ROLE_ID = "1561561038263029900";
+function getRequiredSwatDmRoleId() {
+  const roleId = String(process.env.DISCORD_ROLE_ID || "").trim();
+  if (!/^\d{15,22}$/.test(roleId)) {
+    throw Object.assign(
+      new Error("تعذر التحقق من رتبة S.W.A.T. الأساسية. لم يتم إرسال أي رسائل خاصة."),
+      { status: 503, code: "swat_role_id_missing" }
+    );
+  }
+  return roleId;
+}
 const MAX_DISCORD_MEMBER_CHECKS = 200;
 
 async function verifyDiscordSwatRole(config, discordUserIds) {
@@ -25,6 +34,7 @@ async function verifyDiscordSwatRole(config, discordUserIds) {
   if (!config?.botToken) {
     throw Object.assign(new Error("بوت Discord غير متصل. لم يتم إرسال أي رسائل خاصة."), { status: 503 });
   }
+  const requiredRoleId = getRequiredSwatDmRoleId();
 
   const ids = [...new Set((Array.isArray(discordUserIds) ? discordUserIds : [])
     .map(value => String(value || "").trim())
@@ -44,7 +54,7 @@ async function verifyDiscordSwatRole(config, discordUserIds) {
           "/guilds/" + encodeURIComponent(guildId) + "/members/" + encodeURIComponent(id)
         );
         const roles = Array.isArray(member?.roles) ? member.roles.map(String) : [];
-        return { id, eligible: member?.user?.bot !== true && roles.includes(REQUIRED_SWT_DM_ROLE_ID) };
+        return { id, eligible: member?.user?.bot !== true && roles.includes(requiredRoleId) };
       } catch (error) {
         if (Number(error?.status) === 404) return { id, eligible: false };
         throw error;
@@ -55,7 +65,7 @@ async function verifyDiscordSwatRole(config, discordUserIds) {
       else rejected.add(result.id);
     }
   }
-  return { eligible, rejected, checked: ids.length, roleId: REQUIRED_SWT_DM_ROLE_ID };
+  return { eligible, rejected, checked: ids.length, roleId: requiredRoleId };
 }
 
 function parseCookies(header = "") {
@@ -1382,7 +1392,7 @@ export default async function handler(req, res) {
       .sort((a, b) => String(a.discord_user_id).localeCompare(String(b.discord_user_id)));
 
     let recipients = candidateRecipients;
-    let roleCheck = { checked: 0, excluded: 0, roleId: REQUIRED_SWT_DM_ROLE_ID };
+    let roleCheck = { checked: 0, excluded: 0, roleId: String(process.env.DISCORD_ROLE_ID || '').trim() };
     if (candidateRecipients.length) {
       let verification;
       try {
@@ -1396,14 +1406,14 @@ export default async function handler(req, res) {
         roleCheck = {
           checked: candidateRecipients.length,
           excluded: candidateRecipients.length,
-          roleId: REQUIRED_SWT_DM_ROLE_ID,
+          roleId: String(process.env.DISCORD_ROLE_ID || '').trim(),
           verified: false,
           error_code: code
         };
       }
       if (verification) {
         recipients = candidateRecipients.filter(row => verification.eligible.has(String(row.discord_user_id)));
-        roleCheck = { checked: verification.checked, excluded: verification.rejected.size, roleId: REQUIRED_SWT_DM_ROLE_ID, verified: true };
+        roleCheck = { checked: verification.checked, excluded: verification.rejected.size, roleId: verification.roleId, verified: true };
       }
     }
     const ownerIncluded = recipients.some(row => String(row.discord_user_id) === ownerDiscordId);
