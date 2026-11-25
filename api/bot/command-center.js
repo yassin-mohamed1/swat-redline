@@ -125,11 +125,16 @@ function userAvatar(user) {
     : "https://cdn.discordapp.com/embed/avatars/0.png";
 }
 async function overview(cfg) {
-  const [bot, guild, roles, channels] = await Promise.all([
+  const [bot, guild, roles, channels, automodResult] = await Promise.all([
     discord(cfg, "/users/@me"),
     discord(cfg, "/guilds/" + cfg.guildId + "?with_counts=true"),
     discord(cfg, "/guilds/" + cfg.guildId + "/roles"),
-    discord(cfg, "/guilds/" + cfg.guildId + "/channels")
+    discord(cfg, "/guilds/" + cfg.guildId + "/channels"),
+    discord(cfg, "/guilds/" + cfg.guildId + "/auto-moderation/rules").then(rules => ({ available: true, rules: Array.isArray(rules) ? rules : [] }))
+      .catch(error => {
+        if ([403, 404].includes(Number(error?.status))) return { available: false, rules: [] };
+        throw error;
+      })
   ]);
   const sortedRoles = (Array.isArray(roles) ? roles : [])
     .map(role => ({ id: String(role.id), name: String(role.name), color: Number(role.color || 0), position: Number(role.position || 0), managed: Boolean(role.managed), mentionable: Boolean(role.mentionable) }))
@@ -149,6 +154,19 @@ async function overview(cfg) {
     },
     roles: sortedRoles,
     channels: sortedChannels,
+    automod: {
+      available: automodResult.available,
+      rules: automodResult.rules.map(rule => ({
+        id: String(rule.id),
+        name: String(rule.name || ""),
+        triggerType: Number(rule.trigger_type || 0),
+        eventType: Number(rule.event_type || 0),
+        enabled: Boolean(rule.enabled),
+        keywordCount: Array.isArray(rule.trigger_metadata?.keyword_filter) ? rule.trigger_metadata.keyword_filter.length : 0,
+        mentionLimit: Number(rule.trigger_metadata?.mention_total_limit || 0),
+        actions: Array.isArray(rule.actions) ? rule.actions.map(action => Number(action.type)) : []
+      }))
+    },
     connection: {
       rest: "verified",
       gateway: "not_measured",
@@ -208,6 +226,77 @@ async function handlePost(req, res, user, cfg) {
     await writeAudit(cfg, user, action === "add_role" ? "assign_role" : "remove_role", targetId, {
       type: action === "add_role" ? "إضافة رتبة" : "إزالة رتبة", target_discord_id: targetId, role_id: roleId
     });
+    return reply(res, 200, { ok: true });
+  }
+  if (action === "create_automod_rule") {
+    const name = String(body.name || "").trim().slice(0, 100);
+    const kind = String(body.kind || "keyword");
+    if (!name) return reply(res, 400, { error: "اكتب اسمًا واضحًا للقاعدة." });
+    let triggerType = 1;
+    let triggerMetadata = {};
+    if (kind === "keyword") {
+      const keywords = [...new Set(String(body.keywords || "").split(/[\n,،]/).map(value => value.trim()).filter(Boolean))];
+      if (!keywords.length || keywords.length > 100 || keywords.some(value => value.length > 60)) {
+        return reply(res, 400, { error: "أدخل من كلمة واحدة إلى 100 كلمة، على ألا تتجاوز الكلمة 60 حرفًا." });
+      }
+      triggerType = 1;
+      triggerMetadata = { keyword_filter: keywords };
+    } else if (kind === "mention_spam") {
+      const limit = Number(body.mentionLimit || 5);
+      if (!Number.isInteger(limit) || limit < 2 || limit > 50) return reply(res, 400, { error: "حد المنشن يجب أن يكون بين 2 و50." });
+      triggerType = 5;
+      triggerMetadata = { mention_total_limit: limit };
+    } else {
+      return reply(res, 400, { error: "نوع قاعدة AutoMod غير مدعوم." });
+    }
+    const actions = [{ type: 1 }];
+    const alertChannelId = String(body.alertChannelId || "");
+    if (alertChannelId) {
+      if (!SNOWFLAKE.test(alertChannelId)) return reply(res, 400, { error: "قناة التنبيه غير صالحة." });
+      const channel = await discord(cfg, "/channels/" + alertChannelId);
+      if (String(channel.guild_id || "") !== cfg.guildId || ![0, 5].includes(Number(channel.type))) {
+        return reply(res, 400, { error: "اختر قناة نصية من نفس السيرفر لإرسال تنبيهات القاعدة." });
+      }
+      actions.push({ type: 2, metadata: { channel_id: alertChannelId } });
+    }
+    const created = await discord(cfg, "/guilds/" + cfg.guildId + "/auto-moderation/rules", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        event_type: 1,
+        trigger_type: triggerType,
+        trigger_metadata: triggerMetadata,
+        actions,
+        enabled: true,
+        exempt_roles: [],
+        exempt_channels: []
+      })
+    });
+    await writeAudit(cfg, user, "create_automod_rule", created?.id, {
+      type: "إنشاء قاعدة Auto Moderation",
+      rule_name: name,
+      trigger_type: triggerType,
+      keyword_count: triggerType === 1 ? triggerMetadata.keyword_filter.length : null
+    });
+    return reply(res, 200, { ok: true, ruleId: String(created?.id || "") });
+  }
+  if (action === "toggle_automod_rule") {
+    const ruleId = String(body.ruleId || "");
+    if (!SNOWFLAKE.test(ruleId) || typeof body.enabled !== "boolean") return reply(res, 400, { error: "بيانات القاعدة غير صالحة." });
+    const updated = await discord(cfg, "/guilds/" + cfg.guildId + "/auto-moderation/rules/" + ruleId, {
+      method: "PATCH", body: JSON.stringify({ enabled: body.enabled })
+    });
+    await writeAudit(cfg, user, body.enabled ? "enable_automod_rule" : "disable_automod_rule", ruleId, {
+      type: body.enabled ? "تفعيل قاعدة AutoMod" : "إيقاف قاعدة AutoMod",
+      rule_name: String(updated?.name || "")
+    });
+    return reply(res, 200, { ok: true });
+  }
+  if (action === "delete_automod_rule") {
+    const ruleId = String(body.ruleId || "");
+    if (!SNOWFLAKE.test(ruleId)) return reply(res, 400, { error: "معرّف القاعدة غير صالح." });
+    await discord(cfg, "/guilds/" + cfg.guildId + "/auto-moderation/rules/" + ruleId, { method: "DELETE" });
+    await writeAudit(cfg, user, "delete_automod_rule", ruleId, { type: "حذف قاعدة AutoMod" });
     return reply(res, 200, { ok: true });
   }
   if (action === "moderate") {
@@ -270,7 +359,7 @@ export default async function handler(req, res) {
           { id: "role_management", label: "إضافة وإزالة رتب Discord", status: "available_now" },
           { id: "moderation_actions", label: "Timeout / Kick / Ban", status: "available_now" },
           { id: "welcome_automation", label: "الترحيب والمغادرة الآليان", status: "needs_gateway" },
-          { id: "automod", label: "Auto Moderation", status: "needs_gateway" },
+          { id: "automod", label: "Discord Auto Moderation rules", status: automodResult.available ? "available_now" : "needs_permission" },
           { id: "tickets", label: "نظام التذاكر", status: "needs_gateway" },
           { id: "leveling", label: "المستويات وXP", status: "needs_gateway" },
           { id: "social_feeds", label: "YouTube / Twitch / Kick / RSS", status: "needs_integrations" }
