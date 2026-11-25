@@ -50,6 +50,16 @@ function renderOverview(data){
       '</div></div></section>'+
     '</div>'+
     '<div class="notice">'+t("ملاحظة مهمة: الترحيب التلقائي وAutoMod والتذاكر والمستويات تحتاج مستمعات Gateway وخدمات تشغيل داخل البوت. لن نعرض أي نظام منها على أنه مفعّل قبل تنفيذه واختباره.","Important: welcome automation, AutoMod, tickets and leveling require Gateway event listeners and persistent bot services. They will not be shown as enabled until implemented and tested.")+'</div>';
+
+ $("#mainView").insertAdjacentHTML("beforeend",
+  '<section class="panel"><div class="panel-head"><h2>'+t("أدوات S.W.A.T. الموجودة بالفعل","Existing S.W.A.T. tools")+'</h2>'+badge(t("مرتبطة بالبوابة","Linked to portal"))+'</div><div class="panel-body"><div class="row">'+
+  '<button class="btn" type="button" data-portal-page="personnel">'+t("الأفراد","Personnel")+'</button>'+
+  '<button class="btn" type="button" data-portal-page="warnings">'+t("التحذيرات","Warnings")+'</button>'+
+  '<button class="btn" type="button" data-portal-page="messages">'+t("إرسال الرسائل","Messaging")+'</button>'+
+  '<button class="btn" type="button" data-portal-page="attendance">'+t("البصمة والإجازات","Attendance & leaves")+'</button>'+
+  '<button class="btn" type="button" data-portal-page="audit">'+t("سجل الإدارة","Audit log")+'</button>'+
+  '</div><p class="muted">'+t("هذه الوظائف موجودة بالفعل في بوابة S.W.A.T. ويمكن فتحها من هنا.","These capabilities already exist in the S.W.A.T. portal and can be opened here.")+'</p></div></section>');
+ $("[data-portal-page]").forEach(button=>button.addEventListener("click",()=>window.parent.postMessage({type:"swat-bot-open-portal-page",page:button.dataset.portalPage},location.origin)));
 }
 function renderServer(data){
  const roles=data.roles||[],channels=data.channels||[];
