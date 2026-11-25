@@ -4,7 +4,7 @@ const output = new URL("../dist/", import.meta.url);
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 
-for (const file of ["index.html", "swat-redline-logo.svg", "bot-command-center.html", "bot-command-center-app.js", "bot-command-center-launcher.js"]) {
+for (const file of ["index.html", "swat-redline-logo.svg", "bot-command-center.html", "bot-command-center-app.js", "bot-command-center-launcher.js", "redline-operator-template.png"]) {
   await copyFile(new URL(`../${file}`, import.meta.url), new URL(file, output));
 }
 

@@ -180,3 +180,14 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 - Only Website Admins (and the protected owner, following the existing admin access rule) can open the full request list, approve or reject requests, or cancel or end an approved leave.
 - An early cutoff preserves the original approved end date and records the cutoff date, admin, reason, Discord DM delivery state, and audit entry. The employee receives a Discord DM with the cancellation or last covered day.
 - Apply `20261116201934_attendance_leave_cutoff.sql` and `20261116203534_attendance_leave_cutoff_is_exclusive.sql` in order before deploying the API. The second migration makes the cutoff date the first day not counted as leave and materializes already-recorded same-day cancellations.
+
+
+## Welcome image cards
+
+- The **الترحيب والمغادرة** page uses the supplied Redline S.W.A.T. operator banner as its default template. The blank preview asset is `redline-operator-template.png`, and the bot includes its own copy at `bot/welcome-template.png`; both retain the red portrait ring and uniform artwork while clearing the original portrait and name plaque.
+- For each new member, the bot generates a 1200×675 PNG with their Discord avatar clipped into the red ring and their display name written directly on the uniform. The editor supports dragging both overlays in the preview and adjusting horizontal/vertical position, avatar size, name size, name width, name color, and font. A custom HTTPS background URL remains available.
+- The bot automatically mentions the new member above the image. The optional extra message can stay empty to send only the mention and image, or add a greeting alongside it. The goodbye message remains text-based.
+- Settings are stored in the existing `app_state` row named `swat-bot-control`; no database migration is needed. The bot refreshes these settings every 15 seconds.
+- The bot requests Discord's privileged **Guild Members** Gateway intent to receive join and leave events. Enable that intent in the Discord Developer Portal before deploying the updated bot, and make sure the bot can view and send messages in the selected channels.
+- Custom background images must use HTTPS and a public host. The renderer accepts PNG, JPEG, WebP, GIF, or AVIF images up to 6 MB. If a custom background cannot be loaded, the configured solid color is used instead.
+- The bot container installs Noto fonts for Arabic names and text. The PNG renderer uses `sharp`; `bot/package-lock.json` pins the dependency for reproducible installs.

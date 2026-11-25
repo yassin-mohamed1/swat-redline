@@ -55,9 +55,21 @@ function safeMessage(value, max = 1800) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function safeColor(value, fallback) {
+  const candidate = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(candidate) ? candidate.toLowerCase() : fallback;
+}
+
+function safeNumber(value, fallback, min, max, precision = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  const factor = 10 ** precision;
+  return Math.max(min, Math.min(max, Math.round(number * factor) / factor));
+}
+
 function safeImageUrl(value) {
   const candidate = String(value || "").trim();
-  if (!candidate) return "";
+  if (!candidate || candidate.length > 2048) return "";
   try {
     const parsed = new URL(candidate);
     return parsed.protocol === "https:" && !parsed.username && !parsed.password ? candidate.slice(0, 2048) : "";
@@ -90,11 +102,46 @@ export function normalizeBotControlSettings(raw, fallbackChannelId = "") {
   }
 
   const rawWelcome = source.welcome && typeof source.welcome === "object" ? source.welcome : {};
+  const rawImage = rawWelcome.image && typeof rawWelcome.image === "object" ? rawWelcome.image : {};
+  const backgroundImageUrl = safeImageUrl(rawImage.backgroundImageUrl || rawWelcome.imageUrl);
+  const template = ["redline-operator", "custom"].includes(rawImage.template)
+    ? rawImage.template
+    : backgroundImageUrl ? "custom" : "redline-operator";
+  const layout = ["classic", "text", "left", "right"].includes(rawImage.layout) ? rawImage.layout : "classic";
+  const avatarShape = rawImage.avatarShape === "square" ? "square" : "circle";
+  const font = ["condensed", "discord", "inter", "arabic", "serif"].includes(rawImage.font) ? rawImage.font : "condensed";
+  const opacityValue = Number(rawImage.overlayOpacity);
+  const overlayOpacity = Number.isFinite(opacityValue)
+    ? Math.max(0, Math.min(70, Math.round(opacityValue)))
+    : 0;
+  const image = {
+    enabled: rawImage.enabled !== false,
+    template,
+    layout,
+    avatarShape,
+    avatarX: safeNumber(rawImage.avatarX, 82.8, 0, 100, 1),
+    avatarY: safeNumber(rawImage.avatarY, 40, 0, 100, 1),
+    avatarSize: safeNumber(rawImage.avatarSize, 17.2, 8, 35, 1),
+    nameX: safeNumber(rawImage.nameX, 51.1, 0, 100, 1),
+    nameY: safeNumber(rawImage.nameY, 58, 0, 100, 1),
+    nameSize: safeNumber(rawImage.nameSize, 4.8, 2, 10, 1),
+    nameWidth: safeNumber(rawImage.nameWidth, 36, 10, 65, 1),
+    nameColor: safeColor(rawImage.nameColor, "#f1f3f4"),
+    backgroundImageUrl,
+    backgroundColor: safeColor(rawImage.backgroundColor, "#11151d"),
+    overlayColor: safeColor(rawImage.overlayColor, "#05070b"),
+    overlayOpacity,
+    accentColor: safeColor(rawImage.accentColor, "#ed3545"),
+    font,
+    title: safeMessage(rawImage.title || "WELCOME", 60) || "WELCOME",
+    serverText: safeMessage(rawImage.serverText || "TO {{server}}", 120) || "TO {{server}}"
+  };
   const welcome = {
     enabled: rawWelcome.enabled === true,
     channelId: safeChannelId(rawWelcome.channelId),
     message: safeMessage(rawWelcome.message),
-    imageUrl: safeImageUrl(rawWelcome.imageUrl),
+    imageUrl: backgroundImageUrl,
+    image,
     goodbyeEnabled: rawWelcome.goodbyeEnabled === true,
     goodbyeChannelId: safeChannelId(rawWelcome.goodbyeChannelId),
     goodbyeMessage: safeMessage(rawWelcome.goodbyeMessage)

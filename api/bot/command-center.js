@@ -153,15 +153,52 @@ async function validateBotControlSettings(cfg, raw) {
       !Object.values(settings.logging.categories).some(item => item.enabled && item.channelId)) {
     throw Object.assign(new Error("حدد رومًا افتراضيًا للوجات أو رومًا لكل قسم."), { status: 400 });
   }
-  if (settings.welcome.enabled && (!settings.welcome.channelId || !settings.welcome.message)) {
-    throw Object.assign(new Error("لتفعيل الترحيب، اختر رومًا واكتب رسالة ترحيب أولًا."), { status: 400 });
+  if (settings.welcome.enabled && !settings.welcome.channelId) {
+    throw Object.assign(new Error("لتفعيل الترحيب، اختر روم الترحيب أولًا."), { status: 400 });
   }
   if (settings.welcome.goodbyeEnabled && (!settings.welcome.goodbyeChannelId || !settings.welcome.goodbyeMessage)) {
     throw Object.assign(new Error("لتفعيل رسالة المغادرة، اختر رومًا واكتب رسالة المغادرة أولًا."), { status: 400 });
   }
   const rawWelcome = raw.welcome || {};
-  if (rawWelcome.imageUrl && !settings.welcome.imageUrl) {
-    throw Object.assign(new Error("رابط صورة الترحيب لازم يكون HTTPS صالحًا."), { status: 400 });
+  const rawImage = rawWelcome.image && typeof rawWelcome.image === "object" ? rawWelcome.image : {};
+  if ((rawWelcome.imageUrl && !settings.welcome.imageUrl) ||
+      (rawImage.backgroundImageUrl && !settings.welcome.image.backgroundImageUrl)) {
+    throw Object.assign(new Error("رابط صورة الخلفية لازم يكون HTTPS صالحًا."), { status: 400 });
+  }
+  if (rawImage.template === "custom" && !settings.welcome.image.backgroundImageUrl) {
+    throw Object.assign(new Error("أدخل رابط صورة خلفية صالحًا لاستخدام القالب المخصص."), { status: 400 });
+  }
+  for (const key of ["backgroundColor", "overlayColor", "accentColor", "nameColor"]) {
+    if (rawImage[key] && !/^#[0-9a-f]{6}$/i.test(String(rawImage[key]).trim())) {
+      throw Object.assign(new Error("اختَر لونًا صالحًا لصورة الترحيب."), { status: 400 });
+    }
+  }
+  if (rawImage.layout && !["classic", "text", "left", "right"].includes(rawImage.layout)) {
+    throw Object.assign(new Error("تخطيط صورة الترحيب غير مدعوم."), { status: 400 });
+  }
+  if (rawImage.template && !["redline-operator", "custom"].includes(rawImage.template)) {
+    throw Object.assign(new Error("قالب صورة الترحيب غير مدعوم."), { status: 400 });
+  }
+  if (rawImage.avatarShape && !["circle", "square"].includes(rawImage.avatarShape)) {
+    throw Object.assign(new Error("شكل صورة العضو غير مدعوم."), { status: 400 });
+  }
+  if (rawImage.font && !["condensed", "discord", "inter", "arabic", "serif"].includes(rawImage.font)) {
+    throw Object.assign(new Error("الخط المختار غير مدعوم."), { status: 400 });
+  }
+  const numericRanges = {
+    avatarX: [0, 100], avatarY: [0, 100], avatarSize: [8, 35],
+    nameX: [0, 100], nameY: [0, 100], nameSize: [2, 10], nameWidth: [10, 65]
+  };
+  for (const [key, [min, max]] of Object.entries(numericRanges)) {
+    if (rawImage[key] === undefined) continue;
+    const value = Number(rawImage[key]);
+    if (!Number.isFinite(value) || value < min || value > max) {
+      throw Object.assign(new Error("مكان أو حجم صورة الترحيب غير صالح."), { status: 400 });
+    }
+  }
+  if (rawImage.overlayOpacity !== undefined &&
+      (!Number.isInteger(Number(rawImage.overlayOpacity)) || Number(rawImage.overlayOpacity) < 0 || Number(rawImage.overlayOpacity) > 70)) {
+    throw Object.assign(new Error("شفافية الطبقة لازم تكون بين 0 و70."), { status: 400 });
   }
   return settings;
 }

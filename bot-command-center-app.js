@@ -303,27 +303,105 @@ function renderLogs(data){
 }
 function renderWelcome(data){
  const control=botControlData(),welcome=control.welcome,channels=(data.channels||[]).filter(channel=>[0,5].includes(Number(channel.type)));
+ const templateUrl=new URL("/redline-operator-template.png",location.origin).href;
+ const image={enabled:true,template:"redline-operator",backgroundImageUrl:"",backgroundColor:"#101010",overlayColor:"#000000",overlayOpacity:0,font:"condensed",avatarX:82.8,avatarY:40.9,avatarSize:17.2,nameX:51.1,nameY:58,nameSize:4.8,nameWidth:36,nameColor:"#f1f3f4",...(welcome.image||{})};
+ image.backgroundImageUrl=image.backgroundImageUrl||welcome.imageUrl||"";
+ const rangeField=(name,label,value,min,max,step="0.1")=>'<div class="field welcome-range-field"><label for="welcomeRange_'+name+'"><span>'+label+'</span><output id="welcomeRangeValue_'+name+'">'+Number(value)+'%</output></label><input id="welcomeRange_'+name+'" name="'+name+'" data-welcome-image-control type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+Number(value)+'"></div>';
+ const previewFonts={condensed:'"Noto Sans Condensed","Arial Narrow","Noto Kufi Arabic",Arial,sans-serif',discord:'Inter,"Noto Kufi Arabic",Arial,sans-serif',inter:'Inter,"Noto Kufi Arabic",Arial,sans-serif',arabic:'"Noto Sans Arabic","Noto Kufi Arabic",Arial,sans-serif',serif:'Georgia,"Noto Naskh Arabic",serif'};
  $("#mainView").innerHTML=
-  head(t("الترحيب والمغادرة","Welcome & goodbye"),t("جهّز إعدادات دخول وخروج الأعضاء. اترك النظام متوقفًا إلى أن تنتهي من صورة الترحيب والنصوص النهائية.","Prepare member join and leave messages. Keep these systems disabled until your welcome artwork and final copy are ready."))+
-  '<div class="notice">'+t("هنسيب الصورة والتصميم النهائي لك. تقدر تحفظ الإعدادات الآن وتبقي معطلة، ثم تضيف صورة الترحيب والنصوص النهائية لاحقًا من نفس الصفحة.","The artwork and final copy remain yours to provide. You can save the settings now and leave them disabled, then add your final image and text here later.")+'</div>'+
+  head(t("الترحيب والمغادرة","Welcome & goodbye"),t("استخدم بانر S.W.A.T. نفسه، وحرّك صورة العضو واسمه إلى المكان الذي تريده.","Use the S.W.A.T. banner and place the member's avatar and name exactly where you want them."))+
+  '<div class="notice">'+t("اسحب صورة العضو أو اسمه داخل المعاينة لتحريكهما. أو اضبط الموضع والحجم من أشرطة التحكم. سيُرسل البوت منشن للعضو تلقائيًا مع الصورة.","Drag the avatar or name on the preview, or adjust their positions and sizes below. The bot will mention the member automatically with the image.")+'</div>'+
   '<form id="welcomeSettingsForm"><section class="panel"><div class="panel-head"><div><h2>'+t("رسالة الترحيب","Welcome message")+'</h2><div class="muted">'+t("تظهر عند انضمام عضو جديد إلى السيرفر.","Sent when a member joins your server.")+'</div></div>'+
    '<label class="checkline"><input class="switch" name="enabled" type="checkbox"'+(welcome.enabled?" checked":"")+'><span>'+t("مفعّل","Enabled")+'</span></label></div>'+
    '<div class="panel-body"><div class="field"><label>'+t("روم الترحيب","Welcome channel")+'</label>'+channelControl("channelId",welcome.channelId,channels,"Discord Channel ID")+'</div>'+
-   '<div class="field"><label>'+t("نص الترحيب","Welcome text")+'</label><textarea name="message" maxlength="1800" placeholder="'+t("اكتب رسالة الترحيب النهائية بعد تجهيزها...","Add your final welcome message when it is ready...")+'">'+esc(welcome.message)+'</textarea></div>'+
-   '<div class="field"><label>'+t("رابط صورة الترحيب (اختياري)","Welcome image URL (optional)")+'</label><input name="imageUrl" type="url" maxlength="2048" value="'+esc(welcome.imageUrl)+'" placeholder="https://..."></div>'+
-   '<div class="muted">'+t("المتغيرات المتاحة: {{user}} لذكر العضو، {{username}} للاسم، {{server}} لاسم السيرفر، {{memberCount}} لعدد الأعضاء.","Available tokens: {{user}}, {{username}}, {{server}}, {{memberCount}}.")+'</div></div></section>'+
+   '<div class="field"><label>'+t("رسالة إضافية مع الصورة (اختياري)","Extra message with the image (optional)")+'</label><textarea name="message" maxlength="1800" placeholder="'+t("اتركها فارغة لإرسال المنشن فقط","Leave blank to send only the mention")+'">'+esc(welcome.message)+'</textarea></div>'+
+   '<div class="muted">'+t("المنشن يُضاف تلقائيًا. إذا كتبت {{user}} في الرسالة فلن يتكرر المنشن.","The mention is automatic. If you include {{user}} in the message, it will not be duplicated.")+'</div></div></section>'+
+  '<section class="panel"><div class="panel-head"><div><h2>'+t("بانر ترحيب S.W.A.T.","S.W.A.T. welcome banner")+'</h2><div class="muted">'+t("بانر 1200 × 675 بنفس الصورة التي أرسلتها، مع صورة واسم العضو فوق التصميم.","A 1200 × 675 banner using your image, with the member's avatar and name placed over it.")+'</div></div>'+
+   '<label class="checkline"><input class="switch" name="imageEnabled" type="checkbox"'+(image.enabled?" checked":"")+'><span>'+t("إرسال صورة","Send image")+'</span></label></div>'+
+   '<div class="panel-body"><div class="welcome-builder-grid"><div class="welcome-builder-controls">'+
+    '<div class="field full"><label>'+t("القالب","Template")+'</label><select name="imageTemplate" data-welcome-image-control><option value="redline-operator"'+(image.template==="redline-operator"?" selected":"")+'>'+t("بانر Redline SWAT New Operator","Redline SWAT New Operator banner")+'</option><option value="custom"'+(image.template==="custom"?" selected":"")+'>'+t("خلفية من رابط مخصص","Custom background URL")+'</option></select></div>'+
+    '<div class="field full" id="welcomeCustomBackgroundField"><label>'+t("رابط الخلفية المخصصة","Custom background URL")+'</label><input name="backgroundImageUrl" data-welcome-image-control type="url" maxlength="2048" value="'+esc(image.backgroundImageUrl)+'" placeholder="https://..."></div>'+
+    '<div class="field full welcome-control-heading"><h3>'+t("صورة العضو","Member avatar")+'</h3><p>'+t("حرّك الدائرة فوق الإطار الأحمر في المعاينة.","Position the circle over the red frame in the preview.")+'</p></div>'+
+    rangeField("avatarX",t("الموضع الأفقي للصورة","Avatar horizontal position"),image.avatarX,0,100)+
+    rangeField("avatarY",t("الموضع الرأسي للصورة","Avatar vertical position"),image.avatarY,0,100)+
+    rangeField("avatarSize",t("حجم الصورة","Avatar size"),image.avatarSize,8,35,"0.5")+
+    '<div class="field full welcome-control-heading"><h3>'+t("اسم العضو على الزي","Member name on the uniform")+'</h3><p>'+t("حرّك الاسم إلى مكانه على الصدر، واضبط حجمه وعرضه.","Place the name over the uniform and adjust its size and width.")+'</p></div>'+
+    rangeField("nameX",t("الموضع الأفقي للاسم","Name horizontal position"),image.nameX,0,100)+
+    rangeField("nameY",t("الموضع الرأسي للاسم","Name vertical position"),image.nameY,0,100)+
+    rangeField("nameSize",t("حجم الاسم","Name size"),image.nameSize,2,10,"0.1")+
+    rangeField("nameWidth",t("أقصى عرض للاسم","Maximum name width"),image.nameWidth,10,65,"0.5")+
+    '<div class="field"><label>'+t("لون الاسم","Name color")+'</label><div class="welcome-color-control"><input type="color" name="nameColor" data-welcome-image-control value="'+esc(image.nameColor)+'"><span id="welcomeColor_nameColor">'+esc(image.nameColor.toUpperCase())+'</span></div></div>'+
+    '<div class="field"><label>'+t("خط الاسم","Name font")+'</label><select name="imageFont" data-welcome-image-control><option value="condensed"'+(image.font==="condensed"?" selected":"")+'>'+t("مكثّف / عسكري","Condensed / tactical")+'</option><option value="discord"'+(image.font==="discord"?" selected":"")+'>'+t("Discord","Discord")+'</option><option value="arabic"'+(image.font==="arabic"?" selected":"")+'>'+t("Noto Arabic","Noto Arabic")+'</option><option value="serif"'+(image.font==="serif"?" selected":"")+'>'+t("Serif","Serif")+'</option></select></div>'+
+    '<div class="field full"><label>'+t("شفافية طبقة التعتيم","Overlay opacity")+'</label><div class="welcome-range-row"><input name="overlayOpacity" data-welcome-image-control type="range" min="0" max="70" step="1" value="'+Number(image.overlayOpacity)+'"><output id="welcomeOverlayOpacityLabel">'+Number(image.overlayOpacity)+'%</output></div></div>'+
+    '</div><div class="welcome-preview-frame"><div class="welcome-preview-caption"><b>@YASSIN04897</b><span id="welcomePreviewMessage"></span></div><div class="welcome-preview-card" id="welcomePreviewCard"><div class="welcome-preview-shade" id="welcomePreviewShade"></div><img class="welcome-preview-avatar welcome-draggable" id="welcomePreviewAvatar" data-drag-overlay="avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="'+t("معاينة صورة العضو","Member avatar preview")+'"><strong class="welcome-preview-name welcome-draggable" id="welcomePreviewName" data-drag-overlay="name">YASSIN04897</strong></div><div class="welcome-preview-note">'+t("اسحب الصورة أو الاسم داخل البانر. المعاينة تتحدث مع كل تغيير.","Drag the avatar or name on the banner. The preview updates as you edit.")+'</div></div></div></div></section>'+
   '<section class="panel"><div class="panel-head"><div><h2>'+t("رسالة المغادرة","Goodbye message")+'</h2><div class="muted">'+t("تظهر عند مغادرة عضو للسيرفر.","Sent when a member leaves your server.")+'</div></div>'+
    '<label class="checkline"><input class="switch" name="goodbyeEnabled" type="checkbox"'+(welcome.goodbyeEnabled?" checked":"")+'><span>'+t("مفعّل","Enabled")+'</span></label></div>'+
    '<div class="panel-body"><div class="field"><label>'+t("روم المغادرة","Goodbye channel")+'</label>'+channelControl("goodbyeChannelId",welcome.goodbyeChannelId,channels,"Discord Channel ID")+'</div>'+
-   '<div class="field"><label>'+t("نص المغادرة","Goodbye text")+'</label><textarea name="goodbyeMessage" maxlength="1800" placeholder="'+t("اكتب رسالة المغادرة التي تريدها لاحقًا...","Add your final goodbye message later...")+'">'+esc(welcome.goodbyeMessage)+'</textarea></div></div></section>'+
-   '<div class="settings-actions"><button class="btn primary" type="submit">'+t("حفظ إعدادات الترحيب","Save welcome settings")+'</button><span class="status-note" id="welcomeSettingsStatus">'+t("النظامان متوقفان افتراضيًا إلى أن تجهز الرسائل.","Both systems are disabled by default until the messages are ready.")+'</span></div></form>';
- $("#welcomeSettingsForm").addEventListener("submit",async event=>{
-  event.preventDefault();const form=event.currentTarget,values=new FormData(form);
+   '<div class="field"><label>'+t("نص المغادرة","Goodbye text")+'</label><textarea name="goodbyeMessage" maxlength="1800" placeholder="'+t("اكتب رسالة المغادرة...","Add your goodbye message...")+'">'+esc(welcome.goodbyeMessage)+'</textarea></div></div></section>'+
+   '<div class="settings-actions"><button class="btn primary" type="submit">'+t("حفظ إعدادات الترحيب","Save welcome settings")+'</button><span class="status-note" id="welcomeSettingsStatus">'+t("الإعدادات ستُستخدم عند تفعيل الترحيب.","Settings will be used when welcome messages are enabled.")+'</span></div></form>';
+
+ const form=$("#welcomeSettingsForm");
+ const updatePreview=()=>{
+  const values=new FormData(form),card=$("#welcomePreviewCard");
+  const template=String(values.get("imageTemplate")||"redline-operator"),backgroundColor=String(values.get("backgroundColor")||"#101010");
+  const imageUrl=template==="redline-operator"?templateUrl:String(values.get("backgroundImageUrl")||"").trim();
+  const overlayColor=String(values.get("overlayColor")||"#000000"),opacity=Math.max(0,Math.min(70,Number(values.get("overlayOpacity"))||0));
+  const safeNumber=(name,fallback)=>{const value=Number(values.get(name));return Number.isFinite(value)?value:fallback;};
+  const safeNameColor=String(values.get("nameColor")||"#f1f3f4"),font=String(values.get("imageFont")||"condensed");
+  let safeImage="";
+  try{const parsed=new URL(imageUrl,location.href);if(parsed.protocol==="https:"||parsed.origin===location.origin)safeImage='url("'+parsed.href.replace(/"/g,"%22")+'")';}catch{}
+  card.dataset.imageEnabled=String(form.elements.imageEnabled.checked);card.style.backgroundColor=backgroundColor;card.style.backgroundImage=safeImage||"none";
+  const avatarSize=safeNumber("avatarSize",17.2),nameWidth=safeNumber("nameWidth",36),nameSize=safeNumber("nameSize",4.8);
+  card.style.setProperty("--avatar-x",safeNumber("avatarX",82.8)+"%");card.style.setProperty("--avatar-y",safeNumber("avatarY",40.9)+"%");card.style.setProperty("--avatar-size",avatarSize+"%");
+  card.style.setProperty("--name-x",safeNumber("nameX",51.1)+"%");card.style.setProperty("--name-y",safeNumber("nameY",58)+"%");card.style.setProperty("--name-width",nameWidth+"%");
+  const previewName=$("#welcomePreviewName").textContent,previewWidth=card.getBoundingClientRect().width,maxNamePx=previewWidth*nameWidth/100;
+  const previewFontPx=Math.max(previewWidth*18/1200,Math.min(previewWidth*nameSize/100,maxNamePx/(Math.max(1,Array.from(previewName).length)*.72))));
+  card.style.setProperty("--name-font-size",previewFontPx+"px");
+  $("#welcomePreviewAvatar").style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
+  $("#welcomePreviewName").style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
+  $("#welcomePreviewName").style.color=safeNameColor;$("#welcomePreviewName").style.fontFamily=previewFonts[font]||previewFonts.condensed;
+  $("#welcomePreviewShade").style.backgroundColor=overlayColor;$("#welcomePreviewShade").style.opacity=String(opacity/100);
+  const guildName=String(data.guild?.name||"S.W.A.T. REDLINE"),previewMessage=String(values.get("message")||"").trim().replace(/\{\{user\}\}/gi,"YASSIN04897").replace(/\{\{username\}\}/gi,"YASSIN04897").replace(/\{\{server\}\}/gi,guildName).replace(/\{\{memberCount\}\}/gi,String(Number(data.guild?.approximateMemberCount||0)+1));
+  $("#welcomePreviewMessage").textContent=previewMessage;$("#welcomePreviewMessage").hidden=!previewMessage;
+  $("#welcomeCustomBackgroundField").hidden=template!=="custom";
+  form.elements.backgroundImageUrl.required=template==="custom";
+  $("#welcomeOverlayOpacityLabel").textContent=opacity+"%";
+  for(const name of ["avatarX","avatarY","avatarSize","nameX","nameY","nameSize","nameWidth"]){const output=$("#welcomeRangeValue_"+name);if(output)output.textContent=Number(values.get(name)||0)+"%";}
+  for(const name of ["nameColor"]){const output=$("#welcomeColor_"+name);if(output)output.textContent=String(values.get(name)||"").toUpperCase();}
+ };
+ const bindDrag=(element,xName,yName)=>{
+  element.addEventListener("pointerdown",event=>{event.preventDefault();element.setPointerCapture(event.pointerId);});
+  element.addEventListener("pointermove",event=>{if(!element.hasPointerCapture(event.pointerId))return;const rect=$("#welcomePreviewCard").getBoundingClientRect();if(!rect.width||!rect.height)return;form.elements[xName].value=Math.max(0,Math.min(100,Math.round(((event.clientX-rect.left)/rect.width*100)*10)/10));form.elements[yName].value=Math.max(0,Math.min(100,Math.round(((event.clientY-rect.top)/rect.height*100)*10)/10));updatePreview();});
+ };
+ bindDrag($("#welcomePreviewAvatar"),"avatarX","avatarY");bindDrag($("#welcomePreviewName"),"nameX","nameY");
+ form.addEventListener("input",event=>{if(event.target.matches("[data-welcome-image-control], [name='imageEnabled']"))updatePreview();});
+ updatePreview();
+ form.addEventListener("submit",async event=>{
+  event.preventDefault();const values=new FormData(form);
+  const template=String(values.get("imageTemplate")||"redline-operator"),backgroundImageUrl=template==="redline-operator"?"":String(values.get("backgroundImageUrl")||"").trim();
   const payload={
    enabled:form.elements.enabled.checked,
    channelId:String(values.get("channelId")||"").trim(),
    message:String(values.get("message")||"").trim(),
-   imageUrl:String(values.get("imageUrl")||"").trim(),
+   imageUrl:backgroundImageUrl,
+   image:{
+    enabled:form.elements.imageEnabled.checked,
+    template,
+    avatarX:Number(values.get("avatarX")),
+    avatarY:Number(values.get("avatarY")),
+    avatarSize:Number(values.get("avatarSize")),
+    nameX:Number(values.get("nameX")),
+    nameY:Number(values.get("nameY")),
+    nameSize:Number(values.get("nameSize")),
+    nameWidth:Number(values.get("nameWidth")),
+    nameColor:String(values.get("nameColor")||"#f1f3f4"),
+    backgroundImageUrl,
+    backgroundColor:String(values.get("backgroundColor")||"#101010"),
+    overlayColor:String(values.get("overlayColor")||"#000000"),
+    overlayOpacity:Number(values.get("overlayOpacity")||0),
+    font:String(values.get("imageFont")||"discord"),
+    accentColor:"#ed3545"
+   },
    goodbyeEnabled:form.elements.goodbyeEnabled.checked,
    goodbyeChannelId:String(values.get("goodbyeChannelId")||"").trim(),
    goodbyeMessage:String(values.get("goodbyeMessage")||"").trim()
@@ -332,7 +410,7 @@ function renderWelcome(data){
   try{
    const response=await post({action:"save_bot_settings",settings:{logging:control.logging,welcome:payload}});
    state.data.botControl=response.botControl;
-   status.textContent=t("تم حفظ الإعدادات. الترحيب سيبقى متوقفًا حتى تفعّله.","Settings saved. Welcome remains disabled until you enable it.");
+   status.textContent=t("تم الحفظ. تظهر الصورة تلقائيًا عند دخول عضو جديد.","Saved. The image will be generated automatically when a member joins.");
    toast(t("تم حفظ إعدادات الترحيب والمغادرة.","Welcome and goodbye settings saved."));
    render();
   }catch(error){status.textContent=t("فشل الحفظ: ","Save failed: ")+error.message;toast(error.message);}
