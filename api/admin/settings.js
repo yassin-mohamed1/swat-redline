@@ -160,7 +160,8 @@ export default async function handler(req, res) {
         "notificationRoleMentionDisabled",
         "notificationChannelEnabled",
         "notificationMemberDmEnabled",
-        "disciplinaryTargetMentionEnabled"
+        "disciplinaryTargetMentionEnabled",
+        "unitCardDesign"
       ]);
       for (const row of rows) {
         if (!canReadAdminSettings && adminOnlySettingKeys.has(row.key)) continue;
@@ -171,7 +172,7 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "customMenuItems"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "customMenuItems", "unitCardDesign"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
@@ -180,6 +181,24 @@ export default async function handler(req, res) {
       if (k.endsWith("Color") && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) return res.status(400).json({ error: "Invalid color value" });
       if (["notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled"].includes(k) && typeof value !== "boolean") return res.status(400).json({ error: k + " must be a boolean" });
       const plainObject = (input) => Boolean(input) && typeof input === "object" && !Array.isArray(input) && (Object.getPrototypeOf(input) === Object.prototype || Object.getPrototypeOf(input) === null);
+      if (k === "unitCardDesign") {
+        const layerRanges = {
+          name: { x: [40, 900], y: [60, 330], size: [28, 160], rotation: [-180, 180] },
+          rank: { x: [40, 800], y: [400, 630], size: [18, 100], rotation: [-180, 180] },
+          callsign: { x: [760, 1350], y: [400, 630], size: [18, 100], rotation: [-180, 180] }
+        };
+        if (!plainObject(value) || Object.keys(value).some(key => !["name", "rank", "callsign", "avatar"].includes(key))) return res.status(400).json({ error: "Invalid unit card design" });
+        for (const [layer, ranges] of Object.entries(layerRanges)) {
+          const settings = value[layer];
+          if (!plainObject(settings) || Object.keys(settings).some(key => !Object.hasOwn(ranges, key))) return res.status(400).json({ error: "Invalid unit card " + layer + " settings" });
+          for (const [key, [min, max]] of Object.entries(ranges)) if (!Number.isFinite(settings[key]) || settings[key] < min || settings[key] > max) return res.status(400).json({ error: "Invalid unit card " + layer + " " + key });
+        }
+        const avatar = value.avatar;
+        if (!plainObject(avatar) || Object.keys(avatar).some(key => !["zoom", "cropX", "cropY"].includes(key)) ||
+            !Number.isFinite(avatar.zoom) || avatar.zoom < 0.8 || avatar.zoom > 2.5 ||
+            !Number.isFinite(avatar.cropX) || avatar.cropX < -100 || avatar.cropX > 100 ||
+            !Number.isFinite(avatar.cropY) || avatar.cropY < -100 || avatar.cropY > 100) return res.status(400).json({ error: "Invalid unit card avatar settings" });
+      }
       if (k === "textOverrides") {
         if (!plainObject(value) || Object.keys(value).length > 500) return res.status(400).json({ error: "Invalid text overrides" });
         for (const [selector, text] of Object.entries(value)) if (selector.length > 500 || !/^.{1,480}\|text\|\d+$/.test(selector) || typeof text !== "string" || text.length > 2000) return res.status(400).json({ error: "Invalid text override entry" });

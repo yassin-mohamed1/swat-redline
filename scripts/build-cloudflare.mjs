@@ -8,6 +8,7 @@ await mkdir(output, { recursive: true });
 for (const file of ["index.html", "swat-redline-logo.svg", "bot-command-center.html", "bot-command-center-app.js", "bot-command-center-launcher.js", "redline-operator-template.png"]) {
   await copyFile(new URL(`../${file}`, import.meta.url), new URL(file, output));
 }
+await copyFile(new URL("../assets/unit-operator-template.png", import.meta.url), new URL("unit-operator-template.png", output));
 await copyFile(new URL("../bot/welcome-nameplate.jpg", import.meta.url), new URL("welcome-nameplate.jpg", output));
 
 const welcomeApp = await readFile(new URL("../bot-command-center-app.js", import.meta.url));

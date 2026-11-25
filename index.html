@@ -1694,6 +1694,21 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-assignments .unit-order-controls .btn:disabled{opacity:.3;cursor:not-allowed}
 #page-assignments .unit-order-status{font-size:12px;color:#aab4c2}
 #page-assignments .unit-order-status.dirty{color:#ffc46b}
+#page-assignments .unit-card-editor{position:fixed;inset:0;z-index:10040;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+#page-assignments .unit-card-editor[hidden]{display:none!important}
+#page-assignments .unit-card-editor-card{width:min(1420px,100%);max-height:94vh;overflow:auto;background:#111318;border:1px solid #454b57;border-radius:15px;box-shadow:0 24px 90px #000b}
+#page-assignments .unit-card-editor-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(270px,.7fr);gap:16px;padding:17px}
+#page-assignments .unit-card-preview-wrap{align-self:start;border:1px solid #353d49;border-radius:12px;background:#08090c;padding:8px}
+#page-assignments #unitCardEditorCanvas{display:block;width:100%;height:auto;aspect-ratio:2048/768;border-radius:7px;touch-action:none;cursor:move}
+#page-assignments .unit-card-editor-controls{display:grid;gap:12px;align-content:start}
+#page-assignments .unit-card-control[hidden],#page-assignments .unit-card-editor-controls [hidden]{display:none!important}
+#page-assignments #openUnitCardEditorButton[hidden]{display:none!important}
+#page-assignments .unit-card-control{display:grid;gap:6px}
+#page-assignments .unit-card-control label{font-size:11px;color:#c5cbd5;font-weight:700}
+#page-assignments .unit-card-control input[type=range]{width:100%;accent-color:#dc2634}
+#page-assignments .unit-card-control .unit-card-control-value{font-size:10px;color:#8994a3;direction:ltr;text-align:left}
+@media(max-width:900px){#page-assignments .unit-card-editor-grid{grid-template-columns:1fr}#page-assignments .unit-card-editor-controls{grid-template-columns:repeat(2,minmax(0,1fr))}#page-assignments .unit-card-editor-controls .wide{grid-column:1/-1}}
+@media(max-width:560px){#page-assignments .unit-card-editor{padding:6px}#page-assignments .unit-card-editor-controls{grid-template-columns:1fr}}
 @media(max-width:640px){#page-assignments .unit-order-row{grid-template-columns:34px minmax(0,1fr)}#page-assignments .unit-order-controls{grid-column:1/-1;justify-content:flex-start}}
 
 
@@ -1717,6 +1732,10 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
   <span class="tag gray" id="unitCardOrderCount">0 بطاقة</span>
  </div>
  <div class="panelbody">
+  <div class="assignment-actions" style="justify-content:space-between;margin-bottom:12px">
+   <div class="muted">التصميم الجديد يضيف صورة العضو واسمه ورتبته وكود النداء داخل بطاقة REDLINE.</div>
+   <button class="btn primary" id="openUnitCardEditorButton" type="button" onclick="openUnitCardEditor()">🎨 تصميم بطاقة العضو</button>
+  </div>
   <div class="unit-order-status" id="unitCardOrderStatus" aria-live="polite">جارٍ تحميل ترتيب البطاقات...</div>
   <div class="unit-order-list" id="unitCardOrderRows" style="margin-top:11px"></div>
   <div class="assignment-actions" style="justify-content:space-between;margin-top:14px">
@@ -1725,9 +1744,9 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
   </div>
   <div class="assignment-actions" style="justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid #303744">
    <button class="btn danger" id="clearUnitChannelButton" type="button" onclick="clearUnitChannelMessages()">مسح كل رسائل الروم</button>
-   <button class="btn primary" id="publishUnitCardsButton" type="button" onclick="publishUnitCardsInOrder()">نشر كل البطاقات بالترتيب</button>
+   <button class="btn primary" id="publishUnitCardsButton" type="button" onclick="publishUnitCardsInOrder()">تحديث ونشر البطاقات بالترتيب</button>
   </div>
-  <div class="muted" style="margin-top:10px;line-height:1.8">ملاحظة: زر المسح يحذف كل رسائل روم SWAT UNITS المحددة، وبعده زر النشر ينشئ بطاقات الأعضاء من جديد حسب الترتيب المحفوظ. لن تُحذف بيانات الأعضاء أو التعيينات أو أكواد النداء. استخدم المسح فقط بعد التأكد من محتويات الروم.</div>
+  <div class="muted" style="margin-top:10px;line-height:1.8">بعد حفظ التصميم، زر «تحديث ونشر البطاقات» يبدّل صورة كل بطاقة في مكانها ويحافظ على ترتيب الروم والرسائل الأخرى. استخدم المسح الكامل فقط إذا كنت تريد إعادة ترتيب الرسائل نفسها؛ هذا الزر يحذف كل رسائل الروم بعد تأكيدين.</div>
  </div>
 </div>
 <div class="panel">
@@ -1788,6 +1807,33 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
     <button class="btn" type="button" onclick="closeAssignmentModal()">إلغاء</button>
    </div>
    <div class="muted" style="line-height:1.8">عند الحفظ، سيضيف البوت رتب Discord التي اخترتها ويحفظ التعيين وكود النداء في سجل الموقع. سيحاول إرسال رسالة خاصة رسمية؛ وإذا منع Discord الرسائل الخاصة، سيظل التعيين محفوظًا ولن تُزال الرتب.</div>
+  </div>
+ </div>
+</div>
+<div id="unitCardEditorModal" class="unit-card-editor" hidden>
+ <div class="unit-card-editor-card">
+  <div class="assignment-modal-head">
+   <div><h3 style="margin:0">تصميم بطاقة العضو</h3><div class="muted">اسحب الاسم أو الرتبة أو الكول ساين فوق المعاينة. غيّر الحجم والميل من أدوات التصميم.</div></div>
+   <button class="btn" type="button" onclick="closeUnitCardEditor()">إغلاق</button>
+  </div>
+  <div class="unit-card-editor-grid">
+   <div>
+    <div class="unit-card-preview-wrap"><canvas id="unitCardEditorCanvas" width="2048" height="768" aria-label="معاينة بطاقة S.W.A.T."></canvas></div>
+    <div id="unitCardEditorStatus" class="muted" aria-live="polite" style="margin:9px 2px 0">اختَر عنصرًا واسحبه لضبط مكانه.</div>
+   </div>
+   <div class="unit-card-editor-controls">
+    <div class="unit-card-control wide"><label for="unitCardPreviewMember">معاينة عضو</label><select id="unitCardPreviewMember" class="assignment-input" onchange="changeUnitCardPreviewMember()"></select></div>
+    <div class="unit-card-control wide"><label for="unitCardSelectedLayer">العنصر الذي تريد تحريكه</label><select id="unitCardSelectedLayer" class="assignment-input" onchange="syncUnitCardEditorControls()"><option value="name">اسم العضو</option><option value="rank">City Rank</option><option value="callsign">Call Sign</option><option value="avatar">الصورة داخل الإطار</option></select></div>
+    <div class="unit-card-control"><label id="unitCardXLabel" for="unitCardPositionX">الموضع الأفقي</label><input id="unitCardPositionX" type="range" min="40" max="1350" value="145" oninput="changeUnitCardEditorValue('x',this.value)"><span class="unit-card-control-value" id="unitCardPositionXValue"></span></div>
+    <div class="unit-card-control"><label id="unitCardYLabel" for="unitCardPositionY">الموضع الرأسي</label><input id="unitCardPositionY" type="range" min="60" max="630" value="206" oninput="changeUnitCardEditorValue('y',this.value)"><span class="unit-card-control-value" id="unitCardPositionYValue"></span></div>
+    <div class="unit-card-control"><label id="unitCardSizeLabel" for="unitCardFontSize">حجم الخط</label><input id="unitCardFontSize" type="range" min="18" max="160" value="90" oninput="changeUnitCardEditorValue('size',this.value)"><span class="unit-card-control-value" id="unitCardFontSizeValue"></span></div>
+    <div class="unit-card-control"><label for="unitCardRotation">زاوية الاسم</label><input id="unitCardRotation" type="range" min="-180" max="180" value="0" oninput="changeUnitCardEditorValue('rotation',this.value)"><span class="unit-card-control-value" id="unitCardRotationValue">0°</span></div>
+    <div class="unit-card-control wide" id="unitCardAvatarZoomControl"><label for="unitCardAvatarZoom">تكبير الصورة داخل الإطار</label><input id="unitCardAvatarZoom" type="range" min="80" max="250" value="100" oninput="changeUnitCardEditorValue('zoom',this.value)"><span class="unit-card-control-value" id="unitCardAvatarZoomValue">100%</span></div>
+    <div class="unit-card-control wide" id="unitCardAvatarCropXControl"><label for="unitCardAvatarCropX">تحريك الصورة يمين / شمال</label><input id="unitCardAvatarCropX" type="range" min="-100" max="100" value="0" oninput="changeUnitCardEditorValue('cropX',this.value)"><span class="unit-card-control-value" id="unitCardAvatarCropXValue">0</span></div>
+    <div class="unit-card-control wide" id="unitCardAvatarCropYControl"><label for="unitCardAvatarCropY">تحريك الصورة فوق / تحت</label><input id="unitCardAvatarCropY" type="range" min="-100" max="100" value="0" oninput="changeUnitCardEditorValue('cropY',this.value)"><span class="unit-card-control-value" id="unitCardAvatarCropYValue">0</span></div>
+    <div class="assignment-actions wide"><button class="btn" type="button" onclick="resetUnitCardDesign()">إرجاع الشكل الأصلي</button><button class="btn primary" id="saveUnitCardDesignButton" type="button" onclick="saveUnitCardDesign()">حفظ التصميم</button></div>
+    <div class="muted wide" style="line-height:1.8">التعديلات تظهر في المعاينة فورًا. بعد الحفظ اضغط «تحديث ونشر البطاقات» لتطبيق التصميم على الرسائل الموجودة دون مسح الروم.</div>
+   </div>
   </div>
  </div>
 </div>
@@ -4530,6 +4576,7 @@ async function submitManualMember(){
 }
 async function renderAssignments(){
  if(!currentCanAdmin&&!currentCanManageAssignments)return;
+ const cardEditorButton=document.getElementById('openUnitCardEditorButton');if(cardEditorButton)cardEditorButton.hidden=!currentCanAdmin;
  const body=document.getElementById('assignmentRows');if(body)body.innerHTML='<tr><td colspan="7">جارٍ تحميل أعضاء الموقع ورتب Discord...</td></tr>';
  try{
   const response=await fetch('/api/admin/members?assignments=1',{credentials:'same-origin',cache:'no-store'});
@@ -4565,6 +4612,118 @@ async function renderAssignments(){
  }
 }
 const UNIT_CARD_CHANNEL_ID='1561490450953670817';
+const DEFAULT_UNIT_CARD_DESIGN={name:{x:145,y:210,size:96,rotation:0},rank:{x:145,y:540,size:54,rotation:0},callsign:{x:858,y:540,size:54,rotation:0},avatar:{zoom:1,cropX:0,cropY:0}};
+let unitCardDesign=JSON.parse(JSON.stringify(DEFAULT_UNIT_CARD_DESIGN));
+let unitCardEditorDirty=false;
+let unitCardPreviewMemberId='';
+let unitCardPreviewRequest=0;
+let unitCardDragging=null;
+const unitCardImageCache=new Map();
+const unitCardTemplateImage=new Image();unitCardTemplateImage.src='/unit-operator-template.png';
+function normalizeUnitCardDesign(value){
+ const source=value&&typeof value==='object'?value:{};
+ return {name:{...DEFAULT_UNIT_CARD_DESIGN.name,...(source.name||{})},rank:{...DEFAULT_UNIT_CARD_DESIGN.rank,...(source.rank||{})},callsign:{...DEFAULT_UNIT_CARD_DESIGN.callsign,...(source.callsign||{})},avatar:{...DEFAULT_UNIT_CARD_DESIGN.avatar,...(source.avatar||{})}};
+}
+function unitCardEligibleMembers(){return unitCardOrderIds.map(id=>assignmentData.members.find(member=>String(member.discord_user_id)===String(id))).filter(Boolean)}
+function unitCardPreviewMember(){return assignmentData.members.find(member=>String(member.discord_user_id)===String(unitCardPreviewMemberId))||unitCardEligibleMembers()[0]||null}
+function unitCardTextValues(member){
+ const name=member?.live_name||member?.display_name||'S.W.A.T. OPERATOR';
+ const rank=member?.identity?.city_rank_label||'S.W.A.T OPERATOR';
+ const callsign=String(member?.assignment?.callsign||'Alpha-18').replace(/^Alpha\s+/i,'Alpha-');
+ return {name,rank,callsign};
+}
+function unitCardLoadImage(url){
+ if(!url)return Promise.reject(new Error('لا توجد صورة لهذا العضو.'));
+ if(unitCardImageCache.has(url))return unitCardImageCache.get(url);
+ const promise=new Promise((resolve,reject)=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('تعذّر تحميل صورة العضو من Discord.'));image.src=url;});
+ unitCardImageCache.set(url,promise);promise.catch(()=>unitCardImageCache.delete(url));return promise;
+}
+function unitCardCoverImage(ctx,image,settings){
+ const frame={x:1424,y:144,width:486,height:482};
+ ctx.save();ctx.beginPath();ctx.moveTo(1450,145);ctx.lineTo(1885,145);ctx.lineTo(1910,169);ctx.lineTo(1910,598);ctx.lineTo(1886,625);ctx.lineTo(1448,625);ctx.lineTo(1424,600);ctx.lineTo(1424,169);ctx.closePath();ctx.clip();
+ const scale=Math.max(frame.width/image.width,frame.height/image.height)*Number(settings.zoom||1);
+ const width=image.width*scale,height=image.height*scale;
+ const x=frame.x+(frame.width-width)/2-(Number(settings.cropX||0)/100)*(width-frame.width)/2;
+ const y=frame.y+(frame.height-height)/2-(Number(settings.cropY||0)/100)*(height-frame.height)/2;
+ ctx.drawImage(image,x,y,width,height);ctx.restore();
+}
+function unitCardDrawText(ctx,text,settings,maxWidth){
+ if(!text)return;
+ let size=Number(settings.size||48);ctx.font='800 '+size+'px Impact, "Arial Narrow", "Arial", sans-serif';
+ while(ctx.measureText(text).width>maxWidth&&size>18){size-=1;ctx.font='800 '+size+'px Impact, "Arial Narrow", "Arial", sans-serif';}
+ ctx.save();ctx.translate(Number(settings.x||0),Number(settings.y||0));ctx.rotate(Number(settings.rotation||0)*Math.PI/180);ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle='#f0f1f3';ctx.shadowColor='#000';ctx.shadowBlur=7;ctx.shadowOffsetX=2;ctx.shadowOffsetY=3;ctx.fillText(text,0,0,maxWidth);ctx.restore();
+}
+async function unitCardPaint(canvas,member,requireAvatar=false){
+ if(!unitCardTemplateImage.complete||!unitCardTemplateImage.naturalWidth)await new Promise((resolve,reject)=>{unitCardTemplateImage.onload=resolve;unitCardTemplateImage.onerror=()=>reject(new Error('تعذّر تحميل قالب بطاقة العضو.'));});
+ const values=unitCardTextValues(member);let avatar=null;
+ if(member?.avatar_url){try{avatar=await unitCardLoadImage(member.avatar_url)}catch(error){if(requireAvatar)throw error}}
+ else if(requireAvatar)throw new Error('هذا العضو ليس لديه صورة Discord متاحة للبطاقة.');
+ const context=canvas.getContext('2d');context.clearRect(0,0,2048,768);context.drawImage(unitCardTemplateImage,0,0,2048,768);
+ if(avatar)unitCardCoverImage(context,avatar,unitCardDesign.avatar);
+ unitCardDrawText(context,values.name,unitCardDesign.name,680);
+ unitCardDrawText(context,values.rank,unitCardDesign.rank,580);
+ unitCardDrawText(context,values.callsign,unitCardDesign.callsign,455);
+}
+async function drawUnitCardEditorPreview(){
+ const canvas=document.getElementById('unitCardEditorCanvas');if(!canvas)return;const request=++unitCardPreviewRequest;
+ try{await unitCardPaint(canvas,unitCardPreviewMember(),false);if(request===unitCardPreviewRequest){const status=document.getElementById('unitCardEditorStatus');if(status)status.textContent=unitCardEditorDirty?'في تغييرات غير محفوظة. اسحب العنصر أو اضبط قيمه ثم احفظ التصميم.':'اسحب الاسم أو الرتبة أو الكول ساين فوق المعاينة لضبط مكانه.';}}
+ catch(error){const status=document.getElementById('unitCardEditorStatus');if(status)status.textContent=error.message||'تعذّر رسم المعاينة.';}
+}
+function syncUnitCardEditorControls(){
+ const selected=document.getElementById('unitCardSelectedLayer')?.value||'name',isAvatar=selected==='avatar';
+ const positionX=document.getElementById('unitCardPositionX'),positionY=document.getElementById('unitCardPositionY'),size=document.getElementById('unitCardFontSize'),rotation=document.getElementById('unitCardRotation');
+ const xLabel=document.getElementById('unitCardXLabel'),yLabel=document.getElementById('unitCardYLabel'),sizeLabel=document.getElementById('unitCardSizeLabel');
+ const xBox=positionX?.closest('.unit-card-control'),yBox=positionY?.closest('.unit-card-control'),sizeBox=size?.closest('.unit-card-control'),rotationBox=rotation?.closest('.unit-card-control');
+ for(const box of [xBox,yBox,sizeBox,rotationBox])if(box)box.hidden=isAvatar;
+ for(const id of ['unitCardAvatarZoomControl','unitCardAvatarCropXControl','unitCardAvatarCropYControl']){const node=document.getElementById(id);if(node)node.hidden=!isAvatar;}
+ if(isAvatar){
+  const avatar=unitCardDesign.avatar;
+  document.getElementById('unitCardAvatarZoom').value=Math.round(Number(avatar.zoom||1)*100);document.getElementById('unitCardAvatarZoomValue').textContent=Math.round(Number(avatar.zoom||1)*100)+'%';
+  document.getElementById('unitCardAvatarCropX').value=avatar.cropX||0;document.getElementById('unitCardAvatarCropXValue').textContent=String(avatar.cropX||0);
+  document.getElementById('unitCardAvatarCropY').value=avatar.cropY||0;document.getElementById('unitCardAvatarCropYValue').textContent=String(avatar.cropY||0);
+  return;
+ }
+ const config=unitCardDesign[selected],ranges=selected==='name'?{x:[40,900],y:[60,330],size:[28,160]}:selected==='rank'?{x:[40,800],y:[400,630],size:[18,100]}:{x:[760,1350],y:[400,630],size:[18,100]};
+ positionX.min=ranges.x[0];positionX.max=ranges.x[1];positionX.value=config.x;positionY.min=ranges.y[0];positionY.max=ranges.y[1];positionY.value=config.y;size.min=ranges.size[0];size.max=ranges.size[1];size.value=config.size;rotation.value=config.rotation||0;
+ document.getElementById('unitCardPositionXValue').textContent=String(config.x);document.getElementById('unitCardPositionYValue').textContent=String(config.y);document.getElementById('unitCardFontSizeValue').textContent=String(config.size)+' px';document.getElementById('unitCardRotationValue').textContent=String(config.rotation||0)+'°';
+ if(xLabel)xLabel.textContent='الموضع الأفقي';if(yLabel)yLabel.textContent='الموضع الرأسي';if(sizeLabel)sizeLabel.textContent='حجم الخط';
+ const rotationLabel=document.querySelector('label[for="unitCardRotation"]');if(rotationLabel)rotationLabel.textContent=selected==='name'?'زاوية الاسم':'زاوية الدوران';
+}
+function changeUnitCardEditorValue(key,value){
+ const selected=document.getElementById('unitCardSelectedLayer')?.value||'name',number=Number(value);
+ if(selected==='avatar'){if(key==='zoom')unitCardDesign.avatar.zoom=number/100;else if(key==='cropX'||key==='cropY')unitCardDesign.avatar[key]=number;}
+ else unitCardDesign[selected][key]=number;
+ unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview();
+}
+function changeUnitCardPreviewMember(){unitCardPreviewMemberId=String(document.getElementById('unitCardPreviewMember')?.value||'');drawUnitCardEditorPreview();}
+async function loadUnitCardDesign(){
+ try{const response=await fetch('/api/admin/settings',{credentials:'same-origin',cache:'no-store'}),data=await response.json().catch(()=>({}));if(response.ok&&data.settings?.unitCardDesign)unitCardDesign=normalizeUnitCardDesign(data.settings.unitCardDesign);}
+ catch(error){console.warn('Unit card design could not be loaded:',error?.message||'unknown');}
+}
+async function openUnitCardEditor(){
+ if(!currentCanAdmin){toast('إعداد تصميم البطاقات متاح لمدير الموقع فقط.');return;}
+ const modal=document.getElementById('unitCardEditorModal');if(!modal)return;modal.hidden=false;
+ const members=unitCardEligibleMembers(),select=document.getElementById('unitCardPreviewMember');
+ if(select){select.innerHTML=members.map(member=>'<option value="'+assignmentEscape(member.discord_user_id)+'">'+assignmentEscape(member.assignment?.callsign||'بدون نداء')+' • '+assignmentEscape(member.live_name||member.display_name||'عضو')+'</option>').join('')||'<option value="">معاينة التصميم</option>';unitCardPreviewMemberId=members[0]?String(members[0].discord_user_id):'';select.value=unitCardPreviewMemberId;}
+ await loadUnitCardDesign();unitCardEditorDirty=false;syncUnitCardEditorControls();await drawUnitCardEditorPreview();
+ const canvas=document.getElementById('unitCardEditorCanvas');if(canvas&&!canvas.dataset.dragBound){canvas.dataset.dragBound='1';canvas.addEventListener('pointerdown',event=>{const rect=canvas.getBoundingClientRect();unitCardDragging={x:event.clientX,y:event.clientY,scaleX:2048/rect.width,scaleY:768/rect.height};canvas.setPointerCapture(event.pointerId)});canvas.addEventListener('pointermove',event=>{if(!unitCardDragging)return;const dx=(event.clientX-unitCardDragging.x)*unitCardDragging.scaleX,dy=(event.clientY-unitCardDragging.y)*unitCardDragging.scaleY;unitCardDragging.x=event.clientX;unitCardDragging.y=event.clientY;const selected=document.getElementById('unitCardSelectedLayer')?.value||'name';if(selected==='avatar'){unitCardDesign.avatar.cropX=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropX||0)-dx/3));unitCardDesign.avatar.cropY=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropY||0)-dy/3));}else{const config=unitCardDesign[selected];config.x=Math.round(config.x+dx);config.y=Math.round(config.y+dy);}unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview()});const stop=()=>{unitCardDragging=null};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);}
+}
+function closeUnitCardEditor(){const modal=document.getElementById('unitCardEditorModal');if(modal)modal.hidden=true;unitCardDragging=null;}
+function resetUnitCardDesign(){unitCardDesign=JSON.parse(JSON.stringify(DEFAULT_UNIT_CARD_DESIGN));unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview();}
+async function saveUnitCardDesign(){
+ if(!currentCanAdmin||unitCardBusySaving)return;
+ const button=document.getElementById('saveUnitCardDesignButton');unitCardBusySaving=true;if(button){button.disabled=true;button.textContent='جارٍ الحفظ...';}
+ try{const response=await fetch('/api/admin/settings',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings:{unitCardDesign:unitCardDesign}})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'تعذّر حفظ تصميم البطاقة.');unitCardDesign=normalizeUnitCardDesign(unitCardDesign);unitCardEditorDirty=false;toast('تم حفظ التصميم. اضغط «تحديث ونشر البطاقات» لتطبيقه في روم الوحدات.');await drawUnitCardEditorPreview();}
+ catch(error){toast(error.message||'تعذّر حفظ التصميم.');const status=document.getElementById('unitCardEditorStatus');if(status)status.textContent=error.message||'تعذّر حفظ التصميم.';}
+ finally{unitCardBusySaving=false;if(button){button.disabled=false;button.textContent='حفظ التصميم';}}
+}
+let unitCardBusySaving=false;
+async function unitCardImageData(member){
+ const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=768;await unitCardPaint(canvas,member,true);
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.9));if(!blob)throw new Error('تعذّر تجهيز صورة بطاقة '+(member.live_name||member.display_name||'العضو')+'.');
+ const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('تعذّر تجهيز صورة البطاقة للإرسال.'));reader.readAsDataURL(blob);});
+ return data;
+}
 function unitCardCallsignNumber(member){
  const value=String(member?.assignment?.callsign||'').trim();
  const match=value.match(/^Alpha (0|[1-9][0-9]*)$/i);
@@ -4727,7 +4886,7 @@ async function publishUnitCardsInOrder(){
  }
  const count=unitCardOrderIds.length;
  if(!count){toast('لا توجد بطاقات جاهزة للنشر.');return;}
- if(!window.confirm('سيتم نشر '+count+' بطاقة في روم SWAT UNITS حسب الترتيب المحفوظ، بدايةً من أول بطاقة. يجب أن تكون الروم فارغة. متابعة؟'))return;
+ if(!window.confirm('سيتم تحديث صور البطاقات المنشورة في مكانها وإضافة أي بطاقة ناقصة، مع إبقاء باقي رسائل الروم كما هي. عدد البطاقات: '+count+'. متابعة؟'))return;
 
  const button=document.getElementById('publishUnitCardsButton');
  const clear=document.getElementById('clearUnitChannelButton');
@@ -4736,25 +4895,38 @@ async function publishUnitCardsInOrder(){
  renderUnitCardOrder();
  if(button)button.textContent='جارٍ نشر البطاقات...';
  if(clear)clear.disabled=true;
- if(status)status.textContent='جارٍ التحقق من الأعضاء ثم نشر البطاقات بالترتيب. لا تغلق الصفحة أثناء التنفيذ.';
+ if(status)status.textContent='جارٍ التحقق من الأعضاء والصور ثم نشر التصميم الجديد. لا تغلق الصفحة أثناء التنفيذ.';
  try{
-  const response=await fetch('/api/admin/members',{
+  const ids=[...unitCardOrderIds];
+  const preflight=await fetch('/api/admin/members',{
    method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({action:'publish_all_unit_cards'})
+   body:JSON.stringify({action:'publish_all_unit_cards',preflight:true,discord_user_ids:ids})
   });
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok||!data.complete){
-   const countText=Number.isFinite(Number(data.published_count))?' تم نشر '+Number(data.published_count)+' من '+Number(data.total_count||count)+' بطاقة.':'';
-   throw new Error((data.error||'تعذّر نشر كل البطاقات.')+countText);
+  const check=await preflight.json().catch(()=>({}));
+  if(!preflight.ok||!check.ok||!check.preflight)throw new Error(check.error||'تعذّر التحقق من جاهزية البطاقات.');
+  const readyIds=Array.isArray(check.discord_user_ids)?check.discord_user_ids.map(String):[];
+  if(readyIds.length!==count)throw new Error('تغيّر عدد الأعضاء الجاهزين للنشر. حدّث القائمة ثم حاول مرة أخرى.');
+  for(const card of Array.isArray(check.cards)?check.cards:[]){const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(card.discord_user_id));if(member){member.live_name=card.name||member.live_name;member.avatar_url=card.avatar_url||member.avatar_url;if(member.assignment&&card.callsign)member.assignment.callsign=card.callsign;if(member.identity&&card.city_rank)member.identity.city_rank_label=card.city_rank;}}
+  for(let index=0;index<readyIds.length;index++){
+   const id=readyIds[index],member=assignmentData.members.find(item=>String(item.discord_user_id)===id);
+   if(!member)throw new Error('تعذّر العثور على بيانات البطاقة رقم '+(index+1)+'.');
+   if(status)status.textContent='جارٍ تجهيز ونشر البطاقة '+(index+1)+' من '+readyIds.length+' • '+(member.live_name||member.display_name||'العضو');
+   const imageData=await unitCardImageData(member);
+   const response=await fetch('/api/admin/members',{
+    method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'publish_unit_card_image',discord_user_id:id,index,total_count:readyIds.length,image_data:imageData})
+   });
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||!data.ok){const done=Number(data.published_count||index);throw new Error((data.error||'تعذّر تحديث البطاقة.')+' اكتمل تحديث '+done+' من '+readyIds.length+' بطاقة؛ أصلح السبب ثم اضغط الزر مرة أخرى لمتابعة التحديث.');}
   }
-  toast('تم نشر '+Number(data.published_count||0)+' بطاقة في روم SWAT UNITS بالترتيب المحفوظ.');
+  toast('تم تحديث '+readyIds.length+' بطاقة هوية في روم SWAT UNITS.');
   await renderAssignments();
  }catch(error){
   toast(error.message||'تعذّر نشر البطاقات.');
   if(status)status.textContent=error.message||'تعذّر نشر البطاقات.';
  }finally{
   unitCardOrderBusy=false;
-  if(button)button.textContent='نشر كل البطاقات بالترتيب';
+  if(button)button.textContent='تحديث ونشر البطاقات بالترتيب';
   renderUnitCardOrder();
  }
 }
