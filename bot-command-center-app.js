@@ -22,6 +22,7 @@ function render(){
   else if(state.view==="server")renderServer(data);
   else if(state.view==="messages")renderMessages(data);
   else if(state.view==="moderation")renderModeration();
+  else if(state.view==="automod")renderAutoMod(data);
   else if(state.view==="integrations")renderIntegrations();
   else renderModules(data);
   $("#connectionBadge").textContent=data.connection&&data.connection.rest==="verified"?t("Discord API تم التحقق","Discord API verified"):t("الاتصال غير متاح","Connection unavailable");
@@ -112,6 +113,52 @@ function renderModeration(){
   try{await post(payload);toast(t("تم تنفيذ الإجراء بنجاح.","Moderation action completed."));form.reset();timeout.style.display="";}catch(error){toast(error.message);}
  });
 }
+function renderAutoMod(data){
+ const automod=data.automod||{available:false,rules:[]};
+ const channels=(data.channels||[]).filter(c=>[0,5].includes(c.type));
+ const rules=automod.rules||[];
+ const unavailable=!automod.available;
+ $("#mainView").innerHTML=
+  head(t("الحماية التلقائية","Auto Moderation"),t("إنشاء وإدارة قواعد الحماية الأصلية في Discord. القواعد تعمل من Discord نفسه بعد تفعيلها.","Create and manage native Discord Auto Moderation rules. Discord enforces enabled rules directly."))+
+  (unavailable?'<div class="notice">'+t("البوت لم يحصل بعد على صلاحية Manage Server / Manage Guild أو قراءة قواعد AutoMod. امنحه الصلاحية ثم حدّث الصفحة.","The bot does not currently have the Manage Server / Manage Guild permission to read AutoMod rules. Grant the permission and refresh.")+'</div>':'')+
+  '<div class="grid">'+metric(t("قواعد الحماية","Protection rules"),rules.length,t("قواعد موجودة في Discord","Rules configured in Discord"))+
+  metric(t("القواعد النشطة","Enabled rules"),rules.filter(r=>r.enabled).length,t("يتم تطبيقها من Discord","Enforced by Discord"))+
+  metric(t("قواعد الكلمات","Keyword rules"),rules.filter(r=>r.triggerType===1).length,t("فلترة الكلمات والعبارات","Keyword and phrase filtering"))+
+  metric(t("منع المنشن الزائد","Mention spam"),rules.filter(r=>r.triggerType===5).length,t("الحد من الإشارات الجماعية","Limit excessive mentions"))+'</div>'+
+  '<div class="grid two">'+
+   '<section class="panel"><div class="panel-head"><h2>'+t("إنشاء قاعدة حماية","Create a protection rule")+'</h2>'+badge(t("Discord Native","Discord Native"))+'</div><div class="panel-body">'+
+    '<form id="autoModCreateForm">'+
+     '<div class="field"><label>'+t("اسم القاعدة","Rule name")+'</label><input name="name" maxlength="100" required placeholder="'+t("مثال: منع الكلمات غير المسموحة","Example: Block prohibited words")+'"></div>'+
+     '<div class="field"><label>'+t("نوع القاعدة","Rule type")+'</label><select name="kind" id="autoModKind"><option value="keyword">'+t("الكلمات والعبارات الممنوعة","Blocked keywords and phrases")+'</option><option value="mention_spam">'+t("منع الإشارات المتكررة","Excessive mention spam")+'</option></select></div>'+
+     '<div class="field" id="autoModKeywordsField"><label>'+t("الكلمات — كل كلمة في سطر","Keywords — one per line")+'</label><textarea name="keywords" maxlength="6500" placeholder="'+t("كلمة ممنوعة\nعبارة ممنوعة","blocked-word\nblocked phrase")+'"></textarea><div class="muted">'+t("حتى 100 كلمة، 60 حرفًا لكل كلمة. Discord سيمنع الرسالة المخالفة.","Up to 100 terms, 60 characters each. Discord blocks matching messages.")+'</div></div>'+
+     '<div class="field" id="autoModMentionField" style="display:none"><label>'+t("أقصى عدد من المنشن في الرسالة","Maximum mentions per message")+'</label><select name="mentionLimit"><option value="3">3</option><option value="5" selected>5</option><option value="8">8</option><option value="10">10</option><option value="15">15</option></select></div>'+
+     '<div class="field"><label>'+t("قناة تنبيهات الإدارة (اختياري)","Admin alert channel (optional)")+'</label><select name="alertChannelId"><option value="">'+t("بدون تنبيه إضافي","No extra alert")+'</option>'+channels.map(c=>'<option value="'+esc(c.id)+'"># '+esc(c.name)+'</option>').join("")+'</select></div>'+
+     '<button class="btn primary" type="submit" '+(unavailable?'disabled':'')+'>'+t("إنشاء وتفعيل القاعدة","Create and enable rule")+'</button>'+
+    '</form></div></section>'+
+    '<section class="panel"><div class="panel-head"><h2>'+t("قواعد السيرفر الحالية","Current server rules")+'</h2>'+badge(rules.length)+'</div><div class="panel-body">'+
+     (rules.length?'<div class="list">'+rules.map(rule=>'<div class="item" style="align-items:flex-start"><div style="min-width:0"><b>'+esc(rule.name)+'</b><div class="muted">'+(rule.triggerType===1?t("فلترة كلمات","Keyword filter") : rule.triggerType===5?t("منع المنشن الزائد","Mention spam"):t("نوع آخر","Other trigger"))+' · '+(rule.triggerType===1?rule.keywordCount+" "+t("كلمة","terms"):rule.mentionLimit+" "+t("منشن","mentions"))+'</div></div><div class="row">'+badge(rule.enabled?t("نشطة","Enabled"):t("متوقفة","Disabled"),rule.enabled?"":"warn")+'<button class="btn" type="button" data-automod-toggle="'+esc(rule.id)+'" data-enabled="'+(!rule.enabled)+'">'+(rule.enabled?t("إيقاف","Disable"):t("تفعيل","Enable"))+'</button><button class="btn danger" type="button" data-automod-delete="'+esc(rule.id)+'">'+t("حذف","Delete")+'</button></div></div>').join("")+'</div>':'<div class="empty">'+t("لا توجد قواعد AutoMod بعد. أنشئ أول قاعدة من النموذج.","No AutoMod rules yet. Create your first rule using the form.")+'</div>')+
+    '</div></section>'+
+  '</div>'+
+  '<div class="notice">'+t("تنبيه: قاعدة الكلمات تستخدم إجراء Block Message. قناة التنبيه اختيارية. تأكد من إعفاء قنوات الإدارة والرتب المناسبة داخل إعدادات Discord قبل تفعيل سياسات واسعة.","Note: keyword rules use the Block Message action. The alert channel is optional. Review exemptions for staff roles and channels in Discord before applying broad policies.")+'</div>';
+ const form=$("#autoModCreateForm"),kind=$("#autoModKind"),words=$("#autoModKeywordsField"),mentions=$("#autoModMentionField");
+ kind.addEventListener("change",()=>{const keyword=kind.value==="keyword";words.style.display=keyword?"":"none";mentions.style.display=keyword?"none":"";});
+ form.addEventListener("submit",async event=>{
+  event.preventDefault();const values=new FormData(form);
+  const payload={action:"create_automod_rule",name:String(values.get("name")||"").trim(),kind:String(values.get("kind")||""),keywords:String(values.get("keywords")||""),mentionLimit:Number(values.get("mentionLimit")||5),alertChannelId:String(values.get("alertChannelId")||"")};
+  if(payload.kind==="keyword"&&!payload.keywords.trim()){toast(t("أدخل كلمة واحدة على الأقل.","Enter at least one keyword."));return;}
+  if(!confirm(t("سيتم إنشاء قاعدة وتفعيلها داخل سيرفر Discord. هل تريد المتابعة؟","This will create and enable a rule in your Discord server. Continue?")))return;
+  try{await post(payload);toast(t("تم إنشاء قاعدة الحماية وتفعيلها.","Auto Moderation rule created and enabled."));await load();state.view="automod";render();}catch(error){toast(error.message);}
+ });
+ $("[data-automod-toggle]").forEach(button=>button.addEventListener("click",async()=>{
+  const enabled=button.dataset.enabled==="true";
+  if(!confirm(t(enabled?"تفعيل قاعدة الحماية؟":"إيقاف قاعدة الحماية؟",enabled?"Enable this protection rule?":"Disable this protection rule?")))return;
+  try{await post({action:"toggle_automod_rule",ruleId:button.dataset.automodToggle,enabled});toast(t("تم تحديث حالة القاعدة.","Rule status updated."));await load();state.view="automod";render();}catch(error){toast(error.message);}
+ }));
+ $("[data-automod-delete]").forEach(button=>button.addEventListener("click",async()=>{
+  if(!confirm(t("حذف قاعدة AutoMod نهائيًا؟","Permanently delete this AutoMod rule?")))return;
+  try{await post({action:"delete_automod_rule",ruleId:button.dataset.automodDelete});toast(t("تم حذف القاعدة.","Rule deleted."));await load();state.view="automod";render();}catch(error){toast(error.message);}
+ }));
+}
 function renderIntegrations(){
  const list=[
  ["YouTube",t("تنبيهات الفيديوهات والبث المباشر","Video and livestream alerts"),t("يتطلب إضافة مصدر القنوات ومراقب مستمر","Requires channel subscriptions and a persistent poller")],
@@ -127,7 +174,7 @@ function renderIntegrations(){
 }
 function renderModules(data){
  const caps=data.capabilities||[];
- const labels={existing:t("موجود بالفعل","Existing"),available_now:t("متاح الآن","Available now"),needs_gateway:t("يتطلب تطوير البوت","Requires bot development"),needs_integrations:t("يتطلب تكامل خارجي","Requires integration")};
+ const labels={existing:t("موجود بالفعل","Existing"),available_now:t("متاح الآن","Available now"),needs_gateway:t("يتطلب تطوير البوت","Requires bot development"),needs_integrations:t("يتطلب تكامل خارجي","Requires integration"),needs_permission:t("صلاحية Discord مطلوبة","Discord permission required")};
  $("#mainView").innerHTML=head(t("حالة الأنظمة","System modules"),t("حالة واقعية للوظائف الموجودة والوظائف التي ما زالت تحتاج تطويرًا.","A transparent status view of existing and pending functions."))+
  '<section class="panel"><div class="panel-body"><div class="list">'+caps.map(x=>'<div class="item"><span>'+esc(x.label)+'</span>'+badge(labels[x.status]||esc(x.status),x.status==="existing"||x.status==="available_now"?"":"warn")+'</div>').join("")+'</div></div></section>';
 }
