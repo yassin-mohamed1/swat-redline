@@ -164,6 +164,16 @@ Static checks and Vercel deployment status do not replace live browser/Discord t
 - A worker restart marks old `active` rows as `interrupted`, clears them from the active dashboard, and does not resume or force-move members. If the process stops during the brief channel transition, check the member's current channel and move them manually if needed.
 - Run `node --test bot/*.test.mjs` and the repository quality checks before release. These tests exercise mocked Discord state; a controlled Discord test guild is still required to verify actual role/channel permissions and live move delivery.
 
+## Welcome image cards
+
+- The **الترحيب والمغادرة** page uses the supplied Redline S.W.A.T. operator banner as its default template. The blank preview asset is `redline-operator-template.png`, and the bot includes its own copy at `bot/welcome-template.png`; both retain the red portrait ring and uniform artwork while clearing the original portrait and name plaque.
+- For each new member, the bot generates a 1200×675 PNG with their Discord avatar clipped into the red ring and their display name written directly on the uniform. The editor supports dragging both overlays in the preview and adjusting horizontal/vertical position, avatar size, name size, name width, name color, and font. A custom HTTPS background URL remains available.
+- The bot automatically mentions the new member above the image. The optional extra message can stay empty to send only the mention and image, or add a greeting alongside it. The goodbye message remains text-based.
+- Settings are stored in the existing `app_state` row named `swat-bot-control`; no database migration is needed. The bot refreshes these settings every 15 seconds.
+- The bot requests Discord's privileged **Guild Members** Gateway intent to receive join and leave events. Enable that intent in the Discord Developer Portal before deploying the updated bot, and make sure the bot can view and send messages in the selected channels.
+- Custom background images must use HTTPS and a public host. The renderer accepts PNG, JPEG, WebP, GIF, or AVIF images up to 6 MB. If a custom background cannot be loaded, the configured solid color is used instead.
+- The bot container installs Noto fonts for Arabic names and text. The PNG renderer uses `sharp`; `bot/package-lock.json` pins the dependency for reproducible installs.
+
 
 ## Leave Requests and Early Leave Cutoff
 
