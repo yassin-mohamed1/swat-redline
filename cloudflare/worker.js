@@ -1,6 +1,7 @@
 import adminMedia from "../api/admin/media.js";
 import adminMembers from "../api/admin/members.js";
 import adminSettings from "../api/admin/settings.js";
+import botCommandCenter from "../api/bot/command-center.js";
 import auditLog from "../api/audit/log.js";
 import discordAuth from "../api/auth/discord.js";
 import logout from "../api/auth/logout.js";
@@ -15,6 +16,7 @@ const API_ROUTES = new Map([
   ["/api/admin/media", adminMedia],
   ["/api/admin/members", adminMembers],
   ["/api/admin/settings", adminSettings],
+  ["/api/bot/command-center", botCommandCenter],
   ["/api/audit/log", auditLog],
   ["/api/auth/discord", discordAuth],
   ["/api/auth/logout", logout],
