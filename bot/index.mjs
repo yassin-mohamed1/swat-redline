@@ -23,6 +23,8 @@ import { AttentionAlertRepository } from "./repository.mjs";
 import { buildDiscordLeaveRequestRecord, LeaveRequestValidationError, validateLeaveRequestFields } from "./leave-requests.mjs";
 import { isTargetVoiceEntry, sendVoiceEntryDm } from "./voice-entry-alert.mjs";
 import { createGuildLogService } from "./guild-logs.mjs";
+import { fetchBotControlSettings, normalizeBotControlSettings } from "./control-settings.mjs";
+import { createWelcomeAutomation } from "./welcome-automation.mjs";
 
 const COMMAND_NAME = "S.W.A.T. Attention Alert";
 const LEAVE_PANEL_BUTTON_ID = "swat_leave_request_open";
@@ -47,16 +49,51 @@ let leaseHealthy = false;
 let manager;
 let swatRoleIds = new Set();
 let stopPollTimer = null;
+let controlSettingsTimer = null;
 let leaseSupervisor = null;
 let stopping = false;
 const instanceId = randomUUID();
+let botControlSettings = normalizeBotControlSettings({}, config.logChannelId);
 const guildLogs = createGuildLogService({
   client,
   guildId: config.guildId,
   channelId: config.logChannelId,
   enabled: () => leaseHealthy && !stopping,
+  getSettings: () => botControlSettings.logging,
   logger: console
 });
+const welcomeAutomation = createWelcomeAutomation({
+  client,
+  guildId: config.guildId,
+  getSettings: () => botControlSettings.welcome,
+  logger: console
+});
+
+async function refreshBotControlSettings() {
+  try {
+    const nextSettings = await fetchBotControlSettings({
+      supabaseUrl: config.supabaseUrl,
+      serviceRoleKey: config.supabaseServiceRoleKey,
+      fallbackChannelId: config.logChannelId
+    });
+    botControlSettings = nextSettings;
+    const logChannels = await guildLogs.verifyChannels();
+    safeLog("info", "bot_control_settings_refreshed", {
+      loggingEnabled: Boolean(nextSettings.logging.enabled),
+      welcomeEnabled: Boolean(nextSettings.welcome.enabled),
+      goodbyeEnabled: Boolean(nextSettings.welcome.goodbyeEnabled),
+      validLogChannels: logChannels.results.filter(item => item.ok).length,
+      checkedLogChannels: logChannels.results.length
+    });
+    return true;
+  } catch (error) {
+    safeLog("warn", "bot_control_settings_refresh_failed", {
+      status: error?.status || null,
+      message: error?.message || "unknown"
+    });
+    return false;
+  }
+}
 
 function safeLog(level, event, values = {}) {
   const details = Object.fromEntries(Object.entries(values).filter(([key, value]) =>
@@ -470,16 +507,13 @@ client.once(Events.ClientReady, async readyClient => {
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     const botMember = guild.members.me || await guild.members.fetchMe().catch(() => null);
     if (!botMember) throw new Error("bot_member_lookup_failed");
-    if (config.logChannelId) {
-      const logChannelStatus = await guildLogs.verify();
-      if (logChannelStatus.ok) {
-        safeLog("info", "discord_guild_log_channel_ready", { channelId: logChannelStatus.channelId });
-      } else {
-        safeLog("warn", "discord_guild_log_channel_unavailable", { reason: logChannelStatus.reason });
-      }
-    } else {
-      safeLog("warn", "discord_guild_log_channel_not_configured", { requiredVariable: "DISCORD_LOG_CHANNEL_ID" });
-    }
+    await refreshBotControlSettings();
+    const logChannelStatus = await guildLogs.verifyChannels();
+    safeLog(logChannelStatus.ok ? "info" : "warn", "discord_guild_log_channels_checked", {
+      checked: logChannelStatus.results.length,
+      available: logChannelStatus.results.filter(item => item.ok).length,
+      unavailable: logChannelStatus.results.filter(item => !item.ok).map(item => ({ category: item.category, reason: item.reason }))
+    });
     if (!botMember.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
       safeLog("warn", "discord_guild_log_audit_permission_missing", { requiredPermission: "View Audit Log" });
     }
@@ -512,6 +546,8 @@ client.once(Events.ClientReady, async readyClient => {
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     stopPollTimer = setInterval(() => { void manager.pollStopRequests(); }, config.stopPollMs);
     stopPollTimer.unref?.();
+    controlSettingsTimer = setInterval(() => { void refreshBotControlSettings(); }, 15_000);
+    controlSettingsTimer.unref?.();
     safeLog("info", "attention_alert_worker_ready", { guildId: config.guildId, botId: readyClient.user.id });
   } catch (error) {
     safeLog("error", "attention_alert_worker_start_failed", { status: error?.status || null, message: error?.message || "unknown" });
@@ -587,10 +623,12 @@ client.on(Events.MessageBulkDelete, (messages, channel) => {
 client.on(Events.GuildMemberAdd, member => {
   if (!leaseHealthy || stopping) return;
   void guildLogs.memberJoined(member);
+  void welcomeAutomation.memberJoined(member);
 });
 client.on(Events.GuildMemberRemove, member => {
   if (!leaseHealthy || stopping) return;
   void guildLogs.memberLeft(member);
+  void welcomeAutomation.memberLeft(member);
 });
 client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
   if (!leaseHealthy || stopping) return;
@@ -608,6 +646,18 @@ client.on(Events.GuildRoleUpdate, (oldRole, newRole) => {
   if (!leaseHealthy || stopping) return;
   void guildLogs.roleUpdated(oldRole, newRole);
 });
+client.on(Events.ChannelCreate, channel => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.channelCreated(channel);
+});
+client.on(Events.ChannelDelete, channel => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.channelDeleted(channel);
+});
+client.on(Events.ChannelUpdate, (oldChannel, newChannel) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.channelUpdated(oldChannel, newChannel);
+});
 client.on(Events.GuildAuditLogEntryCreate, (entry, guild) => {
   if (!leaseHealthy || stopping) return;
   void guildLogs.auditLogEntry(entry, guild);
@@ -620,6 +670,7 @@ async function shutdown(reason = "bot_shutdown") {
   if (stopping) return;
   stopping = true;
   clearInterval(stopPollTimer);
+  clearInterval(controlSettingsTimer);
   leaseSupervisor?.stop();
   if (manager) await manager.stopAll(reason);
   if (leaseHealthy) {
