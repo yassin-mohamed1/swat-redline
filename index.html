@@ -7517,9 +7517,10 @@ Object.assign(PORTAL_TRANSLATIONS,{
 });portalTranslationEntries.splice(0,portalTranslationEntries.length,...Object.entries(PORTAL_TRANSLATIONS).sort((a,b)=>b[0].length-a[0].length));
 rebuildPortalTranslationIndex();
 
-applyPortalLanguage();
-loadPublicSiteImages();
+// Start authentication before optional UI hydration so a presentation error cannot strand the splash screen.
 initAuth();
+try { applyPortalLanguage(); } catch (error) { console.error("Portal language initialization failed:", error); }
+Promise.resolve().then(() => loadPublicSiteImages()).catch(error => console.warn("Public image loading failed:", error));
 
 const SITE_UPDATE_ALLOWED_KEYS=new Set(['accentColor','backgroundColor','textOverrides','styleOverrides','siteImages','customMenuItems']);
 let previewedSiteUpdatePackage=null;
