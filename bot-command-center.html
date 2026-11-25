@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090d14">
+<title>S.W.A.T. REDLINE | Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Kufi+Arabic:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#080c12;--panel:#101722;--panel2:#141e2b;--line:#273445;--red:#ed3545;--red2:#a91929;--muted:#8d9caf;--text:#f1f5fb;--green:#5addaa;--amber:#f0bd6b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -10%,#3a151c 0,transparent 36%),linear-gradient(140deg,#080c12,#0c1119);color:var(--text);font-family:Inter,"Noto Kufi Arabic",Arial,sans-serif;min-height:100vh}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.top{height:82px;border-bottom:1px solid var(--line);background:#0b1018eF;display:flex;align-items:center;gap:15px;padding:0 25px;position:sticky;top:0;z-index:20;backdrop-filter:blur(18px)}
+.mark{width:47px;height:47px;border-radius:13px;border:1px solid #702833;background:linear-gradient(145deg,#3b161e,#131923);display:grid;place-items:center;color:#ff5d69;font-size:22px;font-weight:900}
+.brand b{display:block;font-size:16px;letter-spacing:1.3px}.brand span{display:block;margin-top:3px;color:#9aa7b8;font-size:9px;letter-spacing:3px;font-weight:800}
+.top-right{margin-inline-start:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid #3a485b;background:#172130;color:#f3f6fb;padding:10px 14px;border-radius:9px;font-size:11px;font-weight:800;transition:.18s}.btn:hover{border-color:#e44755;transform:translateY(-1px)}.btn.primary{background:linear-gradient(120deg,#ad1b2a,#ed3545);border-color:#ed3545}.btn.danger{background:#2b131a;border-color:#79313c;color:#ff9aa2}.btn:disabled{opacity:.48;cursor:not-allowed;transform:none}
+.status{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;background:#142820;border:1px solid #285941;color:#7fe5ba;border-radius:99px;font-size:10px;font-weight:800}.status:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
+.layout{display:grid;grid-template-columns:238px minmax(0,1fr);min-height:calc(100vh - 82px)}
+.side{padding:18px 13px;border-inline-end:1px solid var(--line);background:#0b111a;display:flex;flex-direction:column;gap:6px}
+.side-label{color:#697b90;font-size:9px;letter-spacing:2px;font-weight:900;padding:8px 11px 12px}
+.side button{display:flex;align-items:center;gap:11px;padding:12px 11px;border:1px solid transparent;border-radius:10px;background:transparent;color:#a7b4c5;text-align:start;font-size:11px;font-weight:700}
+.side button .ic{width:23px;color:#e84a59;text-align:center;font-size:17px}
+.side button.active,.side button:hover{background:linear-gradient(100deg,#35171d,#151d29);border-color:#662832;color:#fff;box-shadow:inset 3px 0 var(--red)}
+.side-foot{margin-top:auto;border-top:1px solid var(--line);padding:15px 10px;color:#637286;font-size:9px;line-height:2;letter-spacing:1px}
+.main{min-width:0;padding:24px;max-width:1600px;width:100%;margin:0 auto}
+.view-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;flex-wrap:wrap;margin-bottom:19px}
+.view-head h1{font-size:22px;margin:0;font-weight:900}.view-head p{font-size:11px;color:var(--muted);margin:7px 0 0;line-height:1.9}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{background:linear-gradient(145deg,#151f2c,#0e151e);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.kicker{color:#93a1b3;font-size:10px}.value{font-size:23px;font-weight:900;margin-top:7px;overflow-wrap:anywhere}.caption{font-size:9px;color:#6f7e90;margin-top:5px}
+.panel{background:#0e1621;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px;min-width:0}
+.panel-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-head h2{font-size:13px;margin:0}.panel-body{padding:15px}
+.split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:10px;line-height:1.9}.field{display:grid;gap:7px;margin-bottom:13px;min-width:0}.field label{font-size:10px;color:#b7c2d0;font-weight:700}
+.field input,.field select,.field textarea{width:100%;padding:11px 12px;border-radius:9px;border:1px solid #39485a;background:#080e16;color:#f1f5fb;outline:none;font-size:11px}
+.field textarea{min-height:130px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:#ec4654;box-shadow:0 0 0 3px #ec465419}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:99px;font-size:9px;font-weight:900;background:#142a24;border:1px solid #285943;color:#77e2b5}.badge.warn{background:#302516;border-color:#65502f;color:#f2c477}.badge.neutral{background:#1c2938;border-color:#364b63;color:#afc2d9}
+.list{display:grid;gap:7px}.item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 11px;background:#121c28;border:1px solid #29384a;border-radius:9px;font-size:10px;min-width:0}.item span:first-child{overflow-wrap:anywhere}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline-end:7px;vertical-align:middle}
+.notice{border:1px solid #6c512d;background:#241e14;color:#ead8b4;border-radius:10px;padding:12px 14px;font-size:10px;line-height:1.9;margin:12px 0}
+.empty{padding:25px;border:1px dashed #354457;border-radius:10px;color:#8e9caf;text-align:center;font-size:11px;line-height:1.9}
+.table-wrap{overflow:auto}.table{border-collapse:collapse;width:100%;min-width:480px}.table th,.table td{padding:10px 12px;border-bottom:1px solid #273444;text-align:start;font-size:10px}.table th{color:#8f9fb1;background:#121c28}.table td{color:#dce5f1}
+.loading{display:grid;place-items:center;min-height:180px;color:#9aa8b9;font-size:11px}.spinner{width:26px;height:26px;border:2px solid #364252;border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+.toast{position:fixed;bottom:22px;left:22px;z-index:100;background:#142a20;border:1px solid #32664b;color:#c1f3d7;padding:12px 17px;border-radius:10px;font-size:11px;box-shadow:0 12px 30px #0008;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:translateY(0)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:1050px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:205px minmax(0,1fr)}}
+@media(max-width:720px){.top{height:auto;min-height:70px;padding:10px 12px;flex-wrap:wrap}.top-right{width:100%;margin:0}.top-right .btn{flex:1}.layout{grid-template-columns:1fr}.side{border-inline-end:0;border-bottom:1px solid var(--line);display:flex;flex-direction:row;overflow:auto;padding:8px}.side-label,.side-foot{display:none}.side button{white-space:nowrap;min-width:max-content;padding:10px}.main{padding:13px}.grid,.grid.two,.split{grid-template-columns:1fr}.value{font-size:20px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="mark">◈</div>
+  <div class="brand"><b>S.W.A.T. REDLINE</b><span>BOT COMMAND CENTER</span></div>
+  <div class="top-right">
+    <span class="status" id="connectionBadge">جاري التحقق من الاتصال</span>
+    <button class="btn" id="languageButton" type="button">EN</button>
+    <button class="btn" id="refreshButton" type="button">↻ تحديث</button>
+    <button class="btn danger" id="backButton" type="button">← العودة للموقع</button>
+  </div>
+</header>
+<div class="layout">
+  <aside class="side">
+    <div class="side-label">COMMAND MODULES</div>
+    <button class="active" data-view="overview"><span class="ic">▦</span>نظرة عامة</button>
+    <button data-view="server"><span class="ic">♙</span>السيرفر والرتب</button>
+    <button data-view="messages"><span class="ic">✉</span>الرسائل والإعلانات</button>
+    <button data-view="moderation"><span class="ic">⛨</span>الإشراف والعقوبات</button>
+    <button data-view="integrations"><span class="ic">⌁</span>التكاملات الخارجية</button>
+    <button data-view="modules"><span class="ic">◈</span>حالة الأنظمة</button>
+    <div class="side-foot">S.W.A.T. REDLINE<br>SECURE BOT MANAGEMENT<br><b style="color:#ed5360">AUTHORIZED PERSONNEL ONLY</b></div>
+  </aside>
+  <main class="main" id="mainView">
+    <div class="loading"><div><div class="spinner"></div>جاري تحميل بيانات Discord...</div></div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/bot-command-center-app.js" defer></script>
+</body>
+</html>
