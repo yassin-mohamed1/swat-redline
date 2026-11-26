@@ -4547,7 +4547,7 @@ function renderAssignmentRows(){
     ?'<span class="muted">غير متاح</span>'
     :!identity?.city_rank
       ?'<span class="muted">حدد City Rank أولًا</span>'
-      :'<button class="btn primary" type="button" '+(assignmentIdentityBusy.has(memberId)?'disabled ':'')+'onclick="publishMemberIdentity(\\''+assignmentEscape(memberId)+'\\')">'+(assignmentIdentityBusy.has(memberId)?'جارٍ الإرسال...':'إرسال بطاقة جديدة أو تحديث البطاقة')+'</button>';
+      :'<button class="btn primary" type="button" '+(assignmentIdentityBusy.has(memberId)?'disabled ':'')+'onclick="publishMemberIdentity(\''+assignmentEscape(memberId)+'\')">'+(assignmentIdentityBusy.has(memberId)?'جارٍ الإرسال...':'إرسال بطاقة جديدة أو تحديث البطاقة')+'</button>';
   return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+pendingRegistrationBadge(member)+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(memberId)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+(identity?.city_rank?'green':'gray')+'">'+assignmentEscape(cityRank)+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+identityButton+'</td><td>'+action+'</td></tr>';
  }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
 }
