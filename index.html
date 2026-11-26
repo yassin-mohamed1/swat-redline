@@ -5066,19 +5066,23 @@ async function publishMemberIdentity(id){
  const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
  if(!member)return;
  if(!member.identity?.city_rank){toast('اختار City Rank واحفظ التعيين أولًا.');return;}
+ if(member.assignment?.status!=='assigned'){toast('لا يمكن نشر بطاقة عضو ليس لديه تعيين فعال.');return;}
  if(assignmentIdentityBusy.has(String(id)))return;
  assignmentIdentityBusy.add(String(id));
  renderAssignmentRows();
  try{
-  const response=await fetch('/api/admin/members',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-   action:'publish_member_identity',discord_user_id:String(id)
-  })});
+  await loadUnitCardDesign();
+  const imageData=await unitCardImageData(member);
+  const response=await fetch('/api/admin/members',{
+   method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'publish_unit_card_image',single:true,discord_user_id:String(id),image_data:imageData})
+  });
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر إرسال هوية العضو.');
-  toast(data.updated?'تم تحديث هوية العضو في روم الهويات.':'تم إرسال هوية العضو إلى روم الهويات.');
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر إرسال بطاقة العضو بالتصميم الجديد.');
+  toast(data.updated?'تم تحديث بطاقة العضو بالتصميم الجديد في روم SWAT UNITS.':'تم إرسال بطاقة العضو بالتصميم الجديد إلى روم SWAT UNITS.');
   if(typeof loadAuditLog==='function')loadAuditLog();
  }catch(error){
-  toast(error.message||'تعذّر إرسال هوية العضو.');
+  toast(error.message||'تعذّر إرسال بطاقة العضو.');
  }finally{
   assignmentIdentityBusy.delete(String(id));
   await renderAssignments();
