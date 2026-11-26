@@ -901,6 +901,9 @@ const DISCORD_BULK_DELETE_MAX_AGE_MS = 14n * 24n * 60n * 60n * 1000n;
 
 async function handlePublishUnitCardImage(url,key,token,guildId,user,body,res) {
   const single=body?.single===true;
+  const publishMode=single?String(body.publish_mode||""):"batch";
+  if(single&&!["new","update"].includes(publishMode))
+    return send(res,400,{error:"حدد نوع العملية: إرسال بطاقة جديدة أو تحديث بطاقة موجودة."});
   if (!user?.isOwner && !user?.isWebsiteAdmin && !single)
     return send(res,403,{error:"Website Admin permission required to publish all unit cards."});
   if (!token || !/^\d{15,22}$/.test(String(guildId||"")))
@@ -960,18 +963,44 @@ async function handlePublishUnitCardImage(url,key,token,guildId,user,body,res) {
   form.set("files[0]",new Blob([imageBytes],{type:"image/jpeg"}),filename);
 
   let message,updated=false;
-  if(identity?.channel_id===UNIT_CARDS_CHANNEL_ID&&identity?.message_id) {
+  const hasSavedUnitCard=identity?.channel_id===UNIT_CARDS_CHANNEL_ID&&Boolean(identity?.message_id);
+  if(single&&publishMode==="update"&&!hasSavedUnitCard)
+    return send(res,409,{error:"لا توجد بطاقة محفوظة لهذا العضو لتحديثها. استخدم «إرسال بطاقة جديدة» أولًا."});
+
+  if(single&&publishMode==="update") {
     try {
       message=await assignmentDiscord(token,"/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages/"+encodeURIComponent(String(identity.message_id)),{method:"PATCH",body:form});
       updated=true;
     } catch(error) {
-      // A saved message reference can outlive a manually deleted Discord card.
-      // Treat Discord's Unknown Message (404) as a fresh publish, not a hard failure.
+      if(Number(error?.status)===404) {
+        // Discord message was manually deleted. Clear the stale reference and
+        // require an explicit "Send new card" action; never silently POST here.
+        try {
+          await supabase(url,key,"staff_member_identities?discord_user_id=eq."+encodeURIComponent(targetId),{
+            method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify({channel_id:null,message_id:null})
+          });
+        } catch(cleanupError) {
+          console.warn("Deleted unit card reference cleanup failed:",cleanupError?.status||cleanupError?.message||"unknown");
+        }
+        return send(res,404,{error:"البطاقة القديمة غير موجودة في Discord. لم يتم إنشاء بطاقة جديدة تلقائيًا؛ اضغط «إرسال بطاقة جديدة»."});
+      }
+      return send(res,error.status||502,{error:"تعذّر تحديث البطاقة الموجودة في Discord.",discord_code:String(error.code||error.status||"update_failed")});
+    }
+  }else if(!single&&hasSavedUnitCard) {
+    // Bulk publishing retains its existing behavior: update in place, or
+    // create a replacement if the previously saved Discord message is gone.
+    try {
+      message=await assignmentDiscord(token,"/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages/"+encodeURIComponent(String(identity.message_id)),{method:"PATCH",body:form});
+      updated=true;
+    } catch(error) {
       if(Number(error?.status)!==404)return send(res,error.status||502,{error:"تعذّر تحديث بطاقة "+(index+1)+" من "+total+" في Discord.",discord_code:String(error.code||error.status||"update_failed"),published_count:index,total_count:total});
       message=null;
       updated=false;
     }
   }
+
+  // Explicit "new" mode always reaches this POST, even if an older card
+  // reference exists; it then stores the new message as the latest update target.
   if(!message?.id)try { message=await assignmentDiscord(token,"/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages",{method:"POST",body:form}); }
   catch(error) { return send(res,error.status||502,{error:"تعذّر نشر بطاقة "+(index+1)+" من "+total+" في Discord.",discord_code:String(error.code||error.status||"publish_failed"),published_count:index,total_count:total}); }
   if(!message?.id)return send(res,502,{error:"Discord لم يؤكد نشر صورة البطاقة.",published_count:index,total_count:total});
