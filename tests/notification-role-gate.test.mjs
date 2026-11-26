@@ -24,7 +24,8 @@ test("saved-message bulk delivery verifies live S.W.A.T. role while a targeted s
   assert.ok(saved.includes("process.env.DISCORD_ROLE_ID"));
   assert.ok(saved.includes("async function filterSavedMessageBulkRecipientsBySwatRole"));
   assert.ok(saved.includes("roles.includes(requiredRoleId)"));
-  assert.ok(saved.includes("Number(error?.status) === 404"));
+  assert.ok(saved.includes('"/members?" + query.toString()'));
+  assert.ok(saved.includes("role_verification_incomplete"));
   const singleAt = saved.indexOf('if (mode === "single")');
   const verifyAt = saved.indexOf('if (String(input?.recipient_mode || "") === "all")');
   assert.ok(singleAt > 0 && verifyAt > singleAt);
