@@ -21,12 +21,13 @@ test("member avatar remains visible inside the card frame without covering its b
   assert.match(cover, /unitCardAvatarPath\(ctx\);ctx\.clip\(\)/);
 
   const templateLayer = renderer.indexOf("context.drawImage(unitCardTemplateImage,0,0,2048,768)");
-  const apertureFill = renderer.indexOf("unitCardAvatarPath(context);context.fill()");
+  const aperturePath = renderer.indexOf("unitCardAvatarPath(context)");
+  const apertureFill = renderer.indexOf("context.fill()", aperturePath);
   const avatarLayer = renderer.indexOf("unitCardCoverImage(context,avatar,unitCardDesign.avatar)");
   const nameLayer = renderer.indexOf("unitCardDrawText(context,values.name");
 
   assert.ok(templateLayer >= 0, "card template is painted");
-  assert.ok(apertureFill > templateLayer, "only the inner photo window is cleared for the image");
+  assert.ok(aperturePath > templateLayer && apertureFill > aperturePath, "only the inner photo window receives its background fill");
   assert.ok(avatarLayer > apertureFill, "avatar is drawn inside the cleared window");
   assert.ok(nameLayer > avatarLayer, "member details remain above the photo and frame");
 });
