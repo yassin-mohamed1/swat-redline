@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import {
   ActionRowBuilder,
   ApplicationCommandType,
-  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   Client,
   Events,
   GatewayIntentBits,
+  Partials,
   MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
@@ -22,8 +22,9 @@ import { readConfig } from "./config.mjs";
 import { AttentionAlertRepository } from "./repository.mjs";
 import { buildDiscordLeaveRequestRecord, LeaveRequestValidationError, validateLeaveRequestFields } from "./leave-requests.mjs";
 import { isTargetVoiceEntry, sendVoiceEntryDm } from "./voice-entry-alert.mjs";
-import { fetchBotControlSettings } from "./control-settings.mjs";
-import { renderWelcomeImage, renderWelcomeText } from "./welcome-image.mjs";
+import { createGuildLogService } from "./guild-logs.mjs";
+import { fetchBotControlSettings, normalizeBotControlSettings } from "./control-settings.mjs";
+import { createWelcomeAutomation } from "./welcome-automation.mjs";
 
 const COMMAND_NAME = "S.W.A.T. Attention Alert";
 const LEAVE_PANEL_BUTTON_ID = "swat_leave_request_open";
@@ -33,17 +34,66 @@ const repository = new AttentionAlertRepository({
   baseUrl: config.supabaseUrl,
   serviceRoleKey: config.supabaseServiceRoleKey
 });
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMembers] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildVoiceStates
+  ],
+  partials: [Partials.Channel, Partials.Message]
+});
 let leaseHealthy = false;
 let manager;
 let swatRoleIds = new Set();
 let stopPollTimer = null;
-let welcomeSettingsTimer = null;
-let welcomeSettingsRefreshBusy = false;
-let welcomeSettings = null;
+let controlSettingsTimer = null;
 let leaseSupervisor = null;
 let stopping = false;
 const instanceId = randomUUID();
+let botControlSettings = normalizeBotControlSettings({}, config.logChannelId);
+const guildLogs = createGuildLogService({
+  client,
+  guildId: config.guildId,
+  channelId: config.logChannelId,
+  enabled: () => leaseHealthy && !stopping,
+  getSettings: () => botControlSettings.logging,
+  logger: console
+});
+const welcomeAutomation = createWelcomeAutomation({
+  client,
+  guildId: config.guildId,
+  getSettings: () => botControlSettings.welcome,
+  logger: console
+});
+
+async function refreshBotControlSettings() {
+  try {
+    const nextSettings = await fetchBotControlSettings({
+      supabaseUrl: config.supabaseUrl,
+      serviceRoleKey: config.supabaseServiceRoleKey,
+      fallbackChannelId: config.logChannelId
+    });
+    botControlSettings = nextSettings;
+    const logChannels = await guildLogs.verifyChannels();
+    safeLog("info", "bot_control_settings_refreshed", {
+      loggingEnabled: Boolean(nextSettings.logging.enabled),
+      welcomeEnabled: Boolean(nextSettings.welcome.enabled),
+      goodbyeEnabled: Boolean(nextSettings.welcome.goodbyeEnabled),
+      validLogChannels: logChannels.results.filter(item => item.ok).length,
+      checkedLogChannels: logChannels.results.length
+    });
+    return true;
+  } catch (error) {
+    safeLog("warn", "bot_control_settings_refresh_failed", {
+      status: error?.status || null,
+      message: error?.message || "unknown"
+    });
+    return false;
+  }
+}
 
 function safeLog(level, event, values = {}) {
   const details = Object.fromEntries(Object.entries(values).filter(([key, value]) =>
@@ -51,99 +101,6 @@ function safeLog(level, event, values = {}) {
   ));
   const method = console[level] || console.log;
   method(event, details);
-}
-
-async function refreshWelcomeSettings() {
-  if (welcomeSettingsRefreshBusy) return;
-  welcomeSettingsRefreshBusy = true;
-  try {
-    const settings = await fetchBotControlSettings({
-      supabaseUrl: config.supabaseUrl,
-      serviceRoleKey: config.supabaseServiceRoleKey
-    });
-    welcomeSettings = settings.welcome;
-  } catch (error) {
-    safeLog("warn", "welcome_settings_refresh_failed", { status: error?.status || null });
-  } finally {
-    welcomeSettingsRefreshBusy = false;
-  }
-}
-
-function welcomeMemberContext(member) {
-  return {
-    id: String(member.id),
-    username: String(member.user?.username || "New member"),
-    displayName: String(member.displayName || member.user?.globalName || member.user?.username || "New member"),
-    serverName: String(member.guild?.name || "S.W.A.T. REDLINE"),
-    memberCount: Number(member.guild?.memberCount || 0),
-    avatarUrl: member.displayAvatarURL({ extension: "png", size: 512 })
-  };
-}
-
-async function welcomeTextChannel(guild, channelId) {
-  if (!channelId) return null;
-  const channel = await guild.channels.fetch(channelId).catch(() => null);
-  return channel?.isTextBased?.() && typeof channel.send === "function" ? channel : null;
-}
-
-async function sendWelcome(member) {
-  if (!leaseHealthy || !member?.guild || member.guild.id !== config.guildId || member.user?.bot) return;
-  if (!welcomeSettings) await refreshWelcomeSettings();
-  const settings = welcomeSettings;
-  if (!settings?.enabled || !settings.channelId) return;
-
-  const channel = await welcomeTextChannel(member.guild, settings.channelId);
-  if (!channel) {
-    safeLog("warn", "welcome_channel_unavailable", { guildId: member.guild.id, channelId: settings.channelId });
-    return;
-  }
-  const context = welcomeMemberContext(member);
-  let content = renderWelcomeText(settings.message, context);
-  let image = null;
-  if (settings.image?.enabled !== false) {
-    try {
-      image = await renderWelcomeImage(settings.image, context);
-    } catch (error) {
-      safeLog("error", "welcome_image_render_failed", { guildId: member.guild.id, userId: member.id, status: error?.status || null });
-    }
-  }
-  const memberMention = `<@${member.id}>`;
-  content = content.replace(new RegExp("<@!?" + String(member.id) + ">", "g"), " ")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  content = content ? memberMention + "\n" + content : memberMention;
-  if (!leaseHealthy || stopping) return;
-
-  await channel.send({
-    ...(content ? { content } : {}),
-    ...(image ? { files: [new AttachmentBuilder(image, { name: "welcome.png" })] } : {}),
-    allowedMentions: { parse: [], users: content.includes("<@" + member.id + ">") ? [member.id] : [], repliedUser: false }
-  }).catch(error => {
-    safeLog("error", "welcome_message_send_failed", { guildId: member.guild.id, userId: member.id, channelId: settings.channelId, status: error?.status || null });
-  });
-}
-
-async function sendGoodbye(member) {
-  if (!leaseHealthy || !member?.guild || member.guild.id !== config.guildId || member.user?.bot) return;
-  if (!welcomeSettings) await refreshWelcomeSettings();
-  const settings = welcomeSettings;
-  if (!settings?.goodbyeEnabled || !settings.goodbyeChannelId || !settings.goodbyeMessage) return;
-
-  const channel = await welcomeTextChannel(member.guild, settings.goodbyeChannelId);
-  if (!channel) {
-    safeLog("warn", "goodbye_channel_unavailable", { guildId: member.guild.id, channelId: settings.goodbyeChannelId });
-    return;
-  }
-  const context = welcomeMemberContext(member);
-  const content = renderWelcomeText(settings.goodbyeMessage, context);
-  if (!leaseHealthy || stopping) return;
-  await channel.send({
-    content,
-    allowedMentions: { parse: [], users: content.includes("<@" + member.id + ">") ? [member.id] : [], repliedUser: false }
-  }).catch(error => {
-    safeLog("error", "goodbye_message_send_failed", { guildId: member.guild.id, userId: member.id, channelId: settings.goodbyeChannelId, status: error?.status || null });
-  });
 }
 
 function roleIds(interaction) {
@@ -346,6 +303,7 @@ async function clearAdminAlertsChannelHistoryOnce(guild, channel) {
 
 async function handleVoiceStateUpdate(oldState, newState) {
   if (!leaseHealthy || stopping || newState.guild?.id !== config.guildId) return;
+  if (oldState.channelId !== newState.channelId) void guildLogs.voiceStateUpdated(oldState, newState);
   if (!newState.channelId || newState.channelId === oldState.channelId) return;
   const userId = String(newState.id || newState.member?.id || "");
   if (!/^\d{15,22}$/.test(userId)) return;
@@ -549,6 +507,16 @@ client.once(Events.ClientReady, async readyClient => {
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     const botMember = guild.members.me || await guild.members.fetchMe().catch(() => null);
     if (!botMember) throw new Error("bot_member_lookup_failed");
+    await refreshBotControlSettings();
+    const logChannelStatus = await guildLogs.verifyChannels();
+    safeLog(logChannelStatus.ok ? "info" : "warn", "discord_guild_log_channels_checked", {
+      checked: logChannelStatus.results.length,
+      available: logChannelStatus.results.filter(item => item.ok).length,
+      unavailable: logChannelStatus.results.filter(item => !item.ok).map(item => ({ category: item.category, reason: item.reason }))
+    });
+    if (!botMember.permissions.has(PermissionFlagsBits.ViewAuditLog)) {
+      safeLog("warn", "discord_guild_log_audit_permission_missing", { requiredPermission: "View Audit Log" });
+    }
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     try {
       const adminAlertsChannel = await prepareAdminAlertsChannel(guild);
@@ -576,11 +544,10 @@ client.once(Events.ClientReady, async readyClient => {
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
     await registerContextCommand(readyClient.application.id);
     if (!leaseHealthy || stopping) throw new Error("worker_lease_lost_during_startup");
-    await refreshWelcomeSettings();
-    welcomeSettingsTimer = setInterval(() => { void refreshWelcomeSettings(); }, 15_000);
-    welcomeSettingsTimer.unref?.();
     stopPollTimer = setInterval(() => { void manager.pollStopRequests(); }, config.stopPollMs);
     stopPollTimer.unref?.();
+    controlSettingsTimer = setInterval(() => { void refreshBotControlSettings(); }, 15_000);
+    controlSettingsTimer.unref?.();
     safeLog("info", "attention_alert_worker_ready", { guildId: config.guildId, botId: readyClient.user.id });
   } catch (error) {
     safeLog("error", "attention_alert_worker_start_failed", { status: error?.status || null, message: error?.message || "unknown" });
@@ -588,9 +555,6 @@ client.once(Events.ClientReady, async readyClient => {
     process.exitCode = 1;
   }
 });
-
-client.on(Events.GuildMemberAdd, member => { void sendWelcome(member); });
-client.on(Events.GuildMemberRemove, member => { void sendGoodbye(member); });
 
 client.on(Events.InteractionCreate, async interaction => {
   if (interaction.isButton() && interaction.customId === LEAVE_PANEL_BUTTON_ID) {
@@ -644,6 +608,32 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
+client.on(Events.MessageDelete, message => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.messageDeleted(message);
+});
+client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.messageUpdated(oldMessage, newMessage);
+});
+client.on(Events.MessageBulkDelete, (messages, channel) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.messagesBulkDeleted(messages, channel);
+});
+client.on(Events.GuildMemberAdd, member => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.memberJoined(member);
+  void welcomeAutomation.memberJoined(member);
+});
+client.on(Events.GuildMemberRemove, member => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.memberLeft(member);
+  void welcomeAutomation.memberLeft(member);
+});
+client.on(Events.GuildAuditLogEntryCreate, (entry, guild) => {
+  if (!leaseHealthy || stopping) return;
+  void guildLogs.auditLogEntry(entry, guild);
+});
 client.on(Events.VoiceStateUpdate, (oldState, newState) => { void handleVoiceStateUpdate(oldState, newState); });
 client.on(Events.Error, error => safeLog("error", "discord_gateway_error", { message: error?.message || "unknown" }));
 client.on(Events.Warn, message => safeLog("warn", "discord_gateway_warning", { message }));
@@ -652,7 +642,7 @@ async function shutdown(reason = "bot_shutdown") {
   if (stopping) return;
   stopping = true;
   clearInterval(stopPollTimer);
-  clearInterval(welcomeSettingsTimer);
+  clearInterval(controlSettingsTimer);
   leaseSupervisor?.stop();
   if (manager) await manager.stopAll(reason);
   if (leaseHealthy) {

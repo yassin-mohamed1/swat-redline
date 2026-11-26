@@ -62,7 +62,7 @@ BEGIN
     '5 seconds',
     $job$
       SELECT net.http_get(
-        url := 'https://swat-redline.vercel.app/api/notifications/send?task=leave',
+        url := 'https://swat-redline.swat-redline.workers.dev/api/notifications/send?task=leave',
         headers := jsonb_build_object(
           'x-announcement-sync-secret',
           (SELECT decrypted_secret

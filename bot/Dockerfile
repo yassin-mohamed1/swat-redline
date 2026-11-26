@@ -5,5 +5,6 @@ RUN apk add --no-cache fontconfig font-noto font-noto-arabic && fc-cache -f
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 COPY . ./
+RUN npm test
 
 CMD ["npm", "start"]

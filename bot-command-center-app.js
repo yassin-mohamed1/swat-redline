@@ -12,7 +12,7 @@ function badge(label,kind){return '<span class="badge '+(kind||"")+'">'+label+'<
 function metric(label,value,note){return '<div class="card"><div class="kicker">'+label+'</div><div class="value">'+esc(value)+'</div><div class="caption">'+note+'</div></div>';}
 function head(title,description,action){return '<div class="view-head"><div><h1>'+title+'</h1><p>'+description+'</p></div>'+(action||"")+'</div>';}
 function apiError(data){return data&&data.error?data.error:t("تعذر تنفيذ العملية.","The request could not be completed.");}
-async function request(path,options){const response=await fetch(path,{credentials:"same-origin",cache:"no-store",...(options||{})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(apiError(data));return data;}
+async function request(path,options){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{const response=await fetch(path,{credentials:"same-origin",cache:"no-store",...(options||{}),signal:controller.signal});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(apiError(data));return data;}catch(error){if(error?.name==="AbortError")throw new Error(t("انتهت مهلة الاتصال. اضغط تحديث وحاول مرة أخرى.","The request timed out. Refresh and try again."));throw error;}finally{clearTimeout(timer);}}
 async function post(data){return request(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});}
 function render(){
   const data=state.data||{};
@@ -304,13 +304,15 @@ function renderLogs(data){
 function renderWelcome(data){
  const control=botControlData(),welcome=control.welcome,channels=(data.channels||[]).filter(channel=>[0,5].includes(Number(channel.type)));
  const templateUrl=new URL("/redline-operator-template.png",location.origin).href;
- const image={enabled:true,template:"redline-operator",backgroundImageUrl:"",backgroundColor:"#101010",overlayColor:"#000000",overlayOpacity:0,font:"condensed",avatarX:82.8,avatarY:40.9,avatarSize:17.2,nameX:51.1,nameY:58,nameSize:4.8,nameWidth:36,nameColor:"#f1f3f4",...(welcome.image||{})};
+ const image={enabled:true,template:"redline-operator",backgroundImageUrl:"",backgroundColor:"#101010",overlayColor:"#000000",overlayOpacity:0,font:"condensed",avatarX:82.8,avatarY:40.9,avatarSize:17.2,nameX:51.1,nameY:58,nameSize:4.8,nameWidth:23.5,nameRotation:0,nameColor:"#f1f3f4",...(welcome.image||{})};
  image.backgroundImageUrl=image.backgroundImageUrl||welcome.imageUrl||"";
- const rangeField=(name,label,value,min,max,step="0.1")=>'<div class="field welcome-range-field"><label for="welcomeRange_'+name+'"><span>'+label+'</span><output id="welcomeRangeValue_'+name+'">'+Number(value)+'%</output></label><input id="welcomeRange_'+name+'" name="'+name+'" data-welcome-image-control type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+Number(value)+'"></div>';
+ if(image.template==="redline-operator")image.nameWidth=Math.min(Number(image.nameWidth)||23.5,23.5);
+ const rangeField=(name,label,value,min,max,step="0.1",unit="%")=>'<div class="field welcome-range-field"><label for="welcomeRange_'+name+'"><span>'+label+'</span><output id="welcomeRangeValue_'+name+'">'+Number(value)+unit+'</output></label><input id="welcomeRange_'+name+'" name="'+name+'" data-welcome-image-control type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+Number(value)+'"></div>';
  const previewFonts={condensed:'"Noto Sans Condensed","Arial Narrow","Noto Kufi Arabic",Arial,sans-serif',discord:'Inter,"Noto Kufi Arabic",Arial,sans-serif',inter:'Inter,"Noto Kufi Arabic",Arial,sans-serif',arabic:'"Noto Sans Arabic","Noto Kufi Arabic",Arial,sans-serif',serif:'Georgia,"Noto Naskh Arabic",serif'};
+ const nameplatePreview='<img class="welcome-preview-nameplate" src="/welcome-nameplate.jpg" alt="" aria-hidden="true">';
  $("#mainView").innerHTML=
   head(t("الترحيب والمغادرة","Welcome & goodbye"),t("استخدم بانر S.W.A.T. نفسه، وحرّك صورة العضو واسمه إلى المكان الذي تريده.","Use the S.W.A.T. banner and place the member's avatar and name exactly where you want them."))+
-  '<div class="notice">'+t("اسحب صورة العضو أو اسمه داخل المعاينة لتحريكهما. أو اضبط الموضع والحجم من أشرطة التحكم. سيُرسل البوت منشن للعضو تلقائيًا مع الصورة.","Drag the avatar or name on the preview, or adjust their positions and sizes below. The bot will mention the member automatically with the image.")+'</div>'+
+   '<div class="notice">'+t("الاسم سيظهر بخط عسكري فضي داخل شارة الصدر الحمراء. اسحب الصورة أو الاسم في المعاينة لضبط المكان، والبوت سيضيف منشن العضو تلقائيًا.","The name appears in metallic tactical lettering inside a red-trim chest patch. Drag the avatar or name in the preview to place them; the bot adds the member mention automatically.")+'</div>'+
   '<form id="welcomeSettingsForm"><section class="panel"><div class="panel-head"><div><h2>'+t("رسالة الترحيب","Welcome message")+'</h2><div class="muted">'+t("تظهر عند انضمام عضو جديد إلى السيرفر.","Sent when a member joins your server.")+'</div></div>'+
    '<label class="checkline"><input class="switch" name="enabled" type="checkbox"'+(welcome.enabled?" checked":"")+'><span>'+t("مفعّل","Enabled")+'</span></label></div>'+
    '<div class="panel-body"><div class="field"><label>'+t("روم الترحيب","Welcome channel")+'</label>'+channelControl("channelId",welcome.channelId,channels,"Discord Channel ID")+'</div>'+
@@ -325,15 +327,16 @@ function renderWelcome(data){
     rangeField("avatarX",t("الموضع الأفقي للصورة","Avatar horizontal position"),image.avatarX,0,100)+
     rangeField("avatarY",t("الموضع الرأسي للصورة","Avatar vertical position"),image.avatarY,0,100)+
     rangeField("avatarSize",t("حجم الصورة","Avatar size"),image.avatarSize,8,35,"0.5")+
-    '<div class="field full welcome-control-heading"><h3>'+t("اسم العضو على الزي","Member name on the uniform")+'</h3><p>'+t("حرّك الاسم إلى مكانه على الصدر، واضبط حجمه وعرضه.","Place the name over the uniform and adjust its size and width.")+'</p></div>'+
+    '<div class="field full welcome-control-heading"><h3>'+t("اسم العضو على الزي","Member name on the uniform")+'</h3><p>'+t("حرّك الاسم إلى مكانه واضبط حجمه وعرضه وميله داخل الشارة.","Place the name, then adjust its size, width, and angle inside the patch.")+'</p></div>'+
     rangeField("nameX",t("الموضع الأفقي للاسم","Name horizontal position"),image.nameX,0,100)+
     rangeField("nameY",t("الموضع الرأسي للاسم","Name vertical position"),image.nameY,0,100)+
     rangeField("nameSize",t("حجم الاسم","Name size"),image.nameSize,2,10,"0.1")+
-    rangeField("nameWidth",t("أقصى عرض للاسم","Maximum name width"),image.nameWidth,10,65,"0.5")+
+    rangeField("nameWidth",t("أقصى عرض للاسم","Maximum name width"),image.nameWidth,10,image.template==="redline-operator"?23.5:65,"0.5")+
+    rangeField("nameRotation",t("زاوية الاسم (0–360°)","Name rotation (0–360°)"),image.nameRotation,0,360,"1","°")+
     '<div class="field"><label>'+t("لون الاسم","Name color")+'</label><div class="welcome-color-control"><input type="color" name="nameColor" data-welcome-image-control value="'+esc(image.nameColor)+'"><span id="welcomeColor_nameColor">'+esc(image.nameColor.toUpperCase())+'</span></div></div>'+
     '<div class="field"><label>'+t("خط الاسم","Name font")+'</label><select name="imageFont" data-welcome-image-control><option value="condensed"'+(image.font==="condensed"?" selected":"")+'>'+t("مكثّف / عسكري","Condensed / tactical")+'</option><option value="discord"'+(image.font==="discord"?" selected":"")+'>'+t("Discord","Discord")+'</option><option value="arabic"'+(image.font==="arabic"?" selected":"")+'>'+t("Noto Arabic","Noto Arabic")+'</option><option value="serif"'+(image.font==="serif"?" selected":"")+'>'+t("Serif","Serif")+'</option></select></div>'+
     '<div class="field full"><label>'+t("شفافية طبقة التعتيم","Overlay opacity")+'</label><div class="welcome-range-row"><input name="overlayOpacity" data-welcome-image-control type="range" min="0" max="70" step="1" value="'+Number(image.overlayOpacity)+'"><output id="welcomeOverlayOpacityLabel">'+Number(image.overlayOpacity)+'%</output></div></div>'+
-    '</div><div class="welcome-preview-frame"><div class="welcome-preview-caption"><b>@YASSIN04897</b><span id="welcomePreviewMessage"></span></div><div class="welcome-preview-card" id="welcomePreviewCard"><div class="welcome-preview-shade" id="welcomePreviewShade"></div><img class="welcome-preview-avatar welcome-draggable" id="welcomePreviewAvatar" data-drag-overlay="avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="'+t("معاينة صورة العضو","Member avatar preview")+'"><strong class="welcome-preview-name welcome-draggable" id="welcomePreviewName" data-drag-overlay="name">YASSIN04897</strong></div><div class="welcome-preview-note">'+t("اسحب الصورة أو الاسم داخل البانر. المعاينة تتحدث مع كل تغيير.","Drag the avatar or name on the banner. The preview updates as you edit.")+'</div></div></div></div></section>'+
+    '</div><div class="welcome-preview-frame"><div class="welcome-preview-caption"><b>@YASSIN04897</b><span id="welcomePreviewMessage"></span></div><div class="welcome-preview-card" id="welcomePreviewCard"><div class="welcome-preview-shade" id="welcomePreviewShade"></div>'+nameplatePreview+'<img class="welcome-preview-avatar welcome-draggable" id="welcomePreviewAvatar" data-drag-overlay="avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="'+t("معاينة صورة العضو","Member avatar preview")+'"><strong class="welcome-preview-name welcome-draggable" id="welcomePreviewName" data-drag-overlay="name">YASSIN04897</strong></div><div class="welcome-preview-note">'+t("اسحب الصورة أو الاسم داخل البانر. المعاينة تتحدث مع كل تغيير.","Drag the avatar or name on the banner. The preview updates as you edit.")+'</div></div></div></div></section>'+
   '<section class="panel"><div class="panel-head"><div><h2>'+t("رسالة المغادرة","Goodbye message")+'</h2><div class="muted">'+t("تظهر عند مغادرة عضو للسيرفر.","Sent when a member leaves your server.")+'</div></div>'+
    '<label class="checkline"><input class="switch" name="goodbyeEnabled" type="checkbox"'+(welcome.goodbyeEnabled?" checked":"")+'><span>'+t("مفعّل","Enabled")+'</span></label></div>'+
    '<div class="panel-body"><div class="field"><label>'+t("روم المغادرة","Goodbye channel")+'</label>'+channelControl("goodbyeChannelId",welcome.goodbyeChannelId,channels,"Discord Channel ID")+'</div>'+
@@ -351,22 +354,25 @@ function renderWelcome(data){
   let safeImage="";
   try{const parsed=new URL(imageUrl,location.href);if(parsed.protocol==="https:"||parsed.origin===location.origin)safeImage='url("'+parsed.href.replace(/"/g,"%22")+'")';}catch{}
   card.dataset.imageEnabled=String(form.elements.imageEnabled.checked);card.style.backgroundColor=backgroundColor;card.style.backgroundImage=safeImage||"none";
-  const avatarSize=safeNumber("avatarSize",17.2),nameWidth=safeNumber("nameWidth",36),nameSize=safeNumber("nameSize",4.8);
+  const avatarSize=safeNumber("avatarSize",17.2),requestedNameWidth=safeNumber("nameWidth",23.5),nameWidth=template==="redline-operator"?Math.min(requestedNameWidth,23.5):requestedNameWidth,nameSize=safeNumber("nameSize",4.8),nameRotation=safeNumber("nameRotation",0);
+  const nameWidthControl=form.elements.nameWidth;if(nameWidthControl){nameWidthControl.max=template==="redline-operator"?"23.5":"65";if(template==="redline-operator"&&Number(nameWidthControl.value)>23.5)nameWidthControl.value="23.5";}
   card.style.setProperty("--avatar-x",safeNumber("avatarX",82.8)+"%");card.style.setProperty("--avatar-y",safeNumber("avatarY",40.9)+"%");card.style.setProperty("--avatar-size",avatarSize+"%");
   card.style.setProperty("--name-x",safeNumber("nameX",51.1)+"%");card.style.setProperty("--name-y",safeNumber("nameY",58)+"%");card.style.setProperty("--name-width",nameWidth+"%");
-  const previewName=$("#welcomePreviewName").textContent,previewWidth=card.getBoundingClientRect().width,maxNamePx=previewWidth*nameWidth/100;
-  const previewFontPx=Math.max(previewWidth*18/1200,Math.min(previewWidth*nameSize/100,maxNamePx/(Math.max(1,Array.from(previewName).length)*.72))));
-  card.style.setProperty("--name-font-size",previewFontPx+"px");
+  const previewWidth=card.getBoundingClientRect().width,maxNamePx=previewWidth*nameWidth/100,previewName=$("#welcomePreviewName"),nameplate=$(".welcome-preview-nameplate");
+  if(nameplate)nameplate.style.display=template==="redline-operator"?"block":"none";
+  previewName.style.color=safeNameColor;previewName.style.fontFamily=previewFonts[font]||previewFonts.condensed;previewName.style.fontSize=Math.max(18,previewWidth*nameSize/100)+"px";previewName.style.maxWidth="none";previewName.style.transform="translate(-50%,-50%)";
+  const naturalNameWidth=previewName.getBoundingClientRect().width,nameScale=Math.min(1,maxNamePx/Math.max(1,naturalNameWidth));
+  previewName.style.transform="translate(-50%,-50%) scaleX("+nameScale+") rotate("+nameRotation+"deg)";
   $("#welcomePreviewAvatar").style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
-  $("#welcomePreviewName").style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
-  $("#welcomePreviewName").style.color=safeNameColor;$("#welcomePreviewName").style.fontFamily=previewFonts[font]||previewFonts.condensed;
+  previewName.style.display=String(values.get("imageEnabled"))==="on"?"block":"none";
+  if(nameplate)nameplate.style.visibility=String(values.get("imageEnabled"))==="on"&&template==="redline-operator"?"visible":"hidden";
   $("#welcomePreviewShade").style.backgroundColor=overlayColor;$("#welcomePreviewShade").style.opacity=String(opacity/100);
   const guildName=String(data.guild?.name||"S.W.A.T. REDLINE"),previewMessage=String(values.get("message")||"").trim().replace(/\{\{user\}\}/gi,"YASSIN04897").replace(/\{\{username\}\}/gi,"YASSIN04897").replace(/\{\{server\}\}/gi,guildName).replace(/\{\{memberCount\}\}/gi,String(Number(data.guild?.approximateMemberCount||0)+1));
   $("#welcomePreviewMessage").textContent=previewMessage;$("#welcomePreviewMessage").hidden=!previewMessage;
   $("#welcomeCustomBackgroundField").hidden=template!=="custom";
   form.elements.backgroundImageUrl.required=template==="custom";
   $("#welcomeOverlayOpacityLabel").textContent=opacity+"%";
-  for(const name of ["avatarX","avatarY","avatarSize","nameX","nameY","nameSize","nameWidth"]){const output=$("#welcomeRangeValue_"+name);if(output)output.textContent=Number(values.get(name)||0)+"%";}
+  for(const name of ["avatarX","avatarY","avatarSize","nameX","nameY","nameSize","nameWidth","nameRotation"]){const output=$("#welcomeRangeValue_"+name);if(output)output.textContent=Number(values.get(name)||0)+(name==="nameRotation"?"°":"%");}
   for(const name of ["nameColor"]){const output=$("#welcomeColor_"+name);if(output)output.textContent=String(values.get(name)||"").toUpperCase();}
  };
  const bindDrag=(element,xName,yName)=>{
@@ -394,6 +400,7 @@ function renderWelcome(data){
     nameY:Number(values.get("nameY")),
     nameSize:Number(values.get("nameSize")),
     nameWidth:Number(values.get("nameWidth")),
+    nameRotation:Number(values.get("nameRotation")),
     nameColor:String(values.get("nameColor")||"#f1f3f4"),
     backgroundImageUrl,
     backgroundColor:String(values.get("backgroundColor")||"#101010"),

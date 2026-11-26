@@ -7,12 +7,13 @@ const WIDTH = 1200;
 const HEIGHT = 675;
 const MAX_REMOTE_IMAGE_BYTES = 6 * 1024 * 1024;
 const DEFAULT_TEMPLATE_PATH = new URL("./welcome-template.png", import.meta.url);
+const DEFAULT_NAMEPLATE_PATH = new URL("./welcome-nameplate.jpg", import.meta.url);
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/avif", "image/gif", "image/jpeg", "image/png", "image/webp"
 ]);
 
 const FONT_FAMILIES = Object.freeze({
-  condensed: '"Noto Sans Condensed", "Arial Narrow", "Noto Sans Arabic", Arial, sans-serif',
+  condensed: '"Roboto Condensed", "Noto Sans Condensed", "Arial Narrow", "Noto Sans Arabic", Arial, sans-serif',
   discord: 'Inter, "Noto Sans Arabic", Arial, sans-serif',
   inter: 'Inter, "Noto Sans Arabic", Arial, sans-serif',
   arabic: '"Noto Sans Arabic", "Noto Sans", Arial, sans-serif',
@@ -20,6 +21,7 @@ const FONT_FAMILIES = Object.freeze({
 });
 
 let defaultTemplateBuffer = null;
+let defaultNameplateBuffer = null;
 
 function isPrivateAddress(address) {
   const version = isIP(address);
@@ -126,7 +128,7 @@ function colorOverlay(image) {
   </svg>`);
 }
 
-function contentSvg(image, member) {
+function contentSvg(image, member, nameplateBase64 = "") {
   const coordinate = (value, fallback) => {
     const number = Number(value);
     return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
@@ -140,20 +142,36 @@ function contentSvg(image, member) {
   const avatarSize = WIDTH * bounded(image.avatarSize, 17.2, 8, 35) / 100;
   const nameX = WIDTH * coordinate(image.nameX, 51.1) / 100;
   const nameY = HEIGHT * coordinate(image.nameY, 58) / 100;
-  const nameWidth = WIDTH * bounded(image.nameWidth, 36, 10, 65) / 100;
+  const nameRotation = bounded(image.nameRotation, 0, 0, 360);
+  const configuredNameWidth = WIDTH * bounded(image.nameWidth, 23.5, 10, 65) / 100;
+  const nameWidth = image.template === "redline-operator"
+    ? Math.min(configuredNameWidth, WIDTH * 0.235)
+    : configuredNameWidth;
   const requestedNameSize = WIDTH * bounded(image.nameSize, 4.8, 2, 10) / 100;
   const fontFamily = FONT_FAMILIES[image.font] || FONT_FAMILIES.condensed;
   const name = shortText(String(member.displayName || member.username || "New member").toLocaleUpperCase(), 48);
   const nameLength = Math.max(1, Array.from(name).length);
-  const nameFont = Math.max(18, Math.min(requestedNameSize, nameWidth / (nameLength * 0.72)));
+  const nameFont = Math.max(18, requestedNameSize);
+  const plateWidth = 420;
+  const plateHeight = 113;
+  const nameTextLength = Math.max(36, Math.min(nameWidth, plateWidth - 145, nameFont * nameLength * 0.48));
+  const naturalNameWidth = nameFont * nameLength * 0.57 + nameLength * 1.1;
+  const nameScale = Math.min(1, nameTextLength / Math.max(1, naturalNameWidth));
   const color = /^#[0-9a-f]{6}$/i.test(image.nameColor || "") ? image.nameColor : "#f1f3f4";
   const avatarClip = `<clipPath id="memberAvatar"><circle cx="${avatarX}" cy="${avatarY}" r="${avatarSize / 2}"/></clipPath>`;
   const shadow = `<filter id="nameShadow" x="-30%" y="-70%" width="160%" height="240%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity=".92"/></filter>`;
+  const plateLeft = WIDTH * 0.46 - plateWidth / 2;
+  const plateTop = HEIGHT * 0.58 - plateHeight / 2;
+  const plate = image.template === "redline-operator" && nameplateBase64
+    ? `<image href="data:image/jpeg;base64,${nameplateBase64}" x="${plateLeft}" y="${plateTop}" width="${plateWidth}" height="${plateHeight}" preserveAspectRatio="none"/>`
+    : "";
+  const nameMetal = `<linearGradient id="nameMetal" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".28" stop-color="${color}"/><stop offset=".52" stop-color="#fff" stop-opacity=".9"/><stop offset=".63" stop-color="${color}"/><stop offset="1" stop-color="${color}"/></linearGradient>`;
 
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
-    <defs>${avatarClip}${shadow}</defs>
+    <defs>${avatarClip}${shadow}${nameMetal}</defs>
+    ${plate}
     <image href="data:image/png;base64,${member.avatarBase64}" x="${avatarX - avatarSize / 2}" y="${avatarY - avatarSize / 2}" width="${avatarSize}" height="${avatarSize}" preserveAspectRatio="xMidYMid slice" clip-path="url(#memberAvatar)"/>
-    <text x="${nameX}" y="${nameY}" fill="${color}" font-family="${escapeXml(fontFamily)}" font-size="${nameFont}" font-weight="900" letter-spacing=".4" text-anchor="middle" dominant-baseline="central" filter="url(#nameShadow)">${escapeXml(name)}</text>
+    <g transform="translate(${nameX} ${nameY}) rotate(${nameRotation}) scale(${nameScale} 1) translate(${-nameX} ${-nameY})"><text x="${nameX}" y="${nameY}" fill="url(#nameMetal)" stroke="#16191d" stroke-width="1.2" paint-order="stroke fill" font-family="${escapeXml(fontFamily)}" font-size="${nameFont}" font-weight="900" letter-spacing="1.1" text-anchor="middle" dominant-baseline="central" filter="url(#nameShadow)">${escapeXml(name)}</text></g>
   </svg>`);
 }
 
@@ -205,10 +223,19 @@ export async function renderWelcomeImage(imageSettings = {}, member = {}) {
     ...member,
     avatarBase64: resizedAvatar.toString("base64")
   };
+  let nameplateBase64 = "";
+  if (image.template === "redline-operator") {
+    try {
+      defaultNameplateBuffer ||= await readFile(DEFAULT_NAMEPLATE_PATH);
+      nameplateBase64 = defaultNameplateBuffer.toString("base64");
+    } catch (error) {
+      console.warn("Welcome nameplate texture could not be loaded:", error?.message || "unknown");
+    }
+  }
   const output = await sharp(background, { limitInputPixels: 40_000_000 })
     .composite([
       { input: colorOverlay(image) },
-      { input: contentSvg(image, renderMember) }
+      { input: contentSvg(image, renderMember, nameplateBase64) }
     ])
     .png({ compressionLevel: 8 })
     .toBuffer();
