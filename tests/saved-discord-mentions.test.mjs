@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeMentionSelections, selectSavedMessageDmRecipients } from "../lib/saved-discord-messages.js";
+import {
+  normalizeMentionSelections,
+  selectSavedMessageDmRecipients,
+  filterSavedMessageBulkRecipientsBySwatRole
+} from "../lib/saved-discord-messages.js";
 
 test("explicit role, user and channel mentions are allow-listed only", () => {
   const result = normalizeMentionSelections([
@@ -111,4 +115,101 @@ test("saved-message bulk direct delivery rejects a batch above 200 without a par
     { recipient_mode:"all" }, many,
     { dmEnabled:true, broadcastEnabled:true }
   ), /الحد الآمن للإرسال من طلب واحد هو 200/);
+});
+
+
+const testGuildId = "777777777777777777";
+const testSwatRoleId = "888888888888888888";
+const bulkProfile = (id, displayName = "Member") => ({
+  discord_user_id:id, display_name:displayName,
+  notifications_enabled:true, is_active:true, is_banned:false
+});
+
+test("bulk DM role verification fetches guild members once and filters opted-in recipients in memory", async () => {
+  const ids = ["111111111111111111","222222222222222222","333333333333333333"];
+  const paths = [];
+  const result = await filterSavedMessageBulkRecipientsBySwatRole(
+    { botToken:"test-token" },
+    ids.map((id,index)=>bulkProfile(id,"Member "+index)),
+    {
+      guildId:testGuildId,
+      roleId:testSwatRoleId,
+      requestMembersPage:async path=>{
+        paths.push(path);
+        return [
+          { user:{id:ids[0],bot:false}, roles:[testSwatRoleId] },
+          { user:{id:ids[1],bot:false}, roles:["999999999999999999"] },
+          { user:{id:ids[2],bot:true}, roles:[testSwatRoleId] }
+        ];
+      }
+    }
+  );
+  assert.deepEqual(result.recipients.map(item=>item.discord_user_id),[ids[0]]);
+  assert.equal(result.roleId,testSwatRoleId);
+  assert.equal(result.checked,3);
+  assert.equal(result.pages_scanned,1);
+  assert.equal(paths.length,1);
+  assert.equal(paths[0],"/guilds/"+testGuildId+"/members?limit=1000");
+});
+
+test("bulk DM role verification paginates only when an unverified recipient is above the current Discord cursor", async () => {
+  const firstId="100000000000000005";
+  const laterId="200000000000000000";
+  const firstPage=Array.from({length:1000},(_,index)=>({
+    user:{id:String(100000000000000000n+BigInt(index)),bot:false},
+    roles:[]
+  }));
+  firstPage[5]={user:{id:firstId,bot:false},roles:[testSwatRoleId]};
+  const paths=[];
+  const result=await filterSavedMessageBulkRecipientsBySwatRole(
+    {botToken:"test-token"},
+    [bulkProfile(firstId,"First"),bulkProfile(laterId,"Later")],
+    {
+      guildId:testGuildId,roleId:testSwatRoleId,
+      requestMembersPage:async path=>{
+        paths.push(path);
+        return paths.length===1
+          ? firstPage
+          : [{user:{id:laterId,bot:false},roles:[]}];
+      }
+    }
+  );
+  assert.deepEqual(result.recipients.map(item=>item.discord_user_id),[firstId]);
+  assert.equal(result.checked,2);
+  assert.equal(result.pages_scanned,2);
+  assert.equal(paths.length,2);
+  assert.ok(paths[1].includes("after=100000000000000999"));
+});
+
+test("bulk DM role verification fails closed when the member scan cannot reach every selected recipient", async () => {
+  const laterId="200000000000000000";
+  const firstPage=Array.from({length:1000},(_,index)=>({
+    user:{id:String(100000000000000000n+BigInt(index)),bot:false},
+    roles:[]
+  }));
+  await assert.rejects(
+    filterSavedMessageBulkRecipientsBySwatRole(
+      {botToken:"test-token"},
+      [bulkProfile(laterId,"Unverified")],
+      {
+        guildId:testGuildId,roleId:testSwatRoleId,maxPages:1,
+        requestMembersPage:async()=>firstPage
+      }
+    ),
+    error=>error.code==="role_verification_incomplete"&&error.status===503
+  );
+});
+
+test("bulk DM role verification reports Discord rate limits before starting any DM", async () => {
+  await assert.rejects(
+    filterSavedMessageBulkRecipientsBySwatRole(
+      {botToken:"test-token"},
+      [bulkProfile("111111111111111111")],
+      {
+        guildId:testGuildId,roleId:testSwatRoleId,
+        requestMembersPage:async()=>{throw Object.assign(new Error("rate limited"),{status:429,code:429});}
+      }
+    ),
+    error=>error.code==="429"&&error.status===503&&error.message.includes("429")
+  );
 });
