@@ -7,18 +7,18 @@ test("member avatar remains visible inside the card frame without covering its b
   const pathStart = html.indexOf("function unitCardAvatarPath(ctx)");
   const coverStart = html.indexOf("function unitCardCoverImage(ctx,image,settings)");
   const paintStart = html.indexOf("async function unitCardPaint(");
-  const previewStart = html.indexOf("\nasync function drawUnitCardEditorPreview", paintStart);
+  const previewStart = html.indexOf("\\nasync function drawUnitCardEditorPreview", paintStart);
 
   assert.ok(pathStart >= 0 && coverStart > pathStart, "dedicated inner photo aperture exists");
   assert.ok(paintStart >= 0 && previewStart > paintStart, "unit-card renderer exists");
 
   const path = html.slice(pathStart, coverStart);
-  const cover = html.slice(coverStart, html.indexOf("\nfunction unitCardDrawText", coverStart));
+  const cover = html.slice(coverStart, html.indexOf("\\nfunction unitCardDrawText", coverStart));
   const renderer = html.slice(paintStart, previewStart);
 
-  assert.match(path, /moveTo\(1474,190\)/);
-  assert.match(path, /lineTo\(1883,571\)/);
-  assert.match(cover, /unitCardAvatarPath\(ctx\);ctx\.clip\(\)/);
+  assert.match(path, /moveTo\\(1474,190\\)/);
+  assert.match(path, /lineTo\\(1883,571\\)/);
+  assert.match(cover, /unitCardAvatarPath\\(ctx\\);ctx\\.clip\\(\\)/);
 
   const templateLayer = renderer.indexOf("context.drawImage(unitCardTemplateImage,0,0,2048,768)");
   const aperturePath = renderer.indexOf("unitCardAvatarPath(context)");
@@ -30,4 +30,16 @@ test("member avatar remains visible inside the card frame without covering its b
   assert.ok(aperturePath > templateLayer && apertureFill > aperturePath, "only the inner photo window receives its background fill");
   assert.ok(avatarLayer > apertureFill, "avatar is drawn inside the cleared window");
   assert.ok(nameLayer > avatarLayer, "member details remain above the photo and frame");
+});
+
+test("saved avatar zoom below 100 percent is normalized to fill the photo window", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const normalizeStart = html.indexOf("function normalizeUnitCardDesign(value)");
+  const normalizeEnd = html.indexOf("\\nfunction unitCardEligibleMembers", normalizeStart);
+  assert.ok(normalizeStart >= 0 && normalizeEnd > normalizeStart, "saved design normalizer exists");
+
+  const normalizer = html.slice(normalizeStart, normalizeEnd);
+  assert.match(normalizer, /avatar\\.zoom=Math\\.max\\(1,Math\\.min\\(2\\.5,Number\\(avatar\\.zoom\\)\\|\\|1\\)\\)/);
+  assert.match(html, /id="unitCardAvatarZoom" type="range" min="100" max="250"/);
+  assert.match(html, /Math\\.max\\(1,Math\\.min\\(2\\.5,Number\\(settings\\.zoom\\)\\|\\|1\\)\\)/);
 });
