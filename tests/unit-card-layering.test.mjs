@@ -6,12 +6,12 @@ test("member photo fills the real transparent template opening and keeps the fra
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const coverStart = html.indexOf("function unitCardCoverImage(ctx,image,settings)");
   const paintStart = html.indexOf("async function unitCardPaint(");
-  const previewStart = html.indexOf("\\nasync function drawUnitCardEditorPreview", paintStart);
+  const previewStart = html.indexOf("\nasync function drawUnitCardEditorPreview", paintStart);
 
   assert.ok(html.includes("const UNIT_CARD_PHOTO_FRAME=Object.freeze({x:1401,y:127,width:570,height:516})"));
   assert.ok(coverStart >= 0 && paintStart > coverStart && previewStart > paintStart);
 
-  const cover = html.slice(coverStart, html.indexOf("\\nfunction unitCardDrawText", coverStart));
+  const cover = html.slice(coverStart, html.indexOf("\nfunction unitCardDrawText", coverStart));
   const renderer = html.slice(paintStart, previewStart);
 
   assert.ok(cover.includes("const frame=UNIT_CARD_PHOTO_FRAME"));
@@ -29,7 +29,7 @@ test("member photo fills the real transparent template opening and keeps the fra
 test("saved avatar zoom below 120 percent is normalized to preserve room for panning", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const normalizeStart = html.indexOf("function normalizeUnitCardDesign(value)");
-  const normalizeEnd = html.indexOf("\\nfunction unitCardEligibleMembers", normalizeStart);
+  const normalizeEnd = html.indexOf("\nfunction unitCardEligibleMembers", normalizeStart);
   assert.ok(normalizeStart >= 0 && normalizeEnd > normalizeStart);
   const normalizer = html.slice(normalizeStart, normalizeEnd);
   assert.ok(normalizer.includes("avatar.zoom=Math.max(1.2,Math.min(2.5,Number(avatar.zoom)||1.2))"));
