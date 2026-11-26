@@ -8,13 +8,13 @@ test("member photo is drawn beneath the original card frame", async () => {
   const overlayStart = html.indexOf("function unitCardFrameOverlay()");
   const coverStart = html.indexOf("function unitCardCoverImage(ctx,image,settings)");
   const paintStart = html.indexOf("async function unitCardPaint(");
-  const previewStart = html.indexOf("\\nasync function drawUnitCardEditorPreview", paintStart);
+  const previewStart = html.indexOf("\nasync function drawUnitCardEditorPreview", paintStart);
 
   assert.ok(pathStart >= 0 && overlayStart > pathStart && coverStart > overlayStart);
   assert.ok(paintStart >= 0 && previewStart > paintStart);
   const path = html.slice(pathStart, overlayStart);
   const overlay = html.slice(overlayStart, coverStart);
-  const cover = html.slice(coverStart, html.indexOf("\\nfunction unitCardDrawText", coverStart));
+  const cover = html.slice(coverStart, html.indexOf("\nfunction unitCardDrawText", coverStart));
   const renderer = html.slice(paintStart, previewStart);
 
   assert.ok(path.includes("moveTo(1447,142)"));
@@ -35,7 +35,7 @@ test("member photo is drawn beneath the original card frame", async () => {
 test("saved avatar zoom below 120 percent is normalized to preserve room for panning", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const normalizeStart = html.indexOf("function normalizeUnitCardDesign(value)");
-  const normalizeEnd = html.indexOf("\\nfunction unitCardEligibleMembers", normalizeStart);
+  const normalizeEnd = html.indexOf("\nfunction unitCardEligibleMembers", normalizeStart);
   assert.ok(normalizeStart >= 0 && normalizeEnd > normalizeStart);
   const normalizer = html.slice(normalizeStart, normalizeEnd);
   assert.ok(normalizer.includes("avatar.zoom=Math.max(1.2,Math.min(2.5,Number(avatar.zoom)||1.2))"));
