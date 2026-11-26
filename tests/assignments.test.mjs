@@ -308,6 +308,10 @@ test("unit-card action label always offers send or update and recreates a delete
   const rowEnd = html.indexOf("\n  return '<tr", rowStart);
   assert.ok(rowStart >= 0 && rowEnd > rowStart);
   const button = html.slice(rowStart, rowEnd);
+  assert.match(button, /const actionDisabledReason=/);
+  assert.match(button, /إدارة التعيين/);
+  assert.match(button, /const action='<button class="btn"/);
+  assert.match(button, /const identityButton='<button class="btn primary"/);
   assert.match(button, /إرسال بطاقة جديدة أو تحديث البطاقة/);
   assert.doesNotMatch(button, /identity\.message_id\?'تحديث الهوية':'إرسال الهوية'/);
 
