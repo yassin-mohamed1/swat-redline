@@ -349,7 +349,7 @@ test("SWAT UNITS channel controls clear the specified channel and republish exis
   assert.match(clearHandler, /channel_id:null,message_id:null,published_at:null/);
   assert.match(clearHandler, /staff_member_identities\?channel_id=eq\./);
   assert.match(publishHandler, /messages\?limit=1/);
-  assert.match(publishHandler, /روم SWAT UNITS ليس فارغًا/);
+  assert.match(publishHandler, /التحديث القديم يتطلب رومًا فارغًا؛ استخدم زر تصميم بطاقة العضو من البوابة/);
   assert.match(publishHandler, /assignmentMapLimit\(cards,4/);
   assert.match(publishHandler, /memberIdentityEmbed/);
   assert.match(publishHandler, /unit_sort_order:index/);
