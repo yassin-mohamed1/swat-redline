@@ -4630,6 +4630,7 @@ let unitCardPreviewRequest=0;
 let unitCardDragging=null;
 const unitCardImageCache=new Map();
 const unitCardImageDimensions=new Map();
+let unitCardFrameOverlayCanvas=null;
 const unitCardTemplateImage=new Image();unitCardTemplateImage.src='/unit-operator-template.png';
 function normalizeUnitCardDesign(value){
  const source=value&&typeof value==='object'?value:{};
@@ -4656,6 +4657,17 @@ function unitCardAvatarPath(ctx){
  ctx.moveTo(1440,130);ctx.lineTo(1895,130);ctx.lineTo(1920,155);ctx.lineTo(1920,615);
  ctx.lineTo(1895,640);ctx.lineTo(1440,640);ctx.lineTo(1415,615);ctx.lineTo(1415,155);ctx.closePath();
 }
+function unitCardFrameOverlay(){
+ if(unitCardFrameOverlayCanvas)return unitCardFrameOverlayCanvas;
+ const overlay=document.createElement('canvas');overlay.width=2048;overlay.height=768;
+ const overlayContext=overlay.getContext('2d');
+ overlayContext.drawImage(unitCardTemplateImage,0,0,2048,768);
+ overlayContext.globalCompositeOperation='destination-out';
+ unitCardAvatarPath(overlayContext);overlayContext.fill();
+ overlayContext.globalCompositeOperation='source-over';
+ unitCardFrameOverlayCanvas=overlay;
+ return overlay;
+}
 function unitCardCoverImage(ctx,image,settings){
  const frame={x:1415,y:130,width:505,height:510};
  ctx.save();unitCardAvatarPath(ctx);ctx.clip();
@@ -4677,9 +4689,12 @@ async function unitCardPaint(canvas,member,requireAvatar=false){
  if(member?.avatar_url){try{avatar=await unitCardLoadImage(member.avatar_url)}catch(error){if(requireAvatar)throw error}}
  else if(requireAvatar)throw new Error('هذا العضو ليس لديه صورة Discord متاحة للبطاقة.');
  const context=canvas.getContext('2d');context.clearRect(0,0,2048,768);
- context.drawImage(unitCardTemplateImage,0,0,2048,768);
- context.save();unitCardAvatarPath(context);context.fillStyle='#08070b';context.fill();context.restore();
- if(avatar)unitCardCoverImage(context,avatar,unitCardDesign.avatar);
+ if(avatar){
+  unitCardCoverImage(context,avatar,unitCardDesign.avatar);
+  context.drawImage(unitCardFrameOverlay(),0,0,2048,768);
+ }else{
+  context.drawImage(unitCardTemplateImage,0,0,2048,768);
+ }
  unitCardDrawText(context,values.name,unitCardDesign.name,680);
  unitCardDrawText(context,values.rank,unitCardDesign.rank,580);
  unitCardDrawText(context,values.callsign,unitCardDesign.callsign,455);
