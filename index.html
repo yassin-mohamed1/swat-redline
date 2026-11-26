@@ -4541,13 +4541,23 @@ function renderAssignmentRows(){
   const canEdit=member.in_guild!==false&&member.account_status==='active';
   const avatar=member.avatar_url?'<img src="'+assignmentEscape(member.avatar_url)+'" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">':'';
   const memberId=String(member.discord_user_id||'');
-  const action=canEdit?'<button class="btn" type="button" onclick="openAssignmentModal(\''+assignmentEscape(memberId)+'\')">إدارة التعيين</button>':'<span class="muted">غير متاح</span>';
+  const actionDisabledReason=!currentCanAdmin&&!currentCanManageAssignments
+    ?'ليست لديك صلاحية إدارة التعيينات'
+    :member.in_guild===false
+      ?'العضو خارج سيرفر Discord'
+      :member.account_status!=='active'
+        ?'حالة الحساب لا تسمح بالتعيين'
+        :'';
+  const action='<button class="btn" type="button" '+(actionDisabledReason?'disabled title="'+assignmentEscape(actionDisabledReason)+'" ':'')+'onclick="openAssignmentModal(\''+assignmentEscape(memberId)+'\')">إدارة التعيين</button>';
   const cityRank=identity?.city_rank_label||'غير محددة';
-  const identityButton=!canEdit
-    ?'<span class="muted">غير متاح</span>'
+  const identityDisabledReason=!canEdit
+    ?'العضو غير متاح حاليًا'
     :!identity?.city_rank
-      ?'<span class="muted">حدد City Rank أولًا</span>'
-      :'<button class="btn primary" type="button" '+(assignmentIdentityBusy.has(memberId)?'disabled ':'')+'onclick="publishMemberIdentity(\''+assignmentEscape(memberId)+'\')">'+(assignmentIdentityBusy.has(memberId)?'جارٍ الإرسال...':'إرسال بطاقة جديدة أو تحديث البطاقة')+'</button>';
+      ?'حدد City Rank أولًا'
+      :member.assignment?.status!=='assigned'
+        ?'يجب حفظ تعيين فعال أولًا'
+        :'';
+  const identityButton='<button class="btn primary" type="button" '+(identityDisabledReason||assignmentIdentityBusy.has(memberId)?'disabled title="'+assignmentEscape(identityDisabledReason||'جارٍ الإرسال...')+'" ':'')+'onclick="publishMemberIdentity(\''+assignmentEscape(memberId)+'\')">'+(assignmentIdentityBusy.has(memberId)?'جارٍ الإرسال...':'إرسال بطاقة جديدة أو تحديث البطاقة')+'</button>';
   return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+pendingRegistrationBadge(member)+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(memberId)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+(identity?.city_rank?'green':'gray')+'">'+assignmentEscape(cityRank)+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+identityButton+'</td><td>'+action+'</td></tr>';
  }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
 }
