@@ -4668,8 +4668,9 @@ async function unitCardPaint(canvas,member,requireAvatar=false){
  const values=unitCardTextValues(member);let avatar=null;
  if(member?.avatar_url){try{avatar=await unitCardLoadImage(member.avatar_url)}catch(error){if(requireAvatar)throw error}}
  else if(requireAvatar)throw new Error('هذا العضو ليس لديه صورة Discord متاحة للبطاقة.');
- const context=canvas.getContext('2d');context.clearRect(0,0,2048,768);context.drawImage(unitCardTemplateImage,0,0,2048,768);
+ const context=canvas.getContext('2d');context.clearRect(0,0,2048,768);
  if(avatar)unitCardCoverImage(context,avatar,unitCardDesign.avatar);
+ context.drawImage(unitCardTemplateImage,0,0,2048,768);
  unitCardDrawText(context,values.name,unitCardDesign.name,680);
  unitCardDrawText(context,values.rank,unitCardDesign.rank,580);
  unitCardDrawText(context,values.callsign,unitCardDesign.callsign,455);

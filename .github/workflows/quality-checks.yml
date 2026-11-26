@@ -2,9 +2,9 @@ name: Portal quality checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, cloudflare-parallel]
   pull_request:
-    branches: [main]
+    branches: [main, cloudflare-parallel]
 
 permissions:
   contents: read
