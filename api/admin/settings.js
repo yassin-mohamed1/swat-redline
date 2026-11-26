@@ -3,6 +3,7 @@ import { requireSameOrigin } from "../../lib/request-security.js";
 import { forwardAuditEventsToDiscord, forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin.js";
 import { validateProjectCodePackage, publishProjectCodePackage } from "../../lib/project-code.js";
+import { validateAutomaticNotificationChannelId } from "../../lib/notification-channel-routing.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "2mb" } } };
 async function appendAdminAuditEvent(user,event) {
@@ -161,6 +162,7 @@ export default async function handler(req, res) {
         "notificationChannelEnabled",
         "notificationMemberDmEnabled",
         "disciplinaryTargetMentionEnabled",
+        "automaticNotificationChannelId",
         "unitCardDesign"
       ]);
       for (const row of rows) {
@@ -172,11 +174,19 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "customMenuItems", "unitCardDesign"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "automaticNotificationChannelId", "customMenuItems", "unitCardDesign"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
-      const raw = JSON.stringify(value);
+      let storedValue = value;
+      if (k === "automaticNotificationChannelId") {
+        try {
+          storedValue = validateAutomaticNotificationChannelId(value);
+        } catch (error) {
+          return res.status(400).json({ error: error.message || "قناة الإشعارات التلقائية غير صالحة." });
+        }
+      }
+      const raw = JSON.stringify(storedValue);
       if (raw.length > 120000) return res.status(413).json({ error: "A setting is too large" });
       if (k.endsWith("Color") && (typeof value !== "string" || !/^#[0-9a-fA-F]{6}$/.test(value))) return res.status(400).json({ error: "Invalid color value" });
       if (["notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled"].includes(k) && typeof value !== "boolean") return res.status(400).json({ error: k + " must be a boolean" });
@@ -251,7 +261,7 @@ export default async function handler(req, res) {
           for (const image of value.gallery) if (!plainObject(image) || typeof image.title !== "string" || image.title.length > 100 || !safeImageUrl(image.url) || !image.url) return res.status(400).json({ error: "Invalid gallery image" });
         }
       }
-      rows.push({ key: k, value, updated_by: user.id, updated_at: new Date().toISOString() });
+      rows.push({ key: k, value: storedValue, updated_by: user.id, updated_at: new Date().toISOString() });
     }
     if (!rows.length) return res.status(400).json({ error: "No supported settings supplied" });
     const previousResponse=await fetch(base+"/rest/v1/site_settings?select=key,value",{headers});

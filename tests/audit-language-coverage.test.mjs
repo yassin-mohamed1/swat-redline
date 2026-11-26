@@ -8,7 +8,7 @@ test("Arabic-English phrase index refreshes after the final translation dictiona
   const html = await read("index.html");
   const finalTranslation = html.lastIndexOf('"تم تسجيل الخروج":"Signed out"');
   const refresh = html.lastIndexOf("portalTranslationEntries.splice(0,portalTranslationEntries.length");
-  const firstApply = html.lastIndexOf("\napplyPortalLanguage();");
+  const firstApply = html.lastIndexOf("try { applyPortalLanguage();");
   assert.ok(finalTranslation >= 0, "late phrase translations should exist");
   assert.ok(refresh > finalTranslation, "phrase index must include all late dictionaries");
   assert.ok(firstApply > refresh, "initial translation pass must run after the index refresh");

@@ -6,10 +6,10 @@ const read = path => readFile(new URL(path, import.meta.url), "utf8");
 
 test("manual bulk DMs require live S.W.A.T. role verification before any DM is sent", async () => {
   const api = await read("../api/notifications/send.js");
-  assert.match(api, /const REQUIRED_SWT_DM_ROLE_ID = "1561561038263029900"/);
+  assert.match(api, /process\.env\.DISCORD_ROLE_ID/);
   assert.match(api, /async function verifyDiscordSwatRole\(config, discordUserIds\)/);
   assert.match(api, /\/guilds\/.*\/members\//);
-  assert.match(api, /roles\.includes\(REQUIRED_SWT_DM_ROLE_ID\)/);
+  assert.match(api, /roles\.includes\(requiredRoleId\)/);
   assert.match(api, /private broadcast withheld/);
   assert.match(api, /role_check: roleCheck/);
   const verificationAt = api.indexOf("verifyDiscordSwatRole(config, candidateRecipients.map");
@@ -21,9 +21,9 @@ test("manual bulk DMs require live S.W.A.T. role verification before any DM is s
 
 test("saved-message bulk delivery verifies live S.W.A.T. role while a targeted single member is exempt", async () => {
   const saved = await read("../lib/saved-discord-messages.js");
-  assert.ok(saved.includes('const REQUIRED_SWT_DM_ROLE_ID = "1561561038263029900"'));
+  assert.ok(saved.includes("process.env.DISCORD_ROLE_ID"));
   assert.ok(saved.includes("async function filterSavedMessageBulkRecipientsBySwatRole"));
-  assert.ok(saved.includes("roles.includes(REQUIRED_SWT_DM_ROLE_ID)"));
+  assert.ok(saved.includes("roles.includes(requiredRoleId)"));
   assert.ok(saved.includes("Number(error?.status) === 404"));
   const singleAt = saved.indexOf('if (mode === "single")');
   const verifyAt = saved.indexOf('if (String(input?.recipient_mode || "") === "all")');
@@ -33,11 +33,11 @@ test("saved-message bulk delivery verifies live S.W.A.T. role while a targeted s
 });
 test("announcement channel forwarder also verifies current S.W.A.T. membership and fails closed", async () => {
   const forwarder = await read("../lib/announcement-forwarder.js");
-  assert.match(forwarder, /const REQUIRED_SWT_DM_ROLE_ID = "1561561038263029900"/);
+  assert.match(forwarder, /process\.env\.DISCORD_ROLE_ID/);
   assert.match(forwarder, /async function verifyAnnouncementRecipients/);
-  assert.match(forwarder, /roles\.includes\(REQUIRED_SWT_DM_ROLE_ID\)/);
+  assert.match(forwarder, /roles\.includes\(requiredRoleId\)/);
   assert.match(forwarder, /Could not verify current S\.W\.A\.T\. role membership/);
-  assert.match(forwarder, /role_required: REQUIRED_SWT_DM_ROLE_ID/);
+  assert.match(forwarder, /role_required: roleCheck\.roleId/);
 });
 
 test("channel publishing remains independent from the DM recipient gate", async () => {
@@ -48,4 +48,15 @@ test("channel publishing remains independent from the DM recipient gate", async 
   assert.ok(channelAt > 0 && dmVerificationAt > 0 && channelBlockEnd > channelAt);
   assert.match(api.slice(channelAt, channelBlockEnd), /discordRequest/);
   assert.match(api.slice(dmVerificationAt, channelAt), /recipients = candidateRecipients\.filter/);
+});
+
+test("DM eligibility uses the access role rather than the notification-mention role", async () => {
+  const api = await read("../api/notifications/send.js");
+  const saved = await read("../lib/saved-discord-messages.js");
+  const forwarder = await read("../lib/announcement-forwarder.js");
+  for (const source of [api, saved, forwarder]) {
+    assert.match(source, /process\.env\.DISCORD_ROLE_ID/);
+    assert.doesNotMatch(source, /1561561038263029900/);
+  }
+  assert.match(api, /config\.notificationRoleId/);
 });

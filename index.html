@@ -2048,7 +2048,17 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 <section class="page" id="page-gallery"><div class="sectionhead"><div><h2>صور الموقع</h2><div class="sub">معرض صور الموقع التي تضيفها الإدارة</div></div></div><div class="panel"><div class="panelhead"><h3>معرض الصور</h3><span class="sub" id="siteGalleryCount">0 صورة</span></div><div class="panelbody"><div id="siteGalleryPublic" class="site-gallery-grid"></div></div></div></section><section class="page" id="page-settings"><div class="sectionhead"><div><h2>إعدادات الحساب</h2><div class="sub">إدارة إشعاراتك وتفضيلات حسابك، وإعدادات النظام للمالك وWebsite Admin</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>إشعارات Discord</h3><span class="tag gray">إعداد شخصي</span></div><div class="panelbody"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>استقبال التنبيهات الخاصة</b><p class="muted" style="line-height:1.8;margin:6px 0 0">رسائل الخاص من بوت البوابة مفعّلة تلقائيًا بعد دخولك. لو مش حابب تستقبل رسائل خاصة من البوت، شيل علامة الصح هنا. التغيير يمنع رسائل الخاص من التعيينات والتحذيرات والتنبيهات والإعلانات المحوّلة، لكنه لا يوقف منشورات قنوات Discord أو المنشنات داخل السيرفر. تقدر ترجع تفعّلها في أي وقت.</p></div><label for="discordNotificationsToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="discordNotificationsToggle" type="checkbox" disabled onchange="saveDiscordNotificationPreference(this.checked)" style="accent-color:var(--red);width:18px;height:18px"> استقبال رسائل التنبيه</label></div><div id="discordNotificationsStatus" class="muted" style="margin-top:12px">جاري تحميل تفضيلات الإشعارات...</div></div></div><div id="ownerSettingsPanels" style="display:none"><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>حالة اتصال بوت Discord</h3><span id="discordBotStatusBadge" class="tag gray">لم يتم الفحص</span></div><div class="panelbody"><p class="muted">افحص أن البوت مثبت في نفس سيرفر Discord المستخدم لتسجيل الدخول إلى البوابة. هذا الفحص لا يعرض التوكن.</p><button class="btn primary" type="button" onclick="checkDiscordBotStatus(this)">فحص اتصال البوت بالسيرفر</button><div id="discordBotStatusMessage" class="muted" style="margin-top:10px">لم يتم إجراء الفحص بعد.</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>التحكم في منشن SWAT</h3><span class="tag gray">خاص بالإدارة</span></div><div class="panelbody"><div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>إيقاف منشن رتبة SWAT مؤقتًا</b><p class="muted" style="margin:6px 0 0;line-height:1.8">هذا الإعداد يتحكم في منشن رتبة @SWAT داخل التنبيهات العامة وإعلانات التحذيرات وقرارات الفصل. عند إيقافه، لن يظهر منشن رتبة SWAT في أي من هذه الرسائل. منشن العضو المستهدف له إعداد مستقل بالأسفل.</p></div><label for="notificationMentionDisabledToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="notificationMentionDisabledToggle" type="checkbox" checked disabled onchange="saveNotificationMentionPreference(this.checked)" style="accent-color:var(--red);width:18px;height:18px"> إيقاف المنشن مؤقتًا</label></div><div id="notificationMentionStatus" class="muted" style="margin-top:12px">جاري تحميل إعداد المنشن...</div></div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>التحكم في منشن العضو المستهدف</h3><span class="tag gray">خاص بالإدارة</span></div><div class="panelbody" style="display:grid;gap:15px">
 <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>منشن العضو المستهدف</b><p class="muted" style="margin:6px 0 0;line-height:1.8">عند التفعيل، سيظهر منشن مباشر للشخص الذي صدر بحقه WARNING أو FIRED داخل إعلان قناة التحذيرات. أما منشن رتبة @SWAT فيتم التحكم فيه من خيار «إيقاف منشن رتبة SWAT مؤقتًا» أعلاه.</p></div><label for="disciplinaryTargetMentionToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="disciplinaryTargetMentionToggle" type="checkbox" checked disabled onchange="saveDisciplinaryTargetMentionPreference(this.checked)" style="accent-color:var(--red);width:18px;height:18px"> تفعيل منشن العضو</label></div><div id="disciplinaryTargetMentionStatus" class="muted">جاري تحميل إعداد منشن العضو...</div>
 </div></div><div class="panel" style="margin-bottom:16px"><div class="panelhead"><h3>التحكم في قنوات إرسال التنبيهات</h3><span class="tag gray">خاص بالإدارة</span></div><div class="panelbody" style="display:grid;gap:16px">
-<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>السماح للموقع بالنشر في سيرفر Discord</b><p class="muted" style="margin:6px 0 0;line-height:1.8">عند الإيقاف، لن ينشر الموقع أي رسالة في روم 🔴 SWAT • WARNING. هذا لا يؤثر على الرسائل الخاصة.</p></div><label for="notificationChannelEnabledToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="notificationChannelEnabledToggle" type="checkbox" disabled onchange="saveNotificationDeliveryPreference('notificationChannelEnabled',this.checked)" style="accent-color:var(--red);width:18px;height:18px"> السماح بالنشر في الروم</label></div><div id="notificationChannelEnabledStatus" class="muted">جاري تحميل إعداد النشر...</div>
+<div style="border-bottom:1px solid #292d33;padding-bottom:16px;display:grid;gap:10px">
+ <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div style="flex:1;min-width:220px"><b>قناة الإشعارات التلقائية</b><p class="muted" style="margin:6px 0 0;line-height:1.8">اختر القناة التي تُنشر فيها إعلانات الموقع والعمليات ومهام اليوم والتقارير تلقائيًا. القضايا وملفات الأدلة تبقى في قناتها المنفصلة، أما الرسائل اليدوية فتظل تختار قناتها من صفحة «إرسال الرسائل».</p></div>
+  <button class="btn" type="button" onclick="loadAutomaticNotificationChannels()">↻ تحديث القنوات</button>
+ </div>
+ <select id="automaticNotificationChannelSelect" disabled onchange="saveAutomaticNotificationChannel(this.value)" style="width:100%;min-height:42px;background:#101318;color:var(--text);border:1px solid #39404a;border-radius:9px;padding:9px 11px">
+  <option value="">جاري تحميل قنوات Discord...</option>
+ </select>
+ <div id="automaticNotificationChannelStatus" class="muted">جاري تحميل القناة المحددة...</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>السماح للموقع بالنشر في سيرفر Discord</b><p class="muted" style="margin:6px 0 0;line-height:1.8">عند الإيقاف، لن ينشر الموقع التنبيهات في القناة المحددة أعلاه أو قناة الأدلة والملفات. هذا لا يؤثر على الرسائل الخاصة أو الإرسال اليدوي من صفحة «إرسال الرسائل».</p></div><label for="notificationChannelEnabledToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="notificationChannelEnabledToggle" type="checkbox" disabled onchange="saveNotificationDeliveryPreference('notificationChannelEnabled',this.checked)" style="accent-color:var(--red);width:18px;height:18px"> السماح بالنشر في الروم</label></div><div id="notificationChannelEnabledStatus" class="muted">جاري تحميل إعداد النشر...</div>
 <div style="border-top:1px solid #292d33;padding-top:15px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>السماح بإرسال الرسائل الخاصة للأعضاء</b><p class="muted" style="margin:6px 0 0;line-height:1.8">عند الإيقاف، لن تُرسل رسائل خاصة للأعضاء. وفي وضع التجربة، يستقبل المالك نسخة فقط إذا كان استقبال الرسائل الخاصة مفعّلًا في إعداداته الشخصية.</p></div><label for="notificationMemberDmEnabledToggle" style="display:flex;align-items:center;gap:9px;padding:10px 13px;background:#17191d;border:1px solid #343840;border-radius:9px;white-space:nowrap"><input id="notificationMemberDmEnabledToggle" type="checkbox" disabled onchange="saveNotificationDeliveryPreference('notificationMemberDmEnabled',this.checked)" style="accent-color:var(--red);width:18px;height:18px"> السماح بالخاص للأعضاء</label></div><div id="notificationMemberDmEnabledStatus" class="muted">جاري تحميل إعداد الرسائل الخاصة...</div>
 <div class="muted" style="padding:10px;border-radius:8px;background:#17191d">وضع التجربة: أوقف الخيارين؛ سيصل التنبيه إلى المالك فقط في الخاص، دون نشره في أي روم ودون إرساله لبقية الأعضاء.</div>
 </div></div><div class="grid"><div class="panel"><div class="panelhead"><h3>المظهر العام</h3></div><div class="panelbody"><label style="display:block;margin-bottom:8px">اللون الرئيسي</label><input id="settingAccent" type="color" value="#39d69b" style="width:100%;height:42px;margin-bottom:16px"><label style="display:block;margin-bottom:8px">لون الخلفية</label><input id="settingBackground" type="color" value="#090a0c" style="width:100%;height:42px;margin-bottom:16px"><button class="btn primary" onclick="saveThemeSettings()">حفظ ألوان الموقع</button></div></div><div class="panel"><div class="panelhead"><h3>محرر محتوى الموقع</h3></div><div class="panelbody"><p class="muted">فعّل وضع التحرير ثم انقر مرتين على أي نص ظاهر لتعديله. Alt + نقرة لتغيير لون النص، وShift + Alt + نقرة لتغيير لون خلفية العنصر. احفظ التغييرات لتظهر للأعضاء الآخرين.</p><button class="btn primary" id="toggleVisualEdit" onclick="toggleVisualEditMode()">تفعيل وضع التحرير</button> <button class="btn" onclick="saveVisualSettings()">حفظ تعديلات المحتوى</button><button class="btn danger" onclick="resetVisualSettings()">مسح تعديلات المحتوى</button><div id="settingsStatus" class="muted" style="margin-top:12px">تحميل الإعدادات...</div></div></div></div><div class="panel" style="margin-top:16px"><div class="panelhead"><h3>صور الموقع</h3><span class="sub">تغيير صور التصميم وإدارة المعرض</span></div><div class="panelbody"><p class="muted">كل عنصر من عناصر الهوية له إعداد مستقل. ارفع صورة لكل مكان على حدة، وستظهر لكل أعضاء الموقع بعد الحفظ. الصيغ المدعومة JPG وPNG وWEBP وGIF، والحد الأقصى للصورة 2MB.</p><div class="site-image-settings-grid"><div class="site-image-setting"><h4>شعار القائمة الجانبية</h4><div id="siteSidebarLogoPreview" class="site-image-preview"><span>استخدام الشعار الافتراضي</span></div><input id="siteSidebarLogoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('logoSidebar',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteSidebarLogoFile').click()">تغيير شعار القائمة</button> <button class="btn danger" type="button" onclick="clearSiteImage('logoSidebar')">استعادة الأصلي</button></div><div class="site-image-setting"><h4>شعار شاشة التحميل</h4><div id="siteLoadingLogoPreview" class="site-image-preview"><span>استخدام الشعار الافتراضي</span></div><input id="siteLoadingLogoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('logoLoading',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteLoadingLogoFile').click()">تغيير شعار التحميل</button> <button class="btn danger" type="button" onclick="clearSiteImage('logoLoading')">استعادة الأصلي</button></div><div class="site-image-setting"><h4>شعار شاشة تسجيل الدخول</h4><div id="siteLoginLogoPreview" class="site-image-preview"><span>استخدام الشعار الافتراضي</span></div><input id="siteLoginLogoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('logoLogin',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteLoginLogoFile').click()">تغيير شعار الدخول</button> <button class="btn danger" type="button" onclick="clearSiteImage('logoLogin')">استعادة الأصلي</button></div><div class="site-image-setting"><h4>صورة البانر</h4><div id="siteBannerPreview" class="site-image-preview"><span>لم يتم اختيار صورة للبانر</span></div><input id="siteBannerFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('banner',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteBannerFile').click()">رفع صورة البانر</button> <button class="btn danger" type="button" onclick="clearSiteImage('banner')">إزالة</button></div><div class="site-image-setting"><h4>صورة خلفية الموقع</h4><div id="siteBackgroundPreview" class="site-image-preview"><span>لم يتم اختيار صورة للخلفية</span></div><input id="siteBackgroundFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('background',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteBackgroundFile').click()">رفع صورة الخلفية</button> <button class="btn danger" type="button" onclick="clearSiteImage('background')">إزالة</button></div></div><div class="site-gallery-add-row" style="margin-top:18px"><input id="siteGalleryTitle" maxlength="100" placeholder="اسم الصورة (اختياري)"><input id="siteGalleryFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onchange="handleSiteImageUpload('gallery',this)"><button class="btn primary" type="button" onclick="document.getElementById('siteGalleryFile').click()">＋ إضافة صورة للمعرض</button></div><div id="siteGalleryAdmin" class="site-gallery-admin"></div><div class="muted" id="siteImagesStatus" style="margin-top:12px">إدارة صور التصميم محفوظة مركزيًا.</div></div></div><div class="panel" style="margin-top:16px"><div class="panelhead"><h3>ملاحظات الصلاحيات</h3></div><div class="panelbody"><p>هذه اللوحة متاحة للمالك وأصحاب رتبة WEBSITE ADMIN. الحظر والفصل يُنفذان من الخادم، وحساب المالك ADMIN محمي من التعديل من خلال واجهة الإدارة.</p><p class="muted">لإظهار جميع أعضاء Discord بمن فيهم من لم يسجّلوا دخول الموقع، يلزم ربط بوت Discord بصلاحية قراءة أعضاء السيرفر؛ هذه القائمة حاليًا تعرض من سجّلوا الدخول إلى الموقع.</p></div></div>
@@ -2595,7 +2605,7 @@ const demoPhotos=['https://images.unsplash.com/photo-1500648767791-00dcc994a43e?
 const seed=[];
 if(!localStorage.getItem('redline_cleanup_v3')){['redline_people','redline_operations','redline_reports','redline_audit'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('redline_cleanup_v3','1')}let people=JSON.parse(localStorage.getItem('redline_people')||'null')||[];let cases=JSON.parse(localStorage.getItem('redline_cases')||'null')||[];let investigations=JSON.parse(localStorage.getItem('redline_investigations')||'null')||[];let audit=JSON.parse(localStorage.getItem('redline_audit')||'null')||[];let tasks=JSON.parse(localStorage.getItem('redline_tasks')||'null')||[];let operations=JSON.parse(localStorage.getItem('redline_operations')||'null')||[];let reports=JSON.parse(localStorage.getItem('redline_reports')||'null')||[];let announcements=JSON.parse(localStorage.getItem('redline_announcements')||'null')||[];let siteNotices=JSON.parse(localStorage.getItem('redline_site_notices')||'null')||[];let rules=JSON.parse(localStorage.getItem('redline_rules')||'null')||[['SOP-001','قوانين التعامل مع المطلوبين','آخر تحديث: 18 أكتوبر 2026'],['SOP-002','إجراءات القبض والتفتيش داخل RP','إصدار 1.0'],['SOP-003','قواعد الانضباط والتواصل','إصدار 1.0'],['SOP-004','إجراءات كتابة التقارير','إصدار 1.0']];let deletedRuleIds=JSON.parse(localStorage.getItem('redline_deleted_rule_ids')||'null')||[];let dailyCommands=JSON.parse(localStorage.getItem('redline_daily_commands')||'null')||['مراجعة ملفات المطلوبين ذات الأولوية العالية.','تحديث تقارير العمليات قبل نهاية المناوبة.','تأكيد قراءة آخر تعميم صادر من القيادة.'].map(text=>({text}));
 let currentUser='Discord user';let currentUserId=null;let currentIsOwner=false;let currentIsWebsiteAdmin=false;let currentCanAdmin=false;let currentWebsiteAdminRoleId='';let discordRoleCandidates=[];let discordRoleCandidateSelection=new Set();let discordRoleCandidateScanComplete=true;let discordRoleCandidateBusy=false;let currentCanManageWarnings=false;let attentionAlerts=[];let attentionAlertsBusy=false;let attentionAlertsPollTimer=null;let attentionAlertsLastError="";
-let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordMessageImages=[];let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let unitCardOrderIds=[];let unitCardOrderDirty=false;let unitCardOrderBusy=false;const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
+let discordSavedMessages=[];let discordSavedChannels=null;let discordSavedMessagesBusy=false;let discordSavedMessageDelivery={};let discordDmRecipientsState={loaded:false,dm_enabled:false,broadcast_enabled:false,recipients:[],recipient_count:0,max_recipients:200,error:null};let discordSavedChannelsBusy=false;let discordMessageEditingId=null;let discordMessageSaveBusy=false;let discordMessageImages=[];let discordSavedMentionData={roles:[],members_search_available:true,members_search_error:null};let discordMentionSearchResults={};let discordMentionSearchTimers={};let discordMentionPickerOpen={};let discordMentionSelections={};let discordMessageChannelSelections={};let discordMentionSearchState={};let discordPickerPortalState={};let discordMentionSearchQuery={};let discordChannelPickerOpen={};let discordChannelSearchQuery={};let currentCanManageAssignments=false;let warningData={members:[],subjects:[],actions:[]};let attendanceData={members:[],generated_at:null};let attendanceLeaveRequests=[];let myAttendanceLeaveRequests=[];let attendanceLeaveCutTargetId=null;let myAttendanceLeaveLoadBusy=false;let myAttendanceLeaveLoadPromise=null;let myAttendanceLeaveLoadState='idle';let attendanceLeaveReviewTargetId=null;let attendanceLeaveReviewStatus=null;let attendanceExemptionSelection=new Set();let attendanceLeaveLoadBusy=false;let attendanceLeaveSaveBusy=false;let attendanceExemptionSaveBusy=false;let attendanceLoadBusy=false;let attendanceRecordFilter='all';let attendanceNoticeSending=false;let assignmentData={members:[],roles:[],callsigns:[],bot:{can_manage_roles:false,top_role:''}};let assignmentTargetId='';let unitCardOrderIds=[];let unitCardOrderDirty=false;let unitCardOrderBusy=false;const assignmentIdentityBusy=new Set();let warningSourceMode='registered';let warningRecordFilter='all';let warningShowArchived=false;let warningManageTargetId='';let warningEditingActionId='';let siteSettings={accentColor:'#39d69b',backgroundColor:'#090a0c',automaticNotificationChannelId:'',textOverrides:{},styleOverrides:{},siteImages:{banner:'',background:'',gallery:[]},customMenuItems:[]};let visualEditMode=false;let pendingImages=[];let pendingImageDescriptions=[];
 const attendanceStageAdvanceBusy=new Set();
 let sharedSyncReady=false,sharedSaveTimer=null,sharedUpdatedAt=null,sharedSyncBusy=false,sharedWriteQueued=false,sharedWriteConflict=false,sharedLastSaveError=null;let siteNoticeStatusRefreshBusy=false,siteNoticeStatusCheckedAt=0,editingSiteNoticeId=null;
 function save(){
@@ -5246,12 +5256,90 @@ function applySiteSettings(){
   try{const el=document.querySelector(selector);if(!el)continue;if(/^#[0-9a-fA-F]{6}$/.test(styles.color||''))el.style.color=styles.color;if(/^#[0-9a-fA-F]{6}$/.test(styles.backgroundColor||''))el.style.backgroundColor=styles.backgroundColor}catch{}
  }
 }
+const BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID='1562483351993057320';
+async function loadAutomaticNotificationChannels(){
+ if(!currentCanAdmin)return;
+ const select=document.getElementById('automaticNotificationChannelSelect');
+ const status=document.getElementById('automaticNotificationChannelStatus');
+ if(!select||!status)return;
+ select.disabled=true;
+ status.textContent='جارٍ تحميل قنوات Discord...';
+ try{
+  const response=await fetch('/api/notifications/send?action=saved_message_channels',{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل قنوات Discord.');
+  const channels=(Array.isArray(data.channels)?data.channels:[])
+   .filter(item=>['0','5'].includes(String(item.type))&&String(item.id)!==BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID);
+  const selected=String(siteSettings.automaticNotificationChannelId||'').trim();
+  const options=['<option value="">— اختر قناة الإشعارات التلقائية —</option>'];
+  if(selected&&!channels.some(item=>String(item.id)===selected)){
+   const oldLabel=selected===BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID
+    ? 'قناة محظورة — اختر قناة أخرى'
+    : 'القناة المحفوظة غير متاحة حاليًا';
+   options.push('<option value="'+esc(selected)+'" disabled>'+esc(oldLabel+' ('+selected+')')+'</option>');
+  }
+  for(const channel of channels){
+   const category=channel.category_name?' • '+channel.category_name:'';
+   const label='#'+String(channel.name||'بدون اسم')+category;
+   options.push('<option value="'+esc(String(channel.id))+'" data-available="true">'+esc(label)+'</option>');
+  }
+  select.innerHTML=options.join('');
+  select.value=selected;
+  if(selected===BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID){
+   status.textContent='القناة المحفوظة محظورة. اختر قناة أخرى؛ لن يتم إرسال أي تنبيه تلقائي إليها.';
+  }else if(selected&&channels.some(item=>String(item.id)===selected)){
+   const channel=channels.find(item=>String(item.id)===selected);
+   status.textContent='القناة الحالية: #'+String(channel.name||'Discord channel')+'. كل الإشعارات التلقائية العامة ستُنشر هنا.';
+  }else if(selected){
+   status.textContent='القناة المحفوظة غير ظاهرة للبوت أو تم حذفها. اختر قناة أخرى قبل تفعيل النشر.';
+  }else{
+   status.textContent='لم يتم تحديد قناة بعد. لن تُنشر التنبيهات التلقائية في أي قناة حتى تختار واحدة.';
+  }
+ }catch(error){
+  select.innerHTML='<option value="">تعذّر تحميل القنوات</option>';
+  status.textContent=error.message||'تعذّر تحميل قنوات Discord.';
+ }finally{
+  select.disabled=false;
+ }
+}
+async function saveAutomaticNotificationChannel(value){
+ if(!currentCanAdmin)return;
+ const select=document.getElementById('automaticNotificationChannelSelect');
+ const status=document.getElementById('automaticNotificationChannelStatus');
+ if(!select||!status)return;
+ const previous=String(siteSettings.automaticNotificationChannelId||'').trim();
+ const next=String(value||'').trim();
+ if(next&&(!/^\d{17,20}$/.test(next)||next===BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID)){
+  select.value=previous;status.textContent='هذه القناة غير مسموح بها للإرسال التلقائي.';toast('قناة Redline Server ممنوعة من الإرسال التلقائي.');return;
+ }
+ if(next){
+  const option=Array.from(select.options).find(item=>item.value===next);
+  if(!option||option.dataset.available!=='true'){
+   select.value=previous;status.textContent='اختر قناة نصية متاحة يستطيع البوت الوصول إليها.';return;
+  }
+ }
+ select.disabled=true;status.textContent='جاري حفظ قناة الإشعارات التلقائية...';
+ try{
+  await saveSettingPayload({automaticNotificationChannelId:next});
+  siteSettings.automaticNotificationChannelId=next;
+  const option=Array.from(select.options).find(item=>item.value===next);
+  status.textContent=next?'تم حفظ القناة: '+(option?.textContent||next)+'.':'تم مسح القناة. لن تُرسل التنبيهات التلقائية إلى Discord حتى تختار قناة.';
+  toast(next?'تم حفظ قناة الإشعارات التلقائية':'تم مسح قناة الإشعارات التلقائية');
+ }catch(error){
+  select.value=previous;
+  status.textContent='تعذّر حفظ قناة الإشعارات التلقائية.';
+  toast(error.message||'تعذّر حفظ القناة');
+ }finally{
+  select.disabled=false;
+ }
+}
+
 async function loadSiteSettings(){
- try{const r=await fetch('/api/admin/settings',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'تعذر تحميل الإعدادات');siteSettings={...siteSettings,...d.settings};siteSettings.textOverrides=siteSettings.textOverrides||{};siteSettings.styleOverrides=siteSettings.styleOverrides||{};siteSettings.siteImages=siteSettings.siteImages||{banner:'',background:'',gallery:[]};document.getElementById('settingAccent').value=siteSettings.accentColor||'#39d69b';document.getElementById('settingBackground').value=siteSettings.backgroundColor||'#090a0c';const mentionToggle=document.getElementById('notificationMentionDisabledToggle'),mentionStatus=document.getElementById('notificationMentionStatus');if(mentionToggle){mentionToggle.checked=siteSettings.notificationRoleMentionDisabled!==false;mentionToggle.disabled=false}if(mentionStatus)mentionStatus.textContent=mentionToggle?.checked?'منشن SWAT متوقف؛ لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'منشن SWAT مفعّل؛ سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.';const channelToggle=document.getElementById('notificationChannelEnabledToggle'),channelStatus=document.getElementById('notificationChannelEnabledStatus');if(channelToggle){channelToggle.checked=siteSettings.notificationChannelEnabled===true;channelToggle.disabled=false}if(channelStatus)channelStatus.textContent=channelToggle?.checked?'النشر في روم 🔴 SWAT • WARNING مسموح.':'النشر في روم Discord متوقف؛ لن ينشر الموقع أي رسالة في الروم.';const dmToggle=document.getElementById('notificationMemberDmEnabledToggle'),dmStatus=document.getElementById('notificationMemberDmEnabledStatus');if(dmToggle){dmToggle.checked=siteSettings.notificationMemberDmEnabled===true;dmToggle.disabled=false}if(dmStatus)dmStatus.textContent=dmToggle?.checked?'الرسائل الخاصة مسموحة للأعضاء الذين فعّلوها من إعداداتهم الشخصية.':'إرسال الخاص للأعضاء متوقف؛ وضع المالك فقط يخضع لتفضيله الشخصي أيضًا.';
+ try{const r=await fetch('/api/admin/settings',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'تعذر تحميل الإعدادات');siteSettings={...siteSettings,...d.settings};siteSettings.automaticNotificationChannelId=typeof siteSettings.automaticNotificationChannelId==='string'?siteSettings.automaticNotificationChannelId:'';siteSettings.textOverrides=siteSettings.textOverrides||{};siteSettings.styleOverrides=siteSettings.styleOverrides||{};siteSettings.siteImages=siteSettings.siteImages||{banner:'',background:'',gallery:[]};document.getElementById('settingAccent').value=siteSettings.accentColor||'#39d69b';document.getElementById('settingBackground').value=siteSettings.backgroundColor||'#090a0c';const mentionToggle=document.getElementById('notificationMentionDisabledToggle'),mentionStatus=document.getElementById('notificationMentionStatus');if(mentionToggle){mentionToggle.checked=siteSettings.notificationRoleMentionDisabled!==false;mentionToggle.disabled=false}if(mentionStatus)mentionStatus.textContent=mentionToggle?.checked?'منشن SWAT متوقف؛ لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'منشن SWAT مفعّل؛ سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.';const channelToggle=document.getElementById('notificationChannelEnabledToggle'),channelStatus=document.getElementById('notificationChannelEnabledStatus');if(channelToggle){channelToggle.checked=siteSettings.notificationChannelEnabled===true;channelToggle.disabled=false}if(channelStatus)channelStatus.textContent=channelToggle?.checked?'النشر في روم 🔴 SWAT • WARNING مسموح.':'النشر في روم Discord متوقف؛ لن ينشر الموقع أي رسالة في الروم.';const dmToggle=document.getElementById('notificationMemberDmEnabledToggle'),dmStatus=document.getElementById('notificationMemberDmEnabledStatus');if(dmToggle){dmToggle.checked=siteSettings.notificationMemberDmEnabled===true;dmToggle.disabled=false}if(dmStatus)dmStatus.textContent=dmToggle?.checked?'الرسائل الخاصة مسموحة للأعضاء الذين فعّلوها من إعداداتهم الشخصية.':'إرسال الخاص للأعضاء متوقف؛ وضع المالك فقط يخضع لتفضيله الشخصي أيضًا.';
 const disciplinaryTargetToggle=document.getElementById('disciplinaryTargetMentionToggle'),disciplinaryTargetStatus=document.getElementById('disciplinaryTargetMentionStatus');
 if(disciplinaryTargetToggle){disciplinaryTargetToggle.checked=siteSettings.disciplinaryTargetMentionEnabled!==false;disciplinaryTargetToggle.disabled=false}
 if(disciplinaryTargetStatus)disciplinaryTargetStatus.textContent=disciplinaryTargetToggle?.checked?'منشن العضو المستهدف مفعّل في إعلانات التحذيرات والفصل.':'منشن العضو المستهدف متوقف في إعلانات التحذيرات والفصل.';
-applySiteSettings();renderSiteImageSettings();renderSiteCustomMenus();document.getElementById('settingsStatus').textContent='تم تحميل الإعدادات المحفوظة.'}catch(e){document.getElementById('settingsStatus').textContent=e.message||'تعذر تحميل الإعدادات'}
+applySiteSettings();renderSiteImageSettings();renderSiteCustomMenus();if(currentCanAdmin)await loadAutomaticNotificationChannels();document.getElementById('settingsStatus').textContent='تم تحميل الإعدادات المحفوظة.'}catch(e){document.getElementById('settingsStatus').textContent=e.message||'تعذر تحميل الإعدادات'}
 }
 async function saveNotificationMentionPreference(disabled){
  if(!currentCanAdmin)return;
@@ -5296,6 +5384,14 @@ async function saveNotificationDeliveryPreference(key,enabled){
  const checkbox=document.getElementById(isChannel?'notificationChannelEnabledToggle':'notificationMemberDmEnabledToggle');
  const status=document.getElementById(isChannel?'notificationChannelEnabledStatus':'notificationMemberDmEnabledStatus');
  if(!checkbox||!status)return;
+ if(isChannel&&enabled){
+  const automaticSelect=document.getElementById('automaticNotificationChannelSelect');
+  const automaticId=String(siteSettings.automaticNotificationChannelId||'').trim();
+  const automaticOption=Array.from(automaticSelect?.options||[]).find(item=>item.value===automaticId);
+  if(!automaticId||!automaticOption||automaticOption.dataset.available!=='true'){
+   checkbox.checked=false;status.textContent='حدد قناة نصية متاحة للإشعارات التلقائية قبل تفعيل النشر.';toast('اختر قناة الإشعارات التلقائية أولًا.');return;
+  }
+ }
  const previous=siteSettings[key]===true;
  checkbox.disabled=true;status.textContent='جاري حفظ إعداد الإرسال...';
  try{
@@ -5362,8 +5458,11 @@ async function sendPortalNotification(entityType,entityId,button){
  const taskText=entityType==='task'?String(tasks[Number(entityId)]?.text||''):'';
  
  const label=({person:'ملف الشخص',operation:'العملية / الاجتماع',report:'التقرير',investigation:'ملف التحري',task:'مهمة اليوم',announcement:'الإعلان'})[entityType]||'السجل';
- const channelLabel=entityType==='announcement'?'روم 𝐀𝐍𝐍𝐎𝐔𝐍𝐂𝐄𝐌𝐍𝐄𝐓':(['person','case','investigation'].includes(entityType)?'روم 𝐄𝐕𝐈𝐃𝐄𝐍𝐂𝐄・𝐑𝐎𝐎𝐌':'روم الإشعارات المعتادة');
- if(!confirm('سيتم نشر التنبيه في '+channelLabel+' مرة واحدة، وإرسال نسخة خاصة إلى كل عضو نشط في البوابة لم يوقف استقبال الرسائل من الإعدادات. رسائل الموقع في روم الإعلانات لن تُحوّل مرة ثانية للخاص. هل تريد المتابعة؟'))return;
+ const usesEvidenceChannel=['person','case','investigation'].includes(entityType);
+ const automaticChannelId=String(siteSettings.automaticNotificationChannelId||'').trim();
+ if(!usesEvidenceChannel&&!automaticChannelId){toast('حدد قناة الإشعارات التلقائية من إعدادات النظام أولًا.');return;}
+ const channelLabel=usesEvidenceChannel?'روم الأدلة والملفات':'قناة الإشعارات التلقائية المحددة في إعدادات النظام';
+ if(!confirm('سيتم نشر التنبيه في '+channelLabel+' مرة واحدة، وإرسال نسخة خاصة إلى كل عضو نشط في البوابة لم يوقف استقبال الرسائل من الإعدادات. رسائل الموقع المنشورة في قنوات Discord لن تُحوّل مرة ثانية للخاص. هل تريد المتابعة؟'))return;
  if(button?.disabled)return;
  const oldText=button?.textContent||'إرسال تنبيه';
  if(button){button.disabled=true;button.textContent='جاري الإرسال...'}
@@ -5454,6 +5553,8 @@ function setDiscordMessagesStatus(message,isError=false){
  if(!node)return;
  node.textContent=message||'';
  node.style.color=isError?'#ff8b92':'';
+ node.style.whiteSpace='pre-line';
+ node.style.lineHeight='1.75';
 }
 function discordDeliveryModeUsesChannels(mode){
  return ['channels','both_all','both_single'].includes(String(mode||'channels'));
@@ -6383,6 +6484,41 @@ async function sendSavedDiscordMessage(id,button){
   }
   const detail=failedChannels.length? '\n'+failedChannels.map(item=>item.name+': '+item.error).join('؛ '):'';
   toast(summaries.join(' • ')+detail+(linkButtons.length?' • أزرار الروابط: '+linkButtons.length:''));
+  if(wantsDm){
+   if(dmError){
+    setDiscordMessagesStatus('تعذّر إرسال الرسائل الخاصة: '+dmError,true);
+   }else if(dmResult){
+    const reasonLabels={
+     '50007':'Discord رفض استقبال الخاص من هذا الحساب (قد تكون إعدادات الخصوصية أو الحظر).',
+     '50278':'لا يوجد سيرفر مشترك بين العضو والبوت.',
+     '10007':'العضو غير موجود في السيرفر.',
+     '10013':'معرّف حساب Discord غير صالح.',
+     '429':'Discord فرض حدًا مؤقتًا على الإرسال.'
+    };
+    const failures=(Array.isArray(dmResult.recipients)?dmResult.recipients:[]).filter(item=>item.status==='failed');
+    const groups=new Map();
+    for(const item of failures){
+     const code=String(item.error_code||'unknown');
+     if(!groups.has(code))groups.set(code,[]);
+     groups.get(code).push(String(item.display_name||'عضو').slice(0,60));
+    }
+    const lines=['نتيجة الرسائل الخاصة: قبل Discord إرسال '+Number(dmResult.sent||0)+' من '+Number(dmResult.total||0)+' رسالة.'];
+    if(failures.length){
+     lines.push('تعذّر إرسال '+failures.length+' رسالة. التفاصيل:');
+     for(const [code,names] of groups){
+      const shown=names.slice(0,8).join('، ');
+      const extra=names.length>8?'، و'+(names.length-8)+' أعضاء آخرين':'';
+      lines.push('• '+names.length+' — '+(reasonLabels[code]||('رمز Discord: '+code))+'\n  '+shown+extra);
+     }
+    }else{
+     lines.push('لم يسجل Discord أي رفض لإرسال الرسائل الخاصة.');
+    }
+    if(Number(dmResult.excluded_without_swat_role||0)>0){
+     lines.push('تم استبعاد '+Number(dmResult.excluded_without_swat_role)+' عضوًا لعدم امتلاك رتبة S.W.A.T المطلوبة.');
+    }
+    setDiscordMessagesStatus(lines.join('\n'),failures.length>0);
+   }
+  }
  }finally{
   if(button){button.disabled=false;button.textContent=old;}
  }
@@ -6737,7 +6873,7 @@ async function initAuth(){
 
 /* Language choice is local to this browser and is never synced to other members. */
 const PORTAL_TRANSLATIONS = {
-'خاص بالإدارة':'Owner only','التحكم في منشن SWAT':'SWAT mention control','إيقاف منشن رتبة SWAT مؤقتًا':'Temporarily disable the SWAT role mention','عند تفعيل هذا الخيار، ينزل التنبيه في روم الإشعارات بدون منشن لأي عضو. عند إيقافه، يظهر منشن رتبة SWAT مع التنبيه. الرسائل الخاصة لا تتأثر بهذا الخيار.':'When this option is on, the alert is posted in the notification channel without mentioning anyone. When off, the SWAT role is mentioned with the alert. Direct messages are not affected.','إيقاف المنشن مؤقتًا':'Temporarily disable mentions','جاري تحميل إعداد المنشن...':'Loading mention setting...','منشن SWAT متوقف؛ لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and fired-member notices.','منشن SWAT مفعّل؛ سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and fired-member notices.','جاري حفظ إعداد المنشن...':'Saving mention setting...','منشن SWAT متوقف. لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and fired-member notices.','منشن SWAT مفعّل. سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and fired-member notices.','تعذّر حفظ إعداد المنشن.':'Could not save mention setting.','تم إيقاف منشن SWAT':'SWAT mention disabled','تم تفعيل منشن SWAT':'SWAT mention enabled',
+'قناة الإشعارات التلقائية':'Automatic notifications channel','اختر قناة الإشعارات التلقائية':'Choose an automatic notifications channel','تحديث القنوات':'Refresh channels','جاري تحميل قنوات Discord...':'Loading Discord channels...','قناة Redline Server ممنوعة من الإرسال التلقائي.':'The Redline Server channel is blocked for automatic posts.','لم يتم تحديد قناة بعد. لن تُنشر التنبيهات التلقائية في أي قناة حتى تختار واحدة.':'No channel is selected. Automatic notifications will not be posted until you choose one.','خاص بالإدارة':'Owner only','التحكم في منشن SWAT':'SWAT mention control','إيقاف منشن رتبة SWAT مؤقتًا':'Temporarily disable the SWAT role mention','عند تفعيل هذا الخيار، ينزل التنبيه في روم الإشعارات بدون منشن لأي عضو. عند إيقافه، يظهر منشن رتبة SWAT مع التنبيه. الرسائل الخاصة لا تتأثر بهذا الخيار.':'When this option is on, the alert is posted in the notification channel without mentioning anyone. When off, the SWAT role is mentioned with the alert. Direct messages are not affected.','إيقاف المنشن مؤقتًا':'Temporarily disable mentions','جاري تحميل إعداد المنشن...':'Loading mention setting...','منشن SWAT متوقف؛ لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and fired-member notices.','منشن SWAT مفعّل؛ سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and fired-member notices.','جاري حفظ إعداد المنشن...':'Saving mention setting...','منشن SWAT متوقف. لن يظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is disabled in alerts, warnings, and fired-member notices.','منشن SWAT مفعّل. سيظهر منشن الرتبة في التنبيهات والتحذيرات وقرارات الفصل.':'SWAT role mention is enabled in alerts, warnings, and fired-member notices.','تعذّر حفظ إعداد المنشن.':'Could not save mention setting.','تم إيقاف منشن SWAT':'SWAT mention disabled','تم تفعيل منشن SWAT':'SWAT mention enabled',
 
 'سيتم نشر التنبيه في روم SWAT Notification Website، وإرسال رسالة خاصة إلى كل عضو نشط في البوابة لم يوقف استقبال الرسائل من الإعدادات. هل تريد المتابعة؟':'The alert will be posted in SWAT Notification Website and a DM will be sent to every active portal member who has not disabled private alerts in settings. Continue?','تم نشر التنبيه في الروم، لكن لا يوجد عضو حاليًا مفعّل لاستقبال الرسائل الخاصة.':'The alert was posted in the channel, but no member currently has private DMs enabled.','تم تفعيل استقبال رسائل التنبيه.':'Private alert messages are enabled.','تم إيقاف الرسائل الخاصة. لن تصلك تنبيهات البوت على الخاص.':'Private DMs are disabled.','تم نشر التنبيه وإرسال ':'Alert published and sent ',
 'حالة اتصال بوت Discord':'Discord Bot Connection','لم يتم الفحص':'Not checked','افحص أن البوت مثبت في نفس سيرفر Discord المستخدم لتسجيل الدخول إلى البوابة. هذا الفحص لا يعرض التوكن.':'Check that the bot is installed in the same Discord server used to sign in to the portal. This check does not reveal the token.','فحص اتصال البوت بالسيرفر':'Check bot connection to server','لم يتم إجراء الفحص بعد.':'No check has been performed yet.','جاري الفحص...':'Checking...','جاري الفحص':'Checking','التوكن غير صالح':'Invalid token','البوت غير مثبت':'Bot not installed','متصل بالسيرفر':'Connected to server','تعذر فحص اتصال البوت':'Could not check bot connection','Discord رفض الرسالة: البوت وحسابك ليسا في سيرفر مشترك. أضف البوت إلى سيرفر الموقع.':'Discord rejected the DM: the bot and your account do not share a server. Add the bot to the portal server.','تعذر إرسال الرسالة بسبب إعدادات الخصوصية أو حظر رسائل البوت في حساب Discord.':'The DM could not be sent because of the recipient Discord privacy settings or a bot block.',

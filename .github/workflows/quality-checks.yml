@@ -33,6 +33,9 @@ jobs:
           node --check lib/attendance-poller.js
           node --check lib/attendance-poller.mjs
           node --check lib/leave-poller.js
+      - name: Install Attention Alert worker dependencies
+        run: npm ci
+        working-directory: bot
       - name: Validate Attention Alert worker
         run: |
           node --check bot/index.mjs
