@@ -300,29 +300,48 @@ test("individual identity send uses the saved custom unit-card renderer and upda
   assert.match(publisher, /unit_sort_order:index/);
 });
 
-test("unit-card action label always offers send or update and recreates a deleted Discord message", async () => {
+test("individual unit-card row has separate send-new and update-existing buttons", async () => {
   const api = await read("../api/admin/members.js", "utf8");
   const html = await read("../index.html", "utf8");
 
-  const rowStart = html.indexOf("const actionDisabledReason=");
-  const rowEnd = html.indexOf("\n  return '<tr", rowStart);
+  const rowStart = html.indexOf("const identityDisabledReason=");
+  const rowEnd = html.indexOf("\\n  return '<tr", rowStart);
   assert.ok(rowStart >= 0 && rowEnd > rowStart);
   const button = html.slice(rowStart, rowEnd);
-  assert.match(button, /const actionDisabledReason=/);
+  assert.match(button, /إرسال بطاقة جديدة/);
+  assert.match(button, /تحديث البطاقة/);
+  assert.match(button, /publishMemberIdentity\\([^)]*\\'new\\'/);
+  assert.match(button, /publishMemberIdentity\\([^)]*\\'update\\'/);
   assert.match(button, /إدارة التعيين/);
-  assert.match(button, /const action='<button class="btn"/);
-  assert.match(button, /const identityButton='<button class="btn primary"/);
-  assert.match(button, /إرسال بطاقة جديدة أو تحديث البطاقة/);
-  assert.doesNotMatch(button, /identity\.message_id\?'تحديث الهوية':'إرسال الهوية'/);
+  assert.match(button, /hasSavedCardMessage/);
+  assert.match(button, /لا توجد بطاقة محفوظة للتحديث/);
+
+  const clientStart = html.indexOf("async function publishMemberIdentity(id,mode)");
+  const clientEnd = html.indexOf("\\nasync function addNextCallsign()", clientStart);
+  assert.ok(clientStart >= 0 && clientEnd > clientStart);
+  const client = html.slice(clientStart, clientEnd);
+  assert.match(client, /publish_mode:mode/);
+  assert.match(client, /mode==='new'/);
+  assert.match(client, /mode==='update'/);
+  assert.match(client, /if\\(mode==='update'&&!hasSavedCard\\)/);
 
   const start = api.indexOf("async function handlePublishUnitCardImage(");
-  const end = api.indexOf("\nasync function listUnitChannelMessages(", start);
+  const end = api.indexOf("\\nasync function listUnitChannelMessages(", start);
   assert.ok(start >= 0 && end > start);
   const publisher = api.slice(start, end);
-  assert.match(publisher, /Number\(error\?\.status\)!==404/);
-  assert.match(publisher, /Unknown Message \(404\)/);
-  assert.match(publisher, /message=null;\s*updated=false;/);
-  assert.match(publisher, /if\(!message\?\.id\)try \{ message=await assignmentDiscord\(token/);
+  assert.match(publisher, /const publishMode=single\\?String\\(body\\.publish_mode\\|\\|""\\):"batch"/);
+  assert.match(publisher, /!\\["new","update"\\]\\.includes\\(publishMode\\)/);
+  assert.match(publisher, /single&&publishMode==="update"&&!hasSavedUnitCard/);
+  assert.match(publisher, /if\\(single&&publishMode==="update"\\)/);
+  assert.match(publisher, /else if\\(!single&&hasSavedUnitCard\\)/);
+  assert.match(publisher, /لم يتم إنشاء بطاقة جديدة تلقائيًا/);
+  assert.match(publisher, /require an explicit "Send new card" action; never silently POST here/);
+
+  const updateStart = publisher.indexOf('if(single&&publishMode==="update") {');
+  const batchStart = publisher.indexOf('else if(!single&&hasSavedUnitCard)', updateStart);
+  const postStart = publisher.indexOf('if(!message?.id)try { message=await assignmentDiscord', batchStart);
+  assert.ok(updateStart >= 0 && batchStart > updateStart && postStart > batchStart,
+    "update-only, batch-update, and send-new paths remain distinct");
 });
 
 test("assignment API blocks a callsign reserved by another member before touching Discord roles", async () => {
