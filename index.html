@@ -1738,6 +1738,9 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-assignments #assignmentMembersTable td:nth-child(8){width:13%;text-align:center}
 #page-assignments #assignmentMembersTable th:nth-child(9),
 #page-assignments #assignmentMembersTable td:nth-child(9){width:8%;text-align:center}
+#page-assignments .unit-card-action-stack{display:grid;gap:6px;width:100%;min-width:0}
+#page-assignments .unit-card-action-stack .btn{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;padding:8px 5px!important;font-size:10px!important;line-height:1.55!important;white-space:normal!important;overflow-wrap:anywhere}
+#page-assignments .unit-card-action-stack .btn:disabled{opacity:.48;cursor:not-allowed}
 #page-assignments #assignmentMembersTable td:nth-child(8) .btn,
 #page-assignments #assignmentMembersTable td:nth-child(9) .btn{
  display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;
@@ -4592,7 +4595,12 @@ function renderAssignmentRows(){
       :member.assignment?.status!=='assigned'
         ?'يجب حفظ تعيين فعال أولًا'
         :'';
-  const identityButton='<button class="btn primary" type="button" '+(identityDisabledReason||assignmentIdentityBusy.has(memberId)?'disabled title="'+assignmentEscape(identityDisabledReason||'جارٍ الإرسال...')+'" ':'')+'onclick="publishMemberIdentity(\''+assignmentEscape(memberId)+'\')">'+(assignmentIdentityBusy.has(memberId)?'جارٍ الإرسال...':'إرسال بطاقة جديدة أو تحديث البطاقة')+'</button>';
+  const hasSavedCardMessage=identity?.channel_id==='1561490450953670817'&&Boolean(identity?.message_id);
+  const updateDisabledReason=identityDisabledReason||(!hasSavedCardMessage?'لا توجد بطاقة محفوظة للتحديث؛ استخدم إرسال بطاقة جديدة':'');
+  const identityButton='<div class="unit-card-action-stack">'+
+    '<button class="btn primary" type="button" '+(identityDisabledReason||assignmentIdentityBusy.has(memberId)?'disabled title="'+assignmentEscape(identityDisabledReason||'جارٍ الإرسال...')+'" ':'')+'onclick="publishMemberIdentity(\\''+assignmentEscape(memberId)+'\\',\\'new\\')">'+(assignmentIdentityBusy.has(memberId)?'جارٍ الإرسال...':'إرسال بطاقة جديدة')+'</button>'+
+    '<button class="btn" type="button" '+(updateDisabledReason||assignmentIdentityBusy.has(memberId)?'disabled title="'+assignmentEscape(updateDisabledReason||'جارٍ الإرسال...')+'" ':'')+'onclick="publishMemberIdentity(\\''+assignmentEscape(memberId)+'\\',\\'update\\')">تحديث البطاقة</button>'+
+    '</div>';
   return '<tr><td><div style="display:flex;align-items:center;gap:9px">'+avatar+'<div><b>'+assignmentEscape(member.is_manual?member.display_name:(member.live_name||member.display_name||'Discord user'))+'</b>'+pendingRegistrationBadge(member)+(member.username?'<div class="muted">@'+assignmentEscape(member.username)+'</div>':'')+'</div></div></td><td><code>'+assignmentEscape(memberId)+'</code></td><td>'+assignmentEscape(liveNames)+'</td><td><b>'+assignmentEscape(savedName)+'</b>'+(mismatch?'<div class="tag orange" style="margin-top:5px">اختلاف عن Discord</div>':'')+'</td><td><span class="tag gray">'+assignmentEscape(saved?.callsign||'—')+'</span></td><td><span class="tag '+(identity?.city_rank?'green':'gray')+'">'+assignmentEscape(cityRank)+'</span></td><td><span class="tag '+accountColor+'">'+accountLabel+'</span></td><td>'+identityButton+'</td><td>'+action+'</td></tr>';
  }).join('')||'<tr><td colspan="9"><div class="empty">لا توجد حسابات تطابق هذا الاختيار.</div></td></tr>';
 }
@@ -5106,12 +5114,15 @@ async function saveAssignmentCityRank(){
   if(button)button.disabled=false;
  }
 }
-async function publishMemberIdentity(id){
+async function publishMemberIdentity(id,mode){
  if((!currentCanAdmin&&!currentCanManageAssignments)||!id)return;
+ if(!['new','update'].includes(mode)){toast('اختار إرسال بطاقة جديدة أو تحديث البطاقة.');return;}
  const member=assignmentData.members.find(item=>String(item.discord_user_id)===String(id));
  if(!member)return;
  if(!member.identity?.city_rank){toast('اختار City Rank واحفظ التعيين أولًا.');return;}
  if(member.assignment?.status!=='assigned'){toast('لا يمكن نشر بطاقة عضو ليس لديه تعيين فعال.');return;}
+ const hasSavedCard=member.identity?.channel_id==='1561490450953670817'&&Boolean(member.identity?.message_id);
+ if(mode==='update'&&!hasSavedCard){toast('لا توجد بطاقة محفوظة لتحديثها. استخدم «إرسال بطاقة جديدة».');return;}
  if(assignmentIdentityBusy.has(String(id)))return;
  assignmentIdentityBusy.add(String(id));
  renderAssignmentRows();
@@ -5120,14 +5131,18 @@ async function publishMemberIdentity(id){
   const imageData=await unitCardImageData(member);
   const response=await fetch('/api/admin/members',{
    method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({action:'publish_unit_card_image',single:true,discord_user_id:String(id),image_data:imageData})
+   body:JSON.stringify({action:'publish_unit_card_image',single:true,publish_mode:mode,discord_user_id:String(id),image_data:imageData})
   });
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر إرسال بطاقة العضو بالتصميم الجديد.');
-  toast(data.updated?'تم تحديث بطاقة العضو بالتصميم الجديد في روم SWAT UNITS.':'تم إرسال بطاقة العضو بالتصميم الجديد إلى روم SWAT UNITS.');
+  if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تنفيذ عملية بطاقة العضو.');
+  if(mode==='new'){
+   toast('تم إرسال بطاقة جديدة إلى روم SWAT UNITS. يمكنك إرسال بطاقة أخرى في أي وقت.');
+  }else{
+   toast('تم تحديث البطاقة الموجودة في روم SWAT UNITS.');
+  }
   if(typeof loadAuditLog==='function')loadAuditLog();
  }catch(error){
-  toast(error.message||'تعذّر إرسال بطاقة العضو.');
+  toast(error.message||'تعذّر تنفيذ عملية بطاقة العضو.');
  }finally{
   assignmentIdentityBusy.delete(String(id));
   await renderAssignments();
