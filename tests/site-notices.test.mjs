@@ -170,7 +170,7 @@ test("official site notices have a dedicated channel target independent from war
   const start = api.indexOf("async function publishSavedSiteNotice(");
   const end = api.indexOf("\nexport default async function handler", start);
   const publisher = api.slice(start, end);
-  assert.match(api, /function getSiteNoticeChannelId\(\)\s*\{\s*return String\(process\.env\.DISCORD_SITE_NOTICES_CHANNEL_ID \|\| ""\)\.trim\(\);\s*\}/);
+  assert.match(api, /function getSiteNoticeChannelId\(\)\s*\{\s*const channelId = String\(process\.env\.DISCORD_SITE_NOTICES_CHANNEL_ID \|\| ""\)\.trim\(\);\s*return channelId === BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID \? "" : channelId;\s*\}/);
   assert.match(publisher, /const channelId = getSiteNoticeChannelId\(\)/);
   assert.match(api, /const channelId = getSiteNoticeChannelId\(\)/);
   assert.doesNotMatch(publisher, /config\.notificationChannelId/);
