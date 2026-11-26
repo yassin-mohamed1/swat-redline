@@ -4631,6 +4631,7 @@ let unitCardDragging=null;
 const unitCardImageCache=new Map();
 const unitCardImageDimensions=new Map();
 const UNIT_CARD_PHOTO_FRAME=Object.freeze({x:1401,y:127,width:570,height:516});
+let unitCardFrameOverlayCanvas=null;
 const unitCardTemplateImage=new Image();unitCardTemplateImage.src='/unit-operator-template.png';
 function normalizeUnitCardDesign(value){
  const source=value&&typeof value==='object'?value:{};
@@ -4652,9 +4653,50 @@ function unitCardLoadImage(url){
  const promise=new Promise((resolve,reject)=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{unitCardImageDimensions.set(url,{width:image.naturalWidth||image.width,height:image.naturalHeight||image.height});resolve(image)};image.onerror=()=>reject(new Error('تعذّر تحميل صورة العضو من Discord.'));image.src=url;});
  unitCardImageCache.set(url,promise);promise.catch(()=>unitCardImageCache.delete(url));return promise;
 }
+function unitCardPhotoPath(ctx){
+ ctx.beginPath();
+ ctx.moveTo(1401,191);
+ ctx.lineTo(1401,576);
+ ctx.lineTo(1407,581);
+ ctx.lineTo(1407,616);
+ ctx.lineTo(1433,642);
+ ctx.lineTo(1916,642);
+ ctx.lineTo(1945,612);
+ ctx.lineTo(1948,612);
+ ctx.lineTo(1970,590);
+ ctx.lineTo(1970,187);
+ ctx.lineTo(1964,182);
+ ctx.lineTo(1964,157);
+ ctx.lineTo(1950,143);
+ ctx.lineTo(1947,143);
+ ctx.lineTo(1938,133);
+ ctx.lineTo(1751,133);
+ ctx.lineTo(1746,127);
+ ctx.lineTo(1669,127);
+ ctx.lineTo(1666,131);
+ ctx.lineTo(1467,131);
+ ctx.lineTo(1458,141);
+ ctx.lineTo(1455,141);
+ ctx.lineTo(1438,159);
+ ctx.lineTo(1435,159);
+ ctx.lineTo(1426,169);
+ ctx.lineTo(1423,169);
+ ctx.closePath();
+}
+function unitCardFrameOverlay(){
+ if(unitCardFrameOverlayCanvas)return unitCardFrameOverlayCanvas;
+ const overlay=document.createElement('canvas');overlay.width=2048;overlay.height=768;
+ const overlayContext=overlay.getContext('2d');
+ overlayContext.drawImage(unitCardTemplateImage,0,0,2048,768);
+ overlayContext.globalCompositeOperation='destination-out';
+ unitCardPhotoPath(overlayContext);overlayContext.fill();
+ overlayContext.globalCompositeOperation='source-over';
+ unitCardFrameOverlayCanvas=overlay;
+ return overlay;
+}
 function unitCardCoverImage(ctx,image,settings){
  const frame=UNIT_CARD_PHOTO_FRAME;
- ctx.save();ctx.beginPath();ctx.rect(frame.x,frame.y,frame.width,frame.height);ctx.clip();
+ ctx.save();unitCardPhotoPath(ctx);ctx.clip();
  const scale=Math.max(frame.width/image.width,frame.height/image.height)*Math.max(1.2,Math.min(2.5,Number(settings.zoom)||1.2));
  const width=image.width*scale,height=image.height*scale;
  const x=frame.x+(frame.width-width)/2-(Number(settings.cropX||0)/100)*(width-frame.width)/2;
@@ -4675,7 +4717,7 @@ async function unitCardPaint(canvas,member,requireAvatar=false){
  const context=canvas.getContext('2d');context.clearRect(0,0,2048,768);
  if(avatar){
   unitCardCoverImage(context,avatar,unitCardDesign.avatar);
-  context.drawImage(unitCardTemplateImage,0,0,2048,768);
+  context.drawImage(unitCardFrameOverlay(),0,0,2048,768);
  }else{
   context.drawImage(unitCardTemplateImage,0,0,2048,768);
  }
