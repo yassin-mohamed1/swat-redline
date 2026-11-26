@@ -960,12 +960,16 @@ async function handlePublishUnitCardImage(url,key,token,guildId,user,body,res) {
   form.set("files[0]",new Blob([imageBytes],{type:"image/jpeg"}),filename);
 
   let message,updated=false;
-  if(identity.channel_id===UNIT_CARDS_CHANNEL_ID&&identity.message_id) {
+  if(identity?.channel_id===UNIT_CARDS_CHANNEL_ID&&identity?.message_id) {
     try {
       message=await assignmentDiscord(token,"/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages/"+encodeURIComponent(String(identity.message_id)),{method:"PATCH",body:form});
       updated=true;
     } catch(error) {
+      // A saved message reference can outlive a manually deleted Discord card.
+      // Treat Discord's Unknown Message (404) as a fresh publish, not a hard failure.
       if(Number(error?.status)!==404)return send(res,error.status||502,{error:"تعذّر تحديث بطاقة "+(index+1)+" من "+total+" في Discord.",discord_code:String(error.code||error.status||"update_failed"),published_count:index,total_count:total});
+      message=null;
+      updated=false;
     }
   }
   if(!message?.id)try { message=await assignmentDiscord(token,"/channels/"+UNIT_CARDS_CHANNEL_ID+"/messages",{method:"POST",body:form}); }
