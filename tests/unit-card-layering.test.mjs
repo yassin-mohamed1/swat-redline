@@ -33,22 +33,27 @@ test("member photo stays visible through the exact card-frame aperture", async (
   assert.ok(nameLayer > frameLayer, "member name remains above the frame");
 });
 
-test("saved avatar zoom below 120 percent is normalized to preserve room for panning", async () => {
+test("avatar zoom supports very small and very large image sizes", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const normalizeStart = html.indexOf("function normalizeUnitCardDesign(value)");
   const normalizeEnd = html.indexOf("\nfunction unitCardEligibleMembers", normalizeStart);
   assert.ok(normalizeStart >= 0 && normalizeEnd > normalizeStart);
   const normalizer = html.slice(normalizeStart, normalizeEnd);
-  assert.ok(normalizer.includes("avatar.zoom=Math.max(1.2,Math.min(2.5,Number(avatar.zoom)||1.2))"));
-  assert.ok(html.includes('id="unitCardAvatarZoom" type="range" min="120" max="250"'));
-  assert.ok(html.includes("Math.max(1.2,Math.min(2.5,Number(settings.zoom)||1.2))"));
+  assert.ok(html.includes("function unitCardClampZoom(value){return Math.max(0.1,Math.min(5,Number(value)||1.2));}"));
+  assert.ok(normalizer.includes("avatar.zoom=unitCardClampZoom(avatar.zoom)"));
+  assert.ok(html.includes('id="unitCardAvatarZoom" type="range" min="10" max="500" step="5"'));
+  assert.ok(html.includes("unitCardClampZoom(settings.zoom)"));
+  assert.ok(html.includes("unitCardDesign.avatar.zoom=unitCardClampZoom(number/100)"));
 });
 
-test("avatar drag uses the same full photo viewport as rendering", async () => {
+test("avatar drag follows both positive and negative image overflow at every zoom level", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.ok(html.includes("const unitCardImageDimensions=new Map()"));
   assert.ok(html.includes("unitCardImageDimensions.set(url,{width:image.naturalWidth||image.width,height:image.naturalHeight||image.height})"));
   assert.ok(html.includes("frame=UNIT_CARD_PHOTO_FRAME"));
+  assert.ok(html.includes("function unitCardSignedOverflow(value)"));
+  assert.ok(html.includes("unitCardSignedOverflow(dimensions.width*scale-frame.width)"));
+  assert.ok(html.includes("unitCardSignedOverflow(dimensions.height*scale-frame.height)"));
   assert.ok(html.includes(")-dx*200/overflowX"));
   assert.ok(html.includes(")-dy*200/overflowY"));
   assert.ok(!html.includes("frame={width:490,height:485}"));
