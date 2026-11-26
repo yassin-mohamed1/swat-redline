@@ -279,14 +279,14 @@ test("individual identity send uses the saved custom unit-card renderer and upda
   assert.ok(start >= 0 && end > start, "shared image-card publisher exists");
   const publisher = api.slice(start, end);
 
-  const clientStart = html.indexOf("async function publishMemberIdentity(id){");
+  const clientStart = html.indexOf("async function publishMemberIdentity(id,mode){");
   const clientEnd = html.indexOf("\nasync function addNextCallsign()", clientStart);
   assert.ok(clientStart >= 0 && clientEnd > clientStart, "individual identity action exists");
   const client = html.slice(clientStart, clientEnd);
 
   assert.match(client, /await loadUnitCardDesign\(\)/);
   assert.match(client, /unitCardImageData\(member\)/);
-  assert.match(client, /action:'publish_unit_card_image',single:true/);
+  assert.match(client, /action:'publish_unit_card_image',single:true,publish_mode:mode/);
   assert.doesNotMatch(client, /action:'publish_member_identity'/);
 
   assert.match(publisher, /const single=body\?\.single===true/);
