@@ -4630,6 +4630,7 @@ let unitCardPreviewRequest=0;
 let unitCardDragging=null;
 const unitCardImageCache=new Map();
 const unitCardImageDimensions=new Map();
+let unitCardFrameOverlayCanvas=null;
 const unitCardTemplateImage=new Image();unitCardTemplateImage.src='/unit-operator-template.png';
 function normalizeUnitCardDesign(value){
  const source=value&&typeof value==='object'?value:{};
@@ -4653,11 +4654,22 @@ function unitCardLoadImage(url){
 }
 function unitCardAvatarPath(ctx){
  ctx.beginPath();
- ctx.moveTo(1440,130);ctx.lineTo(1895,130);ctx.lineTo(1920,155);ctx.lineTo(1920,615);
- ctx.lineTo(1895,640);ctx.lineTo(1440,640);ctx.lineTo(1415,615);ctx.lineTo(1415,155);ctx.closePath();
+ ctx.moveTo(1447,142);ctx.lineTo(1887,142);ctx.lineTo(1912,167);ctx.lineTo(1912,602);
+ ctx.lineTo(1887,627);ctx.lineTo(1447,627);ctx.lineTo(1422,602);ctx.lineTo(1422,167);ctx.closePath();
+}
+function unitCardFrameOverlay(){
+ if(unitCardFrameOverlayCanvas)return unitCardFrameOverlayCanvas;
+ const overlay=document.createElement('canvas');overlay.width=2048;overlay.height=768;
+ const overlayContext=overlay.getContext('2d');
+ overlayContext.drawImage(unitCardTemplateImage,0,0,2048,768);
+ overlayContext.globalCompositeOperation='destination-out';
+ unitCardAvatarPath(overlayContext);overlayContext.fill();
+ overlayContext.globalCompositeOperation='source-over';
+ unitCardFrameOverlayCanvas=overlay;
+ return overlay;
 }
 function unitCardCoverImage(ctx,image,settings){
- const frame={x:1415,y:130,width:505,height:510};
+ const frame={x:1422,y:142,width:490,height:485};
  ctx.save();unitCardAvatarPath(ctx);ctx.clip();
  const scale=Math.max(frame.width/image.width,frame.height/image.height)*Math.max(1.2,Math.min(2.5,Number(settings.zoom)||1.2));
  const width=image.width*scale,height=image.height*scale;
@@ -4677,9 +4689,12 @@ async function unitCardPaint(canvas,member,requireAvatar=false){
  if(member?.avatar_url){try{avatar=await unitCardLoadImage(member.avatar_url)}catch(error){if(requireAvatar)throw error}}
  else if(requireAvatar)throw new Error('هذا العضو ليس لديه صورة Discord متاحة للبطاقة.');
  const context=canvas.getContext('2d');context.clearRect(0,0,2048,768);
- context.drawImage(unitCardTemplateImage,0,0,2048,768);
- context.save();unitCardAvatarPath(context);context.fillStyle='#08070b';context.fill();context.restore();
- if(avatar)unitCardCoverImage(context,avatar,unitCardDesign.avatar);
+ if(avatar){
+  unitCardCoverImage(context,avatar,unitCardDesign.avatar);
+  context.drawImage(unitCardFrameOverlay(),0,0,2048,768);
+ }else{
+  context.drawImage(unitCardTemplateImage,0,0,2048,768);
+ }
  unitCardDrawText(context,values.name,unitCardDesign.name,680);
  unitCardDrawText(context,values.rank,unitCardDesign.rank,580);
  unitCardDrawText(context,values.callsign,unitCardDesign.callsign,455);
@@ -4726,7 +4741,7 @@ async function openUnitCardEditor(){
  const members=unitCardEligibleMembers(),select=document.getElementById('unitCardPreviewMember');
  if(select){select.innerHTML=members.map(member=>'<option value="'+assignmentEscape(member.discord_user_id)+'">'+assignmentEscape(member.assignment?.callsign||'بدون نداء')+' • '+assignmentEscape(member.live_name||member.display_name||'عضو')+'</option>').join('')||'<option value="">معاينة التصميم</option>';unitCardPreviewMemberId=members[0]?String(members[0].discord_user_id):'';select.value=unitCardPreviewMemberId;}
  await loadUnitCardDesign();unitCardEditorDirty=false;syncUnitCardEditorControls();await drawUnitCardEditorPreview();
- const canvas=document.getElementById('unitCardEditorCanvas');if(canvas&&!canvas.dataset.dragBound){canvas.dataset.dragBound='1';canvas.addEventListener('pointerdown',event=>{const rect=canvas.getBoundingClientRect();unitCardDragging={x:event.clientX,y:event.clientY,scaleX:2048/rect.width,scaleY:768/rect.height};canvas.setPointerCapture(event.pointerId)});canvas.addEventListener('pointermove',event=>{if(!unitCardDragging)return;const dx=(event.clientX-unitCardDragging.x)*unitCardDragging.scaleX,dy=(event.clientY-unitCardDragging.y)*unitCardDragging.scaleY;unitCardDragging.x=event.clientX;unitCardDragging.y=event.clientY;const selected=document.getElementById('unitCardSelectedLayer')?.value||'name';if(selected==='avatar'){const member=unitCardPreviewMember(),dimensions=unitCardImageDimensions.get(member?.avatar_url),frame={width:505,height:510};let overflowX=frame.width*.2,overflowY=frame.height*.2;if(dimensions){const zoom=Math.max(1.2,Math.min(2.5,Number(unitCardDesign.avatar.zoom)||1.2)),scale=Math.max(frame.width/dimensions.width,frame.height/dimensions.height)*zoom;overflowX=Math.max(1,dimensions.width*scale-frame.width);overflowY=Math.max(1,dimensions.height*scale-frame.height);}unitCardDesign.avatar.cropX=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropX||0)-dx*200/overflowX));unitCardDesign.avatar.cropY=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropY||0)-dy*200/overflowY));}else{const config=unitCardDesign[selected];config.x=Math.round(config.x+dx);config.y=Math.round(config.y+dy);}unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview()});const stop=()=>{unitCardDragging=null};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);}
+ const canvas=document.getElementById('unitCardEditorCanvas');if(canvas&&!canvas.dataset.dragBound){canvas.dataset.dragBound='1';canvas.addEventListener('pointerdown',event=>{const rect=canvas.getBoundingClientRect();unitCardDragging={x:event.clientX,y:event.clientY,scaleX:2048/rect.width,scaleY:768/rect.height};canvas.setPointerCapture(event.pointerId)});canvas.addEventListener('pointermove',event=>{if(!unitCardDragging)return;const dx=(event.clientX-unitCardDragging.x)*unitCardDragging.scaleX,dy=(event.clientY-unitCardDragging.y)*unitCardDragging.scaleY;unitCardDragging.x=event.clientX;unitCardDragging.y=event.clientY;const selected=document.getElementById('unitCardSelectedLayer')?.value||'name';if(selected==='avatar'){const member=unitCardPreviewMember(),dimensions=unitCardImageDimensions.get(member?.avatar_url),frame={width:490,height:485};let overflowX=frame.width*.2,overflowY=frame.height*.2;if(dimensions){const zoom=Math.max(1.2,Math.min(2.5,Number(unitCardDesign.avatar.zoom)||1.2)),scale=Math.max(frame.width/dimensions.width,frame.height/dimensions.height)*zoom;overflowX=Math.max(1,dimensions.width*scale-frame.width);overflowY=Math.max(1,dimensions.height*scale-frame.height);}unitCardDesign.avatar.cropX=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropX||0)-dx*200/overflowX));unitCardDesign.avatar.cropY=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropY||0)-dy*200/overflowY));}else{const config=unitCardDesign[selected];config.x=Math.round(config.x+dx);config.y=Math.round(config.y+dy);}unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview()});const stop=()=>{unitCardDragging=null};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);}
 }
 function closeUnitCardEditor(){const modal=document.getElementById('unitCardEditorModal');if(modal)modal.hidden=true;unitCardDragging=null;}
 function resetUnitCardDesign(){unitCardDesign=JSON.parse(JSON.stringify(DEFAULT_UNIT_CARD_DESIGN));unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview();}
