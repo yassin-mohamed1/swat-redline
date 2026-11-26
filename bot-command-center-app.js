@@ -91,31 +91,141 @@ function renderServer(data){
   try{await post(payload);toast(t("تم تحديث رتب العضو.","Member roles updated."));roleForm.reset();}catch(error){toast(error.message);}
  });
 }
+function mentionPicker(data){
+ const roles=(data.roles||[]).filter(role=>role.id!==(data.guild||{}).id);
+ const roleOptions=roles.map(role=>'<option value="'+esc(role.id)+'">'+esc(role.name)+'</option>').join("");
+ return '<div class="field"><label>'+t("نوع المنشن","Mention type")+'</label>'+
+  '<select name="mentionType" data-mention-type>'+
+   '<option value="none">'+t("بدون منشن","No mention")+'</option>'+
+   '<option value="everyone">@everyone</option>'+
+   '<option value="here">@here</option>'+
+   '<option value="role">'+t("رتبة / مجموعة","Role / group")+'</option>'+
+   '<option value="user">'+t("شخص محدد","Specific member")+'</option>'+
+  '</select></div>'+
+  '<div class="field" data-mention-role-wrap hidden><label>'+t("اختر الرتبة","Select role")+'</label>'+
+   '<select name="mentionRoleId" data-mention-role><option value="">'+t("اختر رتبة من السيرفر","Choose a server role")+'</option>'+roleOptions+'</select></div>'+
+  '<div class="field" data-mention-user-wrap hidden><label>'+t("ابحث عن العضو","Find a member")+'</label>'+
+   '<input type="search" data-mention-user-query autocomplete="off" placeholder="'+t("اكتب اسم العضو أو اسم المستخدم...","Type a member name or username...")+'">'+
+   '<select name="mentionUserId" data-mention-user-results><option value="">'+t("اكتب حرفين على الأقل للبحث","Type at least 2 characters to search")+'</option></select>'+
+   '<div class="muted" data-mention-user-status>'+t("سيظهر الأعضاء المطابقون من نفس السيرفر هنا.","Matching members from this server will appear here.")+'</div></div>';
+}
+function bindMentionPicker(form){
+ const type=form.querySelector("[data-mention-type]");
+ const roleWrap=form.querySelector("[data-mention-role-wrap]");
+ const roleSelect=form.querySelector("[data-mention-role]");
+ const userWrap=form.querySelector("[data-mention-user-wrap]");
+ const userQuery=form.querySelector("[data-mention-user-query]");
+ const userResults=form.querySelector("[data-mention-user-results]");
+ const userStatus=form.querySelector("[data-mention-user-status]");
+ if(!type||!roleWrap||!roleSelect||!userWrap||!userQuery||!userResults||!userStatus)return;
+ const sync=()=>{
+  const mode=type.value;
+  roleWrap.hidden=mode!=="role";
+  userWrap.hidden=mode!=="user";
+  roleSelect.required=mode==="role";
+  userResults.required=mode==="user";
+ };
+ type.addEventListener("change",sync);
+ sync();
+ let timer=null,sequence=0;
+ userQuery.addEventListener("input",()=>{
+  if(timer)clearTimeout(timer);
+  const query=userQuery.value.trim();
+  const current=++sequence;
+  userResults.innerHTML='<option value="">'+t("اختر عضوًا من نتائج البحث","Select a member from the results")+'</option>';
+  if(query.length<2){
+   userStatus.textContent=t("اكتب حرفين على الأقل للبحث.","Type at least 2 characters to search.");
+   return;
+  }
+  userStatus.textContent=t("جاري البحث في أعضاء السيرفر...","Searching server members...");
+  timer=setTimeout(async()=>{
+   try{
+    const result=await post({action:"search_members",query});
+    if(current!==sequence||userQuery.value.trim()!==query)return;
+    const members=Array.isArray(result.members)?result.members:[];
+    userResults.innerHTML='<option value="">'+t("اختر العضو المطلوب","Choose the member")+'</option>'+
+     members.map(member=>'<option value="'+esc(member.id)+'">'+esc(member.displayName)+(member.username&&member.username!==member.displayName?' · @'+esc(member.username):'')+'</option>').join("");
+    userStatus.textContent=members.length?t("تم العثور على "+members.length+" عضو مطابق.","Found "+members.length+" matching member(s)."):t("لم يتم العثور على أعضاء بهذا الاسم.","No members matched that name.");
+   }catch(error){
+    if(current!==sequence)return;
+    userStatus.textContent=error.message;
+   }
+  },350);
+ });
+ form.addEventListener("reset",()=>{
+  setTimeout(()=>{
+   sequence++;
+   if(timer)clearTimeout(timer);
+   userQuery.value="";
+   userResults.innerHTML='<option value="">'+t("اكتب حرفين على الأقل للبحث","Type at least 2 characters to search")+'</option>';
+   userStatus.textContent=t("سيظهر الأعضاء المطابقون من نفس السيرفر هنا.","Matching members from this server will appear here.");
+   sync();
+  },0);
+ });
+}
+function mentionPayload(form){
+ const values=new FormData(form);
+ const mentionType=String(values.get("mentionType")||"none");
+ const mentionTargetId=mentionType==="role"?String(values.get("mentionRoleId")||"").trim()
+  :mentionType==="user"?String(values.get("mentionUserId")||"").trim():"";
+ return {mentionType,mentionTargetId};
+}
 function renderMessages(data){
  const channels=(data.channels||[]).filter(c=>[0,5].includes(c.type));
  $("#mainView").innerHTML=head(t("الرسائل والإعلانات","Messages & announcements"),t("إرسال رسالة إلى قناة نصية أو قناة إعلانات داخل سيرفر S.W.A.T.","Send a message to a text or announcement channel in your S.W.A.T. server."))+
  '<section class="panel"><div class="panel-head"><h2>'+t("إنشاء رسالة","Compose message")+'</h2>'+badge(t("إرسال مباشر","Direct send"),"warn")+'</div><div class="panel-body">'+
  '<form id="messageForm"><div class="field"><label>'+t("القناة المستهدفة","Target channel")+'</label><select name="channelId" required><option value="">'+t("اختر القناة","Select channel")+'</option>'+channels.map(c=>'<option value="'+esc(c.id)+'"># '+esc(c.name)+'</option>').join("")+'</select></div>'+
- '<div class="field"><label>'+t("محتوى الرسالة","Message content")+'</label><textarea name="content" maxlength="2000" required placeholder="'+t("اكتب الإعلان أو الرسالة...","Write the announcement or message...")+'"></textarea><div class="muted">'+t("حتى 2000 حرف. المنشن الجماعي @everyone و@here معطل تلقائيًا.","Up to 2,000 characters. @everyone and @here mentions are disabled by default.")+'</div></div>'+
+ '<div class="field"><label>'+t("محتوى الرسالة","Message content")+'</label><textarea name="content" maxlength="2000" required placeholder="'+t("اكتب الإعلان أو الرسالة...","Write the announcement or message...")+'"></textarea><div class="muted">'+t("حتى 2000 حرف. اختر نوع المنشن؛ الوضع الافتراضي بدون منشن.","Up to 2,000 characters. Choose a mention type; the default is no mention.")+'</div></div>'+
+ mentionPicker(data)+
  '<div class="row"><button class="btn primary" type="submit">'+t("إرسال إلى Discord","Send to Discord")+'</button><button class="btn" type="reset">'+t("مسح","Clear")+'</button></div></form></div></section>'+
- '<div class="notice">'+t("لن تُرسل أي رسالة إلا بعد ضغطك على إرسال وتأكيد العملية. كل إرسال يُسجّل في سجل الإدارة.","No message is sent until you submit and confirm. Every send is recorded in the admin audit log.")+'</div>'+
+ '<div class="notice">'+t("لن تُرسل أي رسالة إلا بعد ضغطك على إرسال وتأكيد العملية. المنشن الجماعي يحتاج تأكيدك، وكل إرسال يُسجّل في سجل الإدارة.","No message is sent until you submit and confirm. Mass mentions require your confirmation, and every send is recorded in the admin audit log.")+'</div>'+
  '<section class="panel"><div class="panel-head"><h2>'+t("محرر رسائل Embed","Embed message builder")+'</h2>'+badge("DISCORD EMBED","neutral")+'</div><div class="panel-body">'+
  '<form id="embedForm"><div class="field"><label>'+t("القناة المستهدفة","Target channel")+'</label><select name="channelId" required><option value="">'+t("اختر القناة","Select channel")+'</option>'+channels.map(c=>'<option value="'+esc(c.id)+'"># '+esc(c.name)+'</option>').join("")+'</select></div>'+
  '<div class="split"><div class="field"><label>'+t("العنوان","Title")+'</label><input name="title" maxlength="256" placeholder="'+t("عنوان الإعلان","Announcement title")+'"></div><div class="field"><label>'+t("لون الشريط","Accent color")+'</label><input type="color" name="color" value="#ed3545" style="height:42px;padding:4px"></div></div>'+
  '<div class="field"><label>'+t("الوصف","Description")+'</label><textarea name="description" maxlength="4096" placeholder="'+t("اكتب تفاصيل الإعلان...","Write the announcement details...")+'"></textarea></div>'+
  '<div class="field"><label>'+t("تذييل الرسالة (اختياري)","Footer (optional)")+'</label><input name="footer" maxlength="2048" placeholder="S.W.A.T. REDLINE"></div>'+
+ mentionPicker(data)+
  '<div class="row"><button class="btn primary" type="submit">'+t("إرسال Embed","Send Embed")+'</button><button class="btn" type="reset">'+t("مسح","Clear")+'</button></div></form></div></section>';
- $("#messageForm").addEventListener("submit",async event=>{
-  event.preventDefault();const form=event.currentTarget;const values=new FormData(form);const channelId=String(values.get("channelId")||"");const content=String(values.get("content")||"").trim();if(!channelId||!content)return;
-  if(!confirm(t("سيتم إرسال الرسالة الآن إلى القناة المحددة. هل تريد المتابعة؟","Send this message to the selected channel now?")))return;
-  try{const result=await post({action:"send_message",channelId,content});toast(t("تم إرسال الرسالة إلى #"+result.channelName,"Message sent to #"+result.channelName));form.reset();}catch(error){toast(error.message);}
+ const messageForm=$("#messageForm");
+ const embedForm=$("#embedForm");
+ bindMentionPicker(messageForm);
+ bindMentionPicker(embedForm);
+ messageForm.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const values=new FormData(form);
+  const channelId=String(values.get("channelId")||"");
+  const content=String(values.get("content")||"").trim();
+  const mention=mentionPayload(form);
+  if(!channelId||!content)return;
+  if(["role","user"].includes(mention.mentionType)&&!mention.mentionTargetId){toast(t("اختر الرتبة أو العضو المطلوب لمنشن.","Choose the role or member to mention."));return;}
+  const confirmation=["everyone","here"].includes(mention.mentionType)
+   ?t("تنبيه: سيتم إرسال منشن جماعي إلى "+(mention.mentionType==="everyone"?"@everyone":"@here")+". هل تريد المتابعة؟","Warning: this will send a mass mention to "+(mention.mentionType==="everyone"?"@everyone":"@here")+". Continue?")
+   :t("سيتم إرسال الرسالة الآن إلى القناة المحددة. هل تريد المتابعة؟","Send this message to the selected channel now?");
+  if(!confirm(confirmation))return;
+  try{
+   const result=await post({action:"send_message",channelId,content,...mention});
+   toast(t("تم إرسال الرسالة إلى #"+result.channelName,"Message sent to #"+result.channelName));
+   form.reset();
+  }catch(error){toast(error.message);}
  });
- $("#embedForm").addEventListener("submit",async event=>{
-  event.preventDefault();const form=event.currentTarget;const values=new FormData(form);
-  const payload={action:"send_embed",channelId:String(values.get("channelId")||""),title:String(values.get("title")||"").trim(),description:String(values.get("description")||"").trim(),footer:String(values.get("footer")||"").trim(),color:String(values.get("color")||"#ed3545")};
+ embedForm.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const form=event.currentTarget;
+  const values=new FormData(form);
+  const mention=mentionPayload(form);
+  const payload={action:"send_embed",channelId:String(values.get("channelId")||""),title:String(values.get("title")||"").trim(),description:String(values.get("description")||"").trim(),footer:String(values.get("footer")||"").trim(),color:String(values.get("color")||"#ed3545"),...mention};
   if(!payload.channelId||(!payload.title&&!payload.description)){toast(t("اختر قناة واكتب عنوانًا أو وصفًا.","Choose a channel and enter a title or description."));return;}
-  if(!confirm(t("سيتم إرسال Embed الآن إلى القناة المختارة. هل تريد المتابعة؟","Send this embed to the selected channel now?")))return;
-  try{const result=await post(payload);toast(t("تم إرسال Embed إلى #"+result.channelName,"Embed sent to #"+result.channelName));form.reset();}catch(error){toast(error.message);}
+  if(["role","user"].includes(mention.mentionType)&&!mention.mentionTargetId){toast(t("اختر الرتبة أو العضو المطلوب لمنشن.","Choose the role or member to mention."));return;}
+  const confirmation=["everyone","here"].includes(mention.mentionType)
+   ?t("تنبيه: سيتم إرسال Embed مع منشن جماعي إلى "+(mention.mentionType==="everyone"?"@everyone":"@here")+". هل تريد المتابعة؟","Warning: this embed will include a mass mention to "+(mention.mentionType==="everyone"?"@everyone":"@here")+". Continue?")
+   :t("سيتم إرسال Embed الآن إلى القناة المختارة. هل تريد المتابعة؟","Send this embed to the selected channel now?");
+  if(!confirm(confirmation))return;
+  try{
+   const result=await post(payload);
+   toast(t("تم إرسال Embed إلى #"+result.channelName,"Embed sent to #"+result.channelName));
+   form.reset();
+  }catch(error){toast(error.message);}
  });
 }
 function renderModeration(){

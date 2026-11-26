@@ -353,26 +353,117 @@ async function checkRoleHierarchy(cfg, targetId, roleId = null) {
     if (Number(role.position || 0) >= botTop) throw Object.assign(new Error("رتبة البوت يجب أن تكون أعلى من الرتبة المطلوب إدارتها."), { status: 403 });
   }
 }
+
+async function searchMentionMembers(cfg, query) {
+  const params = new URLSearchParams({ query, limit: "25" });
+  let members;
+  try {
+    members = await discord(cfg, "/guilds/" + cfg.guildId + "/members/search?" + params.toString());
+  } catch (error) {
+    if (Number(error?.status) === 403) {
+      throw Object.assign(new Error("البوت غير قادر على البحث عن أعضاء السيرفر. فعّل GUILD_MEMBERS Privileged Intent من Discord Developer Portal ثم جرّب مرة أخرى."), { status: 403 });
+    }
+    throw error;
+  }
+  return (Array.isArray(members) ? members : [])
+    .filter(member => member?.user?.id && SNOWFLAKE.test(String(member.user.id)))
+    .map(member => ({
+      id: String(member.user.id),
+      username: String(member.user.username || ""),
+      displayName: String(member.nick || member.user.global_name || member.user.username || "Discord user")
+    }));
+}
+
+async function resolveMessageMention(cfg, body) {
+  const type = String(body.mentionType || "none");
+  const targetId = String(body.mentionTargetId || "");
+  if (type === "none") return { type, prefix: "", allowedMentions: { parse: [] }, targetId: "", targetName: "" };
+  if (type === "everyone" || type === "here") {
+    return {
+      type,
+      prefix: type === "everyone" ? "@everyone" : "@here",
+      allowedMentions: { parse: ["everyone"] },
+      targetId: "",
+      targetName: type === "everyone" ? "@everyone" : "@here"
+    };
+  }
+  if (type === "role") {
+    if (!SNOWFLAKE.test(targetId) || targetId === cfg.guildId) {
+      throw Object.assign(new Error("اختر رتبة صحيحة للمنشن."), { status: 400 });
+    }
+    const roles = await discord(cfg, "/guilds/" + cfg.guildId + "/roles");
+    const role = (Array.isArray(roles) ? roles : []).find(item => String(item.id) === targetId);
+    if (!role) throw Object.assign(new Error("الرتبة المحددة ليست موجودة في هذا السيرفر."), { status: 400 });
+    return {
+      type,
+      prefix: "<@&" + targetId + ">",
+      allowedMentions: { parse: [], roles: [targetId] },
+      targetId,
+      targetName: String(role.name || "")
+    };
+  }
+  if (type === "user") {
+    if (!SNOWFLAKE.test(targetId)) {
+      throw Object.assign(new Error("اختر عضوًا صحيحًا للمنشن."), { status: 400 });
+    }
+    let member;
+    try {
+      member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
+    } catch (error) {
+      if (Number(error?.status) === 404) {
+        throw Object.assign(new Error("العضو المحدد لم يعد موجودًا في هذا السيرفر."), { status: 400 });
+      }
+      throw error;
+    }
+    const user = member?.user || {};
+    return {
+      type,
+      prefix: "<@" + targetId + ">",
+      allowedMentions: { parse: [], users: [targetId] },
+      targetId,
+      targetName: String(member.nick || user.global_name || user.username || targetId)
+    };
+  }
+  throw Object.assign(new Error("نوع المنشن المحدد غير مدعوم."), { status: 400 });
+}
+
+function applyMessageMention(content, mention) {
+  let safeContent = String(content || "");
+  if (mention.type === "everyone") safeContent = safeContent.replace(/@here/gi, "@\u200Bhere");
+  if (mention.type === "here") safeContent = safeContent.replace(/@everyone/gi, "@\u200Beveryone");
+  return mention.prefix ? mention.prefix + (safeContent ? "\n" + safeContent : "") : safeContent;
+}
+
 async function handlePost(req, res, user, cfg) {
   if (!requireSameOrigin(req, res)) return;
   const body = bodyOf(req);
   const action = String(body.action || "");
   if (action === "save_bot_settings") return saveBotControlSettings(req, res, user, cfg, body);
   if (action === "test_log") return sendLogTest(req, res, user, cfg, body);
+  if (action === "search_members") {
+    const query = String(body.query || "").trim().slice(0, 80);
+    if (query.length < 2) return reply(res, 400, { error: "اكتب حرفين على الأقل للبحث عن عضو." });
+    const members = await searchMentionMembers(cfg, query);
+    return reply(res, 200, { ok: true, members });
+  }
   if (action === "send_message") {
     const channelId = String(body.channelId || "");
     const content = String(body.content || "").trim();
     if (!SNOWFLAKE.test(channelId) || !content || content.length > 2000) return reply(res, 400, { error: "اختر قناة صحيحة واكتب رسالة من 1 إلى 2000 حرف." });
     const channel = await discord(cfg, "/channels/" + channelId);
     if (String(channel.guild_id || "") !== cfg.guildId || ![0, 5].includes(Number(channel.type))) return reply(res, 400, { error: "يمكن الإرسال إلى قنوات النصوص والإعلانات التابعة لهذا السيرفر فقط." });
+    const mention = await resolveMessageMention(cfg, body);
+    const outgoingContent = applyMessageMention(content, mention);
+    if (!outgoingContent || outgoingContent.length > 2000) return reply(res, 400, { error: "محتوى الرسالة بعد إضافة المنشن يجب ألا يتجاوز 2000 حرف." });
     const sent = await discord(cfg, "/channels/" + channelId + "/messages", {
       method: "POST",
-      body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
+      body: JSON.stringify({ content: outgoingContent, allowed_mentions: mention.allowedMentions })
     });
     await writeAudit(cfg, user, "send", sent?.id || channelId, {
       type: "إرسال رسالة من مركز تحكم البوت",
       channel_id: channelId, channel_name: String(channel.name || ""),
-      message_id: String(sent?.id || ""), content_preview: content.slice(0, 180)
+      message_id: String(sent?.id || ""), content_preview: outgoingContent.slice(0, 180),
+      mention_type: mention.type, mention_target_id: mention.targetId || null, mention_target_name: mention.targetName || null
     });
     return reply(res, 200, { ok: true, messageId: String(sent?.id || ""), channelName: String(channel.name || "") });
   }
@@ -394,9 +485,10 @@ async function handlePost(req, res, user, cfg) {
     if (title) embed.title = title;
     if (description) embed.description = description;
     if (footer) embed.footer = { text: footer };
+    const mention = await resolveMessageMention(cfg, body);
     const sent = await discord(cfg, "/channels/" + channelId + "/messages", {
       method: "POST",
-      body: JSON.stringify({ embeds: [embed], allowed_mentions: { parse: [] } })
+      body: JSON.stringify({ content: mention.prefix || undefined, embeds: [embed], allowed_mentions: mention.allowedMentions })
     });
     await writeAudit(cfg, user, "send_embed", sent?.id || channelId, {
       type: "إرسال Embed من مركز تحكم البوت",
@@ -404,7 +496,8 @@ async function handlePost(req, res, user, cfg) {
       channel_name: String(channel.name || ""),
       message_id: String(sent?.id || ""),
       title: title.slice(0, 120),
-      description_preview: description.slice(0, 180)
+      description_preview: description.slice(0, 180),
+      mention_type: mention.type, mention_target_id: mention.targetId || null, mention_target_name: mention.targetName || null
     });
     return reply(res, 200, { ok: true, messageId: String(sent?.id || ""), channelName: String(channel.name || "") });
   }
