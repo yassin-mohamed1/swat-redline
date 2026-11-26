@@ -1712,6 +1712,41 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 @media(max-width:640px){#page-assignments .unit-order-row{grid-template-columns:34px minmax(0,1fr)}#page-assignments .unit-order-controls{grid-column:1/-1;justify-content:flex-start}}
 
 
+/* Keep all nine assignment columns and both row actions visible without horizontal overflow on desktop. */
+#page-assignments #assignmentMembersTable{
+ width:100%!important;min-width:980px!important;table-layout:fixed!important;
+}
+#page-assignments #assignmentMembersTable th,
+#page-assignments #assignmentMembersTable td{
+ padding:9px 7px!important;white-space:normal!important;overflow-wrap:anywhere;
+}
+#page-assignments #assignmentMembersTable th:nth-child(1),
+#page-assignments #assignmentMembersTable td:nth-child(1){width:14%}
+#page-assignments #assignmentMembersTable th:nth-child(2),
+#page-assignments #assignmentMembersTable td:nth-child(2){width:13%}
+#page-assignments #assignmentMembersTable th:nth-child(3),
+#page-assignments #assignmentMembersTable td:nth-child(3){width:13%}
+#page-assignments #assignmentMembersTable th:nth-child(4),
+#page-assignments #assignmentMembersTable td:nth-child(4){width:14%}
+#page-assignments #assignmentMembersTable th:nth-child(5),
+#page-assignments #assignmentMembersTable td:nth-child(5){width:7%}
+#page-assignments #assignmentMembersTable th:nth-child(6),
+#page-assignments #assignmentMembersTable td:nth-child(6){width:10%}
+#page-assignments #assignmentMembersTable th:nth-child(7),
+#page-assignments #assignmentMembersTable td:nth-child(7){width:8%}
+#page-assignments #assignmentMembersTable th:nth-child(8),
+#page-assignments #assignmentMembersTable td:nth-child(8){width:13%;text-align:center}
+#page-assignments #assignmentMembersTable th:nth-child(9),
+#page-assignments #assignmentMembersTable td:nth-child(9){width:8%;text-align:center}
+#page-assignments #assignmentMembersTable td:nth-child(8) .btn,
+#page-assignments #assignmentMembersTable td:nth-child(9) .btn{
+ display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;
+ padding:8px 5px!important;font-size:10px!important;line-height:1.55!important;
+ white-space:normal!important;overflow-wrap:anywhere;
+}
+@media(max-width:1020px){
+ #page-assignments #assignmentMembersTable{min-width:980px!important}
+}
 @media(max-width:760px){#page-assignments .assignment-summary{grid-template-columns:repeat(2,minmax(0,1fr))}#page-assignments .assignment-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <div class="sectionhead">
@@ -1758,7 +1793,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
     <option value="all">كل الأعضاء</option><option value="assigned">لديهم تعيين</option><option value="unassigned">بدون تعيين</option><option value="outside">ليسوا في السيرفر</option><option value="inactive">حسابات موقوفة</option>
    </select>
   </div>
-  <div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>رتبته الحالية في Discord</th><th>التعيين المسجل بالموقع</th><th>كود النداء</th><th>City Rank</th><th>حالة الحساب</th><th>هوية Discord</th><th>إدارة</th></tr></thead><tbody id="assignmentRows"><tr><td colspan="9">جارٍ تحميل الأعضاء...</td></tr></tbody></table></div>
+  <div class="tablewrap"><table id="assignmentMembersTable"><thead><tr><th>الفرد</th><th>Discord ID</th><th>رتبته الحالية في Discord</th><th>التعيين المسجل بالموقع</th><th>كود النداء</th><th>City Rank</th><th>حالة الحساب</th><th>هوية Discord</th><th>إدارة</th></tr></thead><tbody id="assignmentRows"><tr><td colspan="9">جارٍ تحميل الأعضاء...</td></tr></tbody></table></div>
   <div class="muted" style="margin-top:10px;line-height:1.8">يمكن إضافة عضو يدويًا باستخدام Discord ID دون تسجيل دخوله للموقع. يجب أن يكون العضو موجودًا بالفعل في سيرفر Discord حتى يستطيع البوت جلب اسمه وصورته وإدارة رتبته. لا يتم تعيين رتبة أو كود نداء دون اختيارك وحفظك.</div>
  </div>
 </div>
