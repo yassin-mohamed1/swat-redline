@@ -301,6 +301,28 @@ test("individual identity send uses the saved custom unit-card renderer and upda
   assert.match(publisher, /unit_sort_order:index/);
 });
 
+test("unit-card action label always offers send or update and recreates a deleted Discord message", async () => {
+  const api = await read("../api/admin/members.js", "utf8");
+  const html = await read("../index.html", "utf8");
+
+  const rowStart = html.indexOf("const identityButton=");
+  const rowEnd = html.indexOf("\n  return '<tr", rowStart);
+  assert.ok(rowStart >= 0 && rowEnd > rowStart);
+  const button = html.slice(rowStart, rowEnd);
+  assert.match(button, /إرسال بطاقة جديدة أو تحديث البطاقة/);
+  assert.doesNotMatch(button, /identity\.message_id\?'تحديث الهوية':'إرسال الهوية'/);
+
+  const start = api.indexOf("async function handlePublishUnitCardImage(");
+  const end = api.indexOf("\nasync function listUnitChannelMessages(", start);
+  assert.ok(start >= 0 && end > start);
+  const publisher = api.slice(start, end);
+  assert.match(publisher, /if\(identity\?\.channel_id===UNIT_CARDS_CHANNEL_ID&&identity\?\.message_id\)/);
+  assert.match(publisher, /Number\(error\?\.status\)!==404/);
+  assert.match(publisher, /Unknown Message \(404\)/);
+  assert.match(publisher, /message=null;\s*updated=false;/);
+  assert.match(publisher, /if\(!message\?\.id\)try \{ message=await assignmentDiscord\(token/);
+});
+
 test("assignment API blocks a callsign reserved by another member before touching Discord roles", async () => {
   const api = await read("../api/admin/members.js");
   const html = await read("../index.html");
