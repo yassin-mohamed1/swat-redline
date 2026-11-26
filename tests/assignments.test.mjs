@@ -271,6 +271,36 @@ test("member identity publishing sends one card and updates the stored Discord m
   assert.match(migration, /staff_member_identities_message_unique/);
 });
 
+test("individual identity send uses the saved custom unit-card renderer and updates only that member's card", async () => {
+  const api = await read("../api/admin/members.js", "utf8");
+  const html = await read("../index.html", "utf8");
+  const start = api.indexOf("async function handlePublishUnitCardImage(");
+  const end = api.indexOf("\nasync function listUnitChannelMessages(", start);
+  assert.ok(start >= 0 && end > start, "shared image-card publisher exists");
+  const publisher = api.slice(start, end);
+
+  const clientStart = html.indexOf("async function publishMemberIdentity(id){");
+  const clientEnd = html.indexOf("\nasync function addNextCallsign()", clientStart);
+  assert.ok(clientStart >= 0 && clientEnd > clientStart, "individual identity action exists");
+  const client = html.slice(clientStart, clientEnd);
+
+  assert.match(client, /await loadUnitCardDesign\(\)/);
+  assert.match(client, /unitCardImageData\(member\)/);
+  assert.match(client, /action:'publish_unit_card_image',single:true/);
+  assert.doesNotMatch(client, /action:'publish_member_identity'/);
+
+  assert.match(publisher, /const single=body\?\.single===true/);
+  assert.match(publisher, /if\(single&&identity\)/);
+  assert.match(publisher, /identity\.unit_sort_order/);
+  assert.match(publisher, /order=unit_sort_order\.desc&limit=1/);
+  assert.match(publisher, /if\(identity\.channel_id===UNIT_CARDS_CHANNEL_ID&&identity\.message_id\)/);
+  assert.match(publisher, /method:"PATCH",body:form/);
+  assert.match(publisher, /method:"POST",body:form/);
+  assert.match(publisher, /embeds:\[\]/);
+  assert.match(publisher, /single\?"|if\(single\)/);
+  assert.match(publisher, /unit_sort_order:index/);
+});
+
 test("assignment API blocks a callsign reserved by another member before touching Discord roles", async () => {
   const api = await read("../api/admin/members.js");
   const html = await read("../index.html");
