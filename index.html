@@ -4648,9 +4648,14 @@ function unitCardLoadImage(url){
  const promise=new Promise((resolve,reject)=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('تعذّر تحميل صورة العضو من Discord.'));image.src=url;});
  unitCardImageCache.set(url,promise);promise.catch(()=>unitCardImageCache.delete(url));return promise;
 }
+function unitCardAvatarPath(ctx){
+ ctx.beginPath();
+ ctx.moveTo(1474,190);ctx.lineTo(1864,190);ctx.lineTo(1883,209);ctx.lineTo(1883,571);
+ ctx.lineTo(1864,590);ctx.lineTo(1474,590);ctx.lineTo(1455,571);ctx.lineTo(1455,209);ctx.closePath();
+}
 function unitCardCoverImage(ctx,image,settings){
- const frame={x:1424,y:144,width:486,height:482};
- ctx.save();ctx.beginPath();ctx.moveTo(1450,145);ctx.lineTo(1885,145);ctx.lineTo(1910,169);ctx.lineTo(1910,598);ctx.lineTo(1886,625);ctx.lineTo(1448,625);ctx.lineTo(1424,600);ctx.lineTo(1424,169);ctx.closePath();ctx.clip();
+ const frame={x:1455,y:190,width:428,height:400};
+ ctx.save();unitCardAvatarPath(ctx);ctx.clip();
  const scale=Math.max(frame.width/image.width,frame.height/image.height)*Number(settings.zoom||1);
  const width=image.width*scale,height=image.height*scale;
  const x=frame.x+(frame.width-width)/2-(Number(settings.cropX||0)/100)*(width-frame.width)/2;
@@ -4669,8 +4674,9 @@ async function unitCardPaint(canvas,member,requireAvatar=false){
  if(member?.avatar_url){try{avatar=await unitCardLoadImage(member.avatar_url)}catch(error){if(requireAvatar)throw error}}
  else if(requireAvatar)throw new Error('هذا العضو ليس لديه صورة Discord متاحة للبطاقة.');
  const context=canvas.getContext('2d');context.clearRect(0,0,2048,768);
- if(avatar)unitCardCoverImage(context,avatar,unitCardDesign.avatar);
  context.drawImage(unitCardTemplateImage,0,0,2048,768);
+ context.save();unitCardAvatarPath(context);context.fillStyle='#08070b';context.fill();context.restore();
+ if(avatar)unitCardCoverImage(context,avatar,unitCardDesign.avatar);
  unitCardDrawText(context,values.name,unitCardDesign.name,680);
  unitCardDrawText(context,values.rank,unitCardDesign.rank,580);
  unitCardDrawText(context,values.callsign,unitCardDesign.callsign,455);
