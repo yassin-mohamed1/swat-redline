@@ -290,7 +290,7 @@ test("individual identity send uses the saved custom unit-card renderer and upda
   assert.doesNotMatch(client, /action:'publish_member_identity'/);
 
   assert.match(publisher, /const single=body\?\.single===true/);
-  assert.match(publisher, /if\\(single&&publishMode==="update"\\)/);
+  assert.ok(publisher.includes('if(single&&publishMode==="update")'));
   assert.match(publisher, /identity\.unit_sort_order/);
   assert.match(publisher, /order=unit_sort_order\.desc&limit=1/);
   assert.match(publisher, /method:"PATCH",body:form/);
