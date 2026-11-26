@@ -1828,7 +1828,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
     <div class="unit-card-control"><label id="unitCardYLabel" for="unitCardPositionY">الموضع الرأسي</label><input id="unitCardPositionY" type="range" min="60" max="630" value="206" oninput="changeUnitCardEditorValue('y',this.value)"><span class="unit-card-control-value" id="unitCardPositionYValue"></span></div>
     <div class="unit-card-control"><label id="unitCardSizeLabel" for="unitCardFontSize">حجم الخط</label><input id="unitCardFontSize" type="range" min="18" max="160" value="90" oninput="changeUnitCardEditorValue('size',this.value)"><span class="unit-card-control-value" id="unitCardFontSizeValue"></span></div>
     <div class="unit-card-control"><label for="unitCardRotation">زاوية الاسم</label><input id="unitCardRotation" type="range" min="-180" max="180" value="0" oninput="changeUnitCardEditorValue('rotation',this.value)"><span class="unit-card-control-value" id="unitCardRotationValue">0°</span></div>
-    <div class="unit-card-control wide" id="unitCardAvatarZoomControl"><label for="unitCardAvatarZoom">تكبير الصورة داخل الإطار</label><input id="unitCardAvatarZoom" type="range" min="100" max="250" value="100" oninput="changeUnitCardEditorValue('zoom',this.value)"><span class="unit-card-control-value" id="unitCardAvatarZoomValue">100%</span></div>
+    <div class="unit-card-control wide" id="unitCardAvatarZoomControl"><label for="unitCardAvatarZoom">تكبير الصورة داخل الإطار</label><input id="unitCardAvatarZoom" type="range" min="120" max="250" value="120" oninput="changeUnitCardEditorValue('zoom',this.value)"><span class="unit-card-control-value" id="unitCardAvatarZoomValue">100%</span></div>
     <div class="unit-card-control wide" id="unitCardAvatarCropXControl"><label for="unitCardAvatarCropX">تحريك الصورة يمين / شمال</label><input id="unitCardAvatarCropX" type="range" min="-100" max="100" value="0" oninput="changeUnitCardEditorValue('cropX',this.value)"><span class="unit-card-control-value" id="unitCardAvatarCropXValue">0</span></div>
     <div class="unit-card-control wide" id="unitCardAvatarCropYControl"><label for="unitCardAvatarCropY">تحريك الصورة فوق / تحت</label><input id="unitCardAvatarCropY" type="range" min="-100" max="100" value="0" oninput="changeUnitCardEditorValue('cropY',this.value)"><span class="unit-card-control-value" id="unitCardAvatarCropYValue">0</span></div>
     <div class="assignment-actions wide"><button class="btn" type="button" onclick="resetUnitCardDesign()">إرجاع الشكل الأصلي</button><button class="btn primary" id="saveUnitCardDesignButton" type="button" onclick="saveUnitCardDesign()">حفظ التصميم</button></div>
@@ -4622,18 +4622,19 @@ async function renderAssignments(){
  }
 }
 const UNIT_CARD_CHANNEL_ID='1561490450953670817';
-const DEFAULT_UNIT_CARD_DESIGN={name:{x:145,y:210,size:96,rotation:0},rank:{x:145,y:540,size:54,rotation:0},callsign:{x:858,y:540,size:54,rotation:0},avatar:{zoom:1,cropX:0,cropY:0}};
+const DEFAULT_UNIT_CARD_DESIGN={name:{x:145,y:210,size:96,rotation:0},rank:{x:145,y:540,size:54,rotation:0},callsign:{x:858,y:540,size:54,rotation:0},avatar:{zoom:1.2,cropX:0,cropY:0}};
 let unitCardDesign=JSON.parse(JSON.stringify(DEFAULT_UNIT_CARD_DESIGN));
 let unitCardEditorDirty=false;
 let unitCardPreviewMemberId='';
 let unitCardPreviewRequest=0;
 let unitCardDragging=null;
 const unitCardImageCache=new Map();
+const unitCardImageDimensions=new Map();
 const unitCardTemplateImage=new Image();unitCardTemplateImage.src='/unit-operator-template.png';
 function normalizeUnitCardDesign(value){
  const source=value&&typeof value==='object'?value:{};
  const avatar={...DEFAULT_UNIT_CARD_DESIGN.avatar,...(source.avatar||{})};
- avatar.zoom=Math.max(1,Math.min(2.5,Number(avatar.zoom)||1));
+ avatar.zoom=Math.max(1.2,Math.min(2.5,Number(avatar.zoom)||1.2));
  return {name:{...DEFAULT_UNIT_CARD_DESIGN.name,...(source.name||{})},rank:{...DEFAULT_UNIT_CARD_DESIGN.rank,...(source.rank||{})},callsign:{...DEFAULT_UNIT_CARD_DESIGN.callsign,...(source.callsign||{})},avatar};
 }
 function unitCardEligibleMembers(){return unitCardOrderIds.map(id=>assignmentData.members.find(member=>String(member.discord_user_id)===String(id))).filter(Boolean)}
@@ -4647,18 +4648,18 @@ function unitCardTextValues(member){
 function unitCardLoadImage(url){
  if(!url)return Promise.reject(new Error('لا توجد صورة لهذا العضو.'));
  if(unitCardImageCache.has(url))return unitCardImageCache.get(url);
- const promise=new Promise((resolve,reject)=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('تعذّر تحميل صورة العضو من Discord.'));image.src=url;});
+ const promise=new Promise((resolve,reject)=>{const image=new Image();image.crossOrigin='anonymous';image.onload=()=>{unitCardImageDimensions.set(url,{width:image.naturalWidth||image.width,height:image.naturalHeight||image.height});resolve(image)};image.onerror=()=>reject(new Error('تعذّر تحميل صورة العضو من Discord.'));image.src=url;});
  unitCardImageCache.set(url,promise);promise.catch(()=>unitCardImageCache.delete(url));return promise;
 }
 function unitCardAvatarPath(ctx){
  ctx.beginPath();
- ctx.moveTo(1454,155);ctx.lineTo(1880,155);ctx.lineTo(1904,179);ctx.lineTo(1904,591);
- ctx.lineTo(1880,615);ctx.lineTo(1454,615);ctx.lineTo(1430,591);ctx.lineTo(1430,179);ctx.closePath();
+ ctx.moveTo(1440,130);ctx.lineTo(1895,130);ctx.lineTo(1920,155);ctx.lineTo(1920,615);
+ ctx.lineTo(1895,640);ctx.lineTo(1440,640);ctx.lineTo(1415,615);ctx.lineTo(1415,155);ctx.closePath();
 }
 function unitCardCoverImage(ctx,image,settings){
- const frame={x:1430,y:155,width:474,height:460};
+ const frame={x:1415,y:130,width:505,height:510};
  ctx.save();unitCardAvatarPath(ctx);ctx.clip();
- const scale=Math.max(frame.width/image.width,frame.height/image.height)*Math.max(1,Math.min(2.5,Number(settings.zoom)||1));
+ const scale=Math.max(frame.width/image.width,frame.height/image.height)*Math.max(1.2,Math.min(2.5,Number(settings.zoom)||1.2));
  const width=image.width*scale,height=image.height*scale;
  const x=frame.x+(frame.width-width)/2-(Number(settings.cropX||0)/100)*(width-frame.width)/2;
  const y=frame.y+(frame.height-height)/2-(Number(settings.cropY||0)/100)*(height-frame.height)/2;
@@ -4710,7 +4711,7 @@ function syncUnitCardEditorControls(){
 }
 function changeUnitCardEditorValue(key,value){
  const selected=document.getElementById('unitCardSelectedLayer')?.value||'name',number=Number(value);
- if(selected==='avatar'){if(key==='zoom')unitCardDesign.avatar.zoom=Math.max(1,Math.min(2.5,number/100));else if(key==='cropX'||key==='cropY')unitCardDesign.avatar[key]=number;}
+ if(selected==='avatar'){if(key==='zoom')unitCardDesign.avatar.zoom=Math.max(1.2,Math.min(2.5,number/100));else if(key==='cropX'||key==='cropY')unitCardDesign.avatar[key]=number;}
  else unitCardDesign[selected][key]=number;
  unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview();
 }
@@ -4725,7 +4726,7 @@ async function openUnitCardEditor(){
  const members=unitCardEligibleMembers(),select=document.getElementById('unitCardPreviewMember');
  if(select){select.innerHTML=members.map(member=>'<option value="'+assignmentEscape(member.discord_user_id)+'">'+assignmentEscape(member.assignment?.callsign||'بدون نداء')+' • '+assignmentEscape(member.live_name||member.display_name||'عضو')+'</option>').join('')||'<option value="">معاينة التصميم</option>';unitCardPreviewMemberId=members[0]?String(members[0].discord_user_id):'';select.value=unitCardPreviewMemberId;}
  await loadUnitCardDesign();unitCardEditorDirty=false;syncUnitCardEditorControls();await drawUnitCardEditorPreview();
- const canvas=document.getElementById('unitCardEditorCanvas');if(canvas&&!canvas.dataset.dragBound){canvas.dataset.dragBound='1';canvas.addEventListener('pointerdown',event=>{const rect=canvas.getBoundingClientRect();unitCardDragging={x:event.clientX,y:event.clientY,scaleX:2048/rect.width,scaleY:768/rect.height};canvas.setPointerCapture(event.pointerId)});canvas.addEventListener('pointermove',event=>{if(!unitCardDragging)return;const dx=(event.clientX-unitCardDragging.x)*unitCardDragging.scaleX,dy=(event.clientY-unitCardDragging.y)*unitCardDragging.scaleY;unitCardDragging.x=event.clientX;unitCardDragging.y=event.clientY;const selected=document.getElementById('unitCardSelectedLayer')?.value||'name';if(selected==='avatar'){unitCardDesign.avatar.cropX=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropX||0)-dx/3));unitCardDesign.avatar.cropY=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropY||0)-dy/3));}else{const config=unitCardDesign[selected];config.x=Math.round(config.x+dx);config.y=Math.round(config.y+dy);}unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview()});const stop=()=>{unitCardDragging=null};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);}
+ const canvas=document.getElementById('unitCardEditorCanvas');if(canvas&&!canvas.dataset.dragBound){canvas.dataset.dragBound='1';canvas.addEventListener('pointerdown',event=>{const rect=canvas.getBoundingClientRect();unitCardDragging={x:event.clientX,y:event.clientY,scaleX:2048/rect.width,scaleY:768/rect.height};canvas.setPointerCapture(event.pointerId)});canvas.addEventListener('pointermove',event=>{if(!unitCardDragging)return;const dx=(event.clientX-unitCardDragging.x)*unitCardDragging.scaleX,dy=(event.clientY-unitCardDragging.y)*unitCardDragging.scaleY;unitCardDragging.x=event.clientX;unitCardDragging.y=event.clientY;const selected=document.getElementById('unitCardSelectedLayer')?.value||'name';if(selected==='avatar'){const member=unitCardPreviewMember(),dimensions=unitCardImageDimensions.get(member?.avatar_url),frame={width:505,height:510};let overflowX=frame.width*.2,overflowY=frame.height*.2;if(dimensions){const zoom=Math.max(1.2,Math.min(2.5,Number(unitCardDesign.avatar.zoom)||1.2)),scale=Math.max(frame.width/dimensions.width,frame.height/dimensions.height)*zoom;overflowX=Math.max(1,dimensions.width*scale-frame.width);overflowY=Math.max(1,dimensions.height*scale-frame.height);}unitCardDesign.avatar.cropX=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropX||0)-dx*200/overflowX));unitCardDesign.avatar.cropY=Math.max(-100,Math.min(100,(unitCardDesign.avatar.cropY||0)-dy*200/overflowY));}else{const config=unitCardDesign[selected];config.x=Math.round(config.x+dx);config.y=Math.round(config.y+dy);}unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview()});const stop=()=>{unitCardDragging=null};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);}
 }
 function closeUnitCardEditor(){const modal=document.getElementById('unitCardEditorModal');if(modal)modal.hidden=true;unitCardDragging=null;}
 function resetUnitCardDesign(){unitCardDesign=JSON.parse(JSON.stringify(DEFAULT_UNIT_CARD_DESIGN));unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview();}
