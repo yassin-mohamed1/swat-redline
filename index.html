@@ -5212,6 +5212,14 @@ async function saveNotificationDeliveryPreference(key,enabled){
  const checkbox=document.getElementById(isChannel?'notificationChannelEnabledToggle':'notificationMemberDmEnabledToggle');
  const status=document.getElementById(isChannel?'notificationChannelEnabledStatus':'notificationMemberDmEnabledStatus');
  if(!checkbox||!status)return;
+ if(isChannel&&enabled){
+  const automaticSelect=document.getElementById('automaticNotificationChannelSelect');
+  const automaticId=String(siteSettings.automaticNotificationChannelId||'').trim();
+  const automaticOption=Array.from(automaticSelect?.options||[]).find(item=>item.value===automaticId);
+  if(!automaticId||!automaticOption||automaticOption.dataset.available!=='true'){
+   checkbox.checked=false;status.textContent='حدد قناة نصية متاحة للإشعارات التلقائية قبل تفعيل النشر.';toast('اختر قناة الإشعارات التلقائية أولًا.');return;
+  }
+ }
  const previous=siteSettings[key]===true;
  checkbox.disabled=true;status.textContent='جاري حفظ إعداد الإرسال...';
  try{
