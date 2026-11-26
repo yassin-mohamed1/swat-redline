@@ -304,44 +304,47 @@ test("individual unit-card row has separate send-new and update-existing buttons
   const api = await read("../api/admin/members.js", "utf8");
   const html = await read("../index.html", "utf8");
 
-  const rowStart = html.indexOf("const identityDisabledReason=");
-  const rowEnd = html.indexOf("\\n  return '<tr", rowStart);
+  const rowStart = html.indexOf("function renderAssignmentRows()");
+  const rowEnd = html.indexOf("return '<tr", rowStart);
   assert.ok(rowStart >= 0 && rowEnd > rowStart);
-  const button = html.slice(rowStart, rowEnd);
-  assert.match(button, /إرسال بطاقة جديدة/);
-  assert.match(button, /تحديث البطاقة/);
-  assert.match(button, /publishMemberIdentity\\([^)]*\\'new\\'/);
-  assert.match(button, /publishMemberIdentity\\([^)]*\\'update\\'/);
-  assert.match(button, /إدارة التعيين/);
-  assert.match(button, /hasSavedCardMessage/);
-  assert.match(button, /لا توجد بطاقة محفوظة للتحديث/);
+  const row = html.slice(rowStart, rowEnd);
+  assert.ok(row.includes("إدارة التعيين"));
+  assert.ok(row.includes("إرسال بطاقة جديدة"));
+  assert.ok(row.includes("تحديث البطاقة"));
+  assert.ok(row.includes("unit-card-action-stack"));
+  assert.ok(row.includes("publishMemberIdentity("));
+  assert.ok(row.includes("hasSavedCardMessage"));
+  assert.ok(row.includes("لا توجد بطاقة محفوظة للتحديث"));
 
   const clientStart = html.indexOf("async function publishMemberIdentity(id,mode)");
-  const clientEnd = html.indexOf("\\nasync function addNextCallsign()", clientStart);
+  const clientEnd = html.indexOf("async function addNextCallsign()", clientStart);
   assert.ok(clientStart >= 0 && clientEnd > clientStart);
   const client = html.slice(clientStart, clientEnd);
-  assert.match(client, /publish_mode:mode/);
-  assert.match(client, /mode==='new'/);
-  assert.match(client, /mode==='update'/);
-  assert.match(client, /if\\(mode==='update'&&!hasSavedCard\\)/);
+  assert.ok(client.includes("publish_mode:mode"));
+  assert.ok(client.includes("mode==='new'"));
+  assert.ok(client.includes("mode==='update'"));
+  assert.ok(client.includes("if(mode==='update'&&!hasSavedCard)"));
 
   const start = api.indexOf("async function handlePublishUnitCardImage(");
-  const end = api.indexOf("\\nasync function listUnitChannelMessages(", start);
+  const end = api.indexOf("async function listUnitChannelMessages(", start);
   assert.ok(start >= 0 && end > start);
   const publisher = api.slice(start, end);
-  assert.match(publisher, /const publishMode=single\\?String\\(body\\.publish_mode\\|\\|""\\):"batch"/);
-  assert.match(publisher, /!\\["new","update"\\]\\.includes\\(publishMode\\)/);
-  assert.match(publisher, /single&&publishMode==="update"&&!hasSavedUnitCard/);
-  assert.match(publisher, /if\\(single&&publishMode==="update"\\)/);
-  assert.match(publisher, /else if\\(!single&&hasSavedUnitCard\\)/);
-  assert.match(publisher, /لم يتم إنشاء بطاقة جديدة تلقائيًا/);
-  assert.match(publisher, /require an explicit "Send new card" action; never silently POST here/);
+  assert.ok(publisher.includes('const publishMode=single?String(body.publish_mode||""):"batch";'));
+  assert.ok(publisher.includes('!["new","update"].includes(publishMode)'));
+  assert.ok(publisher.includes('single&&publishMode==="update"&&!hasSavedUnitCard'));
+  assert.ok(publisher.includes('if(single&&publishMode==="update")'));
+  assert.ok(publisher.includes('else if(!single&&hasSavedUnitCard)'));
+  assert.ok(publisher.includes("لم يتم إنشاء بطاقة جديدة تلقائيًا"));
 
   const updateStart = publisher.indexOf('if(single&&publishMode==="update") {');
   const batchStart = publisher.indexOf('else if(!single&&hasSavedUnitCard)', updateStart);
   const postStart = publisher.indexOf('if(!message?.id)try { message=await assignmentDiscord', batchStart);
   assert.ok(updateStart >= 0 && batchStart > updateStart && postStart > batchStart,
     "update-only, batch-update, and send-new paths remain distinct");
+  const updateBranch = publisher.slice(updateStart, batchStart);
+  assert.ok(updateBranch.includes('method:"PATCH"'));
+  assert.ok(updateBranch.includes('return send(res,404'));
+  assert.ok(!updateBranch.includes('method:"POST"'), "an update cannot silently create a new card");
 });
 
 test("assignment API blocks a callsign reserved by another member before touching Discord roles", async () => {
