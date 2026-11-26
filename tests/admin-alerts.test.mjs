@@ -11,7 +11,7 @@ test("voice verification uses the Riyadh calendar day boundary", () => {
 
 test("admin alert routing, voice verification, and one-time channel cleanup are wired together", async () => {
   const read = path => readFile(new URL(path, import.meta.url), "utf8");
-  const [notifications, poller, alerts, warnings, bot, config, repository, migration, voiceMigration, statusMigration, index] = await Promise.all([
+  const [notifications, poller, alerts, warnings, bot, config, repository, migration, voiceMigration, statusMigration, index, channelRouting] = await Promise.all([
     read("../api/notifications/send.js"),
     read("../lib/leave-poller.js"),
     read("../lib/admin-alerts.js"),
@@ -22,11 +22,14 @@ test("admin alert routing, voice verification, and one-time channel cleanup are 
     read("../supabase/migrations/20261120160000_admin_alerts_voice_attendance.sql"),
     read("../supabase/migrations/20261120180000_voice_join_event_race_protection.sql"),
     read("../supabase/migrations/20261120193000_sync_voice_check_status.sql"),
-    read("../index.html")
+    read("../index.html"),
+    read("../lib/notification-channel-routing.js")
   ]);
 
-  assert.match(notifications, /config\.notificationChannelId/);
-  assert.match(notifications, /\["person", "case", "investigation"\]/);
+  assert.match(notifications, /resolveNotificationChannelRoute/);
+  assert.match(notifications, /automaticChannelId: deliverySettings.get\("automaticNotificationChannelId"\)/);
+  assert.match(notifications, /evidenceChannelId: config\.evidenceChannelId/);
+  assert.match(channelRouting, /new Set\(\["person", "case", "investigation"\]\)/);
   assert.match(poller, /queuePendingLeaveAdminAlerts/);
   assert.match(poller, /leave-request:/);
   assert.match(alerts, /resolution=ignore-duplicates/);
