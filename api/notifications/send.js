@@ -1354,7 +1354,7 @@ export default async function handler(req, res) {
     const channelEnabled = deliverySettings.get("notificationChannelEnabled") === true;
     const memberDmEnabled = deliverySettings.get("notificationMemberDmEnabled") === true;
     let targetChannelId = "";
-    if (channelEnabled) {
+    if (channelEnabled === true) {
       try {
         const route = resolveNotificationChannelRoute(type, {
           automaticChannelId: deliverySettings.get("automaticNotificationChannelId"),
