@@ -8,6 +8,7 @@ import { isWebsiteAdmin, requireActivePortalStaff } from "../../lib/portal-admin
 import { handleSavedDiscordMessageRequest } from "../../lib/saved-discord-messages.js";
 import { buildRuleDiscordMessages } from "../../lib/rules-discord.js";
 import { buildSiteNoticeDiscordPayload, isSiteNoticeId, normalizeSiteNoticeInput, siteNoticeBatchIsSent } from "../../lib/site-notices.js";
+import { resolveNotificationChannelRoute, BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID } from "../../lib/notification-channel-routing.js";
 
 const MAX_RECIPIENTS_PER_BATCH = 200;
 const MAX_NOTIFICATION_IMAGES = 4;
@@ -515,7 +516,8 @@ async function writeNotificationAudit(config, user, type, entityId, record, batc
 
 
 function getSiteNoticeChannelId() {
-  return String(process.env.DISCORD_SITE_NOTICES_CHANNEL_ID || "").trim();
+  const channelId = String(process.env.DISCORD_SITE_NOTICES_CHANNEL_ID || "").trim();
+  return channelId === BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID ? "" : channelId;
 }
 
 async function readSiteNoticeBatches(config, noticeId) {
@@ -961,6 +963,9 @@ async function publishAttendanceChannelNotice(user, body) {
 
   const channelId = String(process.env.ATTENDANCE_CHANNEL_ID || "1569735227146768434").trim();
   const swatRoleId = String(process.env.DISCORD_ROLE_ID || "").trim();
+  if (channelId === BLOCKED_AUTOMATIC_NOTIFICATION_CHANNEL_ID) {
+    throw Object.assign(new Error("قناة Redline Server ممنوعة من رسائل الموقع التلقائية."), { status: 409 });
+  }
   if (!/^\d{17,20}$/.test(channelId)) {
     throw Object.assign(new Error("معرّف روم البصمة غير صالح."), { status: 503 });
   }
@@ -1312,20 +1317,6 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: "This staff account is inactive or could not be verified. Sign in again or contact the portal owner." });
   }
 
-  const channelRoute = type === "announcement"
-    ? { id: config.announcementPostChannelId, label: "الإعلانات" }
-    : ["person", "case", "investigation"].includes(type)
-      ? { id: config.evidenceChannelId, label: "الأدلة والملفات" }
-      : { id: config.notificationChannelId, label: "الإشعارات العامة" };
-  const targetChannelId = String(channelRoute.id || "").trim();
-  if (!/^\d{17,20}$/.test(targetChannelId)) {
-    const variable = type === "announcement"
-      ? "DISCORD_ANNOUNCEMENT_POST_CHANNEL_ID"
-      : ["person", "case", "investigation"].includes(type)
-        ? "DISCORD_EVIDENCE_CHANNEL_ID"
-        : "DISCORD_NOTIFICATION_CHANNEL_ID";
-    return res.status(503).json({ error: "وجهة روم Discord غير صالحة. راجع " + variable + " في إعدادات Vercel." });
-  }
   if (!config.notificationRoleId || !/^\d{17,20}$/.test(config.notificationRoleId)) {
     return res.status(503).json({ error: "Set DISCORD_NOTIFICATION_ROLE_ID in Vercel to the exact SWAT role ID. No notification will be sent until the role ping is configured." });
   }
@@ -1348,7 +1339,7 @@ export default async function handler(req, res) {
     }
 
     const deliverySettingsQuery = new URLSearchParams({
-      key: "in.(notificationRoleMentionDisabled,notificationChannelEnabled,notificationMemberDmEnabled)",
+      key: "in.(notificationRoleMentionDisabled,notificationChannelEnabled,notificationMemberDmEnabled,automaticNotificationChannelId)",
       select: "key,value"
     });
     const deliverySettingsResponse = await supabaseRequest(config, "site_settings?" + deliverySettingsQuery, { method: "GET" });
@@ -1362,6 +1353,20 @@ export default async function handler(req, res) {
     // Both delivery channels start disabled until the owner explicitly enables them.
     const channelEnabled = deliverySettings.get("notificationChannelEnabled") === true;
     const memberDmEnabled = deliverySettings.get("notificationMemberDmEnabled") === true;
+    let targetChannelId = "";
+    if (channelEnabled) {
+      try {
+        const route = resolveNotificationChannelRoute(type, {
+          automaticChannelId: deliverySettings.get("automaticNotificationChannelId"),
+          evidenceChannelId: config.evidenceChannelId
+        });
+        targetChannelId = route.id;
+      } catch (error) {
+        return res.status(409).json({
+          error: error.message || "لم يتم ضبط قناة الإشعارات التلقائية. لم يتم نشر أي رسالة."
+        });
+      }
+    }
 
     const ownerDiscordId = String(process.env.DISCORD_OWNER_ID || "");
     if (!/^\d{17,20}$/.test(ownerDiscordId)) {
