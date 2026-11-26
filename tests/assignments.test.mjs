@@ -304,7 +304,7 @@ test("unit-card action label always offers send or update and recreates a delete
   const api = await read("../api/admin/members.js", "utf8");
   const html = await read("../index.html", "utf8");
 
-  const rowStart = html.indexOf("const identityButton=");
+  const rowStart = html.indexOf("const actionDisabledReason=");
   const rowEnd = html.indexOf("\n  return '<tr", rowStart);
   assert.ok(rowStart >= 0 && rowEnd > rowStart);
   const button = html.slice(rowStart, rowEnd);
