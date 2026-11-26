@@ -4652,11 +4652,11 @@ function unitCardLoadImage(url){
 }
 function unitCardAvatarPath(ctx){
  ctx.beginPath();
- ctx.moveTo(1474,190);ctx.lineTo(1864,190);ctx.lineTo(1883,209);ctx.lineTo(1883,571);
- ctx.lineTo(1864,590);ctx.lineTo(1474,590);ctx.lineTo(1455,571);ctx.lineTo(1455,209);ctx.closePath();
+ ctx.moveTo(1454,155);ctx.lineTo(1880,155);ctx.lineTo(1904,179);ctx.lineTo(1904,591);
+ ctx.lineTo(1880,615);ctx.lineTo(1454,615);ctx.lineTo(1430,591);ctx.lineTo(1430,179);ctx.closePath();
 }
 function unitCardCoverImage(ctx,image,settings){
- const frame={x:1455,y:190,width:428,height:400};
+ const frame={x:1430,y:155,width:474,height:460};
  ctx.save();unitCardAvatarPath(ctx);ctx.clip();
  const scale=Math.max(frame.width/image.width,frame.height/image.height)*Math.max(1,Math.min(2.5,Number(settings.zoom)||1));
  const width=image.width*scale,height=image.height*scale;
