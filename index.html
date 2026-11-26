@@ -1828,7 +1828,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
     <div class="unit-card-control"><label id="unitCardYLabel" for="unitCardPositionY">الموضع الرأسي</label><input id="unitCardPositionY" type="range" min="60" max="630" value="206" oninput="changeUnitCardEditorValue('y',this.value)"><span class="unit-card-control-value" id="unitCardPositionYValue"></span></div>
     <div class="unit-card-control"><label id="unitCardSizeLabel" for="unitCardFontSize">حجم الخط</label><input id="unitCardFontSize" type="range" min="18" max="160" value="90" oninput="changeUnitCardEditorValue('size',this.value)"><span class="unit-card-control-value" id="unitCardFontSizeValue"></span></div>
     <div class="unit-card-control"><label for="unitCardRotation">زاوية الاسم</label><input id="unitCardRotation" type="range" min="-180" max="180" value="0" oninput="changeUnitCardEditorValue('rotation',this.value)"><span class="unit-card-control-value" id="unitCardRotationValue">0°</span></div>
-    <div class="unit-card-control wide" id="unitCardAvatarZoomControl"><label for="unitCardAvatarZoom">تكبير الصورة داخل الإطار</label><input id="unitCardAvatarZoom" type="range" min="80" max="250" value="100" oninput="changeUnitCardEditorValue('zoom',this.value)"><span class="unit-card-control-value" id="unitCardAvatarZoomValue">100%</span></div>
+    <div class="unit-card-control wide" id="unitCardAvatarZoomControl"><label for="unitCardAvatarZoom">تكبير الصورة داخل الإطار</label><input id="unitCardAvatarZoom" type="range" min="100" max="250" value="100" oninput="changeUnitCardEditorValue('zoom',this.value)"><span class="unit-card-control-value" id="unitCardAvatarZoomValue">100%</span></div>
     <div class="unit-card-control wide" id="unitCardAvatarCropXControl"><label for="unitCardAvatarCropX">تحريك الصورة يمين / شمال</label><input id="unitCardAvatarCropX" type="range" min="-100" max="100" value="0" oninput="changeUnitCardEditorValue('cropX',this.value)"><span class="unit-card-control-value" id="unitCardAvatarCropXValue">0</span></div>
     <div class="unit-card-control wide" id="unitCardAvatarCropYControl"><label for="unitCardAvatarCropY">تحريك الصورة فوق / تحت</label><input id="unitCardAvatarCropY" type="range" min="-100" max="100" value="0" oninput="changeUnitCardEditorValue('cropY',this.value)"><span class="unit-card-control-value" id="unitCardAvatarCropYValue">0</span></div>
     <div class="assignment-actions wide"><button class="btn" type="button" onclick="resetUnitCardDesign()">إرجاع الشكل الأصلي</button><button class="btn primary" id="saveUnitCardDesignButton" type="button" onclick="saveUnitCardDesign()">حفظ التصميم</button></div>
@@ -4632,7 +4632,9 @@ const unitCardImageCache=new Map();
 const unitCardTemplateImage=new Image();unitCardTemplateImage.src='/unit-operator-template.png';
 function normalizeUnitCardDesign(value){
  const source=value&&typeof value==='object'?value:{};
- return {name:{...DEFAULT_UNIT_CARD_DESIGN.name,...(source.name||{})},rank:{...DEFAULT_UNIT_CARD_DESIGN.rank,...(source.rank||{})},callsign:{...DEFAULT_UNIT_CARD_DESIGN.callsign,...(source.callsign||{})},avatar:{...DEFAULT_UNIT_CARD_DESIGN.avatar,...(source.avatar||{})}};
+ const avatar={...DEFAULT_UNIT_CARD_DESIGN.avatar,...(source.avatar||{})};
+ avatar.zoom=Math.max(1,Math.min(2.5,Number(avatar.zoom)||1));
+ return {name:{...DEFAULT_UNIT_CARD_DESIGN.name,...(source.name||{})},rank:{...DEFAULT_UNIT_CARD_DESIGN.rank,...(source.rank||{})},callsign:{...DEFAULT_UNIT_CARD_DESIGN.callsign,...(source.callsign||{})},avatar};
 }
 function unitCardEligibleMembers(){return unitCardOrderIds.map(id=>assignmentData.members.find(member=>String(member.discord_user_id)===String(id))).filter(Boolean)}
 function unitCardPreviewMember(){return assignmentData.members.find(member=>String(member.discord_user_id)===String(unitCardPreviewMemberId))||unitCardEligibleMembers()[0]||null}
@@ -4656,7 +4658,7 @@ function unitCardAvatarPath(ctx){
 function unitCardCoverImage(ctx,image,settings){
  const frame={x:1455,y:190,width:428,height:400};
  ctx.save();unitCardAvatarPath(ctx);ctx.clip();
- const scale=Math.max(frame.width/image.width,frame.height/image.height)*Number(settings.zoom||1);
+ const scale=Math.max(frame.width/image.width,frame.height/image.height)*Math.max(1,Math.min(2.5,Number(settings.zoom)||1));
  const width=image.width*scale,height=image.height*scale;
  const x=frame.x+(frame.width-width)/2-(Number(settings.cropX||0)/100)*(width-frame.width)/2;
  const y=frame.y+(frame.height-height)/2-(Number(settings.cropY||0)/100)*(height-frame.height)/2;
@@ -4708,7 +4710,7 @@ function syncUnitCardEditorControls(){
 }
 function changeUnitCardEditorValue(key,value){
  const selected=document.getElementById('unitCardSelectedLayer')?.value||'name',number=Number(value);
- if(selected==='avatar'){if(key==='zoom')unitCardDesign.avatar.zoom=number/100;else if(key==='cropX'||key==='cropY')unitCardDesign.avatar[key]=number;}
+ if(selected==='avatar'){if(key==='zoom')unitCardDesign.avatar.zoom=Math.max(1,Math.min(2.5,number/100));else if(key==='cropX'||key==='cropY')unitCardDesign.avatar[key]=number;}
  else unitCardDesign[selected][key]=number;
  unitCardEditorDirty=true;syncUnitCardEditorControls();drawUnitCardEditorPreview();
 }

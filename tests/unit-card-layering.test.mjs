@@ -31,3 +31,15 @@ test("member avatar remains visible inside the card frame without covering its b
   assert.ok(avatarLayer > apertureFill, "avatar is drawn inside the cleared window");
   assert.ok(nameLayer > avatarLayer, "member details remain above the photo and frame");
 });
+
+test("saved avatar zoom below 100 percent is normalized to fill the photo window", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const normalizeStart = html.indexOf("function normalizeUnitCardDesign(value)");
+  const normalizeEnd = html.indexOf("\nfunction unitCardEligibleMembers", normalizeStart);
+  assert.ok(normalizeStart >= 0 && normalizeEnd > normalizeStart, "saved design normalizer exists");
+
+  const normalizer = html.slice(normalizeStart, normalizeEnd);
+  assert.match(normalizer, /avatar\.zoom=Math\.max\(1,Math\.min\(2\.5,Number\(avatar\.zoom\)\|\|1\)\)/);
+  assert.match(html, /id="unitCardAvatarZoom" type="range" min="100" max="250"/);
+  assert.match(html, /Math\.max\(1,Math\.min\(2\.5,Number\(settings\.zoom\)\|\|1\)\)/);
+});
