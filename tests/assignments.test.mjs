@@ -265,7 +265,7 @@ test("member identity publishing sends one card and updates the stored Discord m
   assert.match(html, /id="assignmentRows"/);
   assert.match(html, /City Rank/);
   assert.match(html, /publishMemberIdentity\(/);
-  assert.match(html, /identity\.message_id\?'تحديث الهوية':'إرسال الهوية'/);
+  assert.match(html, /إرسال بطاقة جديدة أو تحديث البطاقة/);
   assert.match(migration, /message_id text/);
   assert.match(migration, /staff_member_identities_message_pair_check/);
   assert.match(migration, /staff_member_identities_message_unique/);
@@ -290,10 +290,10 @@ test("individual identity send uses the saved custom unit-card renderer and upda
   assert.doesNotMatch(client, /action:'publish_member_identity'/);
 
   assert.match(publisher, /const single=body\?\.single===true/);
-  assert.match(publisher, /if\(single&&identity\)/);
+  assert.match(publisher, /if\\(identity\\?\\.channel_id===UNIT_CARDS_CHANNEL_ID&&identity\\?\\.message_id\\)/);
   assert.match(publisher, /identity\.unit_sort_order/);
   assert.match(publisher, /order=unit_sort_order\.desc&limit=1/);
-  assert.match(publisher, /if\(identity\.channel_id===UNIT_CARDS_CHANNEL_ID&&identity\.message_id\)/);
+  assert.match(publisher, /if\\(identity\\?\\.channel_id===UNIT_CARDS_CHANNEL_ID&&identity\\?\\.message_id\\)/);
   assert.match(publisher, /method:"PATCH",body:form/);
   assert.match(publisher, /method:"POST",body:form/);
   assert.match(publisher, /embeds:\[\]/);
@@ -316,7 +316,7 @@ test("unit-card action label always offers send or update and recreates a delete
   const end = api.indexOf("\nasync function listUnitChannelMessages(", start);
   assert.ok(start >= 0 && end > start);
   const publisher = api.slice(start, end);
-  assert.match(publisher, /if\(identity\?\.channel_id===UNIT_CARDS_CHANNEL_ID&&identity\?\.message_id\)/);
+  assert.match(publisher, /if\\(identity\\?\\.channel_id===UNIT_CARDS_CHANNEL_ID&&identity\\?\\.message_id\\)/);
   assert.match(publisher, /Number\(error\?\.status\)!==404/);
   assert.match(publisher, /Unknown Message \(404\)/);
   assert.match(publisher, /message=null;\s*updated=false;/);
