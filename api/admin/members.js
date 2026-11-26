@@ -900,17 +900,19 @@ const DISCORD_EPOCH_MS = 1420070400000n;
 const DISCORD_BULK_DELETE_MAX_AGE_MS = 14n * 24n * 60n * 60n * 1000n;
 
 async function handlePublishUnitCardImage(url,key,token,guildId,user,body,res) {
-  if (!user?.isOwner && !user?.isWebsiteAdmin)
+  const single=body?.single===true;
+  if (!user?.isOwner && !user?.isWebsiteAdmin && !single)
     return send(res,403,{error:"Website Admin permission required to publish all unit cards."});
   if (!token || !/^\d{15,22}$/.test(String(guildId||"")))
     return send(res,503,{error:"إعدادات بوت Discord والسيرفر غير مكتملة."});
 
   const targetId=String(body.discord_user_id||"");
-  const index=Number(body.index),total=Number(body.total_count);
+  let index=Number(body.index),total=Number(body.total_count);
   const encoded=String(body.image_data||"");
   const match=encoded.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/);
-  if(!/^\d{15,22}$/.test(targetId)||!Number.isInteger(index)||index<0||index>=100||
-     !Number.isInteger(total)||total<1||total>100||index>=total||!match||match[1].length>2500000)
+  const invalidBatchOrder=!single&&(!Number.isInteger(index)||index<0||index>=100||
+    !Number.isInteger(total)||total<1||total>100||index>=total);
+  if(!/^\d{15,22}$/.test(targetId)||invalidBatchOrder||!match||match[1].length>2500000)
     return send(res,400,{error:"بيانات صورة البطاقة غير صالحة. أعد المعاينة وحاول مرة أخرى."});
 
   let imageBytes;
@@ -932,7 +934,21 @@ async function handlePublishUnitCardImage(url,key,token,guildId,user,body,res) {
     return send(res,503,{error:"تعذّر قراءة بيانات العضو قبل نشر بطاقته."});
   const [profile]=await profileResponse.json(),[identity]=await identityResponse.json(),[assignment]=await assignmentResponse.json();
   const cityRank=CITY_RANKS.find(item=>item.key===identity?.city_rank);
-  if(!profile||profile.is_active===false||profile.is_banned||assignment?.status!=="assigned"||!cityRank||Number(identity?.unit_sort_order)!==index)
+  if(single&&identity){
+    if(Number.isInteger(identity.unit_sort_order)&&identity.unit_sort_order>=0){
+      index=identity.unit_sort_order;
+    }else{
+      const orderResponse=await supabase(url,key,"staff_member_identities?select=unit_sort_order&unit_sort_order=not.is.null&order=unit_sort_order.desc&limit=1");
+      if(!orderResponse.ok)return send(res,503,{error:"تعذّر تحديد مكان البطاقة الجديدة في ترتيب الوحدات."});
+      const orderRows=await orderResponse.json();
+      const highest=Number(orderRows[0]?.unit_sort_order);
+      index=Number.isInteger(highest)&&highest>=0?highest+1:0;
+    }
+    total=index+1;
+    if(index>=100)return send(res,409,{error:"تجاوز ترتيب بطاقات الوحدات الحد الآمن. احفظ ترتيب البطاقات أولًا ثم حاول مرة أخرى."});
+  }
+  if(!profile||profile.is_active===false||profile.is_banned||assignment?.status!=="assigned"||!cityRank||
+     (!single&&Number(identity?.unit_sort_order)!==index))
     return send(res,409,{error:"بيانات هذا العضو غير مكتملة أو لم يعد تعيينه فعالًا."});
 
   let member;
@@ -966,14 +982,22 @@ async function handlePublishUnitCardImage(url,key,token,guildId,user,body,res) {
     return send(res,502,{error:"نُشرت البطاقة لكن تعذّر حفظ مرجعها. توقفت العملية قبل متابعة البطاقات التالية.",published_count:index,total_count:total});
   }
 
-  if(index===total-1) {
+  if(single){
+    const auditEvent={actor_discord_id:user.id,actor_name:user.displayName||user.username||"Portal administrator",
+      action:updated?"update":"create",entity_type:"staff_member_identity",entity_id:targetId,
+      details:{type:updated?"تحديث بطاقة هوية فردية بالتصميم الجديد":"نشر بطاقة هوية فردية بالتصميم الجديد",
+        detail:(updated?"تم تحديث":"تم نشر")+" بطاقة "+name+" • "+cityRank.label+" • "+(assignment.callsign||"بدون كود نداء"),
+        channel_id:UNIT_CARDS_CHANNEL_ID,message_id:String(message.id)}};
+    try { const audit=await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(auditEvent)}); if(audit.ok)await forwardAuditToDiscord(user,auditEvent); }
+    catch(error) { console.warn("Single unit card audit failed:",error?.code||error?.message||"unknown"); }
+  }else if(index===total-1) {
     const auditEvent={actor_discord_id:user.id,actor_name:user.displayName||user.username||"Portal administrator",action:"create",
       entity_type:"discord_unit_cards",entity_id:UNIT_CARDS_CHANNEL_ID,
       details:{type:"نشر بطاقات وحدات S.W.A.T. بالتصميم الجديد",detail:"تم نشر "+total+" بطاقة هوية بصورة الأعضاء حسب الترتيب المحفوظ.",channel_id:UNIT_CARDS_CHANNEL_ID,published_count:total}};
     try { const audit=await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(auditEvent)}); if(audit.ok)await forwardAuditToDiscord(user,auditEvent); }
     catch(error) { console.warn("Unit card publish audit failed:",error?.code||error?.message||"unknown"); }
   }
-  return send(res,200,{ok:true,published_count:index+1,total_count:total,discord_user_id:targetId,message_id:String(message.id),updated,name,callsign:assignment.callsign||null,city_rank:cityRank.label});
+  return send(res,200,{ok:true,single,published_count:index+1,total_count:total,discord_user_id:targetId,message_id:String(message.id),updated,name,callsign:assignment.callsign||null,city_rank:cityRank.label});
 }
 
 async function listUnitChannelMessages(token, channelId, maxMessages = 5000) {
