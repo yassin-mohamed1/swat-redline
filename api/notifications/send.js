@@ -1077,7 +1077,7 @@ async function publishAttendanceChannelNotice(user, body) {
 
 
 async function ensureRequestPanelMessage(botToken, channelId, customId, label, heading, description, style) {
-  if (!/^\\d{15,22}$/.test(String(channelId || ""))) throw Object.assign(new Error("معرّف روم الطلبات غير مضبوط."), { status: 503 });
+  if (!/^\d{15,22}$/.test(String(channelId || ""))) throw Object.assign(new Error("معرّف روم الطلبات غير مضبوط."), { status: 503 });
   const bot = await discordRequest({ botToken }, "/users/@me");
   if (!bot?.id) throw Object.assign(new Error("تعذّر التحقق من بوت Discord."), { status: 503 });
   const recent = await discordRequest({ botToken }, "/channels/" + encodeURIComponent(channelId) + "/messages?limit=100");
@@ -1130,7 +1130,7 @@ async function publishApprovedResignationCard(config, body) {
   if (request.publish_status === "published" && request.publication_message_id) {
     return { requestId, published: true, reused: true, messageId: request.publication_message_id };
   }
-  if (!/^\\d{15,22}$/.test(String(request.discord_user_id || ""))) {
+  if (!/^\d{15,22}$/.test(String(request.discord_user_id || ""))) {
     throw Object.assign(new Error("معرّف Discord لصاحب الاستقالة غير صالح؛ لم يتم إرسال البطاقة."), { status: 409 });
   }
 
