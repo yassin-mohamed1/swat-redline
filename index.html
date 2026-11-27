@@ -2539,8 +2539,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
   <div class="attendance-leave-create">
    <h4>تسجيل طلب استقالة</h4>
    <div class="formgrid">
-    <div class="field"><label for="resignationAdminDiscordId">Discord ID للعضو *</label><input id="resignationAdminDiscordId" type="text" inputmode="numeric" maxlength="22" placeholder="Discord ID"></div>
-    <div class="field"><label for="resignationAdminName">اسم العضو في الطلب *</label><input id="resignationAdminName" type="text" maxlength="100" placeholder="اسم العضو"></div>
+    <div class="field full"><label for="resignationAdminMember">العضو *</label><select id="resignationAdminMember"><option value="">اختر عضوًا...</option></select></div>
     <div class="field full"><label for="resignationAdminReason">سبب الاستقالة *</label><textarea id="resignationAdminReason" rows="3" maxlength="2000" placeholder="اكتب سبب الاستقالة..." required></textarea></div>
    </div>
    <div class="modalactions"><button class="btn primary" id="resignationAdminCreateButton" type="button" onclick="createResignationRequestAdmin()">＋ تسجيل طلب استقالة</button></div>
@@ -4394,20 +4393,29 @@ function renderResignationAdminRequests(){
   return '<article class="leave-request-card '+item.status+'"><div class="leave-request-head"><div class="leave-request-person">'+avatar+'<div style="min-width:0"><div class="leave-request-account">'+adminEscape(item.display_name||'عضو')+' • '+adminEscape(item.member_name||'بدون اسم في الطلب')+'</div><div class="leave-request-id">Discord ID: '+adminEscape(item.discord_user_id||'—')+'</div><div class="leave-request-source">'+(item.source==='discord'?'Discord':'الموقع')+' • '+adminEscape(fmtWarningDate(item.submitted_at||item.created_at))+'</div></div></div><span class="attendance-leave-status '+item.status+'">'+resignationStatusLabel(item.status)+'</span></div><div class="leave-request-reason"><span class="leave-request-label">سبب الاستقالة</span><p class="leave-request-reason-text">'+adminEscape(item.reason||'—')+'</p></div>'+decision+(dm?'<div class="muted">'+dm+'</div>':'')+delivery+actions+'</article>';
  }).join('')||'<div class="empty">لا توجد طلبات استقالة حتى الآن.</div>';
 }
-function openResignationAdminModal(){
+async function openResignationAdminModal(){
  if(!currentCanAdmin||!currentCanManageWarnings){toast('إدارة الاستقالات متاحة لـ Website Admin فقط.');return;}
+ if(!attendanceData.members.length)await renderAttendance();
+ const memberSelect=document.getElementById('resignationAdminMember');
+ if(memberSelect){
+  const previous=memberSelect.value;
+  memberSelect.innerHTML='<option value="">اختر عضوًا...</option>'+attendanceData.members.filter(member=>member.is_swat_member).map(member=>
+   '<option value="'+adminEscape(member.discord_user_id)+'">'+adminEscape(member.display_name||member.username||'عضو')+' — '+adminEscape(member.discord_user_id)+'</option>'
+  ).join('');
+  if(attendanceData.members.some(member=>String(member.discord_user_id)===previous))memberSelect.value=previous;
+ }
  document.getElementById('resignationAdminModalBack')?.classList.add('open');loadResignationRequests();
 }
 function closeResignationAdminModal(){document.getElementById('resignationAdminModalBack')?.classList.remove('open');}
 async function createResignationRequestAdmin(){
  if(!currentCanAdmin||!currentCanManageWarnings)return;
- const discordId=String(document.getElementById('resignationAdminDiscordId')?.value||'').trim(),name=String(document.getElementById('resignationAdminName')?.value||'').trim(),reason=String(document.getElementById('resignationAdminReason')?.value||'').trim(),status=document.getElementById('resignationAdminCreateStatus');
- if(!/^\d{15,22}$/.test(discordId)||name.length<2||reason.length<3){if(status)status.textContent='أدخل Discord ID صحيحًا واسم العضو وسبب الاستقالة.';return;}
+ const discordId=String(document.getElementById('resignationAdminMember')?.value||'').trim(),reason=String(document.getElementById('resignationAdminReason')?.value||'').trim(),status=document.getElementById('resignationAdminCreateStatus');
+ if(!/^\d{15,22}$/.test(discordId)||reason.length<3){if(status)status.textContent='اختر العضو واكتب سبب الاستقالة بوضوح.';return;}
  const button=document.getElementById('resignationAdminCreateButton');if(button)button.disabled=true;if(status)status.textContent='جارٍ تسجيل الطلب...';
  try{
-  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_resignation_request',discord_user_id:discordId,member_name:name,reason})});
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_resignation_request',discord_user_id:discordId,reason})});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'تعذّر تسجيل الطلب.');
-  document.getElementById('resignationAdminDiscordId').value='';document.getElementById('resignationAdminName').value='';document.getElementById('resignationAdminReason').value='';
+  document.getElementById('resignationAdminMember').value='';document.getElementById('resignationAdminReason').value='';
   if(status)status.textContent='تم تسجيل طلب الاستقالة.';
   toast('تم تسجيل طلب الاستقالة.');await loadResignationRequests();
  }catch(error){if(status)status.textContent=error.message||'تعذّر تسجيل الطلب.';toast(error.message||'تعذّر تسجيل الطلب.');}

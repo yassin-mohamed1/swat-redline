@@ -1532,16 +1532,20 @@ export default async function handler(req, res) {
     if (body.action === "submit_resignation_request" || body.action === "create_resignation_request") {
       const selfRequest = body.action === "submit_resignation_request";
       const targetId = selfRequest ? user.id : String(body.discord_user_id || "");
-      const memberName = typeof body.member_name === "string" ? body.member_name.trim().replace(/\\s+/g, " ") : "";
+      const requestedMemberName = typeof body.member_name === "string" ? body.member_name.trim().replace(/\s+/g, " ") : "";
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-      if (!/^\\d{15,22}$/.test(targetId) || memberName.length < 2 || memberName.length > 100 || reason.length < 3 || reason.length > 2000) {
-        return json(res, 400, { error: "راجع الاسم وسبب الاستقالة. الاسم من حرفين إلى 100 حرف والسبب من 3 إلى 2000 حرف." });
+      if (!/^\d{15,22}$/.test(targetId) || reason.length < 3 || reason.length > 2000 ||
+          (selfRequest && (requestedMemberName.length < 2 || requestedMemberName.length > 100)) ||
+          (!selfRequest && requestedMemberName.length > 100)) {
+        return json(res, 400, { error: "راجع اسم العضو وسبب الاستقالة. يجب كتابة سبب واضح، والاسم من حرفين إلى 100 حرف عند التقديم الشخصي." });
       }
       const profileQuery = new URLSearchParams({ discord_user_id: "eq." + targetId, select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned", limit: "1" });
       const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
       if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من ملف العضو." });
       const profile = (await profileResponse.json())[0];
       if (!profile || profile.is_active !== true || profile.is_banned === true) return json(res, 404, { error: "لا يمكن تقديم استقالة إلا لعضو S.W.A.T نشط." });
+      const memberName = requestedMemberName || String(profile.display_name || profile.username || "").trim();
+      if (memberName.length < 2 || memberName.length > 100) return json(res, 400, { error: "تعذّر تحديد اسم العضو من ملفه." });
       const discordMember = await getGuildMemberOrNull(cfg, targetId);
       if (!discordMember || !Array.isArray(discordMember.roles) || !discordMember.roles.includes(cfg.swatRoleId)) return json(res, 409, { error: "العضو لا يحمل رتبة S.W.A.T الحالية في Discord." });
       const duplicateQuery = new URLSearchParams({ discord_user_id: "eq." + targetId, status: "eq.pending", select: "id", limit: "1" });
