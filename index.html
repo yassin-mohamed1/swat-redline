@@ -4148,7 +4148,7 @@ async function submitAttendanceLeaveReview(){
 }
 
 const DEFAULT_RESIGNATION_CARD_DESIGN={
- photo:{zoom:1,cropX:0,cropY:0},
+ photo:{x:379,y:439,width:268,height:254,zoom:1,cropX:0,cropY:0},
  name:{x:980,y:586,size:44,color:"#f1e6d2",fontFamily:"Arial",align:"center"}
 };
 let resignationCardDesign=JSON.parse(JSON.stringify(DEFAULT_RESIGNATION_CARD_DESIGN));
@@ -4165,6 +4165,10 @@ function normalizeResignationCardDesign(value){
  const source=value&&typeof value==="object"?value:{};
  const photo={...DEFAULT_RESIGNATION_CARD_DESIGN.photo,...(source.photo||{})};
  const name={...DEFAULT_RESIGNATION_CARD_DESIGN.name,...(source.name||{})};
+ photo.x=Math.max(0,Math.min(1672,Number(photo.x)||379));
+ photo.y=Math.max(0,Math.min(941,Number(photo.y)||439));
+ photo.width=Math.max(60,Math.min(1672-photo.x,Number(photo.width)||268));
+ photo.height=Math.max(60,Math.min(941-photo.y,Number(photo.height)||254));
  photo.zoom=Math.max(.5,Math.min(3,Number(photo.zoom)||1));
  photo.cropX=Math.max(-100,Math.min(100,Number(photo.cropX)||0));
  photo.cropY=Math.max(-100,Math.min(100,Number(photo.cropY)||0));
@@ -4188,6 +4192,36 @@ async function loadResignationCardSettings(force=false){
   if(resignationTemplateUrl)await loadResignationTemplateImage();
  }catch(error){console.warn('Resignation card settings load failed:',error.message||'unknown');}
 }
+
+function detectTransparentResignationAperture(canvas){
+ const width=canvas.width,height=canvas.height,total=width*height;
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});
+ const data=ctx.getImageData(0,0,width,height).data;
+ const visited=new Uint8Array(total),queue=new Int32Array(total);
+ let best=null;
+ for(let y=1;y<height-1;y++)for(let x=1;x<width-1;x++){
+  const start=y*width+x;if(visited[start]||data[start*4+3]>8)continue;
+  let head=0,tail=0,minX=x,maxX=x,minY=y,maxY=y,area=0,touchesEdge=false;
+  visited[start]=1;queue[tail++]=start;
+  while(head<tail){
+   const index=queue[head++],px=index%width,py=Math.floor(index/width);area++;
+   if(px<minX)minX=px;if(px>maxX)maxX=px;if(py<minY)minY=py;if(py>maxY)maxY=py;
+   if(px===1||px===width-2||py===1||py===height-2)touchesEdge=true;
+   const neighbours=[index-1,index+1,index-width,index+width];
+   for(const next of neighbours){
+    if(visited[next]||data[next*4+3]>8)continue;
+    visited[next]=1;queue[tail++]=next;
+   }
+  }
+  const w=maxX-minX+1,h=maxY-minY+1,ratio=w/h;
+  if(touchesEdge||area<5000||w<60||h<60||ratio<0.45||ratio>2.4)continue;
+  if(!best||area>best.area)best={x:minX,y:minY,width:w,height:h,area};
+ }
+ if(!best)throw new Error('لم أجد فتحة شفافة داخل القالب. تأكد أن مكان صورة العضو مفرغ وشفاف في ملف PNG.');
+ const fillRatio=best.area/(best.width*best.height);
+ if(fillRatio<0.55)throw new Error('الفتحة الشفافة غير منتظمة أو غير واضحة؛ راجع ملف القالب قبل استخدامه.');
+ return {x:best.x,y:best.y,width:best.width,height:best.height};
+}
 function loadResignationTemplateImage(){
  if(resignationTemplateImage?.complete&&resignationTemplateImage.naturalWidth)return Promise.resolve(resignationTemplateImage);
  if(resignationTemplateLoading)return resignationTemplateLoading;
@@ -4209,7 +4243,7 @@ function loadResignationPhoto(url){
 }
 function drawResignationCard(context,template,avatar,name,design){
  const photo=design.photo;
- const photoRect={x:379,y:439,w:268,h:254};
+ const photoRect={x:photo.x,y:photo.y,w:photo.width,h:photo.height};
  context.clearRect(0,0,1672,941);
  if(avatar){
   const iw=avatar.naturalWidth||avatar.width,ih=avatar.naturalHeight||avatar.height;
@@ -4299,14 +4333,16 @@ async function handleResignationTemplateUpload(){
   if(file.type!=='image/png')throw new Error('يجب رفع القالب بصيغة PNG حتى نحافظ على فتحة الصورة الشفافة.');
   if(file.size>12*1024*1024)throw new Error('حجم ملف القالب كبير جدًا.');
   const bitmap=await createImageBitmap(file),canvas=document.createElement('canvas');canvas.width=1672;canvas.height=941;
-  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,1672,941);ctx.drawImage(bitmap,0,0,1672,941);bitmap.close?.();
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.clearRect(0,0,1672,941);ctx.drawImage(bitmap,0,0,1672,941);bitmap.close?.();
+  const aperture=detectTransparentResignationAperture(canvas);
+  resignationCardDesign.photo={...resignationCardDesign.photo,...aperture};
   const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('تعذّر ضغط القالب.')),'image/webp',.9));
   if(blob.size>2*1024*1024)throw new Error('القالب بعد الضغط ما زال أكبر من 2MB.');
   const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
   const response=await fetch('/api/admin/media',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({contentType:'image/webp',base64:btoa(binary)})});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'فشل رفع القالب.');
   resignationTemplateUrl=data.url;resignationTemplateImage=null;await loadResignationTemplateImage();await drawResignationCardEditorPreview();
-  if(status)status.textContent='تم رفع القالب. اضغط حفظ التصميم لتثبيت الرابط والإعدادات.';
+  if(status)status.textContent='تم رفع القالب واكتشاف الفتحة الشفافة تلقائيًا ('+resignationCardDesign.photo.width+' × '+resignationCardDesign.photo.height+'). اضغط حفظ التصميم لتثبيت الرابط والإعدادات.';
  }catch(error){if(status)status.textContent=error.message||'تعذّر رفع القالب.';toast(error.message||'تعذّر رفع القالب.');}
 }
 async function saveResignationCardDesign(){
