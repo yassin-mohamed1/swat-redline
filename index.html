@@ -4454,9 +4454,15 @@ async function publishResignationCard(request){
   await loadResignationCardSettings(true);
   const canvas=document.createElement('canvas');canvas.width=1672;canvas.height=941;
   await drawResignationCanvas(canvas,request.member_name||request.display_name,request.avatar_url||'');
-  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.84));
+  const output=document.createElement('canvas');output.width=1400;output.height=788;
+  output.getContext('2d').drawImage(canvas,0,0,1400,788);
+  let blob=null;
+  for(const quality of [.84,.78,.72,.66]){
+   blob=await new Promise(resolve=>output.toBlob(resolve,'image/jpeg',quality));
+   if(blob&&blob.size<=650*1024)break;
+  }
   if(!blob)throw new Error('تعذّر تجهيز صورة الاستقالة.');
-  if(blob.size>700*1024)throw new Error('صورة الاستقالة كبيرة جدًا؛ قلّل جودة القالب أو جرّب صورة شخصية أخف.');
+  if(blob.size>700*1024)throw new Error('تعذّر ضغط صورة الاستقالة إلى الحجم الآمن للإرسال.');
   const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
   const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'publish_resignation_card',resignation_request_id:request.id,image_data:'data:image/jpeg;base64,'+btoa(binary)})});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'تم قبول الاستقالة، لكن تعذّر نشر البطاقة.');
