@@ -35,7 +35,7 @@ const RESIGNATION_UI_PATCH = [
   " window.__redlineResignationUiPatch=true;",
   " const publishing=new Set();",
   " const syncButtons=()=>{",
-  "  document.querySelectorAll('button[onclick*=\\\"retryResignationCard\\\"]').forEach(button=>{",
+  "  document.querySelectorAll('button[onclick*=\"retryResignationCard\"]').forEach(button=>{",
   "   const match=String(button.getAttribute('onclick')||'').match(/retryResignationCard\\('([^']+)'\\)/);",
   "   if(match&&publishing.has(match[1])){button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='⏳ جارٍ نشر البطاقة...';}",
   "  });",
@@ -68,7 +68,7 @@ const RESIGNATION_UI_PATCH = [
   " const originalOpen=window.openResignationCardEditor;",
   " if(typeof originalOpen==='function')window.openResignationCardEditor=async function(){const result=await originalOpen.apply(this,arguments);const input=document.getElementById('resignationTemplateFile');let note=document.getElementById('resignationTemplateSavedStatus');if(input&&input.parentElement){if(!note){note=document.createElement('div');note.id='resignationTemplateSavedStatus';note.className='muted';note.setAttribute('aria-live','polite');input.insertAdjacentElement('afterend',note);}note.textContent=typeof resignationTemplateUrl!=='undefined'&&resignationTemplateUrl?'✅ القالب المحفوظ موجود وتم تحميله. حقل اختيار الملف يظل فارغًا طبيعيًا؛ لا تحتاج لإعادة رفع القالب.':'لا يوجد قالب محفوظ حاليًا. اختر ملف PNG لرفعه وحفظه.';}return result;};",
   "})();"
-].join("\\n");
+].join("\n");
 const welcomeSourceCache = new Map();
 function getWelcomeSource(name) {
   if (!welcomeSourceCache.has(name)) {
@@ -218,7 +218,7 @@ export default {
         const html = await assetResponse.text();
         if (html.includes('id="resignationCardEditorModalBack"')) {
           const script = "<script>" + RESIGNATION_UI_PATCH + "</script>";
-          const patched = html.replace(/<\\/body>/i, script + "</body>");
+          const patched = html.replace(/<\/body>/i, script + "</body>");
           const headers = new Headers(assetResponse.headers);
           headers.delete("content-length");
           headers.delete("content-encoding");
