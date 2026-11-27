@@ -1440,6 +1440,93 @@ export default async function handler(req, res) {
     if (["submit_attendance_leave","submit_resignation_request"].includes(body.action)) await requireActiveStaff(cfg, user);
     else await requireManager(cfg, user);
 
+    if (body.action === "delete_resignation_test_requests") {
+      const requestIds = Array.isArray(body.request_ids)
+        ? [...new Set(body.request_ids.map(value => String(value || "")))]
+        : [];
+      if (!requestIds.length || requestIds.length > 100 ||
+          requestIds.some(id => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))) {
+        return json(res, 400, { error: "حدد سجلات اختبار صالحة للحذف." });
+      }
+
+      const lookup = new URLSearchParams({
+        id: "in.(" + requestIds.join(",") + ")",
+        select: "id,reason,source,publication_channel_id,publication_message_id",
+        limit: "100"
+      });
+      const lookupResponse = await db(cfg, "resignation_requests?" + lookup.toString());
+      if (!lookupResponse.ok) throw Object.assign(new Error("تعذّر تحميل سجلات الاختبار قبل حذفها."), { status: 503 });
+      const testRows = await lookupResponse.json();
+      const allowedTestReasons = new Set(["تيست", "test", "testing", "تجربة", "تجريبي"]);
+      const invalidRows = testRows.filter(row => !allowedTestReasons.has(String(row.reason || "").trim().toLocaleLowerCase("ar")));
+      if (!testRows.length || invalidRows.length || testRows.length !== requestIds.length) {
+        return json(res, 409, {
+          error: "الحذف مسموح لسجلات الاختبار ذات السبب المحدد فقط. لم يتم حذف أي سجل.",
+          deleted: 0
+        });
+      }
+
+      const discordCleanupFailures = [];
+      let deletedDiscordMessages = 0;
+      for (const row of testRows) {
+        if (!row.publication_channel_id || !row.publication_message_id) continue;
+        try {
+          await discord(cfg, "/channels/" + row.publication_channel_id + "/messages/" + row.publication_message_id, {
+            method: "DELETE"
+          });
+          deletedDiscordMessages++;
+        } catch (error) {
+          const code = Number(error?.code || error?.status || 0);
+          if (code !== 10008 && code !== 404) {
+            discordCleanupFailures.push({
+              request_id: row.id,
+              message_id: row.publication_message_id,
+              error: String(error?.message || code || "discord_message_delete_failed").slice(0, 140)
+            });
+          }
+        }
+      }
+
+      const deletion = new URLSearchParams({
+        id: "in.(" + testRows.map(row => row.id).join(",") + ")",
+        select: "id"
+      });
+      const deleteResponse = await db(cfg, "resignation_requests?" + deletion.toString(), {
+        method: "DELETE",
+        headers: { Prefer: "return=representation" }
+      });
+      if (!deleteResponse.ok) {
+        const detail = (await deleteResponse.text()).slice(0, 300);
+        console.error("Test resignation cleanup failed:", deleteResponse.status, detail);
+        throw Object.assign(new Error("تعذّر حذف سجلات الاختبار من قاعدة البيانات."), { status: 503 });
+      }
+      const deletedRows = await deleteResponse.json().catch(() => []);
+      const deletedIds = Array.isArray(deletedRows) ? deletedRows.map(row => row.id) : [];
+
+      try {
+        await appendAttendanceAdminAudit(cfg, user, {
+          action: "delete",
+          entity_type: "resignation_test_cleanup",
+          entity_id: null,
+          details: {
+            type: "تنظيف سجلات استقالات تجريبية",
+            deleted_count: deletedIds.length,
+            discord_messages_deleted: deletedDiscordMessages,
+            discord_cleanup_failures: discordCleanupFailures.length
+          }
+        });
+      } catch (auditError) {
+        console.error("Resignation test cleanup audit failed:", auditError?.message || "unknown");
+      }
+
+      return json(res, 200, {
+        ok: true,
+        deleted: deletedIds.length,
+        deleted_discord_messages: deletedDiscordMessages,
+        discord_cleanup_failures: discordCleanupFailures
+      });
+    }
+
     if (body.action === "save_attendance_exemptions") {
       const selectedIds = Array.isArray(body.discord_user_ids)
         ? [...new Set(body.discord_user_ids.map(value => String(value || "")))]
