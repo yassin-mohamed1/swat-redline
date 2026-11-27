@@ -577,19 +577,54 @@ test("successful manual and attendance dismissals retire portal profiles and arc
   assert.ok(migration.includes("disciplinary_subjects_archived"));
 });
 
-test("former personnel are hidden from the active roster and can only be reactivated after regaining the access role", async () => {
+test("former staff remain visible in the directory and portal access follows the live Discord role", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
-  const migration = await readFile(new URL("../supabase/migrations/20261127065237_retire_staff_on_resignation_and_dismissal.sql", import.meta.url), "utf8");
-  assert.ok(html.includes('id="personnelFormerToggle"'));
-  assert.ok(html.includes("showFormerPersonnelList"));
-  assert.ok(html.includes("function toggleFormerPersonnelList()"));
-  assert.ok(api.includes("is_active=eq.true&is_banned=eq.false&order=display_name.asc"));
-  assert.ok(api.includes('if (action === "activate" || action === "unban")'));
-  assert.ok(api.includes("requiredAccessRoleId"));
-  assert.ok(api.includes("reactivationMember.roles.includes(requiredAccessRoleId)"));
-  assert.ok(api.includes("values.discord_roles_synced_at"));
-  assert.ok(migration.includes("REVOKE ALL ON FUNCTION public.complete_disciplinary_action_v2"));
+  const membersApi = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+  const oauth = await readFile(new URL("../api/auth/discord.js", import.meta.url), "utf8");
+  const session = await readFile(new URL("../api/auth/session.js", import.meta.url), "utf8");
+  const roleSync = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
+
+  assert.ok(html.includes("const visibleMembers=members;"));
+  assert.ok(!html.includes("showFormerPersonnelList"));
+  assert.ok(!html.includes("personnelFormerToggle"));
+
+  const directoryStart = membersApi.indexOf('    if (req.method === "GET") {\\n      const q = new URLSearchParams({');
+  const directoryEnd = membersApi.indexOf("      // Backward-compatible fallback", directoryStart);
+  assert.ok(directoryStart >= 0 && directoryEnd > directoryStart);
+  const directory = membersApi.slice(directoryStart, directoryEnd);
+  assert.ok(directory.includes('"staff_profiles?" + q'));
+  assert.ok(!directory.includes("is_active=eq.true"));
+
+  assert.ok(oauth.includes("member.roles.includes(roleId)"));
+  assert.ok(oauth.includes("existingProfile?.is_banned"));
+  assert.ok(!oauth.includes("existingProfile.is_active === false"));
+  assert.ok(oauth.includes("is_active: true"));
+
+  assert.ok(session.includes("discordApiRequest(token, \"/guilds/\" + guildId + \"/members/\" + user.id"));
+  assert.ok(session.includes("member.roles.includes(accessRoleId)"));
+  assert.ok(!session.includes("rows[0].is_active === false"));
+  assert.ok(session.includes("rows[0].is_banned"));
+
+  assert.ok(roleSync.includes("existingProfilesById"));
+  assert.ok(roleSync.includes("requires_reactivation"));
+  assert.ok(roleSync.includes("profile.is_active === false"));
+  assert.ok(roleSync.includes("reactivated_count"));
+});
+
+test("returning former personnel are restored in place, not inserted as duplicate profiles", async () => {
+  const roleSync = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
+  const membersApi = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
+
+  assert.ok(roleSync.includes('is_active: true'));
+  assert.ok(roleSync.includes('is_active: "eq.false"'));
+  assert.ok(roleSync.includes('is_banned: "eq.false"'));
+  assert.ok(roleSync.includes("reactivated_ids"));
+  assert.ok(membersApi.includes("if(existing){"));
+  assert.ok(membersApi.includes("const accessRoleId=String(process.env.DISCORD_ROLE_ID||\"\")"));
+  assert.ok(membersApi.includes("values.discord_roles_synced_at") === false);
+  assert.ok(membersApi.includes("reactivated:true"));
+  assert.ok(membersApi.includes('action==="delete"') || membersApi.includes('action === "delete"'));
+  assert.ok(membersApi.includes('rpc/forget_staff_member_data'));
 });
 
 test("FIRED preview fetches the selected member live and prevents stale async renders overwriting a newer selection", async () => {
