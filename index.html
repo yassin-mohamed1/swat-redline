@@ -1804,7 +1804,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-personnel .assignment-modal-body{padding:19px;display:grid;gap:15px}
 #page-personnel .assignment-field{display:grid;gap:7px}
 #page-personnel .assignment-actions{display:flex;gap:9px;flex-wrap:wrap}
-</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضيفوا يدويًا أو تلقائيًا بواسطة بوت S.W.A.T.</div></div><div class="assignment-toolbar"><button class="btn primary" id="syncDiscordRoleMembersButton" type="button" hidden onclick="openDiscordRoleCandidates()">＋ اختيار أعضاء جدد من رول S.W.A.T.</button><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجلت دخول الموقع، وكذلك الأعضاء الذين أضفتهم يدويًا أو أضافهم البوت تلقائيًا بسبب حملهم لرول S.W.A.T.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
+</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضيفوا يدويًا أو تلقائيًا بواسطة بوت S.W.A.T.</div></div><div class="assignment-toolbar"><button class="btn primary" id="syncDiscordRoleMembersButton" type="button" hidden onclick="openDiscordRoleCandidates()">＋ اختيار أعضاء جدد من رول S.W.A.T.</button><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" id="personnelFormerToggle" type="button" onclick="toggleFormerPersonnelList()">عرض الأعضاء السابقين</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجلت دخول الموقع، وكذلك الأعضاء الذين أضفتهم يدويًا أو أضافهم البوت تلقائيًا بسبب حملهم لرول S.W.A.T.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
  <div class="assignment-modal-card" style="width:min(560px,100%)">
   <div class="assignment-modal-head">
    <div><h3 style="margin:0">إضافة عضو بدون تسجيل دخول</h3><div class="muted">إضافته إلى دليل الأفراد باستخدام Discord ID فقط</div></div>
@@ -5362,30 +5362,62 @@ async function loadDismissalPreviewMembers(){
   if(!response.ok)throw new Error(data.error||'تعذّر تحميل قائمة الأعضاء للمعاينة.');
   members=Array.isArray(data.members)?data.members:[];
  }
- members=members.filter(member=>member&&/^\d{15,22}$/.test(String(member.discord_user_id||''))&&member.is_banned!==true);
+ members=members.filter(member=>member&&/^\d{15,22}$/.test(String(member.discord_user_id||''))&&member.is_active===true&&member.is_banned!==true);
  if(typeof warningData==='object'&&warningData)warningData.members=members;
  select.innerHTML='<option value="">اختر عضوًا للمعاينة...</option>'+members.map(member=>{
   const id=adminEscape(String(member.discord_user_id)),name=String(member.display_name||member.username||'عضو');
   return '<option value="'+id+'">'+adminEscape(name)+' — '+id+'</option>';
  }).join('');
  const preferred=members.find(member=>String(member.discord_user_id)!==String(currentUserId))||members[0]||null;
- if(preferred){select.value=String(preferred.discord_user_id);dismissalPreviewMember=preferred;const nameInput=document.getElementById('dismissalPreviewName');if(nameInput)nameInput.value=String(preferred.display_name||preferred.username||'');}
- else{dismissalPreviewMember=null;select.value='';const nameInput=document.getElementById('dismissalPreviewName');if(nameInput)nameInput.value='S.W.A.T. MEMBER';}
+ if(preferred){select.value=String(preferred.discord_user_id);await selectDismissalPreviewMember(preferred.discord_user_id);}
+ else{dismissalPreviewMember=null;select.value='';const nameInput=document.getElementById('dismissalPreviewName');if(nameInput)nameInput.value='S.W.A.T. MEMBER';await drawDismissalCardEditorPreview();}
 }
-function selectDismissalPreviewMember(memberId){
- dismissalPreviewMember=(warningData.members||[]).find(member=>String(member.discord_user_id)===String(memberId))||null;
+let dismissalPreviewSelectionRevision=0;
+let dismissalPreviewRenderRevision=0;
+async function selectDismissalPreviewMember(memberId){
+ const revision=++dismissalPreviewSelectionRevision;
+ const cached=(warningData.members||[]).find(member=>String(member.discord_user_id)===String(memberId)&&member.is_active===true&&member.is_banned!==true)||null;
+ dismissalPreviewMember=cached?{...cached}:null;
  const nameInput=document.getElementById('dismissalPreviewName');
- if(nameInput&&dismissalPreviewMember)nameInput.value=String(dismissalPreviewMember.display_name||dismissalPreviewMember.username||'');
- drawDismissalCardEditorPreview();
+ const cachedName=String(cached?.display_name||cached?.username||'S.W.A.T. MEMBER');
+ if(nameInput)nameInput.value=cachedName;
+ if(!cached){await drawDismissalCardEditorPreview();return;}
+ const status=document.getElementById('dismissalCardEditorStatus');
+ if(status)status.textContent='جارٍ جلب صورة واسم العضو الحاليين من Discord...';
+ await drawDismissalCardEditorPreview();
+ try{
+  const response=await fetch('/api/warnings?dismissal_card_member=1&discord_user_id='+encodeURIComponent(memberId),{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.member)throw new Error(data.error||'تعذّر جلب بيانات العضو الحية من Discord.');
+  if(revision!==dismissalPreviewSelectionRevision)return;
+  const liveName=String(data.member.name||cachedName);
+  dismissalPreviewMember={...cached,display_name:liveName,avatar_url:data.member.avatar_url||null};
+  if(nameInput&&nameInput.value===cachedName)nameInput.value=liveName;
+  await drawDismissalCardEditorPreview();
+ }catch(error){
+  if(revision!==dismissalPreviewSelectionRevision)return;
+  if(status)status.textContent=(error.message||'تعذّر تحديث صورة العضو من Discord.')+' • تظهر البيانات المحفوظة للمعاينة مؤقتًا.';
+ }
 }
 async function drawDismissalCardEditorPreview(){
  const canvas=document.getElementById('dismissalCardEditorCanvas');if(!canvas)return;
+ const revision=++dismissalPreviewRenderRevision;
+ const stage=document.createElement('canvas');stage.width=1672;stage.height=941;
+ const member=dismissalPreviewMember?{...dismissalPreviewMember}:null;
+ const name=String(document.getElementById('dismissalPreviewName')?.value||member?.display_name||'S.W.A.T. MEMBER');
  try{
-  const name=String(document.getElementById('dismissalPreviewName')?.value||dismissalPreviewMember?.display_name||'S.W.A.T. MEMBER');
-  await drawDismissalCanvas(canvas,name,dismissalPreviewMember?.avatar_url||'');
+  await drawDismissalCanvas(stage,name,member?.avatar_url||'');
+  if(revision!==dismissalPreviewRenderRevision)return;
+  const context=canvas.getContext('2d');
+  context.clearRect(0,0,1672,941);
+  context.drawImage(stage,0,0);
   const status=document.getElementById('dismissalCardEditorStatus');
-  if(status)status.textContent=dismissalPreviewMember?'المعاينة تستخدم صورة '+String(dismissalPreviewMember.display_name||dismissalPreviewMember.username||'العضو')+'؛ عند الفصل سيُستخدم اسم وصورة صاحب القرار من Discord مباشرةً.':'اختر عضوًا من قائمة المعاينة لعرض صورته.';
- }catch(error){const status=document.getElementById('dismissalCardEditorStatus');if(status)status.textContent=error.message||'تعذّرت معاينة بطاقة الفصل.';}
+  if(status)status.textContent=member?'المعاينة تستخدم أحدث صورة واسم تم جلبهما من Discord؛ عند الفصل سيُستخدم حساب الهدف نفسه.':'اختر عضوًا من قائمة المعاينة لعرض صورته.';
+ }catch(error){
+  if(revision!==dismissalPreviewRenderRevision)return;
+  const status=document.getElementById('dismissalCardEditorStatus');
+  if(status)status.textContent=error.message||'تعذّرت معاينة بطاقة الفصل.';
+ }
 }
 function syncDismissalCardControls(){
  const layer=document.getElementById('dismissalCardLayer')?.value||'photo',isPhoto=layer==='photo',settings=dismissalCardDesign[layer];
@@ -5663,6 +5695,12 @@ async function registerSelectedDiscordRoleCandidates(){
   updateDiscordRoleCandidateSelection();
  }
 }
+let showFormerPersonnelList=false;
+function toggleFormerPersonnelList(){
+ if(!currentCanAdmin){toast('عرض الأعضاء السابقين متاح لمدير الموقع فقط.');return;}
+ showFormerPersonnelList=!showFormerPersonnelList;
+ renderPersonnel();
+}
 async function renderPersonnel(){
  const body=document.getElementById('personnelRows');
  if(!body||(!currentCanAdmin&&!currentCanManageAssignments))return;
@@ -5676,8 +5714,13 @@ async function renderPersonnel(){
   const r=await fetch('/api/admin/members',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
   if(!r.ok){const err=new Error(d.error||'تعذر تحميل الأفراد');err.diagnostics=d.diagnostics;throw err;}
   const members=d.members||[];
+  const visibleMembers=members.filter(m=>showFormerPersonnelList
+   ?(m.is_active===false||m.is_banned===true)
+   :(m.is_active!==false&&!m.is_banned));
+  const formerToggle=document.getElementById('personnelFormerToggle');
+  if(formerToggle)formerToggle.textContent=showFormerPersonnelList?'عرض الأعضاء النشطين':'عرض الأعضاء السابقين';
   currentWebsiteAdminRoleId=String(d.websiteAdminRoleId||currentWebsiteAdminRoleId||'');
-  body.innerHTML=members.map(m=>{
+  body.innerHTML=visibleMembers.map(m=>{
    const owner=m.discord_user_id===d.ownerId;
    const websiteAdmin=!owner&&currentWebsiteAdminRoleId&&Array.isArray(m.discord_roles)&&m.discord_roles.includes(currentWebsiteAdminRoleId);
     const status=owner?'المالك ADMIN':m.is_banned?'محظور':m.is_active?(websiteAdmin?'ADMIN':'نشط'):'موقوف';
@@ -5685,7 +5728,7 @@ async function renderPersonnel(){
    const actions=!currentCanAdmin?'<span class="muted">عرض فقط</span>':owner?'<span class="muted">حساب المالك ADMIN محمي ولا يمكن حذفه أو حظره</span>':`<button class="btn ${m.is_banned?'':'danger'}" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_banned?'unban':'ban'}')">${m.is_banned?'رفع الحظر':'حظر'}</button> <button class="btn" onclick="memberAction('${adminEscape(m.discord_user_id)}','${m.is_active?'deactivate':'activate'}')">${m.is_active?'فصل من الموقع':'إعادة تفعيل'}</button> <button class="btn danger" onclick="memberAction('${adminEscape(m.discord_user_id)}','delete')">حذف نهائي</button>`;
    const profileType=pendingRegistrationBadge(m);
    return `<tr><td><div style="display:flex;align-items:center;gap:8px">${m.avatar_url?`<img src="${adminEscape(m.avatar_url)}" alt="" style="width:32px;height:32px;border-radius:50%">`:''}<div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${adminEscape(m.display_name||'Discord user')}</b></div>${m.username?`<span class="muted">@${adminEscape(m.username)}</span>`:''}${profileType}</div></div></td><td><code>${adminEscape(m.discord_user_id)}</code></td><td>${adminEscape(fmtAdminDate(m.last_seen||m.last_login))}</td><td>${Number(m.login_count||0)}</td><td><span class="tag ${tag}">${status}</span></td><td>${actions}</td></tr>`;
-  }).join('')||'<tr><td colspan="6"><div class="empty">لا توجد حسابات مسجلة أو أعضاء مضافون يدويًا أو تلقائيًا حتى الآن.</div></td></tr>';
+  }).join('')||'<tr><td colspan="6"><div class="empty">لا توجد حسابات في القسم المعروض حاليًا.</div></td></tr>';
  }catch(e){
   const detail=e.diagnostics?'<div style="margin-top:6px;font-size:11px;direction:ltr;text-align:left;white-space:normal;overflow-wrap:anywhere">'+adminEscape(JSON.stringify(e.diagnostics))+'</div>':'';
   body.innerHTML=`<tr><td colspan="6">${adminEscape(e.message||'تعذر تحميل القائمة')}${detail}</td></tr>`;
