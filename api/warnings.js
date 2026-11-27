@@ -39,7 +39,7 @@ function readSession(req) {
   return { id: user.id, username: user.username, displayName: user.displayName || user.username, isOwner };
 }
 function json(res, status, body) { return res.status(status).json(body); }
-function config() {
+function getConfig() {
   const base = process.env.SUPABASE_URL?.replace(/\/+$/, "");
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const token = process.env.DISCORD_BOT_TOKEN;
@@ -1371,7 +1371,7 @@ export default async function handler(req, res) {
       return json(res, 405, { error: "طريقة الطلب غير مسموح بها." });
     }
     if (!cronAuthorized(req)) return json(res, 401, { error: "يلزم التحقق من صلاحية مهمة الجدولة." });
-    const cronCfg = config();
+    const cronCfg = getConfig();
     if (cronCfg.error) return json(res, 503, { error: cronCfg.error });
     try {
       const expiry = await processExpiredWarningRoles(cronCfg);
@@ -1391,7 +1391,7 @@ export default async function handler(req, res) {
   if (requestUrl.searchParams.get("attention_alerts") === "1") {
     return attentionAlertsApi(req, res, user);
   }
-  const cfg = config();
+  const cfg = getConfig();
   if (cfg.error) return json(res, 503, { error: cfg.error });
   try {
     const params = new URL(req.url, "https://portal.invalid").searchParams;
