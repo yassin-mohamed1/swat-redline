@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { forwardAuditToDiscord } from "../../lib/audit-log.js";
 import { isWebsiteAdmin as hasWebsiteAdminRole } from "../../lib/portal-admin.js";
+import { discordApiRequest } from "../../lib/discord-rest.js";
 function parseCookies(header = "") {
   const result = {};
   for (const part of header.split(";")) {
@@ -29,10 +30,38 @@ export default async function handler(req, res) {
       user.issuedAt > Date.now() + 60_000 || (!isOwner && user.roleId !== process.env.DISCORD_ROLE_ID)) {
     return res.status(401).json({ authenticated: false });
   }
+  // Check the actual Discord member on every session validation. The role in the
+  // signed cookie only proves which role was required at login; it does not prove
+  // the member still has it now.
+  if (!isOwner) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    const guildId = String(process.env.DISCORD_GUILD_ID || "");
+    const accessRoleId = String(process.env.DISCORD_ROLE_ID || "");
+    if (!token || !/^\\d{15,22}$/.test(guildId) || !/^\\d{15,22}$/.test(accessRoleId)) {
+      return res.status(503).json({ authenticated: false, error: "Portal access-role verification is not configured." });
+    }
+    try {
+      const member = await discordApiRequest(token, "/guilds/" + guildId + "/members/" + user.id, {}, {
+        maxRetries: 2,
+        maxRetryWaitMs: 4000
+      });
+      if (!Array.isArray(member.roles) || !member.roles.includes(accessRoleId)) {
+        return res.status(401).json({ authenticated: false, error: "Required Discord access role is missing." });
+      }
+    } catch (error) {
+      if (Number(error?.status) === 404) {
+        return res.status(401).json({ authenticated: false, error: "Discord server membership is required." });
+      }
+      console.error("Live Discord access-role check failed:", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ authenticated: false, error: "Could not verify your current Discord access role. Please try again." });
+    }
+  }
+
+  // Keep explicit administrative bans separate, but never use is_active to hide a saved profile.
   if (!isOwner && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
-      const base = process.env.SUPABASE_URL.replace(/\/+$/, "");
-      const query = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "is_active,is_banned" });
+      const base = process.env.SUPABASE_URL.replace(/\\/+$/, "");
+      const query = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "is_banned" });
       const check = await fetch(`${base}/rest/v1/staff_profiles?${query.toString()}`, {
         headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: "Bearer " + process.env.SUPABASE_SERVICE_ROLE_KEY }
       });
@@ -41,8 +70,8 @@ export default async function handler(req, res) {
         return res.status(503).json({ authenticated: false, error: "Could not verify staff access. Please try again." });
       }
       const rows = await check.json();
-      if (!rows[0] || rows[0].is_banned || rows[0].is_active === false) {
-        return res.status(401).json({ authenticated: false, error: "Account deactivated or not registered" });
+      if (!rows[0] || rows[0].is_banned) {
+        return res.status(401).json({ authenticated: false, error: "Account is banned or not registered." });
       }
     } catch (error) {
       console.error("Staff access verification failed:", error instanceof Error ? error.message : "unknown");
