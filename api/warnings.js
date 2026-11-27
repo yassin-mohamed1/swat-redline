@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
-
-export const config = { api: { bodyParser: { sizeLimit: "5mb" } } };
 import { requireSameOrigin } from "../lib/request-security.js";
 import { discordApiRequest } from "../lib/discord-rest.js";
 import { forwardAuditToDiscord } from "../lib/audit-log.js";
 import { isWebsiteAdmin } from "../lib/portal-admin.js";
 import { deliverPendingAdminAlerts, queueAdminAlert } from "../lib/admin-alerts.js";
+
+export const config = { api: { bodyParser: { sizeLimit: "5mb" } } };
 
 const WARNING_LEVELS = [1, 2];
 const RESIGNATION_PRESERVED_ROLE_IDS = Object.freeze([
@@ -1295,8 +1295,9 @@ function decodeDismissalCardImage(value) {
     throw Object.assign(new Error("صورة الفصل غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
   }
   const bytes = Buffer.from(encoded, "base64");
-  if (!bytes.length || bytes.length > 3100000 || bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") {
-    throw Object.assign(new Error("ملف بطاقة الفصل ليس PNG صالحًا أو حجمه أكبر من الحد المسموح."), { status: 413 });
+  if (!bytes.length || bytes.length > 3100000 || bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" ||
+      bytes.readUInt32BE(16) !== 1672 || bytes.readUInt32BE(20) !== 941) {
+    throw Object.assign(new Error("يجب أن تكون بطاقة الفصل PNG بالمقاس الصحيح 1672 × 941."), { status: 413 });
   }
   return bytes;
 }
@@ -1395,6 +1396,7 @@ export default async function handler(req, res) {
   try {
     const params = new URL(req.url, "https://portal.invalid").searchParams;
     if (req.method === "GET" && params.get("dismissal_card_member") === "1") {
+      await requireManager(cfg, user);
       const targetId = String(params.get("discord_user_id") || "");
       if (!/^\d{15,22}$/.test(targetId)) return json(res, 400, { error: "معرّف Discord غير صالح." });
       const member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
