@@ -32,14 +32,16 @@ test("only the owner or Website Admin can open the candidate picker or add selec
   assert.match(html, /syncButton\.hidden=!currentCanAdmin/);
 });
 
-test("candidate preview only lists role-holders missing from the portal and excludes bot accounts", async () => {
+test("candidate preview includes new role-holders and eligible former profiles, while excluding active, banned and bot accounts", async () => {
   const helper = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
 
   assert.match(helper, /member\.roles\.map\(String\)\.includes\(roleId\)/);
   assert.match(helper, /member\?\.user\?\.bot !== true/);
   assert.match(helper, /user\.bot === true/);
-  assert.match(helper, /existingProfileIds\(base, key, matchedIds\)/);
-  assert.match(helper, /existing\.has\(candidate\.discord_user_id\)/);
+  assert.match(helper, /existingProfilesById\(base, key, matchedIds\)/);
+  assert.match(helper, /existing\.get\(candidate\.discord_user_id\)/);
+  assert.match(helper, /savedProfile\.is_banned === true \|\| savedProfile\.is_active !== false/);
+  assert.match(helper, /requires_reactivation/);
   assert.match(helper, /candidates,/);
   assert.match(helper, /cycle_complete: cycleComplete/);
   assert.doesNotMatch(helper, /saveNewProfiles\(base, key, matches/);
@@ -53,8 +55,14 @@ test("selected members are revalidated against current Discord role membership b
   assert.match(helper, /id === botId/);
   assert.match(helper, /requestGuildMember\(token, guildId, id\)/);
   assert.match(helper, /member\.roles\.map\(String\)\.includes\(roleId\)/);
-  assert.match(helper, /const existing = await existingProfileIds/);
-  assert.match(helper, /saveNewProfiles\(base, key, toInsert/);
+  assert.match(helper, /const existing = await existingProfilesById\(base, key, eligibleIds\)/);
+  assert.match(helper, /saveNewProfiles\(base, key, newMembers/);
+  assert.match(helper, /profile\.is_active === false && profile\.is_banned !== true/);
+  assert.match(helper, /is_active: "eq\.false"/);
+  assert.match(helper, /is_banned: "eq\.false"/);
+  assert.match(helper, /reactivated_ids/);
+  assert.match(helper, /reactivated_count/);
+  assert.match(helper, /discord_roles_synced_at: now/);
   assert.match(helper, /on_conflict: "discord_user_id"/);
   assert.match(helper, /resolution=ignore-duplicates,return=representation/);
   assert.match(api, /requestBody\.action/);
