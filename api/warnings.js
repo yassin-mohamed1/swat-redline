@@ -1220,7 +1220,7 @@ async function loadDisciplinaryMentionSettings(cfg) {
     targetMentionEnabled: values.disciplinaryTargetMentionEnabled !== false
   };
 }
-async async function sendAnnouncement(cfg, embed, targetId) {
+async function sendAnnouncement(cfg, embed, targetId) {
   const mentionSettings = await loadDisciplinaryMentionSettings(cfg);
   // Always include the target member mention in the channel announcement.
   // Keep the SWAT role mention controlled by its existing setting.
