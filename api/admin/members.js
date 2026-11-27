@@ -356,7 +356,7 @@ async function assignmentMember(token,guildId,id) {
 async function listAssignments(url,key,token,guildId,allowWebsiteAdminRole=false) {
   if(!token||!/^\d{15,22}$/.test(String(guildId||"")))throw new Error("لم يتم إعداد اتصال بوت Discord والسيرفر.");
   const [profileResponse,assignmentResponse,callsignResponse,identityResponse]=await Promise.all([
-    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,registration_source,last_login,login_count,created_at&order=display_name.asc"),
+    supabase(url,key,"staff_profiles?select=discord_user_id,display_name,username,avatar_url,discord_roles,discord_roles_synced_at,is_active,is_banned,is_manual,registration_source,last_login,login_count,created_at&is_active=eq.true&is_banned=eq.false&order=display_name.asc"),
     supabase(url,key,"staff_assignments?select=discord_user_id,rank_role_id,rank_role_name,rank_role_ids,rank_role_names,callsign,status,assigned_by_name,updated_at"),
     supabase(url,key,"staff_callsigns?select=callsign&is_active=eq.true&order=callsign.asc"),
     supabase(url,key,"staff_member_identities?select=discord_user_id,city_rank,channel_id,message_id,published_at,unit_sort_order")
@@ -1591,10 +1591,36 @@ export default async function handler(req, res) {
       }
       return send(res,200,{ok:true,deleted:true,counts:result.counts||{}});
     }
+    let reactivationMember = null;
+    if (action === "activate" || action === "unban") {
+      const requiredAccessRoleId = String(process.env.DISCORD_ROLE_ID || "");
+      if (!/^\d{15,22}$/.test(requiredAccessRoleId)) {
+        return send(res, 503, { error: "لم يتم إعداد رتبة الدخول للموقع. لا يمكن إعادة تفعيل الحساب بأمان." });
+      }
+      try {
+        reactivationMember = await assignmentDiscord(
+          process.env.DISCORD_BOT_TOKEN,
+          "/guilds/" + process.env.DISCORD_GUILD_ID + "/members/" + targetId
+        );
+      } catch (error) {
+        return send(res, error.status === 404 ? 409 : error.status || 502, {
+          error: error.status === 404
+            ? "لا يمكن إعادة تفعيل العضو قبل عودته إلى سيرفر Discord."
+            : error.message || "تعذّر التحقق من رتب Discord الحالية."
+        });
+      }
+      if (!Array.isArray(reactivationMember.roles) || !reactivationMember.roles.includes(requiredAccessRoleId)) {
+        return send(res, 409, { error: "أعد منح العضو رتبة الدخول للموقع في Discord أولًا، ثم اضغط «إعادة تفعيل»." });
+      }
+    }
     const values = action === "ban" ? { is_banned: true, is_active: false }
       : action === "unban" ? { is_banned: false, is_active: true }
       : action === "deactivate" ? { is_active: false }
       : { is_active: true, is_banned: false };
+    if (reactivationMember) {
+      values.discord_roles = Array.isArray(reactivationMember.roles) ? reactivationMember.roles : [];
+      values.discord_roles_synced_at = new Date().toISOString();
+    }
     values.updated_at = new Date().toISOString();
     const q = new URLSearchParams({ discord_user_id: "eq." + targetId });
     const response = await supabase(url, key, "staff_profiles?" + q, {
