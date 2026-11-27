@@ -2182,7 +2182,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 <div class="sectionhead">
  <div><h2>التحذيرات</h2><div class="sub">إدارة الحالات التأديبية، الرسائل الرسمية، وسجل الإجراءات</div></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
- <button class="btn" id="dismissalCardEditorButton" type="button" style="display:none" onclick="openDismissalCardEditor()">✎ تعديل رسالة الفصل</button>
+ <button class="btn" id="dismissalCardEditorButton" type="button" style="display:none" onclick="openMessageTemplateChooser()">✎ تعديل الرسالة</button>
  <button class="btn" type="button" onclick="renderWarnings()">↻ تحديث البيانات</button>
 </div>
 </div>
@@ -2285,11 +2285,28 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
  </div>
 </div>
  
+<div class="modalback" id="messageTemplateChooserModalBack" onclick="if(event.target===this)closeMessageTemplateChooser()">
+ <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="messageTemplateChooserTitle" style="width:min(820px,96vw)">
+  <div class="modalhead"><div><h3 id="messageTemplateChooserTitle">تعديل الرسالة</h3><div class="sub">اختر نوع الرسالة التي تريد تعديل قالبها. لكل نوع صورة وإعدادات مستقلة تمامًا.</div></div><button class="close" type="button" onclick="closeMessageTemplateChooser()">×</button></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+   <button class="panel" type="button" style="text-align:right;border:1px solid #4c3437;cursor:pointer;background:linear-gradient(145deg,#1b1518,#101318);padding:16px" onclick="openMessageTemplateEditor('dismissal')">
+    <div style="font-size:24px;font-weight:900;letter-spacing:1px;color:#ff444d">FIRED</div><div style="font-weight:800;margin-top:7px">تعديل رسالة الفصل</div><div id="messageTemplateChoiceDismissal" class="muted" style="margin-top:8px">جارٍ التحقق من القالب...</div>
+   </button>
+   <button class="panel" type="button" style="text-align:right;border:1px solid #65521f;cursor:pointer;background:linear-gradient(145deg,#1b1912,#101318);padding:16px" onclick="openMessageTemplateEditor('warning1')">
+    <div style="font-size:24px;font-weight:900;letter-spacing:1px;color:#ffc928">WARNING 1</div><div style="font-weight:800;margin-top:7px">تعديل رسالة الإنذار الأول</div><div id="messageTemplateChoiceWarning1" class="muted" style="margin-top:8px">جارٍ التحقق من القالب...</div>
+   </button>
+   <button class="panel" type="button" style="text-align:right;border:1px solid #663036;cursor:pointer;background:linear-gradient(145deg,#1b1417,#101318);padding:16px" onclick="openMessageTemplateEditor('warning2')">
+    <div style="font-size:24px;font-weight:900;letter-spacing:1px;color:#ff4b50">WARNING 2</div><div style="font-weight:800;margin-top:7px">تعديل رسالة الإنذار الثاني</div><div id="messageTemplateChoiceWarning2" class="muted" style="margin-top:8px">جارٍ التحقق من القالب...</div>
+   </button>
+  </div>
+  <div class="modalactions"><button class="btn" type="button" onclick="closeMessageTemplateChooser()">إغلاق</button></div>
+ </div>
+</div>
 <div class="modalback" id="dismissalCardEditorModalBack" onclick="if(event.target===this)closeDismissalCardEditor()">
  <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="dismissalCardEditorTitle" style="width:min(1120px,96vw)">
-  <div class="modalhead"><div><h3 id="dismissalCardEditorTitle">تصميم رسالة الفصل</h3><div class="sub">ارفع قالب PNG الشفاف، ثم اضبط موضع صورة العضو واسمه واحفظ التصميم.</div></div><button class="close" type="button" onclick="closeDismissalCardEditor()">×</button></div>
+  <div class="modalhead"><div><h3 id="dismissalCardEditorTitle">تصميم رسالة الفصل</h3><div class="sub" id="messageTemplateEditorSubtitle">ارفع قالب PNG الشفاف، ثم اضبط موضع صورة العضو واسمه واحفظ التصميم.</div></div><div style="display:flex;gap:7px;align-items:center"><button class="btn" type="button" onclick="backToMessageTemplateChooser()">رجوع للاختيارات</button><button class="close" type="button" onclick="closeDismissalCardEditor()">×</button></div></div>
   <div class="formgrid">
-   <div class="field full"><label for="dismissalTemplateFile">اختيار قالب الفصل أو استبداله (PNG شفاف)</label><input id="dismissalTemplateFile" type="file" accept="image/png" onchange="handleDismissalTemplateUpload()"><div class="muted" id="dismissalTemplateSavedStatus" aria-live="polite">ارفع قالب FIRED بصيغة PNG. سيُحفظ في ملفات الموقع ولن تحتاج لإعادة رفعه كل مرة.</div></div>
+   <div class="field full"><label for="dismissalTemplateFile">اختيار القالب أو استبداله (PNG شفاف)</label><input id="dismissalTemplateFile" type="file" accept="image/png" onchange="handleDismissalTemplateUpload()"><div class="muted" id="dismissalTemplateSavedStatus" aria-live="polite">ارفع قالب PNG شفافًا. سيُحفظ كل قالب في إعداداته الخاصة.</div></div>
    <div class="field"><label for="dismissalCardLayer">العنصر الذي تريد تحريكه</label><select id="dismissalCardLayer" onchange="syncDismissalCardControls()"><option value="photo">الصورة الشخصية</option><option value="name">اسم العضو</option></select></div>
    <div class="field"><label for="dismissalPreviewMember">صورة واسم المعاينة</label><select id="dismissalPreviewMember" onchange="selectDismissalPreviewMember(this.value)"><option value="">جارٍ تحميل الأعضاء...</option></select></div>
    <div class="field full"><label for="dismissalPreviewName">اسم المعاينة (يمكن تعديله)</label><input id="dismissalPreviewName" maxlength="100" placeholder="اسم العضو" oninput="drawDismissalCardEditorPreview()"></div>
@@ -5284,18 +5301,28 @@ async function voidWarningAction(actionId){
 }
 
 
-const DEFAULT_DISMISSAL_CARD_DESIGN={
+const DEFAULT_MESSAGE_CARD_DESIGN={
  photo:{x:327,y:148,width:403,height:494,zoom:1,cropX:0,cropY:0},
  name:{x:1200,y:319,size:80,color:"#f1f3f4",fontFamily:"Arial",align:"center"}
 };
-let dismissalCardDesign=JSON.parse(JSON.stringify(DEFAULT_DISMISSAL_CARD_DESIGN));
-let dismissalTemplateUrl="";
-let dismissalTemplateImage=null;
-let dismissalTemplateLoading=null;
+const MESSAGE_CARD_TEMPLATE_DEFS={
+ dismissal:{urlKey:"dismissalTemplateUrl",designKey:"dismissalCardDesign",title:"تصميم رسالة الفصل",label:"FIRED",savedLabel:"قالب FIRED محفوظ",emptyLabel:"لا يوجد قالب FIRED محفوظ",required:true},
+ warning1:{urlKey:"warning1TemplateUrl",designKey:"warning1CardDesign",title:"تصميم رسالة الإنذار الأول",label:"WARNING 1",savedLabel:"قالب Warning 1 محفوظ",emptyLabel:"لا يوجد قالب Warning 1 محفوظ",required:false},
+ warning2:{urlKey:"warning2TemplateUrl",designKey:"warning2CardDesign",title:"تصميم رسالة الإنذار الثاني",label:"WARNING 2",savedLabel:"قالب Warning 2 محفوظ",emptyLabel:"لا يوجد قالب Warning 2 محفوظ",required:false}
+};
+const messageCardAssets={
+ dismissal:{design:normalizeMessageCardDesign(DEFAULT_MESSAGE_CARD_DESIGN),url:"",image:null,loading:null},
+ warning1:{design:normalizeMessageCardDesign(DEFAULT_MESSAGE_CARD_DESIGN),url:"",image:null,loading:null},
+ warning2:{design:normalizeMessageCardDesign(DEFAULT_MESSAGE_CARD_DESIGN),url:"",image:null,loading:null}
+};
+let activeMessageCardType="dismissal";
+let messageCardSettingsLoaded=false;
 let dismissalCardDragging=null;
 let dismissalPreviewMember=null;
+let messageCardPreviewSelectionRevision=0;
+let messageCardPreviewRenderRevision=0;
 
-function normalizeDismissalCardDesign(value){
+function normalizeMessageCardDesign(value){
  const source=value&&typeof value==="object"?value:{};
  const rawPhoto=source.photo&&typeof source.photo==="object"?source.photo:{};
  const rawName=source.name&&typeof source.name==="object"?source.name:{};
@@ -5305,29 +5332,36 @@ function normalizeDismissalCardDesign(value){
  const name={x:clamp(rawName.x,1200,0,1672),y:clamp(rawName.y,319,0,941),size:clamp(rawName.size,80,12,120),color:/^#[0-9a-f]{6}$/i.test(rawName.color)?rawName.color:"#f1f3f4",fontFamily:["Arial","Tahoma","Impact","Georgia","Trebuchet MS"].includes(rawName.fontFamily)?rawName.fontFamily:"Arial",align:["left","center","right"].includes(rawName.align)?rawName.align:"center"};
  return {photo,name};
 }
-async function loadDismissalCardSettings(force=false){
- if(!force&&dismissalTemplateUrl&&dismissalTemplateImage?.complete&&dismissalTemplateImage.naturalWidth)return;
+function currentMessageCardAsset(){return messageCardAssets[activeMessageCardType]||messageCardAssets.dismissal;}
+function currentMessageCardDefinition(){return MESSAGE_CARD_TEMPLATE_DEFS[activeMessageCardType]||MESSAGE_CARD_TEMPLATE_DEFS.dismissal;}
+async function loadMessageCardSettings(force=false){
+ if(messageCardSettingsLoaded&&!force)return;
  const response=await fetch('/api/admin/settings',{credentials:'same-origin',cache:'no-store'});
  const data=await response.json().catch(()=>({}));
- if(!response.ok)throw new Error(data.error||'تعذّر تحميل إعدادات تصميم الفصل.');
- dismissalCardDesign=normalizeDismissalCardDesign(data.settings?.dismissalCardDesign||dismissalCardDesign);
- dismissalTemplateUrl=typeof data.settings?.dismissalTemplateUrl==='string'?data.settings.dismissalTemplateUrl:'';
- dismissalTemplateImage=null;
- if(dismissalTemplateUrl)await loadDismissalTemplateImage();
+ if(!response.ok)throw new Error(data.error||'تعذّر تحميل إعدادات قوالب الرسائل.');
+ for(const [type,definition] of Object.entries(MESSAGE_CARD_TEMPLATE_DEFS)){
+  const asset=messageCardAssets[type];
+  const nextUrl=typeof data.settings?.[definition.urlKey]==='string'?data.settings[definition.urlKey]:'';
+  asset.design=normalizeMessageCardDesign(data.settings?.[definition.designKey]||asset.design);
+  if(nextUrl!==asset.url){asset.url=nextUrl;asset.image=null;asset.loading=null;}
+ }
+ messageCardSettingsLoaded=true;
 }
-function loadDismissalTemplateImage(){
- if(dismissalTemplateImage?.complete&&dismissalTemplateImage.naturalWidth)return Promise.resolve(dismissalTemplateImage);
- if(dismissalTemplateLoading)return dismissalTemplateLoading;
- if(!dismissalTemplateUrl)return Promise.reject(new Error('ارفع قالب FIRED أولًا من زر «تعديل رسالة الفصل».'));
- dismissalTemplateLoading=new Promise((resolve,reject)=>{
+function loadMessageCardTemplateImage(type=activeMessageCardType){
+ const asset=messageCardAssets[type],definition=MESSAGE_CARD_TEMPLATE_DEFS[type];
+ if(!asset||!definition)return Promise.reject(new Error('نوع قالب الرسالة غير معروف.'));
+ if(asset.image?.complete&&asset.image.naturalWidth)return Promise.resolve(asset.image);
+ if(asset.loading)return asset.loading;
+ if(!asset.url)return Promise.reject(new Error('ارفع قالب '+definition.label+' أولًا من محرر الرسالة.'));
+ asset.loading=new Promise((resolve,reject)=>{
   const image=new Image();image.crossOrigin='anonymous';image.referrerPolicy='no-referrer';
-  image.onload=()=>{dismissalTemplateImage=image;dismissalTemplateLoading=null;resolve(image);};
-  image.onerror=()=>{dismissalTemplateLoading=null;reject(new Error('تعذّر تحميل قالب FIRED من التخزين.'));};
-  image.src=dismissalTemplateUrl;
+  image.onload=()=>{asset.image=image;asset.loading=null;resolve(image);};
+  image.onerror=()=>{asset.loading=null;reject(new Error('تعذّر تحميل قالب '+definition.label+' من التخزين.'));};
+  image.src=asset.url;
  });
- return dismissalTemplateLoading;
+ return asset.loading;
 }
-function drawDismissalCard(context,template,avatar,name,design){
+function drawMessageCard(context,template,avatar,name,design){
  const photo=design.photo;
  context.clearRect(0,0,1672,941);
  if(avatar){
@@ -5349,12 +5383,13 @@ function drawDismissalCard(context,template,avatar,name,design){
  if(label!==original)label+='…';
  context.strokeText(label,layer.x,layer.y,maxWidth);context.fillText(label,layer.x,layer.y,maxWidth);context.restore();
 }
-async function drawDismissalCanvas(canvas,memberName,avatarUrl,design=dismissalCardDesign){
- const template=await loadDismissalTemplateImage();
+async function drawMessageCardCanvas(canvas,memberName,avatarUrl,type=activeMessageCardType){
+ const template=await loadMessageCardTemplateImage(type);
+ const asset=messageCardAssets[type];
  const avatar=await loadResignationPhoto(avatarUrl).catch(error=>{if(avatarUrl)throw error;return null;});
- drawDismissalCard(canvas.getContext('2d'),template,avatar,memberName,design);
+ drawMessageCard(canvas.getContext('2d'),template,avatar,memberName,asset.design);
 }
-async function loadDismissalPreviewMembers(){
+async function loadMessageCardPreviewMembers(){
  const select=document.getElementById('dismissalPreviewMember');if(!select)return;
  let members=Array.isArray(warningData?.members)?warningData.members:[];
  if(!members.length){
@@ -5369,58 +5404,62 @@ async function loadDismissalPreviewMembers(){
   return '<option value="'+id+'">'+adminEscape(name)+' — '+id+'</option>';
  }).join('');
  const preferred=members.find(member=>String(member.discord_user_id)!==String(currentUserId))||members[0]||null;
- if(preferred){select.value=String(preferred.discord_user_id);await selectDismissalPreviewMember(preferred.discord_user_id);}
- else{dismissalPreviewMember=null;select.value='';const nameInput=document.getElementById('dismissalPreviewName');if(nameInput)nameInput.value='S.W.A.T. MEMBER';await drawDismissalCardEditorPreview();}
+ if(preferred){select.value=String(preferred.discord_user_id);await selectMessageCardPreviewMember(preferred.discord_user_id);}
+ else{dismissalPreviewMember=null;select.value='';const nameInput=document.getElementById('dismissalPreviewName');if(nameInput)nameInput.value='S.W.A.T. MEMBER';await drawMessageCardEditorPreview();}
 }
-let dismissalPreviewSelectionRevision=0;
-let dismissalPreviewRenderRevision=0;
-async function selectDismissalPreviewMember(memberId){
- const revision=++dismissalPreviewSelectionRevision;
+async function selectMessageCardPreviewMember(memberId){
+ const revision=++messageCardPreviewSelectionRevision;
  const cached=(warningData.members||[]).find(member=>String(member.discord_user_id)===String(memberId)&&member.is_active===true&&member.is_banned!==true)||null;
  dismissalPreviewMember=cached?{...cached}:null;
  const nameInput=document.getElementById('dismissalPreviewName');
  const cachedName=String(cached?.display_name||cached?.username||'S.W.A.T. MEMBER');
  if(nameInput)nameInput.value=cachedName;
- if(!cached){await drawDismissalCardEditorPreview();return;}
+ if(!cached){await drawMessageCardEditorPreview();return;}
  const status=document.getElementById('dismissalCardEditorStatus');
  if(status)status.textContent='جارٍ جلب صورة واسم العضو الحاليين من Discord...';
- await drawDismissalCardEditorPreview();
+ await drawMessageCardEditorPreview();
  try{
   const response=await fetch('/api/warnings?dismissal_card_member=1&discord_user_id='+encodeURIComponent(memberId),{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.member)throw new Error(data.error||'تعذّر جلب بيانات العضو الحية من Discord.');
-  if(revision!==dismissalPreviewSelectionRevision)return;
+  if(revision!==messageCardPreviewSelectionRevision)return;
   const liveName=String(data.member.name||cachedName);
   dismissalPreviewMember={...cached,display_name:liveName,avatar_url:data.member.avatar_url||null};
   if(nameInput&&nameInput.value===cachedName)nameInput.value=liveName;
-  await drawDismissalCardEditorPreview();
+  await drawMessageCardEditorPreview();
  }catch(error){
-  if(revision!==dismissalPreviewSelectionRevision)return;
+  if(revision!==messageCardPreviewSelectionRevision)return;
   if(status)status.textContent=(error.message||'تعذّر تحديث صورة العضو من Discord.')+' • تظهر البيانات المحفوظة للمعاينة مؤقتًا.';
  }
 }
-async function drawDismissalCardEditorPreview(){
+async function drawMessageCardEditorPreview(){
  const canvas=document.getElementById('dismissalCardEditorCanvas');if(!canvas)return;
- const revision=++dismissalPreviewRenderRevision;
+ const revision=++messageCardPreviewRenderRevision;
  const stage=document.createElement('canvas');stage.width=1672;stage.height=941;
  const member=dismissalPreviewMember?{...dismissalPreviewMember}:null;
  const name=String(document.getElementById('dismissalPreviewName')?.value||member?.display_name||'S.W.A.T. MEMBER');
  try{
-  await drawDismissalCanvas(stage,name,member?.avatar_url||'');
-  if(revision!==dismissalPreviewRenderRevision)return;
+  const asset=currentMessageCardAsset();
+  if(!asset.url){
+   const ctx=canvas.getContext('2d');ctx.clearRect(0,0,1672,941);
+   const status=document.getElementById('dismissalCardEditorStatus');
+   if(status)status.textContent='ارفع قالب '+currentMessageCardDefinition().label+' لبدء المعاينة.';
+   return;
+  }
+  await drawMessageCardCanvas(stage,name,member?.avatar_url||'');
+  if(revision!==messageCardPreviewRenderRevision)return;
   const context=canvas.getContext('2d');
-  context.clearRect(0,0,1672,941);
-  context.drawImage(stage,0,0);
+  context.clearRect(0,0,1672,941);context.drawImage(stage,0,0);
   const status=document.getElementById('dismissalCardEditorStatus');
-  if(status)status.textContent=member?'المعاينة تستخدم أحدث صورة واسم تم جلبهما من Discord؛ عند الفصل سيُستخدم حساب الهدف نفسه.':'اختر عضوًا من قائمة المعاينة لعرض صورته.';
+  if(status)status.textContent=member?'المعاينة تستخدم أحدث صورة واسم تم جلبهما من Discord؛ عند الإرسال سيُستخدم حساب العضو المستهدف.':'اختر عضوًا من قائمة المعاينة لعرض صورته.';
  }catch(error){
-  if(revision!==dismissalPreviewRenderRevision)return;
+  if(revision!==messageCardPreviewRenderRevision)return;
   const status=document.getElementById('dismissalCardEditorStatus');
-  if(status)status.textContent=error.message||'تعذّرت معاينة بطاقة الفصل.';
+  if(status)status.textContent=error.message||'تعذّرت معاينة قالب الرسالة.';
  }
 }
 function syncDismissalCardControls(){
- const layer=document.getElementById('dismissalCardLayer')?.value||'photo',isPhoto=layer==='photo',settings=dismissalCardDesign[layer];
+ const layer=document.getElementById('dismissalCardLayer')?.value||'photo',isPhoto=layer==='photo',settings=currentMessageCardAsset().design[layer];
  const x=document.getElementById('dismissalCardX'),y=document.getElementById('dismissalCardY');
  const xLabel=document.querySelector('label[for="dismissalCardX"]'),yLabel=document.querySelector('label[for="dismissalCardY"]');
  if(isPhoto){
@@ -5443,25 +5482,51 @@ function syncDismissalCardControls(){
  else{document.getElementById('dismissalNameSize').value=settings.size;document.getElementById('dismissalNameSizeValue').textContent=settings.size+' px';document.getElementById('dismissalNameColor').value=settings.color;document.getElementById('dismissalNameFont').value=settings.fontFamily;}
 }
 function updateDismissalCardControl(key,value){
- const layer=document.getElementById('dismissalCardLayer')?.value||'photo',settings=dismissalCardDesign[layer],number=Number(value);
+ const layer=document.getElementById('dismissalCardLayer')?.value||'photo',settings=currentMessageCardAsset().design[layer],number=Number(value);
  if(key==='color'||key==='fontFamily')settings[key]=String(value);
  else if(layer==='photo'&&key==='x')settings.cropX=Math.max(-100,Math.min(100,number));
  else if(layer==='photo'&&key==='y')settings.cropY=Math.max(-100,Math.min(100,number));
  else settings[key]=number/(key==='zoom'?100:1);
- syncDismissalCardControls();drawDismissalCardEditorPreview();
+ syncDismissalCardControls();drawMessageCardEditorPreview();
 }
-async function openDismissalCardEditor(){
- if(!currentCanAdmin||!currentCanManageWarnings){toast('إعداد تصميم الفصل متاح لمدير الموقع فقط.');return;}
+async function openMessageTemplateChooser(){
+ if(!currentCanAdmin||!currentCanManageWarnings){toast('إعداد قوالب الرسائل متاح لمدير الموقع فقط.');return;}
+ const chooser=document.getElementById('messageTemplateChooserModalBack');if(!chooser)return;
+ chooser.classList.add('open');
+ try{
+  await loadMessageCardSettings(true);
+  const statusKeys={dismissal:'messageTemplateChoiceDismissal',warning1:'messageTemplateChoiceWarning1',warning2:'messageTemplateChoiceWarning2'};
+  for(const [type,id] of Object.entries(statusKeys)){
+   const node=document.getElementById(id),asset=messageCardAssets[type],definition=MESSAGE_CARD_TEMPLATE_DEFS[type];
+   if(node)node.textContent=asset.url?'✓ '+definition.savedLabel:'لم يتم رفع القالب بعد';
+  }
+ }catch(error){toast(error.message||'تعذّر تحميل حالة القوالب.');}
+}
+function closeMessageTemplateChooser(){document.getElementById('messageTemplateChooserModalBack')?.classList.remove('open');}
+function backToMessageTemplateChooser(){closeDismissalCardEditor();openMessageTemplateChooser();}
+function openDismissalCardEditor(){return openMessageTemplateChooser();}
+async function openMessageTemplateEditor(type){
+ if(!MESSAGE_CARD_TEMPLATE_DEFS[type]){toast('نوع الرسالة المحدد غير معروف.');return;}
+ if(!currentCanAdmin||!currentCanManageWarnings){toast('إعداد قوالب الرسائل متاح لمدير الموقع فقط.');return;}
+ activeMessageCardType=type;
+ closeMessageTemplateChooser();
  const modal=document.getElementById('dismissalCardEditorModalBack');if(!modal)return;
  modal.classList.add('open');
- const status=document.getElementById('dismissalCardEditorStatus');if(status)status.textContent='جارٍ تحميل القالب والإعدادات...';
+ const definition=currentMessageCardDefinition(),asset=currentMessageCardAsset();
+ const title=document.getElementById('dismissalCardEditorTitle'),subtitle=document.getElementById('messageTemplateEditorSubtitle');
+ if(title)title.textContent=definition.title;
+ if(subtitle)subtitle.textContent='ارفع قالب PNG الشفاف الخاص بـ '+definition.label+'، ثم اضبط موضع صورة العضو واسمه واحفظ هذا القالب وحده.';
+ const saved=document.getElementById('dismissalTemplateSavedStatus');
+ const status=document.getElementById('dismissalCardEditorStatus');
+ if(status)status.textContent='جارٍ تحميل القالب والإعدادات...';
+ const fileInput=document.getElementById('dismissalTemplateFile');if(fileInput)fileInput.value='';
  try{
-  await loadDismissalCardSettings(true);
-  const saved=document.getElementById('dismissalTemplateSavedStatus');
-  if(saved)saved.textContent=dismissalTemplateUrl?'✅ قالب الفصل محفوظ وتم تحميله. اختر PNG جديدًا فقط عند الرغبة في استبداله.':'لا يوجد قالب محفوظ حاليًا. ارفع ملف PNG الشفاف.';
-  await loadDismissalPreviewMembers();syncDismissalCardControls();
-  if(dismissalTemplateUrl)await drawDismissalCardEditorPreview();
- }catch(error){if(status)status.textContent=error.message||'تعذّر فتح محرر بطاقة الفصل.';toast(error.message||'تعذّر فتح محرر بطاقة الفصل.');}
+  await loadMessageCardSettings(true);
+  if(saved)saved.textContent=asset.url?'✅ '+definition.savedLabel+'. يمكنك رفع قالب جديد لاستبداله.':definition.emptyLabel+'.';
+  await loadMessageCardPreviewMembers();
+  syncDismissalCardControls();
+  await drawMessageCardEditorPreview();
+ }catch(error){if(status)status.textContent=error.message||'تعذّر فتح محرر القالب.';toast(error.message||'تعذّر فتح محرر القالب.');}
  const canvas=document.getElementById('dismissalCardEditorCanvas');
  if(canvas&&!canvas.dataset.dragBound){
   canvas.dataset.dragBound='1';
@@ -5470,10 +5535,10 @@ async function openDismissalCardEditor(){
    if(!dismissalCardDragging)return;
    const dx=(event.clientX-dismissalCardDragging.x)*dismissalCardDragging.sx,dy=(event.clientY-dismissalCardDragging.y)*dismissalCardDragging.sy;
    dismissalCardDragging.x=event.clientX;dismissalCardDragging.y=event.clientY;
-   const layer=document.getElementById('dismissalCardLayer')?.value||'photo';
-   if(layer==='photo'){dismissalCardDesign.photo.cropX=Math.max(-100,Math.min(100,dismissalCardDesign.photo.cropX+(dx/dismissalCardDesign.photo.width)*100));dismissalCardDesign.photo.cropY=Math.max(-100,Math.min(100,dismissalCardDesign.photo.cropY+(dy/dismissalCardDesign.photo.height)*100));}
-   else{dismissalCardDesign.name.x=Math.max(0,Math.min(1672,dismissalCardDesign.name.x+dx));dismissalCardDesign.name.y=Math.max(0,Math.min(941,dismissalCardDesign.name.y+dy));}
-   syncDismissalCardControls();drawDismissalCardEditorPreview();
+   const layer=document.getElementById('dismissalCardLayer')?.value||'photo',photo=currentMessageCardAsset().design.photo;
+   if(layer==='photo'){photo.cropX=Math.max(-100,Math.min(100,photo.cropX+(dx/photo.width)*100));photo.cropY=Math.max(-100,Math.min(100,photo.cropY+(dy/photo.height)*100));}
+   else{const name=currentMessageCardAsset().design.name;name.x=Math.max(0,Math.min(1672,name.x+dx));name.y=Math.max(0,Math.min(941,name.y+dy));}
+   syncDismissalCardControls();drawMessageCardEditorPreview();
   });
   canvas.addEventListener('pointerup',()=>{dismissalCardDragging=null;});canvas.addEventListener('pointercancel',()=>{dismissalCardDragging=null;});
  }
@@ -5481,46 +5546,57 @@ async function openDismissalCardEditor(){
 function closeDismissalCardEditor(){dismissalCardDragging=null;document.getElementById('dismissalCardEditorModalBack')?.classList.remove('open');}
 async function handleDismissalTemplateUpload(){
  const file=document.getElementById('dismissalTemplateFile')?.files?.[0];if(!file)return;
- const status=document.getElementById('dismissalCardEditorStatus');if(status)status.textContent='جارٍ تجهيز قالب الفصل ورفعه...';
+ const type=activeMessageCardType,asset=currentMessageCardAsset(),definition=currentMessageCardDefinition();
+ const status=document.getElementById('dismissalCardEditorStatus');if(status)status.textContent='جارٍ تجهيز قالب '+definition.label+' ورفعه...';
  try{
   if(file.type!=='image/png')throw new Error('ارفع القالب بصيغة PNG حتى نحافظ على شفافية فتحة الصورة.');
   if(file.size>12*1024*1024)throw new Error('حجم القالب أكبر من الحد المسموح.');
   const bitmap=await createImageBitmap(file),canvas=document.createElement('canvas');canvas.width=1672;canvas.height=941;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.clearRect(0,0,1672,941);ctx.drawImage(bitmap,0,0,1672,941);bitmap.close?.();
   const aperture=detectTransparentResignationAperture(canvas);
-  dismissalCardDesign.photo={...dismissalCardDesign.photo,...aperture};
+  asset.design.photo={...asset.design.photo,...aperture};
   const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('تعذّر تجهيز صورة القالب.')),'image/webp',.9));
   if(blob.size>2*1024*1024)throw new Error('القالب بعد الضغط أكبر من 2MB.');
   const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
   const response=await fetch('/api/admin/media',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({contentType:'image/webp',base64:btoa(binary)})});
-  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'فشل رفع قالب الفصل.');
-  dismissalTemplateUrl=data.url;dismissalTemplateImage=null;await loadDismissalTemplateImage();await drawDismissalCardEditorPreview();
-  const saved=document.getElementById('dismissalTemplateSavedStatus');if(saved)saved.textContent='✅ تم رفع القالب الجديد. اضغط «حفظ التصميم» لتثبيت القالب والإعدادات.';
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'فشل رفع قالب الرسالة.');
+  asset.url=data.url;asset.image=null;asset.loading=null;
+  await loadMessageCardTemplateImage(type);
+  await drawMessageCardEditorPreview();
+  if(savedStatusNode=document.getElementById('dismissalTemplateSavedStatus'))savedStatusNode.textContent='✅ تم رفع '+definition.label+'. اضغط «حفظ التصميم» لتثبيت القالب والإعدادات.';
   if(status)status.textContent='تم اكتشاف فتحة الصورة الشفافة تلقائيًا ('+aperture.width+' × '+aperture.height+').';
- }catch(error){if(status)status.textContent=error.message||'تعذّر رفع قالب الفصل.';toast(error.message||'تعذّر رفع قالب الفصل.');}
+ }catch(error){if(status)status.textContent=error.message||'تعذّر رفع قالب الرسالة.';toast(error.message||'تعذّر رفع قالب الرسالة.');}
 }
 async function saveDismissalCardDesign(){
  if(!currentCanAdmin||!currentCanManageWarnings)return;
+ const asset=currentMessageCardAsset(),definition=currentMessageCardDefinition();
  const button=document.getElementById('dismissalCardSaveButton'),status=document.getElementById('dismissalCardEditorStatus');if(button)button.disabled=true;
  try{
-  if(!dismissalTemplateUrl)throw new Error('ارفع قالب FIRED أولًا قبل حفظ التصميم.');
-  const settings={dismissalCardDesign:normalizeDismissalCardDesign(dismissalCardDesign),dismissalTemplateUrl};
+  if(!asset.url)throw new Error('ارفع قالب '+definition.label+' أولًا قبل حفظ التصميم.');
+  const settings={
+   [definition.designKey]:normalizeMessageCardDesign(asset.design),
+   [definition.urlKey]:asset.url
+  };
   const response=await fetch('/api/admin/settings',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings})});
-  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'تعذّر حفظ تصميم الفصل.');
-  dismissalCardDesign=normalizeDismissalCardDesign(settings.dismissalCardDesign);if(status)status.textContent='تم حفظ تصميم رسالة الفصل بنجاح.';toast('تم حفظ تصميم الفصل.');
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'تعذّر حفظ إعدادات قالب الرسالة.');
+  asset.design=normalizeMessageCardDesign(settings[definition.designKey]);
+  messageCardSettingsLoaded=false;
+  if(status)status.textContent='تم حفظ '+definition.label+' وإعداداته بنجاح.';
+  toast('تم حفظ '+definition.label+'.');
  }catch(error){if(status)status.textContent=error.message||'تعذّر حفظ التصميم.';toast(error.message||'تعذّر حفظ التصميم.');}
  finally{if(button)button.disabled=false;}
 }
-async function createDismissalCardDataUrl(discordUserId){
- await loadDismissalCardSettings(true);
- if(!dismissalTemplateUrl)throw new Error('لا يوجد قالب FIRED محفوظ. افتح «تعديل رسالة الفصل» وارفع القالب أولًا.');
+async function createMessageCardDataUrl(discordUserId,type,required=false){
+ await loadMessageCardSettings(true);
+ const asset=messageCardAssets[type],definition=MESSAGE_CARD_TEMPLATE_DEFS[type];
+ if(!asset?.url){if(required)throw new Error(definition?.emptyLabel||'لا يوجد قالب محفوظ.');return null;}
  const response=await fetch('/api/warnings?dismissal_card_member=1&discord_user_id='+encodeURIComponent(discordUserId),{credentials:'same-origin',cache:'no-store'});
  const data=await response.json().catch(()=>({}));
  if(!response.ok||!data.member)throw new Error(data.error||'تعذّر جلب صورة واسم العضو من Discord.');
  const canvas=document.createElement('canvas');canvas.width=1672;canvas.height=941;
- await drawDismissalCanvas(canvas,data.member.name,data.member.avatar_url);
+ await drawMessageCardCanvas(canvas,data.member.name,data.member.avatar_url,type);
  const imageData=canvas.toDataURL('image/png');
- if(imageData.length>4200000)throw new Error('حجم بطاقة الفصل كبير جدًا. استبدل القالب بملف PNG أصغر.');
+ if(imageData.length>4200000)throw new Error('حجم بطاقة '+definition.label+' كبير جدًا. استبدل القالب بملف أصغر.');
  return imageData;
 }
 
@@ -5544,10 +5620,11 @@ async function submitWarningAction(action){
  if(!confirm(confirmation))return;
  const buttons=['warningIssueButton','warningDismissButton'].map(id=>document.getElementById(id)).filter(Boolean);
  buttons.forEach(b=>b.disabled=true);
- const status=document.getElementById('warningActionStatus');if(status)status.textContent=action==='dismiss'?'جارٍ تجهيز بطاقة FIRED ثم تنفيذ قرار الفصل...':'جارٍ تحديث الرتب ومحاولة إرسال الخاص ونشر السجل الرسمي...';
+ const status=document.getElementById('warningActionStatus');if(status)status.textContent=action==='dismiss'?'جارٍ تجهيز بطاقة FIRED ثم تنفيذ قرار الفصل...':'جارٍ تجهيز بطاقة '+(level===1?'WARNING 1':'WARNING 2')+' ثم تنفيذ الإجراء...';
  try{
-  const imageData=action==='dismiss'?await createDismissalCardDataUrl(id):null;
-  const payload={action,discord_user_id:id,warning_level:level,reason,details,request_id:crypto.randomUUID(),...(imageData?{image_data:imageData}:{})};
+  const cardType=action==='dismiss'?'dismissal':level===1?'warning1':'warning2';
+  const imageData=await createMessageCardDataUrl(id,cardType,action==='dismiss');
+  const payload={action,discord_user_id:id,warning_level:level,reason,details,request_id:crypto.randomUUID(),...(imageData?{image_data:imageData,card_type:cardType}:{})};
   const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تنفيذ الإجراء التأديبي.');
