@@ -1111,7 +1111,7 @@ async function publishApprovedResignationCard(config, body) {
   const mimeByHeader = { "data:image/jpeg;base64": "jpeg", "data:image/png;base64": "png", "data:image/webp;base64": "webp" };
   const imageType = mimeByHeader[header] || "";
   const encodedImage = comma > 0 ? imageData.slice(comma + 1) : "";
-  if (!imageType || !/^[A-Za-z0-9+/=]+$/.test(encodedImage) || imageData.length > 950_000) throw Object.assign(new Error("صورة الاستقالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
+  if (!imageType || !encodedImage || !encodedImage.split("").every(character => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".includes(character)) || imageData.length > 950_000) throw Object.assign(new Error("صورة الاستقالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
   const bytes = Buffer.from(encodedImage, "base64");
   if (!bytes.length || bytes.length > 700_000) throw Object.assign(new Error("حجم صورة الاستقالة أكبر من الحد المسموح."), { status: 413 });
   const query = new URLSearchParams({ id: "eq." + requestId, select: "id,discord_user_id,display_name,member_name,reason,status,publish_status,publication_message_id", limit: "1" });
@@ -1124,13 +1124,13 @@ async function publishApprovedResignationCard(config, body) {
     return { requestId, published: true, reused: true, messageId: request.publication_message_id };
   }
   const channelId = "1575685852082741248";
-  const extension = match[1].toLowerCase() === "png" ? "png" : match[1].toLowerCase() === "webp" ? "webp" : "jpg";
+  const extension = imageType.toLowerCase() === "png" ? "png" : imageType.toLowerCase() === "webp" ? "webp" : "jpg";
   const form = new FormData();
   form.append("payload_json", JSON.stringify({
     content: "📄 **تم اعتماد استقالة " + String(request.member_name || request.display_name || "أحد الأعضاء").slice(0, 100) + "**",
     allowed_mentions: { parse: [] }
   }));
-  form.append("files[0]", new Blob([bytes], { type: match[1].toLowerCase() === "jpeg" ? "image/jpeg" : "image/" + match[1].toLowerCase() }), "redline-resignation." + extension);
+  form.append("files[0]", new Blob([bytes], { type: imageType.toLowerCase() === "jpeg" ? "image/jpeg" : "image/" + imageType.toLowerCase() }), "redline-resignation." + extension);
   try {
     const message = await discordRequest(config, "/channels/" + channelId + "/messages", { method: "POST", body: form });
     if (!message?.id) throw Object.assign(new Error("Discord لم يؤكد نشر بطاقة الاستقالة."), { status: 502 });
