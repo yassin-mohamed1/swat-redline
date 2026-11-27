@@ -454,7 +454,7 @@ test("approved resignations remove every manageable Discord role except Activate
   assert.doesNotMatch(helper, /\\\\d\{15,22\}/);
 
   const reviewStart = api.indexOf('if (body.action === "review_resignation_request")');
-  const reviewEnd = api.indexOf('if (body.action === "create_attendance_leave")', reviewStart);
+  const reviewEnd = api.indexOf('if (body.action === "create_attendance_leave" || body.action === "submit_attendance_leave")', reviewStart);
   assert.ok(reviewStart >= 0 && reviewEnd > reviewStart);
   const review = api.slice(reviewStart, reviewEnd);
   assert.match(review, /if \(status === "approved"\)[\s\S]*?prepareResignationRoleRemoval/);
