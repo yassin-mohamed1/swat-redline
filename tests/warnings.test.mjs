@@ -162,20 +162,63 @@ test("FIRED card is sent as one warning-channel message with an image attachment
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const settings = await readFile(new URL("../api/admin/settings.js", import.meta.url), "utf8");
 
+  assert.ok(api.includes("function decodeMessageCardImage(value)"));
   assert.ok(api.includes("function decodeDismissalCardImage(value)"));
-  assert.ok(api.includes("dismissalImageBytes = decodeDismissalCardImage(body.image_data)"));
+  assert.ok(api.includes("cardImageBytes = decodeMessageCardImage(body.image_data)"));
   assert.ok(api.includes('image: { url: "attachment://redline-fired.png" }'));
+  assert.ok(api.includes('image: { url: "attachment://redline-warning-1.png" }'));
+  assert.ok(api.includes('image: { url: "attachment://redline-warning-2.png" }'));
   assert.ok(api.includes('form.append("files[0]"'));
-  assert.ok(api.includes('actionType === "dismissal" ? dismissalImageBytes : null'));
+  assert.ok(api.includes("body.card_type !== cardType"));
+  assert.ok(api.includes("targetId, cardImageBytes, cardType"));
   assert.ok(api.includes("users: mentionSettings.targetMentionEnabled ? [targetId] : []"));
   assert.ok(api.includes("components: portalLinkComponents()"));
 
   assert.ok(html.includes('id="dismissalCardEditorButton"'));
+  assert.ok(html.includes('id="messageTemplateChooserModalBack"'));
+  assert.ok(html.includes("تعديل الرسالة"));
+  assert.ok(html.includes("openMessageTemplateEditor('dismissal')"));
+  assert.ok(html.includes("openMessageTemplateEditor('warning1')"));
+  assert.ok(html.includes("openMessageTemplateEditor('warning2')"));
   assert.ok(html.includes("function openDismissalCardEditor()"));
   assert.ok(html.includes("function createDismissalCardDataUrl(discordUserId)"));
   assert.ok(html.includes("image_data:imageData"));
+  assert.ok(html.includes("warning1TemplateUrl"));
+  assert.ok(html.includes("warning2TemplateUrl"));
   assert.ok(settings.includes('"dismissalTemplateUrl"'));
   assert.ok(settings.includes('"dismissalCardDesign"'));
+  assert.ok(settings.includes('"warning1TemplateUrl"'));
+  assert.ok(settings.includes('"warning1CardDesign"'));
+  assert.ok(settings.includes('"warning2TemplateUrl"'));
+  assert.ok(settings.includes('"warning2CardDesign"'));
+});
+
+
+test("FIRED, Warning 1 and Warning 2 editors use independent saved templates and designs", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const settings = await readFile(new URL("../api/admin/settings.js", import.meta.url), "utf8");
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+
+  for (const type of ["dismissal", "warning1", "warning2"]) {
+    assert.ok(html.includes(type + ":{urlKey:"));
+    assert.ok(html.includes(type + "CardDesign"));
+    assert.ok(html.includes(type + "TemplateUrl"));
+  }
+  assert.ok(html.includes("activeMessageCardType=type"));
+  assert.ok(html.includes("[definition.designKey]:normalizeMessageCardDesign(asset.design)"));
+  assert.ok(html.includes("[definition.urlKey]:asset.url"));
+  assert.ok(html.includes("const cardType=action==='dismiss'?'dismissal':level===1?'warning1':'warning2'"));
+  assert.ok(html.includes("createMessageCardDataUrl(id,cardType,action==='dismiss')"));
+
+  assert.ok(settings.includes('"warning1TemplateUrl"'));
+  assert.ok(settings.includes('"warning1CardDesign"'));
+  assert.ok(settings.includes('"warning2TemplateUrl"'));
+  assert.ok(settings.includes('"warning2CardDesign"'));
+
+  assert.ok(api.includes('cardType === "warning1" ? "attachment://redline-warning-1.png"'));
+  assert.ok(api.includes('cardType === "warning2" ? "attachment://redline-warning-2.png"'));
+  assert.ok(api.includes('cardType === "dismissal" ? "attachment://redline-fired.png"'));
+  assert.ok(api.includes('actionType === "dismissal" && !cardImageBytes'));
 });
 
 test("warnings page follows the existing Arabic and English portal switch", async () => {
