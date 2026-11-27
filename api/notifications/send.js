@@ -1325,7 +1325,8 @@ export default async function handler(req, res) {
   }
 
   if (body.action === "publish_resignation_card") {
-    const base = String(process.env.SUPABASE_URL || "").replace(/\\/+$/, "");
+    let base = String(process.env.SUPABASE_URL || "");
+    while (base.endsWith("/")) base = base.slice(0, -1);
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const botToken = process.env.DISCORD_BOT_TOKEN;
     if (!base || !serviceKey || !botToken) return res.status(503).json({ error: "إعدادات قاعدة البيانات أو بوت Discord غير مكتملة." });
