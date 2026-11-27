@@ -1804,7 +1804,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-personnel .assignment-modal-body{padding:19px;display:grid;gap:15px}
 #page-personnel .assignment-field{display:grid;gap:7px}
 #page-personnel .assignment-actions{display:flex;gap:9px;flex-wrap:wrap}
-</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضيفوا يدويًا أو تلقائيًا بواسطة بوت S.W.A.T.</div></div><div class="assignment-toolbar"><button class="btn primary" id="syncDiscordRoleMembersButton" type="button" hidden onclick="openDiscordRoleCandidates()">＋ اختيار أعضاء جدد من رول S.W.A.T.</button><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" id="personnelFormerToggle" type="button" onclick="toggleFormerPersonnelList()">عرض الأعضاء السابقين</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجلت دخول الموقع، وكذلك الأعضاء الذين أضفتهم يدويًا أو أضافهم البوت تلقائيًا بسبب حملهم لرول S.W.A.T.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
+</style><div class="sectionhead"><div><h2>دليل الأفراد</h2><div class="sub">أعضاء الموقع والأعضاء الذين أضيفوا يدويًا أو تلقائيًا بواسطة بوت S.W.A.T.</div></div><div class="assignment-toolbar"><button class="btn primary" id="syncDiscordRoleMembersButton" type="button" hidden onclick="openDiscordRoleCandidates()">＋ اختيار أعضاء جدد من رول S.W.A.T.</button><button class="btn primary" type="button" onclick="openManualMemberModal()">＋ إضافة عضو بدون تسجيل</button><button class="btn" onclick="renderPersonnel()">↻ تحديث القائمة</button></div></div><div class="panel"><div class="tablewrap"><table><thead><tr><th>الفرد</th><th>Discord ID</th><th>آخر نشاط</th><th>مرات الدخول</th><th>الحالة</th><th>إجراءات المالك</th></tr></thead><tbody id="personnelRows"><tr><td colspan="6">جاري تحميل الأفراد...</td></tr></tbody></table></div></div><div class="muted" style="margin-top:10px">تظهر هنا الحسابات التي سجلت دخول الموقع، وكذلك الأعضاء الذين أضفتهم يدويًا أو أضافهم البوت تلقائيًا بسبب حملهم لرول S.W.A.T.</div><div id="personnelLoginActivityPanel" class="panel" style="margin-top:18px"><div class="sectionhead"><div><h3>سجل الدخول والخروج</h3><div class="sub">آخر 100 حدث دخول وخروج للحسابات المسجلة</div></div><button class="btn" onclick="renderLoginActivity()">↻ تحديث السجل</button></div><div class="tablewrap"><table><thead><tr><th>الوقت</th><th>الفرد</th><th>Discord ID</th><th>الحدث</th><th>معرّف الجلسة</th></tr></thead><tbody id="loginActivityRows"><tr><td colspan="5">جاري تحميل السجل...</td></tr></tbody></table></div></div><div id="assignmentManualModal" class="assignment-modal" hidden>
  <div class="assignment-modal-card" style="width:min(560px,100%)">
   <div class="assignment-modal-head">
    <div><h3 style="margin:0">إضافة عضو بدون تسجيل دخول</h3><div class="muted">إضافته إلى دليل الأفراد باستخدام Discord ID فقط</div></div>
@@ -5609,13 +5609,14 @@ function renderDiscordRoleCandidates(){
  const root=document.getElementById('discordRoleCandidateRows');
  if(!root)return;
  if(!discordRoleCandidates.length){
-  root.innerHTML='<div class="muted" style="padding:25px;text-align:center">لم يتم العثور على أعضاء جدد في الدفعة الحالية.</div>';
+  root.innerHTML='<div class="muted" style="padding:25px;text-align:center">لم يتم العثور على أعضاء جدد أو حسابات سابقة يمكن استعادتها في الدفعة الحالية.</div>';
  }else{
   root.innerHTML=discordRoleCandidates.map(member=>{
    const id=String(member.discord_user_id||'');
    const checked=discordRoleCandidateSelection.has(id)?' checked':'';
    const avatar=member.avatar_url?'<img src="'+adminEscape(member.avatar_url)+'" alt="" style="width:38px;height:38px;border-radius:50%;object-fit:cover">':'';
-   return '<label class="discord-role-candidate"><input type="checkbox" value="'+adminEscape(id)+'"'+checked+' onchange="toggleDiscordRoleCandidate(this)">'+avatar+'<span class="discord-role-candidate-info"><b>'+adminEscape(member.display_name||'Discord user')+'</b>'+(member.username?'<small>@'+adminEscape(member.username)+'</small>':'')+'<small>'+adminEscape(id)+'</small></span></label>';
+   const state=member.requires_reactivation?'<small style="color:var(--amber);font-weight:700">حساب مسجل سابقًا — استعادة الحساب المحفوظ</small>':'<small style="color:var(--green);font-weight:700">عضو جديد</small>';
+   return '<label class="discord-role-candidate"><input type="checkbox" value="'+adminEscape(id)+'"'+checked+' onchange="toggleDiscordRoleCandidate(this)">'+avatar+'<span class="discord-role-candidate-info"><b>'+adminEscape(member.display_name||'Discord user')+'</b>'+state+(member.username?'<small>@'+adminEscape(member.username)+'</small>':'')+'<small>'+adminEscape(id)+'</small></span></label>';
   }).join('');
  }
  const total=document.getElementById('discordRoleCandidateCount');
@@ -5651,7 +5652,7 @@ async function loadDiscordRoleCandidates(append){
    if(id&&!seen.has(id)){seen.add(id);discordRoleCandidates.push(member);}
   }
   discordRoleCandidateScanComplete=Boolean(data.cycle_complete);
-  if(status)status.textContent='تم فحص '+Number(data.members_scanned||0)+' عضو في هذه الدفعة، وظهر '+incoming.length+' عضو غير مسجل يحمل رول S.W.A.T.'+(discordRoleCandidateScanComplete?'، واكتمل فحص السيرفر.':'، ما زال هناك أعضاء آخرون؛ استخدم «تحميل باقي الأعضاء».');
+  if(status)status.textContent='تم فحص '+Number(data.members_scanned||0)+' عضو في هذه الدفعة، وظهر '+incoming.length+' عضو جديد أو حساب سابق يمكن استعادته ويحمل رتبة الدخول.'+(discordRoleCandidateScanComplete?' اكتمل فحص السيرفر.':' ما زال هناك أعضاء آخرون؛ استخدم «تحميل باقي الأعضاء».');
   renderDiscordRoleCandidates();
  }catch(error){
   if(status)status.textContent=error.message||'تعذّر تحميل قائمة الأعضاء.';
@@ -5682,8 +5683,8 @@ async function registerSelectedDiscordRoleCandidates(){
   discordRoleCandidates=discordRoleCandidates.filter(item=>!removed.has(String(item.discord_user_id)));
   discordRoleCandidateSelection=new Set();
   renderDiscordRoleCandidates();
-  if(status)status.textContent='تمت الإضافة: '+Number(data.newly_registered||0)+' عضو جديد. تم تجاهل '+Number(data.skipped_existing||0)+' موجودين بالفعل و'+Number(data.skipped_not_eligible||0)+' لم يعودوا مستوفين للشروط.';
-  toast('تمت إضافة '+Number(data.newly_registered||0)+' عضو جديد إلى دليل الأفراد.');
+  if(status)status.textContent='تمت إضافة '+Number(data.newly_registered||0)+' عضو جديد، واستعادة '+Number(data.reactivated_count||0)+' حساب سابق ببياناته القديمة. تم تجاهل '+Number(data.skipped_existing||0)+' مسجلين بالفعل و'+Number(data.skipped_not_eligible||0)+' لم يعودوا يحملون رتبة الدخول.';
+  toast('تمت إضافة '+Number(data.newly_registered||0)+' عضو جديد واستعادة '+Number(data.reactivated_count||0)+' حساب سابق.');
   await renderPersonnel();
   if(document.getElementById('page-assignments')?.classList.contains('active'))await renderAssignments();
  }catch(error){
@@ -5694,12 +5695,6 @@ async function registerSelectedDiscordRoleCandidates(){
   if(button){button.textContent='إضافة المختارين إلى الموقع';button.disabled=discordRoleCandidateSelection.size===0;}
   updateDiscordRoleCandidateSelection();
  }
-}
-let showFormerPersonnelList=false;
-function toggleFormerPersonnelList(){
- if(!currentCanAdmin){toast('عرض الأعضاء السابقين متاح لمدير الموقع فقط.');return;}
- showFormerPersonnelList=!showFormerPersonnelList;
- renderPersonnel();
 }
 async function renderPersonnel(){
  const body=document.getElementById('personnelRows');
@@ -5714,11 +5709,9 @@ async function renderPersonnel(){
   const r=await fetch('/api/admin/members',{credentials:'same-origin',cache:'no-store'}),d=await r.json().catch(()=>({}));
   if(!r.ok){const err=new Error(d.error||'تعذر تحميل الأفراد');err.diagnostics=d.diagnostics;throw err;}
   const members=d.members||[];
-  const visibleMembers=members.filter(m=>showFormerPersonnelList
-   ?(m.is_active===false||m.is_banned===true)
-   :(m.is_active!==false&&!m.is_banned));
-  const formerToggle=document.getElementById('personnelFormerToggle');
-  if(formerToggle)formerToggle.textContent=showFormerPersonnelList?'عرض الأعضاء النشطين':'عرض الأعضاء السابقين';
+  // Never hide a registered profile from the personnel directory.
+  // Portal access is governed by the live Discord access role, not directory visibility.
+  const visibleMembers=members;
   currentWebsiteAdminRoleId=String(d.websiteAdminRoleId||currentWebsiteAdminRoleId||'');
   body.innerHTML=visibleMembers.map(m=>{
    const owner=m.discord_user_id===d.ownerId;
