@@ -433,3 +433,33 @@ test("attendance roster checks live SWAT roles and keeps dismissed members in hi
   assert.match(html, /const days=Math\.max\(0,Math\.floor\(Number\(member\.display_days_since_last\?\?member\.days_since_last\)\|\|0\)\)/);
   assert.match(html, /attendanceDuration\(days\)/);
 });
+
+
+test("approved resignations remove every manageable Discord role except Activated and Family", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  assert.match(api, /RESIGNATION_PRESERVED_ROLE_IDS = Object\.freeze\(\[/);
+  assert.match(api, /"1561666360717606993"/);
+  assert.match(api, /"1569390325364162650"/);
+
+  const helperStart = api.indexOf("async function prepareResignationRoleRemoval");
+  const helperEnd = api.indexOf("async function restoreMemberRoles", helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const helper = api.slice(helperStart, helperEnd);
+  assert.match(helper, /loadGuildRoleData\(cfg\)/);
+  assert.match(helper, /role\.managed \|\| role\.position >= guild\.botTop\.position/);
+  assert.match(helper, /method: "PATCH"/);
+  assert.match(helper, /roles: plan\.preservedRoles/);
+  assert.match(helper, /unexpected\.length/);
+  assert.match(helper, /process\.env\.DISCORD_OWNER_ID/);
+  assert.doesNotMatch(helper, /\\\\d\{15,22\}/);
+
+  const reviewStart = api.indexOf('if (body.action === "review_resignation_request")');
+  const reviewEnd = api.indexOf('if (body.action === "create_attendance_leave")', reviewStart);
+  assert.ok(reviewStart >= 0 && reviewEnd > reviewStart);
+  const review = api.slice(reviewStart, reviewEnd);
+  assert.match(review, /if \(status === "approved"\)[\s\S]*?prepareResignationRoleRemoval/);
+  assert.match(review, /applyResignationRoleRemoval/);
+  assert.match(review, /approval_rolled_back: rollbackSucceeded/);
+  assert.match(review, /status: "pending"/);
+  assert.match(review, /removed_role_count: resignationRoleCleanup\?\.removedRoleCount/);
+});
