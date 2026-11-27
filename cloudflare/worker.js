@@ -29,6 +29,46 @@ const API_ROUTES = new Map([
   ["/api/warnings", warnings],
 ]);
 
+const RESIGNATION_UI_PATCH = [
+  "(()=>{",
+  " if(window.__redlineResignationUiPatch)return;",
+  " window.__redlineResignationUiPatch=true;",
+  " const publishing=new Set();",
+  " const syncButtons=()=>{",
+  "  document.querySelectorAll('button[onclick*=\\\"retryResignationCard\\\"]').forEach(button=>{",
+  "   const match=String(button.getAttribute('onclick')||'').match(/retryResignationCard\\('([^']+)'\\)/);",
+  "   if(match&&publishing.has(match[1])){button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='⏳ جارٍ نشر البطاقة...';}",
+  "  });",
+  " };",
+  " const originalPublish=window.publishResignationCard;",
+  " if(typeof originalPublish==='function'){",
+  "  window.publishResignationCard=async function(request){",
+  "   const id=String(request&&request.id||'');",
+  "   if(!id)return originalPublish.apply(this,arguments);",
+  "   if(publishing.has(id))return;",
+  "   publishing.add(id);syncButtons();",
+  "   try{",
+  "    if(typeof loadResignationCardSettings==='function')await loadResignationCardSettings(true);",
+  "    if(typeof resignationTemplateUrl==='undefined'||!resignationTemplateUrl){if(typeof toast==='function')toast('لا يوجد قالب استقالة محفوظ. افتح تعديل رسالة الاستقالات وارفع قالب PNG ثم احفظ التصميم.');return;}",
+  "    return await originalPublish.apply(this,arguments);",
+  "   }finally{",
+  "    publishing.delete(id);",
+  "    if(typeof loadResignationRequests==='function')await loadResignationRequests().catch(()=>{});",
+  "    if(typeof loadMyResignationRequests==='function')await loadMyResignationRequests().catch(()=>{});",
+  "    syncButtons();",
+  "   }",
+  "  };",
+  " }",
+  " const originalRetry=window.retryResignationCard;",
+  " if(typeof originalRetry==='function'){window.retryResignationCard=async function(id){if(publishing.has(String(id)))return;return originalRetry.apply(this,arguments);};}",
+  " const originalRenderAdmin=window.renderResignationAdminRequests;",
+  " if(typeof originalRenderAdmin==='function')window.renderResignationAdminRequests=function(){const result=originalRenderAdmin.apply(this,arguments);syncButtons();return result;};",
+  " const originalRenderMy=window.renderMyResignationRequests;",
+  " if(typeof originalRenderMy==='function')window.renderMyResignationRequests=function(){const result=originalRenderMy.apply(this,arguments);syncButtons();return result;};",
+  " const originalOpen=window.openResignationCardEditor;",
+  " if(typeof originalOpen==='function')window.openResignationCardEditor=async function(){const result=await originalOpen.apply(this,arguments);const input=document.getElementById('resignationTemplateFile');let note=document.getElementById('resignationTemplateSavedStatus');if(input&&input.parentElement){if(!note){note=document.createElement('div');note.id='resignationTemplateSavedStatus';note.className='muted';note.setAttribute('aria-live','polite');input.insertAdjacentElement('afterend',note);}note.textContent=typeof resignationTemplateUrl!=='undefined'&&resignationTemplateUrl?'✅ القالب المحفوظ موجود وتم تحميله. حقل اختيار الملف يظل فارغًا طبيعيًا؛ لا تحتاج لإعادة رفع القالب.':'لا يوجد قالب محفوظ حاليًا. اختر ملف PNG لرفعه وحفظه.';}return result;};",
+  "})();"
+].join("\\n");
 const welcomeSourceCache = new Map();
 function getWelcomeSource(name) {
   if (!welcomeSourceCache.has(name)) {
@@ -172,7 +212,22 @@ export default {
     }
 
     if (!url.pathname.startsWith("/api/")) {
-      return env.ASSETS.fetch(request);
+      const assetResponse = await env.ASSETS.fetch(request);
+      const contentType = assetResponse.headers.get("content-type") || "";
+      if (request.method === "GET" && assetResponse.ok && contentType.includes("text/html")) {
+        const html = await assetResponse.text();
+        if (html.includes('id="resignationCardEditorModalBack"')) {
+          const script = "<script>" + RESIGNATION_UI_PATCH + "</script>";
+          const patched = html.replace(/<\\/body>/i, script + "</body>");
+          const headers = new Headers(assetResponse.headers);
+          headers.delete("content-length");
+          headers.delete("content-encoding");
+          headers.delete("etag");
+          headers.set("cache-control", "no-store");
+          return new Response(patched, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
+        }
+      }
+      return assetResponse;
     }
     if (!handler) {
       return Response.json({ error: "API route not found" }, { status: 404 });
