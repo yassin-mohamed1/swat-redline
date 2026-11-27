@@ -423,12 +423,13 @@ async function handleAddManualMember(url,key,token,guildId,user,body,res) {
   if(!/^\d{15,22}$/.test(targetId))
     return send(res,400,{error:"أدخل Discord ID صحيحًا مكوّنًا من 15 إلى 22 رقمًا."});
 
-  const lookup=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,is_manual,display_name&limit=1");
+  const lookup=await supabase(url,key,"staff_profiles?discord_user_id=eq."+encodeURIComponent(targetId)+"&select=discord_user_id,is_manual,display_name,is_active,is_banned&limit=1");
   if(!lookup.ok)return send(res,503,{error:"تعذّر التحقق من سجل الأفراد."});
-  const existing=(await lookup.json())[0];
-  if(existing)return send(res,409,{error:existing.is_manual
-    ?"هذا العضو مضاف بالفعل إلى دليل الأفراد."
-    :"هذا العضو مسجل بالفعل في الموقع، ولا يحتاج إلى إضافة يدوية."});
+  const existing=(await lookup.json())[0]||null;
+  if(existing?.is_banned)return send(res,409,{error:"هذا الحساب موجود في دليل الأفراد لكنه محظور إداريًا. ارفع الحظر من سجل الأفراد بدل إنشاء حساب مكرر."});
+  if(existing&&existing.is_active!==false)return send(res,409,{error:existing.is_manual
+    ?"هذا العضو موجود بالفعل في دليل الأفراد؛ لن يتم إنشاء سجل مكرر."
+    :"هذا العضو مسجل بالفعل في الموقع؛ بياناته موجودة في دليل الأفراد."});
 
   let member;
   try {
@@ -441,6 +442,42 @@ async function handleAddManualMember(url,key,token,guildId,user,body,res) {
   }
 
   const now=new Date().toISOString();
+  if(existing){
+    const accessRoleId=String(process.env.DISCORD_ROLE_ID||"");
+    if(!/^\\d{15,22}$/.test(accessRoleId))
+      return send(res,503,{error:"لم يتم إعداد رتبة الدخول للموقع؛ لم يتم تغيير سجل العضو."});
+    if(!Array.isArray(member.roles)||!member.roles.includes(accessRoleId))
+      return send(res,409,{error:"هذا العضو مسجل بالفعل وسيظل ظاهرًا في دليل الأفراد. أعد له رتبة الدخول للموقع في Discord أولًا، ثم أعد المحاولة لاستعادة حسابه المحفوظ."});
+    const values={
+      is_active:true,
+      discord_roles:Array.isArray(member.roles)?member.roles:[],
+      discord_roles_synced_at:now,
+      username:String(member.user?.username||"").slice(0,100),
+      avatar_url:assignmentAvatar(member,guildId),
+      updated_at:now
+    };
+    const requestedName=String(body.display_name||"").trim().slice(0,100);
+    if(requestedName)values.display_name=requestedName;
+    const q=new URLSearchParams({discord_user_id:"eq."+targetId,is_active:"eq.false",is_banned:"eq.false"});
+    const restored=await supabase(url,key,"staff_profiles?"+q.toString(),{
+      method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify(values)
+    });
+    if(!restored.ok){
+      console.error("Manual reactivation failed:",restored.status,(await restored.text()).slice(0,300));
+      return send(res,502,{error:"تعذّرت استعادة الحساب المحفوظ. لم يتم إنشاء حساب جديد."});
+    }
+    const rows=await restored.json();
+    if(!rows.length)return send(res,409,{error:"تغيرت حالة الحساب أثناء العملية. حدّث دليل الأفراد وحاول مرة أخرى."});
+    const event={actor_discord_id:user.id,actor_name:user.displayName||user.username,action:"update",
+      entity_type:"staff_profile",entity_id:targetId,
+      details:{type:"استعادة حساب عضو سابق",detail:"تمت استعادة حساب "+(rows[0].display_name||targetId)+" بعد عودة رتبة الدخول للموقع.",target_discord_id:targetId}};
+    try{
+      const auditResponse=await supabase(url,key,"audit_logs",{method:"POST",headers:{Prefer:"return=minimal"},body:JSON.stringify(event)});
+      if(auditResponse.ok)await forwardAuditToDiscord(user,event);
+      else console.error("Manual reactivation audit write failed:",auditResponse.status,(await auditResponse.text()).slice(0,250));
+    }catch(error){console.error("Manual reactivation audit failed:",error?.message||"unknown");}
+    return send(res,200,{ok:true,reactivated:true,member:rows[0],message:"تمت استعادة الحساب السابق ببياناته وسجله الموجودين."});
+  }
   const displayName=String(body.display_name||"").trim().slice(0,100)||assignmentMemberName(member,"Discord member");
   const avatar=assignmentAvatar(member,guildId);
   const profile={
