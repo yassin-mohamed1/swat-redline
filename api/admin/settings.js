@@ -167,7 +167,11 @@ export default async function handler(req, res) {
         "resignationTemplateUrl",
         "resignationCardDesign",
         "dismissalTemplateUrl",
-        "dismissalCardDesign"
+        "dismissalCardDesign",
+        "warning1TemplateUrl",
+        "warning1CardDesign",
+        "warning2TemplateUrl",
+        "warning2CardDesign"
       ]);
       for (const row of rows) {
         if (!canReadAdminSettings && adminOnlySettingKeys.has(row.key)) continue;
@@ -178,7 +182,7 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "automaticNotificationChannelId", "customMenuItems", "unitCardDesign", "resignationTemplateUrl", "resignationCardDesign", "dismissalTemplateUrl", "dismissalCardDesign"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "automaticNotificationChannelId", "customMenuItems", "unitCardDesign", "resignationTemplateUrl", "resignationCardDesign", "dismissalTemplateUrl", "dismissalCardDesign", "warning1TemplateUrl", "warning1CardDesign", "warning2TemplateUrl", "warning2CardDesign"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
@@ -249,6 +253,46 @@ export default async function handler(req, res) {
             x: clampNumber(name.x, 980, 0, 1672),
             y: clampNumber(name.y, 586, 0, 941),
             size: clampNumber(name.size, 44, 12, 120),
+            color, fontFamily, align
+          }
+        };
+      }
+
+      if (k === "warning1TemplateUrl" || k === "warning2TemplateUrl") {
+        if (typeof value !== "string" || value.length > 2048 ||
+            (value && !value.startsWith("/") && !value.toLowerCase().startsWith("https://"))) {
+          return res.status(400).json({ error: "رابط قالب التحذير غير صالح." });
+        }
+      }
+      if (k === "warning1CardDesign" || k === "warning2CardDesign") {
+        const keys = ["photo", "name"];
+        if (!plainObject(value) || Object.keys(value).some(key => !keys.includes(key)) ||
+            !plainObject(value.photo) || !plainObject(value.name)) {
+          return res.status(400).json({ error: "إعدادات تصميم التحذير غير صالحة." });
+        }
+        const photo = value.photo, name = value.name;
+        const clampNumber = (input, fallback, min, max) => {
+          const number = Number(input);
+          return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+        };
+        const x = clampNumber(photo.x, 327, 0, 1612);
+        const y = clampNumber(photo.y, 148, 0, 881);
+        const color = typeof name.color === "string" && /^#[0-9a-fA-F]{6}$/.test(name.color) ? name.color : "#f1f3f4";
+        const fontFamily = ["Arial", "Tahoma", "Impact", "Georgia", "Trebuchet MS"].includes(name.fontFamily) ? name.fontFamily : "Arial";
+        const align = ["left", "center", "right"].includes(name.align) ? name.align : "center";
+        storedValue = {
+          photo: {
+            x, y,
+            width: clampNumber(photo.width, 403, 60, 1672 - x),
+            height: clampNumber(photo.height, 494, 60, 941 - y),
+            zoom: clampNumber(photo.zoom, 1, 0.5, 3),
+            cropX: clampNumber(photo.cropX, 0, -100, 100),
+            cropY: clampNumber(photo.cropY, 0, -100, 100)
+          },
+          name: {
+            x: clampNumber(name.x, 1200, 0, 1672),
+            y: clampNumber(name.y, 319, 0, 941),
+            size: clampNumber(name.size, 80, 12, 120),
             color, fontFamily, align
           }
         };
