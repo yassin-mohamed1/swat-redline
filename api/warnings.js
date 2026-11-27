@@ -1323,6 +1323,19 @@ export default async function handler(req, res) {
       if (!response.ok) throw new Error("تعذّر تحميل طلبات إجازتك.");
       return json(res, 200, { requests: await response.json() });
     }
+
+    if (req.method === "GET" && params.get("my_resignation_requests") === "1") {
+      await requireActiveStaff(cfg, user);
+      const q = new URLSearchParams({
+        discord_user_id: "eq." + user.id,
+        select: "id,discord_user_id,display_name,member_name,reason,status,source,avatar_url,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,publish_status,publish_error,created_at,submitted_at",
+        order: "created_at.desc",
+        limit: "100"
+      });
+      const response = await db(cfg, "resignation_requests?" + q.toString());
+      if (!response.ok) throw new Error("تعذّر تحميل طلبات استقالتك.");
+      return json(res, 200, { requests: await response.json() });
+    }
     await requireManager(cfg, user);
     if (req.method === "GET" && new URL(req.url, "https://portal.invalid").searchParams.get("access") === "1") {
       return json(res, 200, { authorized: true });
@@ -1341,6 +1354,17 @@ export default async function handler(req, res) {
       if (!response.ok) throw new Error("تعذّر تحميل طلبات الإجازة.");
       return json(res, 200, { requests: await response.json() });
     }
+
+    if (req.method === "GET" && params.get("resignation_requests") === "1") {
+      const q = new URLSearchParams({
+        select: "id,discord_user_id,display_name,member_name,reason,status,source,avatar_url,discord_channel_id,discord_message_url,submitted_at,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,dm_channel_id,dm_message_id,admin_alert_queued_at,publication_channel_id,publication_message_id,published_at,publish_status,publish_error,created_at",
+        order: "created_at.desc",
+        limit: "500"
+      });
+      const response = await db(cfg, "resignation_requests?" + q.toString());
+      if (!response.ok) throw new Error("تعذّر تحميل طلبات الاستقالة.");
+      return json(res, 200, { requests: await response.json() });
+    }
     if (req.method === "GET") {
       const data = await listData(cfg, params.get("include_archived") === "1");
       return json(res, 200, data);
@@ -1351,7 +1375,7 @@ export default async function handler(req, res) {
     }
     if (!requireSameOrigin(req, res)) return;
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
-    if (body.action === "submit_attendance_leave") await requireActiveStaff(cfg, user);
+    if (["submit_attendance_leave","submit_resignation_request"].includes(body.action)) await requireActiveStaff(cfg, user);
     else await requireManager(cfg, user);
 
     if (body.action === "save_attendance_exemptions") {
@@ -1502,6 +1526,127 @@ export default async function handler(req, res) {
         }
       });
       return json(res, 200, { ok: true, discord_user_id: targetId, enabled });
+    }
+
+
+    if (body.action === "submit_resignation_request" || body.action === "create_resignation_request") {
+      const selfRequest = body.action === "submit_resignation_request";
+      const targetId = selfRequest ? user.id : String(body.discord_user_id || "");
+      const memberName = typeof body.member_name === "string" ? body.member_name.trim().replace(/\\s+/g, " ") : "";
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      if (!/^\\d{15,22}$/.test(targetId) || memberName.length < 2 || memberName.length > 100 || reason.length < 3 || reason.length > 2000) {
+        return json(res, 400, { error: "راجع الاسم وسبب الاستقالة. الاسم من حرفين إلى 100 حرف والسبب من 3 إلى 2000 حرف." });
+      }
+      const profileQuery = new URLSearchParams({ discord_user_id: "eq." + targetId, select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned", limit: "1" });
+      const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
+      if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من ملف العضو." });
+      const profile = (await profileResponse.json())[0];
+      if (!profile || profile.is_active !== true || profile.is_banned === true) return json(res, 404, { error: "لا يمكن تقديم استقالة إلا لعضو S.W.A.T نشط." });
+      const discordMember = await getGuildMemberOrNull(cfg, targetId);
+      if (!discordMember || !Array.isArray(discordMember.roles) || !discordMember.roles.includes(cfg.swatRoleId)) return json(res, 409, { error: "العضو لا يحمل رتبة S.W.A.T الحالية في Discord." });
+      const duplicateQuery = new URLSearchParams({ discord_user_id: "eq." + targetId, status: "eq.pending", select: "id", limit: "1" });
+      const duplicateResponse = await db(cfg, "resignation_requests?" + duplicateQuery.toString());
+      if (!duplicateResponse.ok) return json(res, 503, { error: "تعذّر التحقق من وجود طلب استقالة معلّق." });
+      if ((await duplicateResponse.json()).length) return json(res, 409, { error: "لدى هذا العضو طلب استقالة قيد المراجعة بالفعل." });
+      const insertResponse = await db(cfg, "resignation_requests", {
+        method: "POST", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          discord_user_id: targetId,
+          display_name: profile.display_name || profile.username || "SWAT Member",
+          member_name: memberName,
+          reason,
+          status: "pending",
+          source: "website",
+          avatar_url: profile.avatar_url || discordAvatarUrl(discordMember, cfg.guildId),
+          submitted_at: new Date().toISOString()
+        })
+      });
+      if (!insertResponse.ok) {
+        const detail = (await insertResponse.text()).slice(0, 300);
+        if (insertResponse.status === 409 || /resignation_requests_one_pending_per_member/i.test(detail)) return json(res, 409, { error: "لدى هذا العضو طلب استقالة قيد المراجعة بالفعل." });
+        console.error("Resignation request creation failed:", insertResponse.status, detail);
+        return json(res, 502, { error: "تعذّر تسجيل طلب الاستقالة." });
+      }
+      const created = (await insertResponse.json())[0];
+      try {
+        await appendAttendanceAdminAudit(cfg, user, {
+          action: "create", entity_type: "resignation_request", entity_id: created?.id || targetId,
+          details: {
+            type: "تسجيل طلب استقالة",
+            detail: "تم استلام طلب استقالة من " + (profile.display_name || profile.username || targetId) + " ويحتاج إلى مراجعة الإدارة.",
+            target_discord_id: targetId, member_name: memberName, reason, source: "website"
+          }
+        });
+      } catch (auditError) { console.error("Resignation request audit forwarding failed:", auditError?.message || "unknown"); }
+      return json(res, 200, { ok: true, request: created });
+    }
+
+    if (body.action === "review_resignation_request") {
+      const requestId = String(body.id || "");
+      const status = String(body.status || "");
+      const note = typeof body.review_note === "string" ? body.review_note.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId) || !["approved","rejected"].includes(status) || note.length > 1000) {
+        return json(res, 400, { error: "بيانات مراجعة الاستقالة غير صحيحة." });
+      }
+      if (status === "rejected" && note.length < 3) return json(res, 400, { error: "اكتب سبب رفض واضحًا لا يقل عن 3 أحرف." });
+      const pendingQuery = new URLSearchParams({ id: "eq." + requestId, status: "eq.pending", select: "id,discord_user_id,display_name,member_name,reason,source,avatar_url", limit: "1" });
+      const pendingResponse = await db(cfg, "resignation_requests?" + pendingQuery.toString());
+      if (!pendingResponse.ok) return json(res, 503, { error: "تعذّر تحميل طلب الاستقالة قبل اتخاذ القرار." });
+      const pending = (await pendingResponse.json())[0];
+      if (!pending) return json(res, 409, { error: "تمت مراجعة هذا الطلب بالفعل أو لم يعد موجودًا." });
+      const reviewedAt = new Date().toISOString();
+      const updateResponse = await db(cfg, "resignation_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.pending", {
+        method: "PATCH", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          status, reviewed_by_discord_id: user.id, reviewed_by_name: user.displayName,
+          review_note: status === "rejected" ? note : (note || null),
+          reviewed_at: reviewedAt, updated_at: reviewedAt, dm_status: "not_sent", dm_error: null
+        })
+      });
+      if (!updateResponse.ok) {
+        console.error("Resignation review failed:", updateResponse.status, (await updateResponse.text()).slice(0, 300));
+        return json(res, 502, { error: "تعذّر حفظ قرار الاستقالة." });
+      }
+      const updated = (await updateResponse.json())[0];
+      if (!updated) return json(res, 409, { error: "تم اتخاذ قرار على هذا الطلب بالفعل." });
+      try {
+        await forwardAuditToDiscord(user, {
+          action: "update", entity_type: "resignation_request", entity_id: requestId,
+          details: {
+            type: status === "approved" ? "قبول طلب استقالة" : "رفض طلب استقالة",
+            detail: (status === "approved" ? "تمت الموافقة على استقالة " : "تم رفض طلب استقالة ") + (updated.member_name || updated.display_name) + ".",
+            target_discord_id: updated.discord_user_id, status, review_note: note
+          }
+        });
+      } catch (auditError) { console.error("Resignation review audit forwarding failed:", auditError?.message || "unknown"); }
+      let dmStatus = "failed", dmError = null, dmChannelId = null, dmMessageId = null;
+      try {
+        const embed = {
+          title: status === "approved" ? "✅ تمت الموافقة على طلب استقالتك" : "❌ تم رفض طلب الاستقالة",
+          description: status === "approved"
+            ? "تم اعتماد طلب استقالتك من S.W.A.T. REDLINE. نشكرك على الفترة التي قضيتها معنا."
+            : "تم رفض طلب الاستقالة المقدم من قبلك.\\n\\n**سبب الرفض:** " + note,
+          color: status === "approved" ? 0x239B72 : 0xD92735,
+          fields: [
+            { name: "الاسم", value: String(updated.member_name || updated.display_name || "—").slice(0, 100), inline: true },
+            { name: "سبب الطلب", value: String(updated.reason || "—").slice(0, 1000), inline: false },
+            { name: "قرار الإدارة", value: String(updated.reviewed_by_name || "الإدارة").slice(0, 100), inline: true }
+          ],
+          footer: { text: "S.W.A.T. REDLINE • PERSONNEL & RESIGNATION" },
+          timestamp: reviewedAt
+        };
+        const dm = await sendDirectNotice(cfg, updated.discord_user_id, embed);
+        dmStatus = "sent"; dmChannelId = dm.channelId; dmMessageId = dm.messageId;
+      } catch (dmErrorValue) {
+        dmStatus = "failed";
+        dmError = String(dmErrorValue?.code || dmErrorValue?.message || "dm_delivery_failed").slice(0, 120);
+        console.error("Resignation decision DM failed:", dmError);
+      }
+      await db(cfg, "resignation_requests?id=eq." + encodeURIComponent(requestId), {
+        method: "PATCH", headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ dm_status: dmStatus, dm_error: dmError, dm_channel_id: dmChannelId, dm_message_id: dmMessageId, updated_at: new Date().toISOString() })
+      }).catch(() => {});
+      return json(res, 200, { ok: true, request: { ...updated, dm_status: dmStatus, dm_error: dmError, dm_channel_id: dmChannelId, dm_message_id: dmMessageId }, publish_required: status === "approved" });
     }
 
     if (body.action === "create_attendance_leave" || body.action === "submit_attendance_leave") {
