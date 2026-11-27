@@ -490,3 +490,35 @@ test("resignation admin is a dedicated dashboard with safe test-data cleanup", a
   assert.match(html, /#resignationAdminModalBack \.resign-avatar\{display:block!important;width:48px!important/);
   assert.match(html, /TEST DATA/);
 });
+
+test("former SWAT members remain eligible for repeat resignation requests", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+  const optionsStart = api.indexOf('if (req.method === "GET" && params.get("resignation_member_options") === "1")');
+  const optionsEnd = api.indexOf('if (req.method === "GET" && params.get("resignation_requests") === "1")', optionsStart);
+  assert.ok(optionsStart >= 0 && optionsEnd > optionsStart);
+  const options = api.slice(optionsStart, optionsEnd);
+  assert.match(options, /await requireManager\(cfg, user\)/);
+  assert.match(options, /staff_profiles/);
+  assert.match(options, /is_banned: "eq\.false"/);
+  assert.match(options, /status: "eq\.pending"/);
+  assert.match(options, /has_pending_resignation/);
+
+  const createStart = api.indexOf('if (body.action === "submit_resignation_request" || body.action === "create_resignation_request")');
+  const reviewStart = api.indexOf('if (body.action === "review_resignation_request")', createStart);
+  assert.ok(createStart >= 0 && reviewStart > createStart);
+  const create = api.slice(createStart, reviewStart);
+  assert.match(create, /!profile \|\| profile\.is_banned === true \|\| \(selfRequest && profile\.is_active !== true\)/);
+  assert.match(create, /const discordMember = await getGuildMemberOrNull\(cfg, targetId\)/);
+  assert.doesNotMatch(create, /discordMember\.roles\.includes\(cfg\.swatRoleId\)/);
+  assert.match(create, /status: "eq\.pending"/);
+
+  const modalStart = html.indexOf("async function openResignationAdminModal(){");
+  const modalEnd = html.indexOf("function closeResignationAdminModal(){", modalStart);
+  assert.ok(modalStart >= 0 && modalEnd > modalStart);
+  const modal = html.slice(modalStart, modalEnd);
+  assert.match(modal, /resignation_member_options=1/);
+  assert.match(modal, /resignationMemberOptions\.map/);
+  assert.doesNotMatch(modal, /attendanceData\.members\.filter\(member=>member\.is_swat_member\)/);
+});
