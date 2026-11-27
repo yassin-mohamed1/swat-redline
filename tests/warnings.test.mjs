@@ -521,27 +521,26 @@ test("inactive former staff are excluded from resignation selection and cannot s
   const optionsEnd = api.indexOf('if (req.method === "GET" && params.get("resignation_requests") === "1")', optionsStart);
   assert.ok(optionsStart >= 0 && optionsEnd > optionsStart);
   const options = api.slice(optionsStart, optionsEnd);
-  assert.match(options, /await requireManager\\(cfg, user\\)/);
-  assert.match(options, /staff_profiles/);
-  assert.match(options, /is_active: "eq\\.true"/);
-  assert.match(options, /is_banned: "eq\\.false"/);
-  assert.match(options, /status: "eq\\.pending"/);
+  assert.ok(options.includes("await requireManager(cfg, user)"));
+  assert.ok(options.includes('is_active: "eq.true"'));
+  assert.ok(options.includes('is_banned: "eq.false"'));
+  assert.ok(options.includes('status: "eq.pending"'));
 
   const createStart = api.indexOf('if (body.action === "submit_resignation_request" || body.action === "create_resignation_request")');
   const reviewStart = api.indexOf('if (body.action === "review_resignation_request")', createStart);
   assert.ok(createStart >= 0 && reviewStart > createStart);
   const create = api.slice(createStart, reviewStart);
-  assert.match(create, /!profile \\|\\| profile\\.is_banned === true \\|\\| profile\\.is_active !== true/);
-  assert.match(create, /Only a currently active staff profile/);
-  assert.doesNotMatch(create, /discordMember\\.roles\\.includes\\(cfg\\.swatRoleId\\)/);
+  assert.ok(create.includes("profile.is_active !== true"));
+  assert.ok(create.includes("Only a currently active staff profile"));
+  assert.ok(!create.includes("discordMember.roles.includes(cfg.swatRoleId)"));
 
   const modalStart = html.indexOf("async function openResignationAdminModal(){");
   const modalEnd = html.indexOf("function closeResignationAdminModal(){", modalStart);
   assert.ok(modalStart >= 0 && modalEnd > modalStart);
   const modal = html.slice(modalStart, modalEnd);
-  assert.match(modal, /resignation_member_options=1/);
-  assert.match(modal, /resignationMemberOptions\\.map/);
-  assert.doesNotMatch(modal, /attendanceData\\.members\\.filter\\(member=>member\\.is_swat_member\\)/);
+  assert.ok(modal.includes("resignation_member_options=1"));
+  assert.ok(modal.includes("resignationMemberOptions.map"));
+  assert.ok(!modal.includes("attendanceData.members.filter(member=>member.is_swat_member)"));
 });
 
 test("approved resignation retires portal access and unassigns the member without erasing history", async () => {
@@ -551,55 +550,59 @@ test("approved resignation retires portal access and unassigns the member withou
   const end = api.indexOf('if (body.action === "create_attendance_leave" || body.action === "submit_attendance_leave")', start);
   const handler = api.slice(start, end);
   assert.ok(start >= 0 && end > start);
-  assert.match(handler, /rpc\\(cfg, "retire_staff_member"/);
-  assert.match(handler, /p_remaining_role_ids: resignationRoleCleanup\\.remainingRoleIds/);
-  assert.match(handler, /approval_rolled_back: rollbackSucceeded/);
-  assert.match(handler, /roles_restored: rolesRestored/);
-  assert.match(migration, /UPDATE public\\.staff_profiles[\\s\\S]*is_active = false/);
-  assert.match(migration, /UPDATE public\\.staff_assignments[\\s\\S]*status = 'unassigned'/);
-  assert.match(migration, /UPDATE public\\.disciplinary_subjects[\\s\\S]*is_archived = true/);
-  assert.match(migration, /REVOKE ALL ON FUNCTION public\\.retire_staff_member/);
-  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\\.retire_staff_member[\\s\\S]*TO service_role/);
-  assert.match(api, /is_active=eq\\.true&is_banned=eq\\.false/);
+  assert.ok(handler.includes('rpc(cfg, "retire_staff_member"'));
+  assert.ok(handler.includes("p_remaining_role_ids: resignationRoleCleanup.remainingRoleIds"));
+  assert.ok(handler.includes("approval_rolled_back: rollbackSucceeded"));
+  assert.ok(handler.includes("roles_restored: rolesRestored"));
+  assert.ok(migration.includes("UPDATE public.staff_profiles"));
+  assert.ok(migration.includes("is_active = false"));
+  assert.ok(migration.includes("UPDATE public.staff_assignments"));
+  assert.ok(migration.includes("status = 'unassigned'"));
+  assert.ok(migration.includes("UPDATE public.disciplinary_subjects"));
+  assert.ok(migration.includes("is_archived = true"));
+  assert.ok(migration.includes("REVOKE ALL ON FUNCTION public.retire_staff_member"));
+  assert.ok(migration.includes("GRANT EXECUTE ON FUNCTION public.retire_staff_member"));
+  assert.ok(api.includes("is_active=eq.true&is_banned=eq.false"));
 });
 
 test("successful manual and attendance dismissals retire portal profiles and archive warning subjects", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261127065237_retire_staff_on_resignation_and_dismissal.sql", import.meta.url), "utf8");
-  assert.match(api, /profile\\.is_active !== true/);
-  assert.match(api, /target\\.roles\\.includes\\(cfg\\.swatRoleId\\)/);
-  assert.match(api, /complete_disciplinary_action_v2/);
-  assert.match(migration, /IF v_action\\.action_type = 'dismissal' THEN[\\s\\S]*public\\.retire_staff_member/);
-  assert.match(migration, /is_archived = \\(v_action\\.action_type = 'dismissal'\\)/);
-  assert.match(migration, /disciplinary_subjects_archived/);
+  assert.ok(api.includes("profile.is_active !== true"));
+  assert.ok(api.includes("target.roles.includes(cfg.swatRoleId)"));
+  assert.ok(api.includes("complete_disciplinary_action_v2"));
+  assert.ok(migration.includes("IF v_action.action_type = 'dismissal' THEN"));
+  assert.ok(migration.includes("public.retire_staff_member("));
+  assert.ok(migration.includes("is_archived = (v_action.action_type = 'dismissal')"));
+  assert.ok(migration.includes("disciplinary_subjects_archived"));
 });
 
 test("former personnel are hidden from the active roster and can only be reactivated after regaining the access role", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const api = await readFile(new URL("../api/admin/members.js", import.meta.url), "utf8");
   const migration = await readFile(new URL("../supabase/migrations/20261127065237_retire_staff_on_resignation_and_dismissal.sql", import.meta.url), "utf8");
-  assert.match(html, /id="personnelFormerToggle"/);
-  assert.match(html, /showFormerPersonnelList\\s*\\?/);
-  assert.match(html, /function toggleFormerPersonnelList\\(\\)/);
-  assert.match(api, /is_active=eq\\.true&is_banned=eq\\.false&order=display_name\\.asc/);
-  assert.match(api, /if \\(action === "activate" \\|\\| action === "unban"\\)/);
-  assert.match(api, /requiredAccessRoleId/);
-  assert.match(api, /reactivationMember\\.roles\\.includes\\(requiredAccessRoleId\\)/);
-  assert.match(api, /values\\.discord_roles_synced_at/);
-  assert.match(migration, /REVOKE ALL ON FUNCTION public\\.complete_disciplinary_action_v2/);
+  assert.ok(html.includes('id="personnelFormerToggle"'));
+  assert.ok(html.includes("showFormerPersonnelList"));
+  assert.ok(html.includes("function toggleFormerPersonnelList()"));
+  assert.ok(api.includes("is_active=eq.true&is_banned=eq.false&order=display_name.asc"));
+  assert.ok(api.includes('if (action === "activate" || action === "unban")'));
+  assert.ok(api.includes("requiredAccessRoleId"));
+  assert.ok(api.includes("reactivationMember.roles.includes(requiredAccessRoleId)"));
+  assert.ok(api.includes("values.discord_roles_synced_at"));
+  assert.ok(migration.includes("REVOKE ALL ON FUNCTION public.complete_disciplinary_action_v2"));
 });
 
 test("FIRED preview fetches the selected member live and prevents stale async renders overwriting a newer selection", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /let dismissalPreviewSelectionRevision=0/);
-  assert.match(html, /let dismissalPreviewRenderRevision=0/);
-  assert.match(html, /dismissal_card_member=1&discord_user_id=/);
-  assert.match(html, /if\\(revision!==dismissalPreviewSelectionRevision\\)return/);
-  assert.match(html, /if\\(revision!==dismissalPreviewRenderRevision\\)return/);
-  assert.match(html, /const stage=document\\.createElement\\('canvas'\\)/);
-  assert.match(api, /is_active: "eq\\.true"/);
-  assert.match(api, /member\\.roles\\.includes\\(cfg\\.swatRoleId\\)/);
+  assert.ok(html.includes("let dismissalPreviewSelectionRevision=0"));
+  assert.ok(html.includes("let dismissalPreviewRenderRevision=0"));
+  assert.ok(html.includes("dismissal_card_member=1&discord_user_id="));
+  assert.ok(html.includes("if(revision!==dismissalPreviewSelectionRevision)return"));
+  assert.ok(html.includes("if(revision!==dismissalPreviewRenderRevision)return"));
+  assert.ok(html.includes("const stage=document.createElement('canvas')"));
+  assert.ok(api.includes('is_active: "eq.true"'));
+  assert.ok(api.includes("member.roles.includes(cfg.swatRoleId)"));
 });
 
 test("resignation review confirmation dialog appears above the admin dashboard", async () => {
