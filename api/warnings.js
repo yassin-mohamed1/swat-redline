@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+
+export const config = { api: { bodyParser: { sizeLimit: "5mb" } } };
 import { requireSameOrigin } from "../lib/request-security.js";
 import { discordApiRequest } from "../lib/discord-rest.js";
 import { forwardAuditToDiscord } from "../lib/audit-log.js";
@@ -1208,7 +1210,7 @@ function buildDisciplinaryEmbed(action, level, target, reason, details, actor, a
     { name: "Discord ID", value: target.id, inline: true },
     { name: "الإجراء التأديبي", value: actionLabel, inline: true },
     { name: "سبب الإجراء", value: String(reason).slice(0, 1000), inline: false },
-    ...(details ? [{ name: "تفاصيل إضافية", value: String(details).slice(0, 1000), inline: false }] : []),
+    ...(details ? (dismissed ? Array.from({ length: Math.ceil(String(details).length / 1000) }, (_, index) => ({ name: index === 0 ? "تفاصيل إضافية" : "تفاصيل إضافية (تابع)", value: String(details).slice(index * 1000, (index + 1) * 1000), inline: false })) : [{ name: "تفاصيل إضافية", value: String(details).slice(0, 1000), inline: false }]) : []),
     { name: "صدر بواسطة", value: String(actor).slice(0, 150), inline: true },
     { name: "الرقم المرجعي", value: String(actionId), inline: true }
   ];
@@ -1282,24 +1284,48 @@ async function loadDisciplinaryMentionSettings(cfg) {
     targetMentionEnabled: values.disciplinaryTargetMentionEnabled !== false
   };
 }
-async function sendAnnouncement(cfg, embed, targetId) {
+
+function decodeDismissalCardImage(value) {
+  const imageData = String(value || "");
+  const comma = imageData.indexOf(",");
+  const header = comma > 0 ? imageData.slice(0, comma).toLowerCase() : "";
+  const encoded = comma > 0 ? imageData.slice(comma + 1) : "";
+  if (header !== "data:image/png;base64" || !encoded || encoded.length > 4200000 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+    throw Object.assign(new Error("صورة الفصل غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
+  }
+  const bytes = Buffer.from(encoded, "base64");
+  if (!bytes.length || bytes.length > 3100000 || bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") {
+    throw Object.assign(new Error("ملف بطاقة الفصل ليس PNG صالحًا أو حجمه أكبر من الحد المسموح."), { status: 413 });
+  }
+  return bytes;
+}
+
+async function sendAnnouncement(cfg, embed, targetId, dismissalImageBytes = null) {
   const mentionSettings = await loadDisciplinaryMentionSettings(cfg);
   const roleMention = mentionSettings.swatRoleMentionEnabled ? "<@&" + cfg.notificationRoleId + ">" : null;
   const memberMention = mentionSettings.targetMentionEnabled ? "<@" + targetId + ">" : null;
   const content = [roleMention, memberMention].filter(Boolean).join(" ");
-  return discord(cfg, "/channels/" + cfg.channelId + "/messages", {
-    method: "POST",
-    body: JSON.stringify({
-      ...(content ? { content } : {}),
-      embeds: [embed],
-      components: portalLinkComponents(),
-      allowed_mentions: {
-        parse: [],
-        roles: mentionSettings.swatRoleMentionEnabled ? [cfg.notificationRoleId] : [],
-        users: mentionSettings.targetMentionEnabled ? [targetId] : []
-      }
-    })
-  });
+  const messageEmbed = dismissalImageBytes
+    ? { ...embed, thumbnail: undefined, image: { url: "attachment://redline-fired.png" } }
+    : embed;
+  const payload = {
+    ...(content ? { content } : {}),
+    embeds: [messageEmbed],
+    components: portalLinkComponents(),
+    allowed_mentions: {
+      parse: [],
+      roles: mentionSettings.swatRoleMentionEnabled ? [cfg.notificationRoleId] : [],
+      users: mentionSettings.targetMentionEnabled ? [targetId] : []
+    }
+  };
+  if (!dismissalImageBytes) {
+    return discord(cfg, "/channels/" + cfg.channelId + "/messages", { method: "POST", body: JSON.stringify(payload) });
+  }
+  const form = new FormData();
+  form.append("payload_json", JSON.stringify(payload));
+  form.append("files[0]", new Blob([dismissalImageBytes], { type: "image/png" }), "redline-fired.png");
+  return discord(cfg, "/channels/" + cfg.channelId + "/messages", { method: "POST", body: form });
 }
 async function appendAttendanceAdminAudit(cfg, user, event) {
   const row = await db(cfg, "audit_logs", {
@@ -1368,6 +1394,12 @@ export default async function handler(req, res) {
   if (cfg.error) return json(res, 503, { error: cfg.error });
   try {
     const params = new URL(req.url, "https://portal.invalid").searchParams;
+    if (req.method === "GET" && params.get("dismissal_card_member") === "1") {
+      const targetId = String(params.get("discord_user_id") || "");
+      if (!/^\d{15,22}$/.test(targetId)) return json(res, 400, { error: "معرّف Discord غير صالح." });
+      const member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
+      return json(res, 200, { member: { id: targetId, name: discordName(member), avatar_url: discordAvatarUrl(member, cfg.guildId) } });
+    }
     if (req.method === "GET" && params.get("diagnostics") === "1") {
       await requireManager(cfg, user);
       const diagnostics = await warningDiagnostics(cfg, user);
@@ -2637,6 +2669,11 @@ export default async function handler(req, res) {
         !reason || reason.length > 1000 || details.length > 3000) {
       return json(res, 400, { error: "راجع معرّف العضو والإجراء والسبب ومعرّف الطلب." });
     }
+    let dismissalImageBytes = null;
+    if (actionType === "dismissal") {
+      try { dismissalImageBytes = decodeDismissalCardImage(body.image_data); }
+      catch (error) { return json(res, error.status || 400, { error: error.message || "يجب تجهيز بطاقة FIRED قبل تنفيذ الفصل." }); }
+    }
     const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
     const targetName = discordName(target);
     const targetProfile = { id: targetId, name: targetName, avatarUrl: discordAvatarUrl(target, cfg.guildId) };
@@ -2704,7 +2741,8 @@ export default async function handler(req, res) {
 
     try {
       channelMessage = await sendAnnouncement(cfg,
-        announcementEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt), targetId);
+        announcementEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt),
+        targetId, actionType === "dismissal" ? dismissalImageBytes : null);
     } catch (error) {
       const errorCode = String(error.code || error.message || "channel_delivery_failed").slice(0, 100);
       let rollbackFailed = false;

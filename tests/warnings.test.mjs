@@ -156,6 +156,28 @@ test("disciplinary embeds use English branding and warning titles with Arabic fi
   assert.ok(api.includes('footer: { text: "S.W.A.T. REDLINE • DISCIPLINARY & COMPLIANCE" }'));
 });
 
+
+test("FIRED card is sent as one warning-channel message with an image attachment", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const settings = await readFile(new URL("../api/admin/settings.js", import.meta.url), "utf8");
+
+  assert.ok(api.includes("function decodeDismissalCardImage(value)"));
+  assert.ok(api.includes("dismissalImageBytes = decodeDismissalCardImage(body.image_data)"));
+  assert.ok(api.includes('image: { url: "attachment://redline-fired.png" }'));
+  assert.ok(api.includes('form.append("files[0]"'));
+  assert.ok(api.includes('actionType === "dismissal" ? dismissalImageBytes : null'));
+  assert.ok(api.includes("users: mentionSettings.targetMentionEnabled ? [targetId] : []"));
+  assert.ok(api.includes("components: portalLinkComponents()"));
+
+  assert.ok(html.includes('id="dismissalCardEditorButton"'));
+  assert.ok(html.includes("function openDismissalCardEditor()"));
+  assert.ok(html.includes("function createDismissalCardDataUrl(discordUserId)"));
+  assert.ok(html.includes("image_data:imageData"));
+  assert.ok(settings.includes('"dismissalTemplateUrl"'));
+  assert.ok(settings.includes('"dismissalCardDesign"'));
+});
+
 test("warnings page follows the existing Arabic and English portal switch", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(html, /"التحذيرات":"Warnings"/);

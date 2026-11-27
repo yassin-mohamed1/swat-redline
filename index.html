@@ -2181,7 +2181,10 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 </style>
 <div class="sectionhead">
  <div><h2>التحذيرات</h2><div class="sub">إدارة الحالات التأديبية، الرسائل الرسمية، وسجل الإجراءات</div></div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+ <button class="btn" id="dismissalCardEditorButton" type="button" style="display:none" onclick="openDismissalCardEditor()">✎ تعديل رسالة الفصل</button>
  <button class="btn" type="button" onclick="renderWarnings()">↻ تحديث البيانات</button>
+</div>
 </div>
 <div class="panel" style="margin-bottom:14px" id="siteNoticesPanel">
 <div class="panelhead"><div><h3>التنبيهات والتعاميم الرسمية</h3><span class="sub">احفظ التعميم هنا أولًا، ثم انشره يدويًا في روم 🔴 SWAT • WARNING. لا تُرسل رسائل خاصة من هذا المسار.</span></div><button class="btn primary" id="siteNoticeAddButton" type="button" onclick="openSiteNoticeModal()">＋ إضافة تعميم</button></div>
@@ -2279,6 +2282,27 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    <div id="warningEditStatus" class="muted" aria-live="polite"></div>
    <div class="warning-modal-actions"><button class="btn primary" id="warningEditSave" type="button" onclick="submitWarningEdit()">حفظ تعديل السجل</button><button class="btn" type="button" onclick="closeWarningModal('warningEditModal')">إلغاء</button></div>
   </div>
+ </div>
+</div>
+ 
+<div class="modalback" id="dismissalCardEditorModalBack" onclick="if(event.target===this)closeDismissalCardEditor()">
+ <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="dismissalCardEditorTitle" style="width:min(1120px,96vw)">
+  <div class="modalhead"><div><h3 id="dismissalCardEditorTitle">تصميم رسالة الفصل</h3><div class="sub">ارفع قالب PNG الشفاف، ثم اضبط موضع صورة العضو واسمه واحفظ التصميم.</div></div><button class="close" type="button" onclick="closeDismissalCardEditor()">×</button></div>
+  <div class="formgrid">
+   <div class="field full"><label for="dismissalTemplateFile">اختيار قالب الفصل أو استبداله (PNG شفاف)</label><input id="dismissalTemplateFile" type="file" accept="image/png" onchange="handleDismissalTemplateUpload()"><div class="muted" id="dismissalTemplateSavedStatus" aria-live="polite">ارفع قالب FIRED بصيغة PNG. سيُحفظ في ملفات الموقع ولن تحتاج لإعادة رفعه كل مرة.</div></div>
+   <div class="field"><label for="dismissalCardLayer">العنصر الذي تريد تحريكه</label><select id="dismissalCardLayer" onchange="syncDismissalCardControls()"><option value="photo">الصورة الشخصية</option><option value="name">اسم العضو</option></select></div>
+   <div class="field"><label for="dismissalPreviewMember">صورة واسم المعاينة</label><select id="dismissalPreviewMember" onchange="selectDismissalPreviewMember(this.value)"><option value="">جارٍ تحميل الأعضاء...</option></select></div>
+   <div class="field full"><label for="dismissalPreviewName">اسم المعاينة (يمكن تعديله)</label><input id="dismissalPreviewName" maxlength="100" placeholder="اسم العضو" oninput="drawDismissalCardEditorPreview()"></div>
+   <div class="field"><label for="dismissalCardX">الموضع الأفقي / تحريك الصورة</label><input id="dismissalCardX" type="range" min="-100" max="100" value="0" oninput="updateDismissalCardControl('x',this.value)"><span class="muted" id="dismissalCardXValue">0%</span></div>
+   <div class="field"><label for="dismissalCardY">الموضع الرأسي / تحريك الصورة</label><input id="dismissalCardY" type="range" min="-100" max="100" value="0" oninput="updateDismissalCardControl('y',this.value)"><span class="muted" id="dismissalCardYValue">0%</span></div>
+   <div class="field" id="dismissalPhotoZoomWrap"><label for="dismissalPhotoZoom">تكبير / تصغير صورة العضو</label><input id="dismissalPhotoZoom" type="range" min="50" max="300" value="100" oninput="updateDismissalCardControl('zoom',this.value)"><span class="muted" id="dismissalPhotoZoomValue">100%</span></div>
+   <div class="field" id="dismissalNameSizeWrap" hidden><label for="dismissalNameSize">حجم الاسم</label><input id="dismissalNameSize" type="range" min="12" max="120" value="80" oninput="updateDismissalCardControl('size',this.value)"><span class="muted" id="dismissalNameSizeValue">80 px</span></div>
+   <div class="field" id="dismissalNameColorWrap" hidden><label for="dismissalNameColor">لون الاسم</label><input id="dismissalNameColor" type="color" value="#f1f3f4" oninput="updateDismissalCardControl('color',this.value)"></div>
+   <div class="field" id="dismissalNameFontWrap" hidden><label for="dismissalNameFont">خط الاسم</label><select id="dismissalNameFont" onchange="updateDismissalCardControl('fontFamily',this.value)"><option>Arial</option><option>Tahoma</option><option>Impact</option><option>Georgia</option><option>Trebuchet MS</option></select></div>
+  </div>
+  <div style="margin-top:14px;border:1px solid #303945;border-radius:12px;padding:8px;background:#090c12"><canvas id="dismissalCardEditorCanvas" width="1672" height="941" style="display:block;width:100%;height:auto;touch-action:none"></canvas></div>
+  <div id="dismissalCardEditorStatus" class="muted" aria-live="polite" style="min-height:20px;margin-top:10px">ارفع قالب PNG للبدء.</div>
+  <div class="modalactions"><button class="btn primary" id="dismissalCardSaveButton" type="button" onclick="saveDismissalCardDesign()">حفظ التصميم</button><button class="btn" type="button" onclick="closeDismissalCardEditor()">إغلاق</button></div>
  </div>
 </div>
 </section>
@@ -5259,6 +5283,215 @@ async function voidWarningAction(actionId){
  }catch(error){toast(error.message||'تعذّر إلغاء الإجراء.');}
 }
 
+
+const DEFAULT_DISMISSAL_CARD_DESIGN={
+ photo:{x:327,y:148,width:403,height:494,zoom:1,cropX:0,cropY:0},
+ name:{x:1200,y:319,size:80,color:"#f1f3f4",fontFamily:"Arial",align:"center"}
+};
+let dismissalCardDesign=JSON.parse(JSON.stringify(DEFAULT_DISMISSAL_CARD_DESIGN));
+let dismissalTemplateUrl="";
+let dismissalTemplateImage=null;
+let dismissalTemplateLoading=null;
+let dismissalCardDragging=null;
+let dismissalPreviewMember=null;
+
+function normalizeDismissalCardDesign(value){
+ const source=value&&typeof value==="object"?value:{};
+ const rawPhoto=source.photo&&typeof source.photo==="object"?source.photo:{};
+ const rawName=source.name&&typeof source.name==="object"?source.name:{};
+ const clamp=(input,fallback,min,max)=>{const number=Number(input);return Number.isFinite(number)?Math.max(min,Math.min(max,number)):fallback;};
+ const x=clamp(rawPhoto.x,327,0,1612),y=clamp(rawPhoto.y,148,0,881);
+ const photo={x,y,width:clamp(rawPhoto.width,403,60,1672-x),height:clamp(rawPhoto.height,494,60,941-y),zoom:clamp(rawPhoto.zoom,1,.5,3),cropX:clamp(rawPhoto.cropX,0,-100,100),cropY:clamp(rawPhoto.cropY,0,-100,100)};
+ const name={x:clamp(rawName.x,1200,0,1672),y:clamp(rawName.y,319,0,941),size:clamp(rawName.size,80,12,120),color:/^#[0-9a-f]{6}$/i.test(rawName.color)?rawName.color:"#f1f3f4",fontFamily:["Arial","Tahoma","Impact","Georgia","Trebuchet MS"].includes(rawName.fontFamily)?rawName.fontFamily:"Arial",align:["left","center","right"].includes(rawName.align)?rawName.align:"center"};
+ return {photo,name};
+}
+async function loadDismissalCardSettings(force=false){
+ if(!force&&dismissalTemplateUrl&&dismissalTemplateImage?.complete&&dismissalTemplateImage.naturalWidth)return;
+ const response=await fetch('/api/admin/settings',{credentials:'same-origin',cache:'no-store'});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(data.error||'تعذّر تحميل إعدادات تصميم الفصل.');
+ dismissalCardDesign=normalizeDismissalCardDesign(data.settings?.dismissalCardDesign||dismissalCardDesign);
+ dismissalTemplateUrl=typeof data.settings?.dismissalTemplateUrl==='string'?data.settings.dismissalTemplateUrl:'';
+ dismissalTemplateImage=null;
+ if(dismissalTemplateUrl)await loadDismissalTemplateImage();
+}
+function loadDismissalTemplateImage(){
+ if(dismissalTemplateImage?.complete&&dismissalTemplateImage.naturalWidth)return Promise.resolve(dismissalTemplateImage);
+ if(dismissalTemplateLoading)return dismissalTemplateLoading;
+ if(!dismissalTemplateUrl)return Promise.reject(new Error('ارفع قالب FIRED أولًا من زر «تعديل رسالة الفصل».'));
+ dismissalTemplateLoading=new Promise((resolve,reject)=>{
+  const image=new Image();image.crossOrigin='anonymous';image.referrerPolicy='no-referrer';
+  image.onload=()=>{dismissalTemplateImage=image;dismissalTemplateLoading=null;resolve(image);};
+  image.onerror=()=>{dismissalTemplateLoading=null;reject(new Error('تعذّر تحميل قالب FIRED من التخزين.'));};
+  image.src=dismissalTemplateUrl;
+ });
+ return dismissalTemplateLoading;
+}
+function drawDismissalCard(context,template,avatar,name,design){
+ const photo=design.photo;
+ context.clearRect(0,0,1672,941);
+ if(avatar){
+  const iw=avatar.naturalWidth||avatar.width,ih=avatar.naturalHeight||avatar.height;
+  const base=Math.max(photo.width/iw,photo.height/ih)*photo.zoom;
+  const dw=iw*base,dh=ih*base;
+  const dx=photo.x+(photo.width-dw)/2+(photo.cropX/100)*photo.width;
+  const dy=photo.y+(photo.height-dh)/2+(photo.cropY/100)*photo.height;
+  context.save();context.beginPath();context.rect(photo.x,photo.y,photo.width,photo.height);context.clip();context.drawImage(avatar,dx,dy,dw,dh);context.restore();
+ }else{context.fillStyle="#090b0f";context.fillRect(photo.x,photo.y,photo.width,photo.height);}
+ context.drawImage(template,0,0,1672,941);
+ const layer=design.name;
+ context.save();context.textAlign=layer.align||"center";context.textBaseline="middle";
+ context.font="800 "+layer.size+"px '"+layer.fontFamily+"'";
+ context.fillStyle=layer.color;context.strokeStyle="rgba(0,0,0,.88)";context.lineWidth=Math.max(2,layer.size*.035);
+ context.shadowColor="rgba(0,0,0,.95)";context.shadowBlur=5;context.shadowOffsetX=1;context.shadowOffsetY=2;
+ let label=String(name||'S.W.A.T. MEMBER').replace(/[\r\n]+/g,' ').trim(),original=label,maxWidth=520;
+ while(label.length>3&&context.measureText(label).width>maxWidth)label=label.slice(0,-1);
+ if(label!==original)label+='…';
+ context.strokeText(label,layer.x,layer.y,maxWidth);context.fillText(label,layer.x,layer.y,maxWidth);context.restore();
+}
+async function drawDismissalCanvas(canvas,memberName,avatarUrl,design=dismissalCardDesign){
+ const template=await loadDismissalTemplateImage();
+ const avatar=await loadResignationPhoto(avatarUrl).catch(error=>{if(avatarUrl)throw error;return null;});
+ drawDismissalCard(canvas.getContext('2d'),template,avatar,memberName,design);
+}
+async function loadDismissalPreviewMembers(){
+ const select=document.getElementById('dismissalPreviewMember');if(!select)return;
+ let members=Array.isArray(warningData?.members)?warningData.members:[];
+ if(!members.length){
+  const response=await fetch('/api/warnings',{credentials:'same-origin',cache:'no-store'}),data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل قائمة الأعضاء للمعاينة.');
+  members=Array.isArray(data.members)?data.members:[];
+ }
+ members=members.filter(member=>member&&/^\d{15,22}$/.test(String(member.discord_user_id||''))&&member.is_banned!==true);
+ if(typeof warningData==='object'&&warningData)warningData.members=members;
+ select.innerHTML='<option value="">اختر عضوًا للمعاينة...</option>'+members.map(member=>{
+  const id=adminEscape(String(member.discord_user_id)),name=String(member.display_name||member.username||'عضو');
+  return '<option value="'+id+'">'+adminEscape(name)+' — '+id+'</option>';
+ }).join('');
+ const preferred=members.find(member=>String(member.discord_user_id)!==String(currentUserId))||members[0]||null;
+ if(preferred){select.value=String(preferred.discord_user_id);dismissalPreviewMember=preferred;const nameInput=document.getElementById('dismissalPreviewName');if(nameInput)nameInput.value=String(preferred.display_name||preferred.username||'');}
+ else{dismissalPreviewMember=null;select.value='';const nameInput=document.getElementById('dismissalPreviewName');if(nameInput)nameInput.value='S.W.A.T. MEMBER';}
+}
+function selectDismissalPreviewMember(memberId){
+ dismissalPreviewMember=(warningData.members||[]).find(member=>String(member.discord_user_id)===String(memberId))||null;
+ const nameInput=document.getElementById('dismissalPreviewName');
+ if(nameInput&&dismissalPreviewMember)nameInput.value=String(dismissalPreviewMember.display_name||dismissalPreviewMember.username||'');
+ drawDismissalCardEditorPreview();
+}
+async function drawDismissalCardEditorPreview(){
+ const canvas=document.getElementById('dismissalCardEditorCanvas');if(!canvas)return;
+ try{
+  const name=String(document.getElementById('dismissalPreviewName')?.value||dismissalPreviewMember?.display_name||'S.W.A.T. MEMBER');
+  await drawDismissalCanvas(canvas,name,dismissalPreviewMember?.avatar_url||'');
+  const status=document.getElementById('dismissalCardEditorStatus');
+  if(status)status.textContent=dismissalPreviewMember?'المعاينة تستخدم صورة '+String(dismissalPreviewMember.display_name||dismissalPreviewMember.username||'العضو')+'؛ عند الفصل سيُستخدم اسم وصورة صاحب القرار من Discord مباشرةً.':'اختر عضوًا من قائمة المعاينة لعرض صورته.';
+ }catch(error){const status=document.getElementById('dismissalCardEditorStatus');if(status)status.textContent=error.message||'تعذّرت معاينة بطاقة الفصل.';}
+}
+function syncDismissalCardControls(){
+ const layer=document.getElementById('dismissalCardLayer')?.value||'photo',isPhoto=layer==='photo',settings=dismissalCardDesign[layer];
+ const x=document.getElementById('dismissalCardX'),y=document.getElementById('dismissalCardY');
+ const xLabel=document.querySelector('label[for="dismissalCardX"]'),yLabel=document.querySelector('label[for="dismissalCardY"]');
+ if(isPhoto){
+  x.min='-100';x.max='100';y.min='-100';y.max='100';
+  if(xLabel)xLabel.textContent='تحريك الصورة يمين / شمال داخل الإطار';
+  if(yLabel)yLabel.textContent='تحريك الصورة فوق / تحت داخل الإطار';
+  x.value=Math.round(settings.cropX);y.value=Math.round(settings.cropY);
+  document.getElementById('dismissalCardXValue').textContent=Math.round(settings.cropX)+'%';
+  document.getElementById('dismissalCardYValue').textContent=Math.round(settings.cropY)+'%';
+ }else{
+  x.min='0';x.max='1672';y.min='0';y.max='941';
+  if(xLabel)xLabel.textContent='الموضع الأفقي للاسم';
+  if(yLabel)yLabel.textContent='الموضع الرأسي للاسم';
+  x.value=Math.round(settings.x);y.value=Math.round(settings.y);
+  document.getElementById('dismissalCardXValue').textContent=Math.round(settings.x);
+  document.getElementById('dismissalCardYValue').textContent=Math.round(settings.y);
+ }
+ document.getElementById('dismissalPhotoZoomWrap').hidden=!isPhoto;document.getElementById('dismissalNameSizeWrap').hidden=isPhoto;document.getElementById('dismissalNameColorWrap').hidden=isPhoto;document.getElementById('dismissalNameFontWrap').hidden=isPhoto;
+ if(isPhoto){document.getElementById('dismissalPhotoZoom').value=Math.round(settings.zoom*100);document.getElementById('dismissalPhotoZoomValue').textContent=Math.round(settings.zoom*100)+'%';}
+ else{document.getElementById('dismissalNameSize').value=settings.size;document.getElementById('dismissalNameSizeValue').textContent=settings.size+' px';document.getElementById('dismissalNameColor').value=settings.color;document.getElementById('dismissalNameFont').value=settings.fontFamily;}
+}
+function updateDismissalCardControl(key,value){
+ const layer=document.getElementById('dismissalCardLayer')?.value||'photo',settings=dismissalCardDesign[layer],number=Number(value);
+ if(key==='color'||key==='fontFamily')settings[key]=String(value);
+ else if(layer==='photo'&&key==='x')settings.cropX=Math.max(-100,Math.min(100,number));
+ else if(layer==='photo'&&key==='y')settings.cropY=Math.max(-100,Math.min(100,number));
+ else settings[key]=number/(key==='zoom'?100:1);
+ syncDismissalCardControls();drawDismissalCardEditorPreview();
+}
+async function openDismissalCardEditor(){
+ if(!currentCanAdmin||!currentCanManageWarnings){toast('إعداد تصميم الفصل متاح لمدير الموقع فقط.');return;}
+ const modal=document.getElementById('dismissalCardEditorModalBack');if(!modal)return;
+ modal.classList.add('open');
+ const status=document.getElementById('dismissalCardEditorStatus');if(status)status.textContent='جارٍ تحميل القالب والإعدادات...';
+ try{
+  await loadDismissalCardSettings(true);
+  const saved=document.getElementById('dismissalTemplateSavedStatus');
+  if(saved)saved.textContent=dismissalTemplateUrl?'✅ قالب الفصل محفوظ وتم تحميله. اختر PNG جديدًا فقط عند الرغبة في استبداله.':'لا يوجد قالب محفوظ حاليًا. ارفع ملف PNG الشفاف.';
+  await loadDismissalPreviewMembers();syncDismissalCardControls();
+  if(dismissalTemplateUrl)await drawDismissalCardEditorPreview();
+ }catch(error){if(status)status.textContent=error.message||'تعذّر فتح محرر بطاقة الفصل.';toast(error.message||'تعذّر فتح محرر بطاقة الفصل.');}
+ const canvas=document.getElementById('dismissalCardEditorCanvas');
+ if(canvas&&!canvas.dataset.dragBound){
+  canvas.dataset.dragBound='1';
+  canvas.addEventListener('pointerdown',event=>{const rect=canvas.getBoundingClientRect();dismissalCardDragging={x:event.clientX,y:event.clientY,sx:1672/rect.width,sy:941/rect.height};canvas.setPointerCapture(event.pointerId);});
+  canvas.addEventListener('pointermove',event=>{
+   if(!dismissalCardDragging)return;
+   const dx=(event.clientX-dismissalCardDragging.x)*dismissalCardDragging.sx,dy=(event.clientY-dismissalCardDragging.y)*dismissalCardDragging.sy;
+   dismissalCardDragging.x=event.clientX;dismissalCardDragging.y=event.clientY;
+   const layer=document.getElementById('dismissalCardLayer')?.value||'photo';
+   if(layer==='photo'){dismissalCardDesign.photo.cropX=Math.max(-100,Math.min(100,dismissalCardDesign.photo.cropX+(dx/dismissalCardDesign.photo.width)*100));dismissalCardDesign.photo.cropY=Math.max(-100,Math.min(100,dismissalCardDesign.photo.cropY+(dy/dismissalCardDesign.photo.height)*100));}
+   else{dismissalCardDesign.name.x=Math.max(0,Math.min(1672,dismissalCardDesign.name.x+dx));dismissalCardDesign.name.y=Math.max(0,Math.min(941,dismissalCardDesign.name.y+dy));}
+   syncDismissalCardControls();drawDismissalCardEditorPreview();
+  });
+  canvas.addEventListener('pointerup',()=>{dismissalCardDragging=null;});canvas.addEventListener('pointercancel',()=>{dismissalCardDragging=null;});
+ }
+}
+function closeDismissalCardEditor(){dismissalCardDragging=null;document.getElementById('dismissalCardEditorModalBack')?.classList.remove('open');}
+async function handleDismissalTemplateUpload(){
+ const file=document.getElementById('dismissalTemplateFile')?.files?.[0];if(!file)return;
+ const status=document.getElementById('dismissalCardEditorStatus');if(status)status.textContent='جارٍ تجهيز قالب الفصل ورفعه...';
+ try{
+  if(file.type!=='image/png')throw new Error('ارفع القالب بصيغة PNG حتى نحافظ على شفافية فتحة الصورة.');
+  if(file.size>12*1024*1024)throw new Error('حجم القالب أكبر من الحد المسموح.');
+  const bitmap=await createImageBitmap(file),canvas=document.createElement('canvas');canvas.width=1672;canvas.height=941;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.clearRect(0,0,1672,941);ctx.drawImage(bitmap,0,0,1672,941);bitmap.close?.();
+  const aperture=detectTransparentResignationAperture(canvas);
+  dismissalCardDesign.photo={...dismissalCardDesign.photo,...aperture};
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('تعذّر تجهيز صورة القالب.')),'image/webp',.9));
+  if(blob.size>2*1024*1024)throw new Error('القالب بعد الضغط أكبر من 2MB.');
+  const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  const response=await fetch('/api/admin/media',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({contentType:'image/webp',base64:btoa(binary)})});
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'فشل رفع قالب الفصل.');
+  dismissalTemplateUrl=data.url;dismissalTemplateImage=null;await loadDismissalTemplateImage();await drawDismissalCardEditorPreview();
+  const saved=document.getElementById('dismissalTemplateSavedStatus');if(saved)saved.textContent='✅ تم رفع القالب الجديد. اضغط «حفظ التصميم» لتثبيت القالب والإعدادات.';
+  if(status)status.textContent='تم اكتشاف فتحة الصورة الشفافة تلقائيًا ('+aperture.width+' × '+aperture.height+').';
+ }catch(error){if(status)status.textContent=error.message||'تعذّر رفع قالب الفصل.';toast(error.message||'تعذّر رفع قالب الفصل.');}
+}
+async function saveDismissalCardDesign(){
+ if(!currentCanAdmin||!currentCanManageWarnings)return;
+ const button=document.getElementById('dismissalCardSaveButton'),status=document.getElementById('dismissalCardEditorStatus');if(button)button.disabled=true;
+ try{
+  if(!dismissalTemplateUrl)throw new Error('ارفع قالب FIRED أولًا قبل حفظ التصميم.');
+  const settings={dismissalCardDesign:normalizeDismissalCardDesign(dismissalCardDesign),dismissalTemplateUrl};
+  const response=await fetch('/api/admin/settings',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings})});
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'تعذّر حفظ تصميم الفصل.');
+  dismissalCardDesign=normalizeDismissalCardDesign(settings.dismissalCardDesign);if(status)status.textContent='تم حفظ تصميم رسالة الفصل بنجاح.';toast('تم حفظ تصميم الفصل.');
+ }catch(error){if(status)status.textContent=error.message||'تعذّر حفظ التصميم.';toast(error.message||'تعذّر حفظ التصميم.');}
+ finally{if(button)button.disabled=false;}
+}
+async function createDismissalCardDataUrl(discordUserId){
+ await loadDismissalCardSettings(true);
+ if(!dismissalTemplateUrl)throw new Error('لا يوجد قالب FIRED محفوظ. افتح «تعديل رسالة الفصل» وارفع القالب أولًا.');
+ const response=await fetch('/api/warnings?dismissal_card_member=1&discord_user_id='+encodeURIComponent(discordUserId),{credentials:'same-origin',cache:'no-store'});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok||!data.member)throw new Error(data.error||'تعذّر جلب صورة واسم العضو من Discord.');
+ const canvas=document.createElement('canvas');canvas.width=1672;canvas.height=941;
+ await drawDismissalCanvas(canvas,data.member.name,data.member.avatar_url);
+ const imageData=canvas.toDataURL('image/png');
+ if(imageData.length>4200000)throw new Error('حجم بطاقة الفصل كبير جدًا. استبدل القالب بملف PNG أصغر.');
+ return imageData;
+}
+
 async function submitWarningAction(action){
  if(!currentCanManageWarnings)return;
  const id=warningTargetId(),level=Number(document.getElementById('warningLevelSelect')?.value||1);
@@ -5279,9 +5512,11 @@ async function submitWarningAction(action){
  if(!confirm(confirmation))return;
  const buttons=['warningIssueButton','warningDismissButton'].map(id=>document.getElementById(id)).filter(Boolean);
  buttons.forEach(b=>b.disabled=true);
- const status=document.getElementById('warningActionStatus');if(status)status.textContent='جارٍ تحديث الرتب ومحاولة إرسال الخاص ونشر السجل الرسمي...';
+ const status=document.getElementById('warningActionStatus');if(status)status.textContent=action==='dismiss'?'جارٍ تجهيز بطاقة FIRED ثم تنفيذ قرار الفصل...':'جارٍ تحديث الرتب ومحاولة إرسال الخاص ونشر السجل الرسمي...';
  try{
-  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,discord_user_id:id,warning_level:level,reason,details,request_id:crypto.randomUUID()})});
+  const imageData=action==='dismiss'?await createDismissalCardDataUrl(id):null;
+  const payload={action,discord_user_id:id,warning_level:level,reason,details,request_id:crypto.randomUUID(),...(imageData?{image_data:imageData}:{})};
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok)throw new Error(data.error||'تعذّر تنفيذ الإجراء التأديبي.');
   const actionText=action==='dismiss'?'تم فصل العضو':'تم إصدار '+warningLevelLabel(level);
@@ -7677,7 +7912,7 @@ function go(page){
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='records')showRecordTab(tab||activeRecordTab||'people');if(page==='leaves-hub'||page==='leaves'||page==='resignations')document.getElementById('leavesNav')?.classList.add('active');if(page==='leaves'){const adminButton=document.getElementById('attendanceLeaveAdminButton');if(adminButton)adminButton.style.display=currentCanAdmin&&currentCanManageWarnings?'inline-flex':'none';const repost=document.getElementById('republishLeavePanelButton');if(repost)repost.style.display=currentCanAdmin&&currentCanManageWarnings?'inline-flex':'none';updateMyAttendanceLeaveDateBounds();loadMyAttendanceLeaveRequests();}if(page==='resignations'){const admin=currentCanAdmin&&currentCanManageWarnings;for(const id of ['resignationAdminButton','republishResignationPanelButton','resignationCardEditorButton']){const el=document.getElementById(id);if(el)el.style.display=admin?'inline-flex':'none';}loadMyResignationRequests();if(admin)loadResignationRequests();}
  if(page==='announcements')renderAnnouncements();if(page==='reports')renderReports();if(page==='audit'&&currentCanAdmin)renderAudit();
- if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings){renderWarnings();renderSiteNotices();}if(page==='messages'&&currentCanManageWarnings){loadDiscordSavedMessages();loadDiscordMessageChannels();loadDiscordMentionOptions();}if(page==='attendance'&&currentCanManageWarnings)renderAttendance();if(page==='attention-alerts'&&currentCanManageWarnings)refreshAttentionAlerts();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();if(currentIsOwner)loadSiteCodeCenterStatus();}
+ if(page==='personnel'&&currentCanAdmin)renderPersonnel();if(page==='assignments'&&currentCanAdmin)renderAssignments();if(page==='warnings'&&currentCanManageWarnings){const firedEditor=document.getElementById('dismissalCardEditorButton');if(firedEditor)firedEditor.style.display=currentCanAdmin?'inline-flex':'none';renderWarnings();renderSiteNotices();}if(page==='messages'&&currentCanManageWarnings){loadDiscordSavedMessages();loadDiscordMessageChannels();loadDiscordMentionOptions();}if(page==='attendance'&&currentCanManageWarnings)renderAttendance();if(page==='attention-alerts'&&currentCanManageWarnings)refreshAttentionAlerts();if(page==='settings'){loadDiscordNotificationPreference();if(currentCanAdmin)loadSiteSettings();if(currentIsOwner)loadSiteCodeCenterStatus();}
  if(page==='gallery')renderSiteGallery();applySiteSettings();window.scrollTo({top:0,behavior:'smooth'})
 }document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)go(b.dataset.page)});
 function openModal(){document.getElementById('viewContent')?.remove();document.getElementById('editContent')?.remove();document.getElementById('personForm').style.display='';document.getElementById('personForm').reset();pendingImages=[];document.getElementById('imagePreview').innerHTML='';document.getElementById('modalTitle').textContent='إضافة ملف شخص / قضية';document.getElementById('modalBack').classList.add('open')}function closeModal(){document.getElementById('modalBack').classList.remove('open')}document.getElementById('fImages').addEventListener('change',async e=>{pendingImages=[];pendingImageDescriptions=[];let files=[...e.target.files];for(let f of files){if(!f.type.startsWith('image/'))continue;if(f.size>1.5*1024*1024){toast('الصورة أكبر من 1.5MB في النموذج التجريبي');continue}let data=await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(f)});pendingImages.push(data);pendingImageDescriptions.push('')}document.getElementById('imagePreview').innerHTML=pendingImages.map((src,i)=>'<div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:start;width:100%;margin:8px 0;padding:8px;border:1px solid #30343b;border-radius:8px"><img src="'+src+'" alt="صورة '+(i+1)+'" style="width:76px;height:76px;object-fit:cover;border-radius:6px"><div><label for="fImageDesc'+i+'" style="display:block;margin-bottom:6px">وصف الصورة '+(i+1)+'</label><textarea id="fImageDesc'+i+'" rows="2" placeholder="اكتب وصف هذه الصورة أو الدليل..." style="width:100%;min-height:60px"></textarea></div></div>').join('')});
