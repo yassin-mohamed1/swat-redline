@@ -1154,6 +1154,140 @@ html{scroll-padding-top:16px!important}.page{scroll-margin-top:14px!important}
 #attendanceLeaveModalBack .attendance-leave-empty{padding:30px 18px!important;text-align:center!important;border:1px dashed rgba(151,178,216,.22)!important;border-radius:14px!important;background:rgba(15,23,35,.58)!important;color:#9aabc0!important;font-size:12px!important}
 @media(max-width:820px){#attendanceLeaveModalBack .leave-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#attendanceLeaveModalBack .leave-admin-toolbar{align-items:stretch!important;flex-direction:column!important}#attendanceLeaveModalBack .leave-filter-pills{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 @media(max-width:560px){#attendanceLeaveModalBack.modalback{padding:7px!important}#attendanceLeaveModalBack .modal.attendance-admin-modal{width:100%!important;max-height:97vh!important;border-radius:16px!important}#attendanceLeaveModalBack .modalhead{padding:15px 15px 13px!important}#attendanceLeaveModalBack .leave-create-panel,#attendanceLeaveModalBack .leave-admin-heading,#attendanceLeaveModalBack .leave-overview-grid,#attendanceLeaveModalBack .leave-admin-toolbar,#attendanceLeaveModalBack #attendanceLeaveRows,#attendanceLeaveModalBack #attendanceLeaveStatus{margin-inline:12px!important}#attendanceLeaveModalBack .leave-overview-grid{gap:7px!important}#attendanceLeaveModalBack .leave-overview-card{padding:10px!important;gap:8px!important}#attendanceLeaveModalBack .leave-overview-card strong{font-size:20px!important}#attendanceLeaveModalBack .leave-filter-pills{grid-template-columns:repeat(2,minmax(0,1fr))!important}#attendanceLeaveModalBack .leave-admin-heading{align-items:flex-start!important}}
+
+/* REDLINE RESIGNATION ADMIN — full visual redesign */
+#resignationAdminModalBack.modalback{z-index:120!important;padding:16px!important;background:rgba(2,5,10,.84)!important;backdrop-filter:blur(12px)!important}
+#resignationAdminModalBack .resignation-admin-modal{
+ width:min(1180px,calc(100vw - 36px))!important;max-height:min(94vh,1050px)!important;
+ display:flex!important;flex-direction:column!important;overflow:hidden!important;padding:0!important;
+ border:1px solid rgba(142,174,219,.22)!important;border-radius:24px!important;
+ background:linear-gradient(145deg,#101a28 0%,#0d1521 50%,#0a111a 100%)!important;
+ box-shadow:0 40px 120px rgba(0,0,0,.72),0 0 0 1px rgba(255,255,255,.025)!important;
+}
+#resignationAdminModalBack .resignation-admin-head{
+ flex:0 0 auto;position:relative!important;display:flex!important;align-items:center!important;justify-content:space-between!important;
+ margin:0!important;padding:22px 28px 19px!important;border-bottom:1px solid rgba(145,174,216,.15)!important;
+ background:linear-gradient(100deg,rgba(12,20,31,.98),rgba(19,25,39,.97))!important;
+}
+#resignationAdminModalBack .resignation-admin-head:after{content:"";position:absolute;bottom:-1px;inset-inline:28px;height:1px;background:linear-gradient(90deg,transparent,rgba(241,40,53,.58),rgba(75,143,255,.45),transparent)}
+#resignationAdminModalBack .resign-head-brand{display:flex;align-items:center;gap:13px}
+#resignationAdminModalBack .resign-head-mark{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;border:1px solid rgba(241,40,53,.45);background:linear-gradient(145deg,rgba(241,40,53,.22),rgba(75,143,255,.12));color:#fff;font:900 20px/1 Arial;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+#resignationAdminModalBack .resignation-admin-head h3{margin:0!important;font-size:21px!important;font-weight:900!important;color:#f5f7fb!important}
+#resignationAdminModalBack .resignation-admin-head .sub{margin-top:4px;color:#8394aa!important;font:700 9px/1.5 Arial,sans-serif!important;letter-spacing:1.4px}
+#resignationAdminModalBack .resign-admin-content{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;padding:22px 27px 26px!important}
+#resignationAdminModalBack .resign-overview{display:grid;grid-template-columns:minmax(210px,.9fr) minmax(0,1.6fr);gap:22px;align-items:center;margin-bottom:19px;padding:20px 21px;border:1px solid rgba(139,169,210,.15);border-radius:18px;background:radial-gradient(ellipse at 100% 0%,rgba(75,143,255,.13),transparent 48%),linear-gradient(120deg,rgba(28,43,62,.72),rgba(15,24,36,.82))}
+#resignationAdminModalBack .resign-eyebrow{display:block;color:#f16b76;font:800 9px/1.4 Arial,sans-serif;letter-spacing:1.7px}
+#resignationAdminModalBack .resign-overview-copy h4{margin:7px 0 5px;color:#f4f7fc;font-size:19px;font-weight:900}
+#resignationAdminModalBack .resign-overview-copy p{margin:0;color:#96a7bc;font-size:11px;line-height:1.9}
+#resignationAdminModalBack .resign-stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+#resignationAdminModalBack .resign-stat{display:flex;align-items:center;gap:9px;min-width:0;padding:12px 10px;border:1px solid rgba(142,174,219,.15);border-radius:13px;background:rgba(7,14,23,.55)}
+#resignationAdminModalBack .resign-stat-icon{width:32px;height:32px;flex:0 0 32px;display:grid;place-items:center;border-radius:10px;background:rgba(111,151,206,.13);color:#bad7ff;font-size:16px;font-weight:900}
+#resignationAdminModalBack .resign-stat.pending .resign-stat-icon{background:rgba(230,172,73,.12);color:#f5c879}
+#resignationAdminModalBack .resign-stat.approved .resign-stat-icon{background:rgba(64,194,145,.12);color:#74dfb6}
+#resignationAdminModalBack .resign-stat.rejected .resign-stat-icon{background:rgba(237,86,101,.12);color:#ff929e}
+#resignationAdminModalBack .resign-stat small{display:block;color:#8e9eb3;font-size:9px;font-weight:700;white-space:nowrap}
+#resignationAdminModalBack .resign-stat strong{display:block;margin-top:3px;color:#f6f8fb;font:900 21px/1 Arial,sans-serif}
+#resignationAdminModalBack .resign-create-panel{margin:0 0 24px!important;overflow:hidden!important;border:1px solid rgba(112,154,211,.19)!important;border-radius:15px!important;background:linear-gradient(110deg,rgba(26,40,59,.74),rgba(12,20,31,.86))!important}
+#resignationAdminModalBack .resign-create-panel summary{display:flex;align-items:center;gap:12px;min-height:65px;padding:12px 16px;cursor:pointer;list-style:none}
+#resignationAdminModalBack .resign-create-panel summary::-webkit-details-marker{display:none}
+#resignationAdminModalBack .resign-create-icon{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:10px;color:#ffb3bb;background:rgba(241,40,53,.14);border:1px solid rgba(241,40,53,.25);font-size:20px}
+#resignationAdminModalBack .resign-create-copy{display:grid;gap:4px;min-width:0}
+#resignationAdminModalBack .resign-create-copy b{color:#f3f6fb;font-size:12px}
+#resignationAdminModalBack .resign-create-copy small{color:#8e9eb3;font-size:10px}
+#resignationAdminModalBack .resign-create-toggle{margin-inline-start:auto;color:#b7cae3;font-size:10px;font-weight:800}
+#resignationAdminModalBack .resign-create-panel[open] .resign-create-toggle i{display:inline-block;transform:rotate(180deg)}
+#resignationAdminModalBack .resign-create-form{padding:17px 18px 15px;border-top:1px solid rgba(139,169,210,.13)}
+#resignationAdminModalBack .resign-create-form .field input,#resignationAdminModalBack .resign-create-form .field select,#resignationAdminModalBack .resign-create-form .field textarea{background:#080f19!important;border-color:#33445d!important;border-radius:10px!important}
+#resignationAdminModalBack .resign-create-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px}
+#resignationAdminModalBack .resign-create-footer .muted{font-size:10px}
+#resignationAdminModalBack .resign-list-section{display:block}
+#resignationAdminModalBack .resign-list-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 14px}
+#resignationAdminModalBack .resign-list-heading h4{margin:5px 0 3px;color:#f3f6fb;font-size:17px;font-weight:900}
+#resignationAdminModalBack .resign-list-heading p{margin:0;color:#8596aa;font-size:10px}
+#resignationAdminModalBack .resign-refresh{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(144,174,215,.2)!important;background:rgba(255,255,255,.035)!important;color:#c4d2e4!important}
+#resignationAdminModalBack .resign-refresh span{font-size:16px;color:#94bff5}
+#resignationAdminModalBack .resign-toolbar{display:grid;gap:12px;margin-bottom:12px;padding:13px;border:1px solid rgba(139,169,210,.14);border-radius:15px;background:rgba(8,15,24,.56)}
+#resignationAdminModalBack .resign-search{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 12px;border:1px solid #34455e;border-radius:11px;background:#080f19}
+#resignationAdminModalBack .resign-search span{color:#8eb6ed;font-size:21px}
+#resignationAdminModalBack .resign-search input{width:100%;min-width:0;border:0!important;outline:0!important;background:transparent!important;color:#f2f6fc!important;font-size:11px!important;box-shadow:none!important}
+#resignationAdminModalBack .resign-search input::placeholder{color:#687a91}
+#resignationAdminModalBack .resign-filter-row{display:flex;gap:7px;flex-wrap:wrap}
+#resignationAdminModalBack .resign-filter{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:7px 11px;border:1px solid rgba(143,173,214,.17);border-radius:9px;background:rgba(255,255,255,.025);color:#9eafc4;font-size:10px;font-weight:800}
+#resignationAdminModalBack .resign-filter i{min-width:18px;height:18px;display:grid;place-items:center;border-radius:6px;background:rgba(255,255,255,.07);color:#c9d6e8;font:800 9px/1 Arial,sans-serif;font-style:normal}
+#resignationAdminModalBack .resign-filter.active{border-color:rgba(241,40,53,.42);background:linear-gradient(100deg,rgba(241,40,53,.16),rgba(75,143,255,.10));color:#fff}
+#resignationAdminModalBack .resign-cleanup-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 13px;padding:12px 14px;border:1px solid rgba(225,163,75,.19);border-radius:12px;background:linear-gradient(100deg,rgba(96,66,31,.13),rgba(16,23,33,.68))}
+#resignationAdminModalBack .resign-cleanup-bar>div{display:grid;gap:4px}
+#resignationAdminModalBack .resign-cleanup-bar b{color:#e4c28e;font-size:10px}
+#resignationAdminModalBack .resign-cleanup-bar small{color:#8f9eb2;font-size:9px;line-height:1.6}
+#resignationAdminModalBack .resign-cleanup-bar .btn{min-height:33px;padding:7px 11px!important;white-space:nowrap;font-size:9px!important}
+#resignationAdminModalBack .resign-cleanup-bar .btn:disabled{opacity:.4;cursor:not-allowed}
+#resignationAdminModalBack .resign-cleanup-bar .btn span{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-inline-start:4px;border-radius:6px;background:rgba(255,255,255,.15)}
+#resignationAdminModalBack .resign-request-list{display:grid;gap:11px}
+#resignationAdminModalBack .resign-card{position:relative;overflow:hidden;padding:15px 16px;border:1px solid rgba(142,174,219,.16);border-radius:15px;background:linear-gradient(145deg,rgba(24,36,52,.94),rgba(10,17,27,.97));box-shadow:0 8px 24px rgba(0,0,0,.16);transition:transform .18s,border-color .18s,box-shadow .18s}
+#resignationAdminModalBack .resign-card:hover{transform:translateY(-2px);border-color:rgba(110,164,230,.34);box-shadow:0 14px 30px rgba(0,0,0,.24)}
+#resignationAdminModalBack .resign-card.pending{border-inline-start:3px solid #e6b052}
+#resignationAdminModalBack .resign-card.approved{border-inline-start:3px solid #42c697}
+#resignationAdminModalBack .resign-card.rejected{border-inline-start:3px solid #e76e7b}
+#resignationAdminModalBack .resign-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#resignationAdminModalBack .resign-person{display:flex;align-items:center;gap:11px;min-width:0}
+#resignationAdminModalBack .resign-avatar{display:block!important;width:48px!important;height:48px!important;max-width:48px!important;max-height:48px!important;flex:0 0 48px!important;border-radius:13px!important;object-fit:cover!important;border:1px solid rgba(151,181,224,.22)!important;background:#101a29!important}
+#resignationAdminModalBack .resign-avatar.fallback{display:grid!important;place-items:center!important;color:#95abc8;font-size:21px}
+#resignationAdminModalBack .resign-person-info{display:grid;gap:3px;min-width:0}
+#resignationAdminModalBack .resign-person-info b{color:#f4f7fb;font-size:13px;overflow-wrap:anywhere}
+#resignationAdminModalBack .resign-person-info small{color:#8597ad;font-size:10px;overflow-wrap:anywhere}
+#resignationAdminModalBack .resign-discord-id{color:#73859d;font:9px/1.4 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+#resignationAdminModalBack .resign-card-state{display:grid;justify-items:end;gap:6px;flex:0 0 auto}
+#resignationAdminModalBack .resign-status{display:inline-flex;align-items:center;justify-content:center;min-height:25px;padding:5px 9px;border:1px solid;border-radius:8px;font-size:9px;font-weight:900;white-space:nowrap}
+#resignationAdminModalBack .resign-status.pending{border-color:rgba(230,176,82,.35);background:rgba(230,176,82,.10);color:#f4c777}
+#resignationAdminModalBack .resign-status.approved{border-color:rgba(66,198,151,.30);background:rgba(66,198,151,.10);color:#76e1b9}
+#resignationAdminModalBack .resign-status.rejected{border-color:rgba(231,110,123,.32);background:rgba(231,110,123,.10);color:#ff9aa4}
+#resignationAdminModalBack .resign-test-tag{color:#dfa95c;font:800 8px/1 Arial,sans-serif;letter-spacing:1px}
+#resignationAdminModalBack .resign-card-subline{display:flex;align-items:center;gap:8px;margin:10px 0 12px;color:#8394aa;font-size:9px}
+#resignationAdminModalBack .resign-card-subline i{width:3px;height:3px;border-radius:50%;background:#687e9a}
+#resignationAdminModalBack .resign-reason-box{padding:11px 13px;border:1px solid rgba(138,166,205,.13);border-radius:10px;background:rgba(5,11,19,.38)}
+#resignationAdminModalBack .resign-reason-box>span{color:#8194ac;font-size:9px;font-weight:800}
+#resignationAdminModalBack .resign-reason-box p{margin:5px 0 0;color:#e3eaf4;font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+#resignationAdminModalBack .resign-note{margin-top:9px;padding:9px 12px;border:1px solid rgba(231,110,123,.19);border-radius:9px;background:rgba(231,110,123,.06)}
+#resignationAdminModalBack .resign-note b{color:#f39aa3;font-size:9px}
+#resignationAdminModalBack .resign-note p{margin:4px 0 0;color:#c8d0dc;font-size:10px;line-height:1.7}
+#resignationAdminModalBack .resign-card-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(139,169,210,.12)}
+#resignationAdminModalBack .resign-card-meta{display:grid;gap:7px;min-width:0}
+#resignationAdminModalBack .resign-meta-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:#8395ac;font-size:9px}
+#resignationAdminModalBack .resign-meta-line b{color:#c7d4e5;font-size:9px}
+#resignationAdminModalBack .resign-meta-line small{color:#6f8199;font-size:8px}
+#resignationAdminModalBack .resign-delivery-row{display:flex;gap:6px;flex-wrap:wrap}
+#resignationAdminModalBack .resign-delivery{display:inline-flex;align-items:center;gap:5px;padding:5px 7px;border-radius:7px;font-size:8px;font-weight:800}
+#resignationAdminModalBack .resign-delivery.ok{color:#79dcb3;background:rgba(66,198,151,.08);border:1px solid rgba(66,198,151,.15)}
+#resignationAdminModalBack .resign-delivery.pending{color:#e3bb72;background:rgba(230,176,82,.08);border:1px solid rgba(230,176,82,.15)}
+#resignationAdminModalBack .resign-delivery.warning{color:#ff9ca5;background:rgba(231,110,123,.08);border:1px solid rgba(231,110,123,.16)}
+#resignationAdminModalBack .resign-card-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;flex:0 0 auto}
+#resignationAdminModalBack .resign-card-actions .btn{min-height:34px;padding:7px 10px!important;font-size:9px!important}
+#resignationAdminModalBack .resign-delete-one{border-color:rgba(231,110,123,.25)!important;color:#f19aa3!important;background:rgba(231,110,123,.06)!important}
+#resignationAdminModalBack .resign-empty{display:grid;justify-items:center;gap:7px;padding:38px 15px;border:1px dashed rgba(142,174,219,.22);border-radius:15px;background:rgba(7,14,23,.45);text-align:center}
+#resignationAdminModalBack .resign-empty span{color:#8eabd1;font-size:26px}
+#resignationAdminModalBack .resign-empty b{color:#dbe5f2;font-size:12px}
+#resignationAdminModalBack .resign-empty small{color:#8091a7;font-size:10px}
+@media(max-width:850px){
+ #resignationAdminModalBack .resign-overview{grid-template-columns:1fr}
+ #resignationAdminModalBack .resign-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+ #resignationAdminModalBack.modalback{padding:6px!important}
+ #resignationAdminModalBack .resignation-admin-modal{width:100%!important;max-height:97vh!important;border-radius:16px!important}
+ #resignationAdminModalBack .resignation-admin-head{padding:15px 15px 13px!important}
+ #resignationAdminModalBack .resign-admin-content{padding:14px 12px 18px!important}
+ #resignationAdminModalBack .resign-overview{padding:14px;gap:13px}
+ #resignationAdminModalBack .resign-stat{padding:10px 8px;gap:7px}
+ #resignationAdminModalBack .resign-stat-icon{width:28px;height:28px;flex-basis:28px}
+ #resignationAdminModalBack .resign-stat strong{font-size:18px}
+ #resignationAdminModalBack .resign-filter-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ #resignationAdminModalBack .resign-filter{justify-content:space-between}
+ #resignationAdminModalBack .resign-cleanup-bar{align-items:stretch;flex-direction:column}
+ #resignationAdminModalBack .resign-card-head{align-items:flex-start}
+ #resignationAdminModalBack .resign-card-footer{align-items:stretch;flex-direction:column}
+ #resignationAdminModalBack .resign-card-actions{justify-content:flex-start}
+ #resignationAdminModalBack .resign-create-footer{align-items:stretch;flex-direction:column}
+}
 </style><style id="redline-tactical-design-v3">
 /* REDLINE TACTICAL COMMAND — V3
    A full visual-system replacement layer. Existing functionality and data hooks remain unchanged. */
@@ -2573,19 +2707,41 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 </div>
 
 <div class="modalback" id="resignationAdminModalBack" onclick="if(event.target===this)closeResignationAdminModal()">
- <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="resignationAdminTitle">
-  <div class="modalhead"><div><h3 id="resignationAdminTitle">إدارة الاستقالات</h3><div class="sub">تسجيل طلب جديد ومراجعة الطلبات الواردة.</div></div><button class="close" type="button" onclick="closeResignationAdminModal()">×</button></div>
-  <div class="attendance-leave-create">
-   <h4>تسجيل طلب استقالة</h4>
-   <div class="formgrid">
-    <div class="field full"><label for="resignationAdminMember">العضو *</label><select id="resignationAdminMember"><option value="">اختر عضوًا...</option></select></div>
-    <div class="field full"><label for="resignationAdminReason">سبب الاستقالة *</label><textarea id="resignationAdminReason" rows="3" maxlength="2000" placeholder="اكتب سبب الاستقالة..." required></textarea></div>
-   </div>
-   <div class="modalactions"><button class="btn primary" id="resignationAdminCreateButton" type="button" onclick="createResignationRequestAdmin()">＋ تسجيل طلب استقالة</button></div>
-   <div id="resignationAdminCreateStatus" class="muted" style="min-height:20px;margin-top:8px"></div>
+ <div class="modal resignation-admin-modal" role="dialog" aria-modal="true" aria-labelledby="resignationAdminTitle">
+  <div class="modalhead resignation-admin-head">
+   <div class="resign-head-brand"><span class="resign-head-mark">R</span><div><h3 id="resignationAdminTitle">إدارة الاستقالات</h3><div class="sub">PERSONNEL • RESIGNATION CONTROL CENTER</div></div></div>
+   <button class="close" type="button" onclick="closeResignationAdminModal()" aria-label="إغلاق">×</button>
   </div>
-  <div class="panelhead" style="margin-top:18px"><div><h4>طلبات الاستقالة</h4><span class="sub" id="resignationAdminUpdated">الطلبات المعلقة والسابقة</span></div><button class="btn" type="button" onclick="loadResignationRequests()">↻ تحديث</button></div>
-  <div id="resignationAdminRows" class="leave-request-list"><div class="empty">جارٍ تحميل الطلبات...</div></div>
+  <div class="resign-admin-content">
+   <section class="resign-overview">
+    <div class="resign-overview-copy"><span class="resign-eyebrow">ADMINISTRATION OVERVIEW</span><h4>مركز متابعة الاستقالات</h4><p>راجع الطلبات، اتخذ القرار، وتابع نشر بطاقة الاستقالة من مكان واحد.</p></div>
+    <div class="resign-stats-grid" id="resignationAdminStats" aria-live="polite"></div>
+   </section>
+   <details class="resign-create-panel">
+    <summary><span class="resign-create-icon">＋</span><span class="resign-create-copy"><b>إنشاء طلب استقالة إداري</b><small>تسجيل طلب نيابةً عن أحد الأعضاء</small></span><span class="resign-create-toggle">فتح النموذج <i>⌄</i></span></summary>
+    <div class="resign-create-form">
+     <div class="formgrid">
+      <div class="field full"><label for="resignationAdminMember">العضو *</label><select id="resignationAdminMember"><option value="">اختر عضوًا...</option></select></div>
+      <div class="field full"><label for="resignationAdminReason">سبب الاستقالة *</label><textarea id="resignationAdminReason" rows="3" maxlength="2000" placeholder="اكتب سبب الاستقالة بالتفصيل..." required></textarea></div>
+     </div>
+     <div class="resign-create-footer"><div id="resignationAdminCreateStatus" class="muted" aria-live="polite"></div><button class="btn primary" id="resignationAdminCreateButton" type="button" onclick="createResignationRequestAdmin()">＋ تسجيل الطلب</button></div>
+    </div>
+   </details>
+   <section class="resign-list-section">
+    <div class="resign-list-heading"><div><span class="resign-eyebrow">REQUEST INBOX</span><h4>طلبات الاستقالة</h4><p id="resignationAdminUpdated">جارٍ تحميل الطلبات...</p></div><button class="btn resign-refresh" type="button" onclick="loadResignationRequests()"><span>↻</span> تحديث</button></div>
+    <div class="resign-toolbar">
+     <div class="resign-search"><span>⌕</span><input id="resignationAdminSearch" type="search" placeholder="ابحث بالاسم أو Discord ID أو سبب الاستقالة..." oninput="renderResignationAdminRequests()" aria-label="البحث في طلبات الاستقالة"></div>
+     <div class="resign-filter-row" role="group" aria-label="تصفية طلبات الاستقالة">
+      <button class="resign-filter active" type="button" data-resign-filter="all" onclick="setResignationAdminFilter('all')">الكل <i data-resign-count="all">0</i></button>
+      <button class="resign-filter" type="button" data-resign-filter="pending" onclick="setResignationAdminFilter('pending')">قيد المراجعة <i data-resign-count="pending">0</i></button>
+      <button class="resign-filter" type="button" data-resign-filter="approved" onclick="setResignationAdminFilter('approved')">مقبولة <i data-resign-count="approved">0</i></button>
+      <button class="resign-filter" type="button" data-resign-filter="rejected" onclick="setResignationAdminFilter('rejected')">مرفوضة <i data-resign-count="rejected">0</i></button>
+     </div>
+    </div>
+    <div class="resign-cleanup-bar"><div><b>تنظيف بيانات التجربة</b><small>يحذف السجلات التي سببها «تيست» أو Test فقط، مع محاولة إزالة بطاقات Discord المرتبطة بها.</small></div><button class="btn danger" id="resignationDeleteTestsButton" type="button" onclick="deleteResignationTestRequests()" disabled>حذف سجلات الاختبار <span id="resignationTestCount">0</span></button></div>
+    <div id="resignationAdminRows" class="resign-request-list" aria-live="polite"><div class="resign-empty"><span>⌛</span><b>جارٍ تحميل طلبات الاستقالة</b><small>يتم تحديث البيانات من قاعدة البيانات</small></div></div>
+   </section>
+  </div>
  </div>
 </div>
 
@@ -4225,6 +4381,20 @@ let resignationReviewState={id:"",status:""};
 let resignationRequests=[];
 let myResignationRequests=[];
 let resignationBusy=false;
+let resignationAdminFilter='all';
+const resignationTestReasons=new Set(['تيست','test','testing','تجربة','تجريبي']);
+function isResignationTestRecord(item){
+ return resignationTestReasons.has(String(item?.reason||'').trim().toLocaleLowerCase('ar'));
+}
+function setResignationAdminFilter(value){
+ resignationAdminFilter=['all','pending','approved','rejected'].includes(value)?value:'all';
+ document.querySelectorAll('[data-resign-filter]').forEach(button=>{
+  const active=button.getAttribute('data-resign-filter')===resignationAdminFilter;
+  button.classList.toggle('active',active);
+  button.setAttribute('aria-pressed',active?'true':'false');
+ });
+ renderResignationAdminRequests();
+}
 const resignationPublishingIds=new Set();
 
 function normalizeResignationCardDesign(value){
@@ -4557,19 +4727,114 @@ async function loadResignationRequests(){
 }
 function renderResignationAdminRequests(){
  const body=document.getElementById('resignationAdminRows');if(!body)return;
- const pending=resignationRequests.filter(item=>item.status==='pending').length;
- const count=document.getElementById('resignationPendingCount');if(count)count.textContent=String(pending);
- const updated=document.getElementById('resignationAdminUpdated');if(updated)updated.textContent=resignationRequests.length+' طلب';
- body.innerHTML=resignationRequests.map(item=>{
-  const avatar=item.avatar_url?'<img class="leave-request-avatar" src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer">':'<span class="leave-request-avatar">👤</span>';
+ const search=String(document.getElementById('resignationAdminSearch')?.value||'').trim().toLocaleLowerCase('ar');
+ const counts={
+  all:resignationRequests.length,
+  pending:resignationRequests.filter(item=>item.status==='pending').length,
+  approved:resignationRequests.filter(item=>item.status==='approved').length,
+  rejected:resignationRequests.filter(item=>item.status==='rejected').length
+ };
+ const stats=document.getElementById('resignationAdminStats');
+ if(stats){
+  const tiles=[
+   ['total','إجمالي الطلبات',counts.all,'▤'],
+   ['pending','بانتظار القرار',counts.pending,'◷'],
+   ['approved','طلبات مقبولة',counts.approved,'✓'],
+   ['rejected','طلبات مرفوضة',counts.rejected,'×']
+  ];
+  stats.innerHTML=tiles.map(([key,label,value,icon])=>'<div class="resign-stat '+key+'"><span class="resign-stat-icon">'+icon+'</span><div><small>'+label+'</small><strong>'+value+'</strong></div></div>').join('');
+ }
+ document.querySelectorAll('[data-resign-filter]').forEach(button=>{
+  const key=button.getAttribute('data-resign-filter');
+  button.classList.toggle('active',key===resignationAdminFilter);
+  button.setAttribute('aria-pressed',key===resignationAdminFilter?'true':'false');
+  const node=button.querySelector('[data-resign-count]');
+  if(node)node.textContent=String(counts[key]??0);
+ });
+ const testCount=resignationRequests.filter(isResignationTestRecord).length;
+ const testCountNode=document.getElementById('resignationTestCount');
+ const testButton=document.getElementById('resignationDeleteTestsButton');
+ if(testCountNode)testCountNode.textContent=String(testCount);
+ if(testButton)testButton.disabled=!testCount||resignationDeleteTestsBusy;
+ const updated=document.getElementById('resignationAdminUpdated');
+ if(updated)updated.textContent=counts.pending+' معلّق • '+counts.approved+' مقبول • '+counts.rejected+' مرفوض';
+ const visible=resignationRequests.filter(item=>{
+  if(resignationAdminFilter!=='all'&&item.status!==resignationAdminFilter)return false;
+  if(!search)return true;
+  return [item.display_name,item.member_name,item.discord_user_id,item.reason,item.reviewed_by_name,item.source]
+   .some(value=>String(value||'').toLocaleLowerCase('ar').includes(search));
+ });
+ body.innerHTML=visible.map(item=>{
+  const avatar=item.avatar_url
+   ?'<img class="resign-avatar" src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer">'
+   :'<span class="resign-avatar fallback">👤</span>';
+  const statusClass=item.status==='pending'?'pending':item.status==='approved'?'approved':'rejected';
+  const statusLabel=resignationStatusLabel(item.status);
+  const sourceLabel=item.source==='discord'?'Discord':'الموقع';
+  const submitted=fmtWarningDate(item.submitted_at||item.created_at);
+  const testTag=isResignationTestRecord(item)?'<span class="resign-test-tag">TEST DATA</span>':'';
+  const reason='<div class="resign-reason-box"><span>سبب الاستقالة</span><p>'+adminEscape(item.reason||'—')+'</p></div>';
+  const decision=item.reviewed_by_name
+   ?'<div class="resign-meta-line"><span>قرار الإدارة</span><b>'+adminEscape(item.reviewed_by_name)+'</b><small>'+adminEscape(fmtWarningDate(item.reviewed_at||item.created_at))+'</small></div>'
+   :'';
+  const rejection=item.review_note?'<div class="resign-note"><b>ملاحظة القرار</b><p>'+adminEscape(item.review_note)+'</p></div>':'';
+  const dm=item.dm_status==='sent'
+   ?'<span class="resign-delivery ok">✓ تم إرسال القرار للعضو</span>'
+   :item.dm_status==='failed'?'<span class="resign-delivery warning">! تعذّر إرسال رسالة القرار</span>':'';
+  const publication=item.status==='approved'
+   ?(item.publish_status==='published'
+      ?'<span class="resign-delivery ok">✓ بطاقة الاستقالة منشورة على Discord</span>'
+      :item.publish_status==='failed'
+       ?'<span class="resign-delivery warning">! فشل النشر: '+adminEscape(item.publish_error||'خطأ غير معروف')+'</span>'
+       :'<span class="resign-delivery pending">◷ بانتظار نشر البطاقة</span>')
+   :'';
   const actions=item.status==='pending'
-   ?'<div class="leave-request-actions"><button class="btn primary" type="button" onclick="openResignationApproval(\''+adminEscape(item.id)+'\')">✓ موافقة</button><button class="btn danger" type="button" onclick="openResignationRejection(\''+adminEscape(item.id)+'\')">✕ رفض</button></div>'
-   :item.status==='approved'&&item.publish_status!=='published'?'<div class="leave-request-actions"><button class="btn" type="button" '+(resignationPublishingIds.has(String(item.id))?'disabled aria-busy="true"':'')+' onclick="retryResignationCard(\''+adminEscape(item.id)+'\')">'+(resignationPublishingIds.has(String(item.id))?'⏳ جارٍ نشر البطاقة...':'نشر بطاقة الاستقالة')+'</button></div>':'';
-  const decision=item.reviewed_by_name?'<div class="leave-request-decision">قرار الإدارة: '+adminEscape(item.reviewed_by_name)+' • '+adminEscape(fmtWarningDate(item.reviewed_at||item.created_at))+(item.review_note?'<br>ملاحظة: '+adminEscape(item.review_note):'')+'</div>':'';
-  const delivery=item.status==='approved'?'<div class="muted">'+(resignationPublishingIds.has(String(item.id))?'⏳ جارٍ تجهيز البطاقة وإرسالها إلى Discord...':item.publish_status==='published'?'تم نشر بطاقة الاستقالة في Discord.':item.publish_status==='failed'?'فشل نشر البطاقة: '+adminEscape(item.publish_error||'خطأ غير معروف'):'بانتظار نشر البطاقة.')+'</div>':'';
-  const dm=item.dm_status==='sent'?'تم إرسال القرار للعضو على Discord':item.dm_status==='failed'?'فشل إرسال رسالة القرار للعضو':'';
-  return '<article class="leave-request-card '+item.status+'"><div class="leave-request-head"><div class="leave-request-person">'+avatar+'<div style="min-width:0"><div class="leave-request-account">'+adminEscape(item.display_name||'عضو')+' • '+adminEscape(item.member_name||'بدون اسم في الطلب')+'</div><div class="leave-request-id">Discord ID: '+adminEscape(item.discord_user_id||'—')+'</div><div class="leave-request-source">'+(item.source==='discord'?'Discord':'الموقع')+' • '+adminEscape(fmtWarningDate(item.submitted_at||item.created_at))+'</div></div></div><span class="attendance-leave-status '+item.status+'">'+resignationStatusLabel(item.status)+'</span></div><div class="leave-request-reason"><span class="leave-request-label">سبب الاستقالة</span><p class="leave-request-reason-text">'+adminEscape(item.reason||'—')+'</p></div>'+decision+(dm?'<div class="muted">'+dm+'</div>':'')+delivery+actions+'</article>';
- }).join('')||'<div class="empty">لا توجد طلبات استقالة حتى الآن.</div>';
+   ?'<button class="btn primary" type="button" onclick="openResignationApproval(\''+adminEscape(item.id)+'\')">✓ موافقة</button><button class="btn danger" type="button" onclick="openResignationRejection(\''+adminEscape(item.id)+'\')">رفض الطلب</button>'
+   :item.status==='approved'&&item.publish_status!=='published'
+    ?'<button class="btn" type="button" '+(resignationPublishingIds.has(String(item.id))?'disabled aria-busy="true"':'')+' onclick="retryResignationCard(\''+adminEscape(item.id)+'\')">'+(resignationPublishingIds.has(String(item.id))?'⏳ جارٍ النشر...':'إعادة نشر البطاقة')+'</button>'
+    :'';
+  const deleteAction=isResignationTestRecord(item)
+   ?'<button class="btn resign-delete-one" type="button" onclick="deleteSingleResignationTest(\''+adminEscape(item.id)+'\')">حذف سجل التجربة</button>'
+   :'';
+  return '<article class="resign-card '+statusClass+'">'+
+   '<div class="resign-card-head"><div class="resign-person">'+avatar+'<div class="resign-person-info"><b>'+adminEscape(item.member_name||item.display_name||'عضو')+'</b><small>'+adminEscape(item.display_name||'')+'</small><span class="resign-discord-id">ID: '+adminEscape(item.discord_user_id||'—')+'</span></div></div>'+
+   '<div class="resign-card-state"><span class="resign-status '+statusClass+'">'+adminEscape(statusLabel)+'</span>'+testTag+'</div></div>'+
+   '<div class="resign-card-subline"><span>'+sourceLabel+'</span><i></i><span>'+submitted+'</span></div>'+
+   reason+rejection+
+   '<div class="resign-card-footer">'+
+    '<div class="resign-card-meta">'+decision+'<div class="resign-delivery-row">'+dm+publication+'</div></div>'+
+    '<div class="resign-card-actions">'+actions+deleteAction+'</div>'+
+   '</div></article>';
+ }).join('')||'<div class="resign-empty"><span>⌕</span><b>لا توجد طلبات مطابقة</b><small>غيّر حالة العرض أو كلمة البحث لعرض طلبات أخرى.</small></div>';
+}
+let resignationDeleteTestsBusy=false;
+async function deleteResignationTestRequests(){
+ if(!currentCanAdmin||!currentCanManageWarnings||resignationDeleteTestsBusy)return;
+ const candidates=resignationRequests.filter(isResignationTestRecord);
+ if(!candidates.length)return;
+ const approved=confirm('سيتم حذف '+candidates.length+' سجل اختبار فقط، بشرط أن يكون سبب الاستقالة «تيست» أو Test. ستتم أيضًا محاولة حذف بطاقات Discord المنشورة المرتبطة بها. لا يمكن التراجع عن الحذف. هل تريد المتابعة؟');
+ if(!approved)return;
+ resignationDeleteTestsBusy=true;renderResignationAdminRequests();
+ try{
+  const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete_resignation_test_requests',request_ids:candidates.map(item=>item.id)})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر حذف سجلات الاختبار.');
+  toast('تم حذف '+Number(data.deleted||0)+' سجل اختبار'+(data.deleted_discord_messages?' وحذف '+data.deleted_discord_messages+' بطاقة Discord':'')+'.');
+  if(data.discord_cleanup_failures?.length)toast('تم حذف السجلات، لكن تعذّر إزالة '+data.discord_cleanup_failures.length+' رسالة Discord. راجع صلاحيات البوت.');
+  await loadResignationRequests();
+ }catch(error){toast(error.message||'تعذّر حذف سجلات الاختبار.');}
+ finally{resignationDeleteTestsBusy=false;renderResignationAdminRequests();}
+}
+async function deleteSingleResignationTest(id){
+ if(!currentCanAdmin||!currentCanManageWarnings)return;
+ const item=resignationRequests.find(row=>String(row.id)===String(id));
+ if(!item||!isResignationTestRecord(item))return;
+ if(!confirm('حذف سجل الاختبار لهذا العضو؟ سيتم حذف بطاقة Discord المرتبطة به إن وُجدت.'))return;
+ const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete_resignation_test_requests',request_ids:[item.id]})});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok){toast(data.error||'تعذّر حذف السجل.');return;}
+ toast('تم حذف سجل الاختبار.');
+ await loadResignationRequests();
 }
 async function openResignationAdminModal(){
  if(!currentCanAdmin||!currentCanManageWarnings){toast('إدارة الاستقالات متاحة لـ Website Admin فقط.');return;}
