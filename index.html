@@ -4379,6 +4379,7 @@ let resignationCardDragging=null;
 let resignationPreviewMember=null;
 let resignationReviewState={id:"",status:""};
 let resignationRequests=[];
+let resignationMemberOptions=[];
 let myResignationRequests=[];
 let resignationBusy=false;
 let resignationAdminFilter='all';
@@ -4838,16 +4839,38 @@ async function deleteSingleResignationTest(id){
 }
 async function openResignationAdminModal(){
  if(!currentCanAdmin||!currentCanManageWarnings){toast('إدارة الاستقالات متاحة لـ Website Admin فقط.');return;}
- if(!attendanceData.members.length)await renderAttendance();
+ const modal=document.getElementById('resignationAdminModalBack');
  const memberSelect=document.getElementById('resignationAdminMember');
+ const previous=String(memberSelect?.value||'');
  if(memberSelect){
-  const previous=memberSelect.value;
-  memberSelect.innerHTML='<option value="">اختر عضوًا...</option>'+attendanceData.members.filter(member=>member.is_swat_member).map(member=>
-   '<option value="'+adminEscape(member.discord_user_id)+'">'+adminEscape(member.display_name||member.username||'عضو')+' — '+adminEscape(member.discord_user_id)+'</option>'
-  ).join('');
-  if(attendanceData.members.some(member=>String(member.discord_user_id)===previous))memberSelect.value=previous;
+  memberSelect.disabled=true;
+  memberSelect.innerHTML='<option value="">جارٍ تحميل الحسابات المسجلة...</option>';
  }
- document.getElementById('resignationAdminModalBack')?.classList.add('open');loadResignationRequests();
+ modal?.classList.add('open');
+ try{
+  const response=await fetch('/api/warnings?resignation_member_options=1',{credentials:'same-origin',cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تحميل قائمة الأعضاء.');
+  resignationMemberOptions=Array.isArray(data.members)?data.members:[];
+  if(memberSelect){
+   memberSelect.innerHTML='<option value="">اختر عضوًا...</option>'+resignationMemberOptions.map(member=>{
+    const id=String(member.discord_user_id||'');
+    const name=String(member.display_name||member.username||'عضو مسجل');
+    const hint=member.has_pending_resignation?' — طلب استقالة معلّق':member.is_active?'':' — حساب سابق';
+    return '<option value="'+adminEscape(id)+'" '+(member.has_pending_resignation?'disabled':'')+'>'+adminEscape(name)+' — '+adminEscape(id)+adminEscape(hint)+'</option>';
+   }).join('');
+   if(resignationMemberOptions.some(member=>String(member.discord_user_id)===previous&&!member.has_pending_resignation))memberSelect.value=previous;
+   memberSelect.disabled=false;
+  }
+ }catch(error){
+  resignationMemberOptions=[];
+  if(memberSelect){
+   memberSelect.innerHTML='<option value="">تعذّر تحميل الأعضاء — اضغط إغلاق وافتح القائمة مجددًا</option>';
+   memberSelect.disabled=false;
+  }
+  toast(error.message||'تعذّر تحميل قائمة الأعضاء.');
+ }
+ await loadResignationRequests();
 }
 function closeResignationAdminModal(){document.getElementById('resignationAdminModalBack')?.classList.remove('open');}
 async function createResignationRequestAdmin(){
