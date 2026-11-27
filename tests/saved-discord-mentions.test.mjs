@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   normalizeMentionSelections,
+  buildSavedMessageEditMultipart,
   selectSavedMessageDmRecipients,
   filterSavedMessageBulkRecipientsBySwatRole
 } from "../lib/saved-discord-messages.js";
@@ -212,4 +213,28 @@ test("bulk DM role verification reports Discord rate limits before starting any 
     ),
     error=>error.code==="429"&&error.status===503&&error.message.includes("429")
   );
+});
+
+
+test("editing a published message explicitly replaces only the template attachment set", async () => {
+  const payload = {
+    content:"<#333333333333333333>\\n\\nAnnouncement text",
+    allowed_mentions:{parse:[]},
+    components:[]
+  };
+  const emptyEdit = buildSavedMessageEditMultipart(payload, null, []);
+  assert.deepEqual(emptyEdit.attachments, []);
+  const multipart = buildSavedMessageEditMultipart(
+    payload,
+    {filename:"announcement.txt",fileContent:"updated full text"},
+    [{filename:"image.png",content_type:"image/png",bytes:new Uint8Array([1,2,3])}]
+  );
+  assert.ok(multipart instanceof FormData);
+  const body = JSON.parse(await multipart.get("payload_json").text());
+  assert.deepEqual(body.attachments,[
+    {id:0,filename:"announcement.txt"},
+    {id:1,filename:"image.png"}
+  ]);
+  assert.equal(await multipart.get("files[0]").text(),"updated full text");
+  assert.deepEqual(Array.from(new Uint8Array(await multipart.get("files[1]").arrayBuffer())),[1,2,3]);
 });

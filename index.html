@@ -2383,6 +2383,12 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
 #page-messages .saved-message-image-link img{display:block;width:110px;height:82px;object-fit:cover}
 #page-messages .saved-message-image-missing{width:110px;height:82px;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;box-sizing:border-box;background:#171b22;border:1px dashed #4a515e;border-radius:7px;color:#aeb5c0;font-size:10px}
 #page-messages .saved-message-delivery{display:grid;gap:9px}
+.saved-message-delivery-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.saved-message-delivery-actions .btn{min-height:38px}
+.saved-message-delivery-actions .mention-edit-published{border:1px solid rgba(102,158,223,.34);background:rgba(52,104,164,.12);color:#b9d8ff}
+.saved-message-delivery-actions .mention-edit-published:hover{border-color:rgba(117,180,245,.58);background:rgba(52,104,164,.2)}
+.saved-message-delivery-actions .mention-edit-published[disabled]{opacity:.55;cursor:wait}
+.saved-message-edit-note{color:#8192a7;font-size:10px;line-height:1.7}
 #page-messages .saved-message-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start}
 #page-messages .saved-message-control{min-width:0;display:grid;gap:6px}
 #page-messages .saved-message-control>label{font-size:11px;color:#aab2be;font-weight:700}
@@ -7091,6 +7097,8 @@ function renderDiscordSavedMessages(){
   const bytes=Number(item.content_bytes||0).toLocaleString('en-US');
   const lastSent=item.last_sent_at?'آخر إرسال: '+formatAnnouncementDate(item.last_sent_at):'لم تُرسل بعد';
   const sentCount=Number(item.send_count||0);
+  const canEditPublished=Boolean(item.last_sent_channel_id&&item.last_sent_message_id);
+  const sentChannelName=discordSavedChannels?.channels?.find(channel=>String(channel.id)===String(item.last_sent_channel_id))?.name||'';
   const dmStatus=!discordDmRecipientsState.dm_enabled
    ? 'إرسال الخاص متوقف من إعدادات الموقع.'
    : isBulk&&!discordDmRecipientsState.broadcast_enabled
@@ -7106,7 +7114,7 @@ function renderDiscordSavedMessages(){
     : '<div class="saved-message-control"><label>مستلمو الرسائل الخاصة</label><div class="mention-info" style="padding:10px;background:#0b0d11;border:1px solid #343b46;border-radius:8px">'+esc(dmStatus)+'</div></div>'
    : '';
   const channelControl='<div class="saved-message-control" id="discordChannelControl_'+id+'" style="'+(usesChannels?'':'display:none')+'"><label>قنوات الإرسال</label><div class="mention-picker"><div class="mention-selected" id="discordChannelSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordChannelToggle_'+id+'" onclick="toggleDiscordChannelPicker('+jsArg(item.id)+')">اختيار قنوات الإرسال</button><div class="mention-dropdown" id="discordChannelDropdown_'+id+'" hidden></div></div></div>';
-  const mentionControl='<div class="saved-message-control" id="discordMentionControl_'+id+'" style="'+(usesChannels?'':'display:none')+'"><label>المنشنات الاختيارية</label><div class="mention-picker"><div class="mention-selected" id="discordMentionSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordMentionToggle_'+id+'" onclick="toggleDiscordMentionPicker('+jsArg(item.id)+')">اختيار المنشنات</button><div class="mention-dropdown" id="discordMentionDropdown_'+id+'" hidden></div><div class="mention-info">يمكنك تحديد عدة رتب أو أعضاء أو إشارات قنوات. إشارة القناة لا ترسل تنبيهًا.</div></div></div>';
+  const mentionControl='<div class="saved-message-control" id="discordMentionControl_'+id+'" style="'+(usesChannels||canEditPublished?'':'display:none')+'"><label>المنشنات الاختيارية</label><div class="mention-picker"><div class="mention-selected" id="discordMentionSelected_'+id+'"></div><button type="button" class="mention-trigger" id="discordMentionToggle_'+id+'" onclick="toggleDiscordMentionPicker('+jsArg(item.id)+')">اختيار المنشنات</button><div class="mention-dropdown" id="discordMentionDropdown_'+id+'" hidden></div><div class="mention-info">يمكنك تحديد عدة رتب أو أعضاء أو إشارات قنوات. إشارة القناة لا ترسل تنبيهًا.</div></div></div>';
   const linkControl='<div class="saved-message-control"><label>أزرار الروابط</label><div class="saved-link-button-list">'+(Array.isArray(item.link_buttons)&&item.link_buttons.length?item.link_buttons.map((link,index)=>'<div class="saved-link-button-item"><div style="min-width:0"><div class="saved-link-button-name"><span>↗ '+esc(link.label)+'</span></div><span class="saved-link-button-url">'+esc(link.url)+'</span></div><div class="saved-link-button-actions"><button type="button" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+','+index+')">تعديل</button><button type="button" class="delete" onclick="removeDiscordLinkButton('+jsArg(item.id)+','+index+')">×</button></div></div>').join(''):'<div class="mention-info">لا توجد أزرار روابط مضافة.</div>')+'</div><button type="button" class="saved-link-button-add" onclick="openDiscordLinkButtonModal('+jsArg(item.id)+')">＋ إنشاء زرار رابط</button>'+(Array.isArray(item.link_buttons)&&item.link_buttons.length>=25?'<div class="saved-link-button-limit">وصلت للحد الأقصى 25 زرار.</div>':'')+'</div>';
   const modeOptions=[
    ['channels','قنوات Discord فقط'],
@@ -7123,7 +7131,9 @@ function renderDiscordSavedMessages(){
    '<div class="saved-message-delivery"><div class="saved-message-controls">'+
     '<div class="saved-message-control"><label>جهة الإرسال</label><select class="message-editor-input" id="discordDeliveryMode_'+id+'" onchange="setSavedMessageDeliveryMode('+jsArg(item.id)+',this.value)">'+options+'</select></div>'+
     recipientControl+channelControl+mentionControl+linkControl+
-   '</div><button id="discordSend_'+id+'" class="btn primary mention-send" type="button" '+(savedMessageDeliveryReady(item.id)?'':'hidden')+' onclick="sendSavedDiscordMessage('+jsArg(item.id)+',this)">'+(sentCount?'إعادة الإرسال ↻':'إرسال ↗')+'</button></div>'+
+   '</div><div class="saved-message-delivery-actions"><button id="discordSend_'+id+'" class="btn primary mention-send" type="button" '+(savedMessageDeliveryReady(item.id)?'':'hidden')+' onclick="sendSavedDiscordMessage('+jsArg(item.id)+',this)">'+(sentCount?'إرسال نسخة جديدة ↗':'إرسال ↗')+'</button>'+
+    (canEditPublished?'<button id="discordEditPublished_'+id+'" class="btn mention-edit-published" type="button" onclick="editPublishedDiscordMessage('+jsArg(item.id)+',this)">تعديل المنشور في Discord ✎'+(sentChannelName?' · #'+esc(sentChannelName):'')+'</button>':'')+
+    '</div>'+(canEditPublished?'<div class="saved-message-edit-note">تعديل المنشور يحدّث نفس رسالة Discord فقط؛ لا ينشئ رسالة جديدة ولا يرسل رسائل خاصة. زر «إرسال نسخة جديدة» يظل للإرسال الكامل حسب جهة الإرسال المحددة.</div>':'')+'</div>'+
    '<div class="saved-message-status">'+esc(lastSent)+' • مرات الإرسال: '+sentCount+'</div>'+
    '<div class="saved-message-actions"><button class="btn" type="button" onclick="openDiscordMessageModal('+jsArg(item.id)+')">تعديل</button><button class="btn danger" type="button" onclick="deleteDiscordSavedMessage('+jsArg(item.id)+',this)">حذف</button></div>'+
   '</article>';
@@ -7475,7 +7485,7 @@ async function sendSavedDiscordMessage(id,button){
  const destinations=[];
  if(wantsChannels)destinations.push('قنوات Discord ('+channelIds.length+')');
  if(wantsDm)destinations.push(isBulk?'خاص لكل الأعضاء المؤهلين ('+Number(discordDmRecipientsState.recipient_count||0)+')':'خاص إلى '+(chosenRecipient?.display_name||'العضو المحدد'));
- let confirmation=(isResend?'إعادة إرسال ':'إرسال ')+'«'+(row.title||'بدون عنوان')+'»؟';
+ let confirmation=(isResend?'إرسال نسخة جديدة من ':'إرسال ')+'«'+(row.title||'بدون عنوان')+'»؟';
  confirmation+='\n\nوجهة الإرسال: '+destinations.join(' + ');
  if(wantsChannels)confirmation+='\n\nالقنوات المحددة: '+channelNames.join('، ');
  if(wantsDm)confirmation+='\n\nالمستلمون: '+(isBulk?'كل الأعضاء النشطين الذين فعّلوا استقبال الخاص.':'عضو واحد: '+(chosenRecipient?.display_name||'محدد'));
@@ -7573,6 +7583,38 @@ async function sendSavedDiscordMessage(id,button){
   if(button){button.disabled=false;button.textContent=old;}
  }
 }
+async function editPublishedDiscordMessage(id,button){
+ if(!currentCanManageWarnings)return;
+ const row=discordSavedMessages.find(item=>String(item.id)===String(id));
+ if(!row||!row.last_sent_channel_id||!row.last_sent_message_id){
+  toast('لا يوجد منشور محفوظ لتعديله. أرسل نسخة جديدة مرة واحدة أولًا.');
+  return;
+ }
+ const mentions=mentionSelectedFor(id).slice();
+ const mentionNames=mentions.map(item=>item.label).join('، ')||'بدون منشن';
+ const channelName=discordSavedChannels?.channels?.find(channel=>String(channel.id)===String(row.last_sent_channel_id))?.name||row.last_sent_channel_id;
+ const confirmation='سيتم تعديل نفس الرسالة الموجودة في #'+channelName+' فقط.\n\nالمنشنات الجديدة: '+mentionNames+'\n\nلن يتم إنشاء رسالة جديدة، ولن يتم إرسال أي رسالة خاصة للأعضاء. هل تريد تعديل المنشور الحالي؟';
+ if(!confirm(confirmation))return;
+ const old=button?.textContent||'تعديل المنشور في Discord ✎';
+ if(button){button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='جارٍ تعديل نفس المنشور...';}
+ try{
+  const response=await fetch('/api/notifications/send',{
+   method:'POST',credentials:'same-origin',cache:'no-store',
+   headers:{'Content-Type':'application/json','Accept':'application/json'},
+   body:JSON.stringify({action:'saved_message_edit_published',id,mentions})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||'تعذّر تعديل الرسالة المنشورة.');
+  if(data.sent_new_message!==false||data.sent_direct_messages!==false)throw new Error('لم يؤكد الخادم أن العملية عدّلت المنشور فقط. راجع الرسالة قبل إعادة المحاولة.');
+  await loadDiscordSavedMessages();
+  toast('تم تعديل نفس الرسالة المنشورة في #'+(data.channel_name||channelName)+' بنجاح. لم تُرسل رسائل جديدة أو خاصة.');
+ }catch(error){
+  toast(error.message||'تعذّر تعديل الرسالة المنشورة.');
+ }finally{
+  if(button){button.disabled=false;button.removeAttribute('aria-busy');button.textContent=old;}
+ }
+}
+
 function renderSiteCustomMenus(){
  const nav=document.getElementById('nav'),content=document.querySelector('.content');
  if(!nav||!content)return;
