@@ -1101,7 +1101,7 @@ async function prepareResignationRoleRemoval(cfg, targetId) {
   if (targetId === process.env.DISCORD_OWNER_ID) {
     throw Object.assign(new Error("لا يمكن اعتماد استقالة مالك السيرفر المحمي."), { status: 403 });
   }
-  if (!/^\\d{15,22}$/.test(String(targetId || ""))) {
+  if (!/^\d{15,22}$/.test(String(targetId || ""))) {
     throw Object.assign(new Error("معرّف Discord للعضو غير صالح؛ لم يتم تغيير أي رتبة."), { status: 400 });
   }
 
