@@ -1222,21 +1222,19 @@ async function loadDisciplinaryMentionSettings(cfg) {
 }
 async function sendAnnouncement(cfg, embed, targetId) {
   const mentionSettings = await loadDisciplinaryMentionSettings(cfg);
-  // Always include the target member mention in the channel announcement.
-  // Keep the SWAT role mention controlled by its existing setting.
   const roleMention = mentionSettings.swatRoleMentionEnabled ? "<@&" + cfg.notificationRoleId + ">" : null;
-  const memberMention = "<@" + targetId + ">";
+  const memberMention = mentionSettings.targetMentionEnabled ? "<@" + targetId + ">" : null;
   const content = [roleMention, memberMention].filter(Boolean).join(" ");
   return discord(cfg, "/channels/" + cfg.channelId + "/messages", {
     method: "POST",
     body: JSON.stringify({
-      content,
+      ...(content ? { content } : {}),
       embeds: [embed],
       components: portalLinkComponents(),
       allowed_mentions: {
         parse: [],
         roles: mentionSettings.swatRoleMentionEnabled ? [cfg.notificationRoleId] : [],
-        users: [targetId]
+        users: mentionSettings.targetMentionEnabled ? [targetId] : []
       }
     })
   });
