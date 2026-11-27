@@ -524,7 +524,7 @@ async function listData(cfg, includeArchived = false) {
     "disciplinary_subjects?select=discord_user_id,display_name,username,avatar_url,warning_level,status,last_reason,last_action_at,warning_expires_at,is_archived,archived_at,archived_by_name,archive_reason,created_at,updated_at&order=updated_at.desc" +
     (includeArchived ? "" : "&is_archived=eq.false");
   const [staffResponse, subjectResponse, actionResponse] = await Promise.all([
-    db(cfg, "staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&order=display_name.asc"),
+    db(cfg, "staff_profiles?select=discord_user_id,display_name,username,avatar_url,is_active,is_banned&is_active=eq.true&is_banned=eq.false&order=display_name.asc"),
     db(cfg, subjectQuery),
     db(cfg, "disciplinary_actions?select=id,discord_user_id,target_name,action_type,warning_level,reason,details,actor_name,status,role_sync_status,dm_status,dm_channel_id,dm_message_id,channel_status,channel_message_id,warning_expires_at,expired_at,voided_at,void_reason,voided_by_discord_id,voided_by_name,completed_at,created_at&order=created_at.desc&limit=500")
   ]);
@@ -1399,7 +1399,20 @@ export default async function handler(req, res) {
       await requireManager(cfg, user);
       const targetId = String(params.get("discord_user_id") || "");
       if (!/^\d{15,22}$/.test(targetId)) return json(res, 400, { error: "معرّف Discord غير صالح." });
+      const profileQuery = new URLSearchParams({
+        discord_user_id: "eq." + targetId,
+        is_active: "eq.true",
+        is_banned: "eq.false",
+        select: "discord_user_id",
+        limit: "1"
+      });
+      const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
+      if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من نشاط حساب العضو." });
+      if (!(await profileResponse.json()).length) return json(res, 409, { error: "لا يمكن معاينة بطاقة الفصل لحساب غير نشط أو موقوف." });
       const member = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
+      if (!Array.isArray(member.roles) || !member.roles.includes(cfg.swatRoleId)) {
+        return json(res, 409, { error: "لا يمكن معاينة بطاقة الفصل لعضو لا يحمل رتبة S.W.A.T. الحالية." });
+      }
       return json(res, 200, { member: { id: targetId, name: discordName(member), avatar_url: discordAvatarUrl(member, cfg.guildId) } });
     }
     if (req.method === "GET" && params.get("diagnostics") === "1") {
@@ -1455,6 +1468,7 @@ export default async function handler(req, res) {
       await requireManager(cfg, user);
       const profilesQuery = new URLSearchParams({
         select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned",
+        is_active: "eq.true",
         is_banned: "eq.false",
         order: "display_name.asc",
         limit: "1000"
@@ -1764,13 +1778,12 @@ export default async function handler(req, res) {
       const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
       if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من ملف العضو." });
       const profile = (await profileResponse.json())[0];
-      if (!profile || profile.is_banned === true || (selfRequest && profile.is_active !== true)) {
-        return json(res, 404, { error: "لا يمكن تسجيل الاستقالة لهذا الحساب؛ تأكد أنه مسجل وغير محظور في الموقع." });
+      if (!profile || profile.is_banned === true || profile.is_active !== true) {
+        return json(res, 404, { error: "لا يمكن تسجيل الاستقالة لهذا الحساب؛ يجب أن يكون حسابه نشطًا في الموقع." });
       }
       const memberName = requestedMemberName || String(profile.display_name || profile.username || "").trim();
       if (memberName.length < 2 || memberName.length > 100) return json(res, 400, { error: "تعذّر تحديد اسم العضو من ملفه." });
-      // Former SWAT members remain eligible for a new resignation record.
-      // The member must still exist in the guild, but no longer needs the current SWAT role.
+      // Only a currently active staff profile can submit or receive a new resignation request.
       const discordMember = await getGuildMemberOrNull(cfg, targetId);
       if (!discordMember) return json(res, 409, { error: "هذا الحساب غير موجود حاليًا في سيرفر Discord؛ لا يمكن تنفيذ إجراء الاستقالة عليه." });
       const duplicateQuery = new URLSearchParams({ discord_user_id: "eq." + targetId, status: "eq.pending", select: "id", limit: "1" });
@@ -1883,6 +1896,55 @@ export default async function handler(req, res) {
           });
         }
       }
+      let portalRetirement = null;
+      if (status === "approved" && resignationRoleCleanup) {
+        try {
+          portalRetirement = await rpc(cfg, "retire_staff_member", {
+            p_discord_user_id: updated.discord_user_id,
+            p_reason: "استقالة معتمدة: " + String(updated.reason || "").slice(0, 850),
+            p_actor_discord_id: user.id,
+            p_actor_name: user.displayName || user.username || "إدارة S.W.A.T.",
+            p_remaining_role_ids: resignationRoleCleanup.remainingRoleIds || []
+          });
+        } catch (retirementError) {
+          console.error("Resignation portal retirement failed:", retirementError?.message || "unknown");
+          let rolesRestored = false;
+          try {
+            await restoreMemberRoles(cfg, updated.discord_user_id, resignationRolePlan.originalRoles);
+            rolesRestored = true;
+          } catch (restoreError) {
+            console.error("Resignation role restore after retirement failure failed:", restoreError?.message || "unknown");
+          }
+          const rollback = await db(cfg,
+            "resignation_requests?id=eq." + encodeURIComponent(requestId) +
+            "&status=eq.approved&reviewed_by_discord_id=eq." + encodeURIComponent(user.id), {
+              method: "PATCH",
+              headers: { Prefer: "return=representation" },
+              body: JSON.stringify({
+                status: "pending",
+                reviewed_by_discord_id: null,
+                reviewed_by_name: null,
+                reviewed_at: null,
+                review_note: null,
+                dm_status: "not_sent",
+                dm_error: null,
+                updated_at: new Date().toISOString()
+              })
+            }
+          );
+          const rollbackSucceeded = rollback.ok && (await rollback.json().catch(() => [])).length === 1;
+          return json(res, 502, {
+            error: rollbackSucceeded
+              ? (rolesRestored
+                ? "لم يتم اعتماد الاستقالة لأن تعذّر إيقاف حساب العضو في الموقع. أُعيد الطلب إلى «قيد المراجعة» ولم تُحذف بياناته. السبب: " + String(retirementError?.message || "تعذّر تحديث الحساب")
+                : "تعذّر إيقاف الحساب في الموقع وفشل استرجاع رتب Discord. أُعيد الطلب إلى «قيد المراجعة»؛ راجع رتب العضو يدويًا فورًا.")
+              : "تعذّر إكمال إيقاف الحساب ولم تنجح إعادة الطلب إلى «قيد المراجعة». راجع الطلب وعضوية Discord يدويًا فورًا.",
+            role_retirement_failed: true,
+            roles_restored: rolesRestored,
+            approval_rolled_back: rollbackSucceeded
+          });
+        }
+      }
       try {
         await forwardAuditToDiscord(user, {
           action: "update", entity_type: "resignation_request", entity_id: requestId,
@@ -1891,7 +1953,9 @@ export default async function handler(req, res) {
             detail: (status === "approved" ? "تمت الموافقة على استقالة " : "تم رفض طلب استقالة ") + (updated.member_name || updated.display_name) + ".",
             target_discord_id: updated.discord_user_id, status, review_note: note,
             removed_role_count: resignationRoleCleanup?.removedRoleCount || 0,
-            preserved_role_ids: resignationRoleCleanup?.preservedRoleIds || []
+            preserved_role_ids: resignationRoleCleanup?.preservedRoleIds || [],
+            portal_access_disabled: status === "approved",
+            portal_assignments_unassigned: Number(portalRetirement?.assignments_unassigned || 0)
           }
         });
       } catch (auditError) { console.error("Resignation review audit forwarding failed:", auditError?.message || "unknown"); }
@@ -1900,7 +1964,7 @@ export default async function handler(req, res) {
         const embed = {
           title: status === "approved" ? "✅ تمت الموافقة على طلب استقالتك" : "❌ تم رفض طلب الاستقالة",
           description: status === "approved"
-            ? "تم اعتماد طلب استقالتك من S.W.A.T. REDLINE. نشكرك على الفترة التي قضيتها معنا."
+            ? "تم اعتماد طلب استقالتك من S.W.A.T. REDLINE وإيقاف حسابك من بوابة الموقع. إذا عدت للفريق، ستحتاج الإدارة إلى إعادة تفعيل حسابك بعد إعادتك إلى رتبة الدخول."
             : "تم رفض طلب الاستقالة المقدم من قبلك.\\n\\n**سبب الرفض:** " + note,
           color: status === "approved" ? 0x239B72 : 0xD92735,
           fields: [
@@ -1931,7 +1995,8 @@ export default async function handler(req, res) {
           dm_channel_id: dmChannelId,
           dm_message_id: dmMessageId,
           removed_role_count: resignationRoleCleanup?.removedRoleCount || 0,
-          preserved_role_ids: resignationRoleCleanup?.preservedRoleIds || []
+          preserved_role_ids: resignationRoleCleanup?.preservedRoleIds || [],
+          retired_from_portal: status === "approved"
         },
         publish_required: status === "approved"
       });
@@ -2677,6 +2742,19 @@ export default async function handler(req, res) {
       catch (error) { return json(res, error.status || 400, { error: error.message || "يجب تجهيز بطاقة FIRED قبل تنفيذ الفصل." }); }
     }
     const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
+    const profileQuery = new URLSearchParams({
+      discord_user_id: "eq." + targetId,
+      is_active: "eq.true",
+      is_banned: "eq.false",
+      select: "discord_user_id",
+      limit: "1"
+    });
+    const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
+    if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من نشاط حساب العضو قبل الإجراء التأديبي." });
+    if (!(await profileResponse.json()).length) return json(res, 409, { error: "لا يمكن إصدار إنذار أو فصل لحساب سابق أو موقوف من الموقع." });
+    if (!Array.isArray(target.roles) || !target.roles.includes(cfg.swatRoleId)) {
+      return json(res, 409, { error: "لا يمكن إصدار إجراء تأديبي لعضو لا يحمل رتبة S.W.A.T. الحالية." });
+    }
     const targetName = discordName(target);
     const targetProfile = { id: targetId, name: targetName, avatarUrl: discordAvatarUrl(target, cfg.guildId) };
     if (targetId === process.env.DISCORD_OWNER_ID) return json(res, 403, { error: "لا يمكن اتخاذ إجراء تأديبي ضد المالك المحمي من خلال هذه الأداة." });
