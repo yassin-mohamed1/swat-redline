@@ -1111,10 +1111,17 @@ async function publishApprovedResignationCard(config, body) {
   const mimeByHeader = { "data:image/jpeg;base64": "jpeg", "data:image/png;base64": "png", "data:image/webp;base64": "webp" };
   const imageType = mimeByHeader[header] || "";
   const encodedImage = comma > 0 ? imageData.slice(comma + 1) : "";
-  if (!imageType || !encodedImage || !encodedImage.split("").every(character => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".includes(character)) || imageData.length > 950_000) throw Object.assign(new Error("صورة الاستقالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
+  if (!imageType || !encodedImage || !encodedImage.split("").every(character => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".includes(character)) || imageData.length > 950_000) {
+    throw Object.assign(new Error("صورة الاستقالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
+  }
   const bytes = Buffer.from(encodedImage, "base64");
   if (!bytes.length || bytes.length > 700_000) throw Object.assign(new Error("حجم صورة الاستقالة أكبر من الحد المسموح."), { status: 413 });
-  const query = new URLSearchParams({ id: "eq." + requestId, select: "id,discord_user_id,display_name,member_name,reason,status,publish_status,publication_message_id", limit: "1" });
+
+  const query = new URLSearchParams({
+    id: "eq." + requestId,
+    select: "id,discord_user_id,display_name,member_name,status,publish_status,publish_error,publication_message_id,updated_at",
+    limit: "1"
+  });
   const currentResponse = await supabaseRequest(config, "resignation_requests?" + query.toString());
   if (!currentResponse.ok) throw Object.assign(new Error("تعذّر التحقق من طلب الاستقالة."), { status: 503 });
   const request = (await currentResponse.json())[0];
@@ -1123,19 +1130,60 @@ async function publishApprovedResignationCard(config, body) {
   if (request.publish_status === "published" && request.publication_message_id) {
     return { requestId, published: true, reused: true, messageId: request.publication_message_id };
   }
+  if (!/^\\d{15,22}$/.test(String(request.discord_user_id || ""))) {
+    throw Object.assign(new Error("معرّف Discord لصاحب الاستقالة غير صالح؛ لم يتم إرسال البطاقة."), { status: 409 });
+  }
+
+  // Atomic compare-and-set lock: only one request can claim this resignation at a time.
+  const lockIsFresh = request.publish_error === "publishing" &&
+    Number.isFinite(Date.parse(String(request.updated_at || ""))) &&
+    Date.now() - Date.parse(String(request.updated_at)) < 5 * 60 * 1000;
+  if (lockIsFresh) {
+    throw Object.assign(new Error("بطاقة الاستقالة قيد النشر بالفعل. انتظر لحظات ثم حدّث القائمة."), { status: 409 });
+  }
+  const claimQuery = new URLSearchParams({
+    id: "eq." + requestId,
+    status: "eq.approved",
+    publish_status: "eq." + String(request.publish_status || "not_published"),
+    select: "id"
+  });
+  claimQuery.set("publish_error", request.publish_error == null ? "is.null" : "eq." + String(request.publish_error));
+  const claimResponse = await supabaseRequest(config, "resignation_requests?" + claimQuery.toString(), {
+    method: "PATCH",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ publish_error: "publishing", updated_at: new Date().toISOString() })
+  });
+  if (!claimResponse.ok) {
+    throw Object.assign(new Error("تعذّر حجز عملية نشر البطاقة بأمان. حدّث الصفحة وحاول مرة أخرى."), { status: 503 });
+  }
+  const claimedRows = await claimResponse.json().catch(() => []);
+  if (!Array.isArray(claimedRows) || claimedRows.length !== 1) {
+    const latestResponse = await supabaseRequest(config, "resignation_requests?" + new URLSearchParams({
+      id: "eq." + requestId,
+      select: "publish_status,publication_message_id",
+      limit: "1"
+    }).toString());
+    const latest = latestResponse.ok ? (await latestResponse.json())[0] : null;
+    if (latest?.publish_status === "published" && latest.publication_message_id) {
+      return { requestId, published: true, reused: true, messageId: latest.publication_message_id };
+    }
+    throw Object.assign(new Error("بدأ نشر بطاقة الاستقالة بالفعل من طلب آخر؛ لم يتم إرسال نسخة مكررة."), { status: 409 });
+  }
+
   const channelId = "1575685852082741248";
   const extension = imageType.toLowerCase() === "png" ? "png" : imageType.toLowerCase() === "webp" ? "webp" : "jpg";
   const form = new FormData();
   form.append("payload_json", JSON.stringify({
-    content: "📄 **تم اعتماد استقالة " + String(request.member_name || request.display_name || "أحد الأعضاء").slice(0, 100) + "**",
-    allowed_mentions: { parse: [] }
+    content: "<@" + String(request.discord_user_id) + "> 📄 **تم اعتماد الاستقالة**",
+    allowed_mentions: { parse: [], users: [String(request.discord_user_id)] }
   }));
   form.append("files[0]", new Blob([bytes], { type: imageType.toLowerCase() === "jpeg" ? "image/jpeg" : "image/" + imageType.toLowerCase() }), "redline-resignation." + extension);
   try {
     const message = await discordRequest(config, "/channels/" + channelId + "/messages", { method: "POST", body: form });
     if (!message?.id) throw Object.assign(new Error("Discord لم يؤكد نشر بطاقة الاستقالة."), { status: 502 });
-    const update = await supabaseRequest(config, "resignation_requests?id=eq." + requestId + "&status=eq.approved", {
-      method: "PATCH", headers: { Prefer: "return=minimal" },
+    const update = await supabaseRequest(config, "resignation_requests?id=eq." + requestId + "&status=eq.approved&publish_error=eq.publishing", {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
       body: JSON.stringify({
         publication_channel_id: channelId,
         publication_message_id: String(message.id),
@@ -1148,14 +1196,18 @@ async function publishApprovedResignationCard(config, body) {
     if (!update.ok) throw Object.assign(new Error("تم نشر البطاقة لكن تعذّر حفظ حالة النشر في قاعدة البيانات. احتفظ بمعرّف الرسالة: " + message.id), { status: 502, messageId: message.id });
     return { requestId, published: true, reused: false, channelId, messageId: String(message.id), messageUrl: "https://discord.com/channels/" + String(process.env.DISCORD_GUILD_ID || "@me") + "/" + channelId + "/" + message.id };
   } catch (error) {
-    await supabaseRequest(config, "resignation_requests?id=eq." + requestId + "&status=eq.approved", {
-      method: "PATCH", headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ publish_status: "failed", publish_error: String(error?.code || error?.status || error?.message || "discord_publish_failed").slice(0, 300), updated_at: new Date().toISOString() })
+    await supabaseRequest(config, "resignation_requests?id=eq." + requestId + "&status=eq.approved&publish_error=eq.publishing", {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        publish_status: "failed",
+        publish_error: String(error?.code || error?.status || error?.message || "discord_publish_failed").slice(0, 300),
+        updated_at: new Date().toISOString()
+      })
     }).catch(() => {});
     throw error;
   }
 }
-
 async function readJsonRequestBody(req) {
   if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
     return req.body;
