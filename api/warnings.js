@@ -1443,7 +1443,7 @@ export default async function handler(req, res) {
       ]);
       const pendingIds = new Set(pendingRows.map(row => String(row.discord_user_id)));
       const members = profiles
-        .filter(profile => profile.is_banned !== true && /^\\d{15,22}$/.test(String(profile.discord_user_id || "")))
+        .filter(profile => profile.is_banned !== true && /^\d{15,22}$/.test(String(profile.discord_user_id || "")))
         .map(profile => ({
           discord_user_id: String(profile.discord_user_id),
           display_name: profile.display_name || profile.username || "عضو مسجل",
