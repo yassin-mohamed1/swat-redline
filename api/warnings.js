@@ -6,6 +6,10 @@ import { isWebsiteAdmin } from "../lib/portal-admin.js";
 import { deliverPendingAdminAlerts, queueAdminAlert } from "../lib/admin-alerts.js";
 
 const WARNING_LEVELS = [1, 2];
+const RESIGNATION_PRESERVED_ROLE_IDS = Object.freeze([
+  "1561666360717606993",
+  "1569390325364162650"
+]);
 
 function cookies(header = "") {
   const out = {};
@@ -1093,6 +1097,64 @@ async function updateMemberRoles(cfg, targetId, level, dismiss) {
     removedRoleCount: originalRoles.filter(id => !current.has(id)).length
   };
 }
+async function prepareResignationRoleRemoval(cfg, targetId) {
+  if (targetId === process.env.DISCORD_OWNER_ID) {
+    throw Object.assign(new Error("لا يمكن اعتماد استقالة مالك السيرفر المحمي."), { status: 403 });
+  }
+  if (!/^\\d{15,22}$/.test(String(targetId || ""))) {
+    throw Object.assign(new Error("معرّف Discord للعضو غير صالح؛ لم يتم تغيير أي رتبة."), { status: 400 });
+  }
+
+  const [member, guild] = await Promise.all([
+    discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId),
+    loadGuildRoleData(cfg)
+  ]);
+  const preserve = new Set(RESIGNATION_PRESERVED_ROLE_IDS);
+  const missingPreserved = RESIGNATION_PRESERVED_ROLE_IDS.filter(id => !guild.byId.has(id));
+  if (missingPreserved.length) {
+    throw Object.assign(new Error("لم أجد رتبتي Activated وFamily في السيرفر بهذه المعرفات: " + missingPreserved.join(", ") + ". لم يتم اعتماد الاستقالة ولم تتغير الرتب."), { status: 409 });
+  }
+
+  const originalRoles = [...new Set(Array.isArray(member.roles) ? member.roles : [])];
+  const rolesToRemove = originalRoles.filter(id => !preserve.has(id));
+  const blocked = rolesToRemove.map(id => {
+    const role = guild.byId.get(id);
+    return !role || role.managed || role.position >= guild.botTop.position
+      ? { id, name: role?.name || "رتبة غير معروفة", managed: Boolean(role?.managed), position: role?.position ?? null }
+      : null;
+  }).filter(Boolean);
+
+  if (blocked.length) {
+    const details = blocked.map(role => role.name + " (" + role.id + ")").join("، ");
+    throw Object.assign(new Error("تعذّر إزالة كل رتب العضو لأن البوت لا يستطيع إدارة: " + details + ". ارفع رتبة البوت أعلى منها أو أزل الرتب المُدارة يدويًا، ثم أعد اعتماد الاستقالة."), { status: 409 });
+  }
+
+  return {
+    originalRoles,
+    preservedRoles: originalRoles.filter(id => preserve.has(id)),
+    removedRoleCount: rolesToRemove.length
+  };
+}
+
+async function applyResignationRoleRemoval(cfg, targetId, plan) {
+  await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId, {
+    method: "PATCH",
+    body: JSON.stringify({ roles: plan.preservedRoles })
+  });
+  const verified = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
+  const currentRoles = Array.isArray(verified.roles) ? verified.roles : [];
+  const keep = new Set(RESIGNATION_PRESERVED_ROLE_IDS);
+  const unexpected = currentRoles.filter(id => !keep.has(id));
+  if (unexpected.length) {
+    throw Object.assign(new Error("لم يؤكد Discord إزالة كل الرتب. الرتب المتبقية: " + unexpected.join(", ") + ". لم يتم اعتبار عملية إزالة الرتب مكتملة."), { status: 502 });
+  }
+  return {
+    removedRoleCount: plan.originalRoles.filter(id => !keep.has(id)).length,
+    preservedRoleIds: RESIGNATION_PRESERVED_ROLE_IDS,
+    remainingRoleIds: currentRoles
+  };
+}
+
 async function restoreMemberRoles(cfg, targetId, originalRoles) {
   await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId, {
     method: "PATCH", body: JSON.stringify({ roles: originalRoles })
@@ -1598,6 +1660,18 @@ export default async function handler(req, res) {
       if (!pendingResponse.ok) return json(res, 503, { error: "تعذّر تحميل طلب الاستقالة قبل اتخاذ القرار." });
       const pending = (await pendingResponse.json())[0];
       if (!pending) return json(res, 409, { error: "تمت مراجعة هذا الطلب بالفعل أو لم يعد موجودًا." });
+      let resignationRolePlan = null;
+      if (status === "approved") {
+        try {
+          resignationRolePlan = await prepareResignationRoleRemoval(cfg, pending.discord_user_id);
+        } catch (roleCheckError) {
+          console.error("Resignation role preflight failed:", roleCheckError?.message || "unknown");
+          return json(res, roleCheckError?.status || 409, {
+            error: roleCheckError?.message || "تعذّر التأكد من إمكانية إزالة رتب العضو.",
+            role_removal_blocked: true
+          });
+        }
+      }
       const reviewedAt = new Date().toISOString();
       const updateResponse = await db(cfg, "resignation_requests?id=eq." + encodeURIComponent(requestId) + "&status=eq.pending", {
         method: "PATCH", headers: { Prefer: "return=representation" },
@@ -1613,13 +1687,48 @@ export default async function handler(req, res) {
       }
       const updated = (await updateResponse.json())[0];
       if (!updated) return json(res, 409, { error: "تم اتخاذ قرار على هذا الطلب بالفعل." });
+      let resignationRoleCleanup = null;
+      if (status === "approved" && resignationRolePlan) {
+        try {
+          resignationRoleCleanup = await applyResignationRoleRemoval(cfg, updated.discord_user_id, resignationRolePlan);
+        } catch (roleRemovalError) {
+          console.error("Resignation role removal failed:", roleRemovalError?.message || "unknown");
+          const rollback = await db(cfg,
+            "resignation_requests?id=eq." + encodeURIComponent(requestId) +
+            "&status=eq.approved&reviewed_by_discord_id=eq." + encodeURIComponent(user.id), {
+              method: "PATCH",
+              headers: { Prefer: "return=representation" },
+              body: JSON.stringify({
+                status: "pending",
+                reviewed_by_discord_id: null,
+                reviewed_by_name: null,
+                reviewed_at: null,
+                review_note: null,
+                dm_status: "not_sent",
+                dm_error: null,
+                updated_at: new Date().toISOString()
+              })
+            }
+          );
+          const rollbackSucceeded = rollback.ok && (await rollback.json().catch(() => [])).length === 1;
+          return json(res, 502, {
+            error: rollbackSucceeded
+              ? "لم يتم اعتماد الاستقالة لأن Discord رفض إزالة كل رتب العضو. أُعيد الطلب إلى «قيد المراجعة». السبب: " + String(roleRemovalError?.message || "تعذّر إزالة الرتب")
+              : "فشلت إزالة رتب العضو وتعذّر إرجاع حالة الطلب تلقائيًا. أوقف اعتماد الاستقالة وتحقق من الرتب يدويًا فورًا. السبب: " + String(roleRemovalError?.message || "تعذّر إزالة الرتب"),
+            role_removal_failed: true,
+            approval_rolled_back: rollbackSucceeded
+          });
+        }
+      }
       try {
         await forwardAuditToDiscord(user, {
           action: "update", entity_type: "resignation_request", entity_id: requestId,
           details: {
             type: status === "approved" ? "قبول طلب استقالة" : "رفض طلب استقالة",
             detail: (status === "approved" ? "تمت الموافقة على استقالة " : "تم رفض طلب استقالة ") + (updated.member_name || updated.display_name) + ".",
-            target_discord_id: updated.discord_user_id, status, review_note: note
+            target_discord_id: updated.discord_user_id, status, review_note: note,
+            removed_role_count: resignationRoleCleanup?.removedRoleCount || 0,
+            preserved_role_ids: resignationRoleCleanup?.preservedRoleIds || []
           }
         });
       } catch (auditError) { console.error("Resignation review audit forwarding failed:", auditError?.message || "unknown"); }
@@ -1650,7 +1759,19 @@ export default async function handler(req, res) {
         method: "PATCH", headers: { Prefer: "return=minimal" },
         body: JSON.stringify({ dm_status: dmStatus, dm_error: dmError, dm_channel_id: dmChannelId, dm_message_id: dmMessageId, updated_at: new Date().toISOString() })
       }).catch(() => {});
-      return json(res, 200, { ok: true, request: { ...updated, dm_status: dmStatus, dm_error: dmError, dm_channel_id: dmChannelId, dm_message_id: dmMessageId }, publish_required: status === "approved" });
+      return json(res, 200, {
+        ok: true,
+        request: {
+          ...updated,
+          dm_status: dmStatus,
+          dm_error: dmError,
+          dm_channel_id: dmChannelId,
+          dm_message_id: dmMessageId,
+          removed_role_count: resignationRoleCleanup?.removedRoleCount || 0,
+          preserved_role_ids: resignationRoleCleanup?.preservedRoleIds || []
+        },
+        publish_required: status === "approved"
+      });
     }
 
     if (body.action === "create_attendance_leave" || body.action === "submit_attendance_leave") {
