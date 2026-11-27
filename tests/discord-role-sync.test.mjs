@@ -36,6 +36,7 @@ test("candidate preview includes new role-holders and eligible former profiles, 
   const helper = await readFile(new URL("../lib/discord-role-sync.js", import.meta.url), "utf8");
 
   assert.match(helper, /member\.roles\.map\(String\)\.includes\(roleId\)/);
+  assert.ok(helper.includes('if (!base || !key || !token || !/^\\d{15,22}$/.test(guildId) || !/^\\d{15,22}$/.test(roleId))'));
   assert.match(helper, /member\?\.user\?\.bot !== true/);
   assert.match(helper, /user\.bot === true/);
   assert.match(helper, /existingProfilesById\(base, key, matchedIds\)/);
@@ -55,6 +56,7 @@ test("selected members are revalidated against current Discord role membership b
   assert.match(helper, /id === botId/);
   assert.match(helper, /requestGuildMember\(token, guildId, id\)/);
   assert.match(helper, /member\.roles\.map\(String\)\.includes\(roleId\)/);
+  assert.ok(helper.includes('.filter(value => /^\\d{15,22}$/.test(value)))];'));
   assert.match(helper, /const existing = await existingProfilesById\(base, key, eligibleIds\)/);
   assert.match(helper, /saveNewProfiles\(base, key, newMembers/);
   assert.match(helper, /profile\.is_active === false && profile\.is_banned !== true/);
