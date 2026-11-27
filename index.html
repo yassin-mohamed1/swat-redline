@@ -2567,8 +2567,8 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    <div class="field full"><label for="resignationTemplateFile">قالب الاستقالة (PNG شفاف) *</label><input id="resignationTemplateFile" type="file" accept="image/png" onchange="handleResignationTemplateUpload()"><div class="muted">استخدم صورة القالب المعدّلة من فوتوشوب بصيغة PNG؛ الفتحة الشفافة والإطار الأحمر جزء من القالب ولن نضيف حدودًا جديدة.</div></div>
    <div class="field"><label for="resignationCardLayer">العنصر الذي تريد تحريكه</label><select id="resignationCardLayer" onchange="syncResignationCardControls()"><option value="photo">الصورة الشخصية</option><option value="name">اسم العضو</option></select></div>
    <div class="field"><label for="resignationPreviewName">اسم تجريبي للمعاينة</label><input id="resignationPreviewName" value="ALPHA 17" maxlength="100" oninput="drawResignationCardEditorPreview()"></div>
-   <div class="field"><label for="resignationCardX">الموضع الأفقي</label><input id="resignationCardX" type="range" min="0" max="1672" value="379" oninput="updateResignationCardControl('x',this.value)"><span class="muted" id="resignationCardXValue">379</span></div>
-   <div class="field"><label for="resignationCardY">الموضع الرأسي</label><input id="resignationCardY" type="range" min="0" max="941" value="439" oninput="updateResignationCardControl('y',this.value)"><span class="muted" id="resignationCardYValue">439</span></div>
+   <div class="field"><label for="resignationCardX">تحريك الصورة أفقيًا داخل الإطار</label><input id="resignationCardX" type="range" min="-100" max="100" value="0" oninput="updateResignationCardControl('x',this.value)"><span class="muted" id="resignationCardXValue">0%</span></div>
+   <div class="field"><label for="resignationCardY">تحريك الصورة رأسيًا داخل الإطار</label><input id="resignationCardY" type="range" min="-100" max="100" value="0" oninput="updateResignationCardControl('y',this.value)"><span class="muted" id="resignationCardYValue">0%</span></div>
    <div class="field" id="resignationPhotoZoomWrap"><label for="resignationPhotoZoom">تكبير الصورة</label><input id="resignationPhotoZoom" type="range" min="50" max="300" value="100" oninput="updateResignationCardControl('zoom',this.value)"><span class="muted" id="resignationPhotoZoomValue">100%</span></div>
    <div class="field" id="resignationNameSizeWrap" hidden><label for="resignationNameSize">حجم الاسم</label><input id="resignationNameSize" type="range" min="12" max="120" value="44" oninput="updateResignationCardControl('size',this.value)"><span class="muted" id="resignationNameSizeValue">44 px</span></div>
    <div class="field" id="resignationNameColorWrap" hidden><label for="resignationNameColor">لون الاسم</label><input id="resignationNameColor" type="color" value="#f1e6d2" oninput="updateResignationCardControl('color',this.value)"></div>
@@ -4149,7 +4149,7 @@ async function submitAttendanceLeaveReview(){
 }
 
 const DEFAULT_RESIGNATION_CARD_DESIGN={
- photo:{x:379,y:439,zoom:1,cropX:0,cropY:0},
+ photo:{zoom:1,cropX:0,cropY:0},
  name:{x:980,y:586,size:44,color:"#f1e6d2",fontFamily:"Arial",align:"center"}
 };
 let resignationCardDesign=JSON.parse(JSON.stringify(DEFAULT_RESIGNATION_CARD_DESIGN));
@@ -4166,8 +4166,6 @@ function normalizeResignationCardDesign(value){
  const source=value&&typeof value==="object"?value:{};
  const photo={...DEFAULT_RESIGNATION_CARD_DESIGN.photo,...(source.photo||{})};
  const name={...DEFAULT_RESIGNATION_CARD_DESIGN.name,...(source.name||{})};
- photo.x=Math.max(0,Math.min(1672,Number(photo.x)||379));
- photo.y=Math.max(0,Math.min(941,Number(photo.y)||439));
  photo.zoom=Math.max(.5,Math.min(3,Number(photo.zoom)||1));
  photo.cropX=Math.max(-100,Math.min(100,Number(photo.cropX)||0));
  photo.cropY=Math.max(-100,Math.min(100,Number(photo.cropY)||0));
@@ -4212,7 +4210,7 @@ function loadResignationPhoto(url){
 }
 function drawResignationCard(context,template,avatar,name,design){
  const photo=design.photo;
- const photoRect={x:photo.x,y:photo.y,w:268,h:254};
+ const photoRect={x:379,y:439,w:268,h:254};
  context.clearRect(0,0,1672,941);
  if(avatar){
   const iw=avatar.naturalWidth||avatar.width,ih=avatar.naturalHeight||avatar.height;
@@ -4249,10 +4247,23 @@ async function drawResignationCardEditorPreview(){
 }
 function syncResignationCardControls(){
  const layer=document.getElementById('resignationCardLayer')?.value||'photo',isPhoto=layer==='photo',settings=resignationCardDesign[layer];
- document.getElementById('resignationCardX').value=Math.round(settings.x);
- document.getElementById('resignationCardY').value=Math.round(settings.y);
- document.getElementById('resignationCardXValue').textContent=Math.round(settings.x);
- document.getElementById('resignationCardYValue').textContent=Math.round(settings.y);
+ const x=document.getElementById('resignationCardX'),y=document.getElementById('resignationCardY');
+ const xLabel=document.querySelector('label[for="resignationCardX"]'),yLabel=document.querySelector('label[for="resignationCardY"]');
+ if(isPhoto){
+  x.min="-100";x.max="100";y.min="-100";y.max="100";
+  if(xLabel)xLabel.textContent="تحريك الصورة أفقيًا داخل الإطار";
+  if(yLabel)yLabel.textContent="تحريك الصورة رأسيًا داخل الإطار";
+  x.value=Math.round(settings.cropX);y.value=Math.round(settings.cropY);
+  document.getElementById('resignationCardXValue').textContent=Math.round(settings.cropX)+"%";
+  document.getElementById('resignationCardYValue').textContent=Math.round(settings.cropY)+"%";
+ }else{
+  x.min="0";x.max="1672";y.min="0";y.max="941";
+  if(xLabel)xLabel.textContent="الموضع الأفقي للاسم";
+  if(yLabel)yLabel.textContent="الموضع الرأسي للاسم";
+  x.value=Math.round(settings.x);y.value=Math.round(settings.y);
+  document.getElementById('resignationCardXValue').textContent=Math.round(settings.x);
+  document.getElementById('resignationCardYValue').textContent=Math.round(settings.y);
+ }
  document.getElementById('resignationPhotoZoomWrap').hidden=!isPhoto;
  document.getElementById('resignationNameSizeWrap').hidden=isPhoto;
  document.getElementById('resignationNameColorWrap').hidden=isPhoto;
@@ -4263,6 +4274,8 @@ function syncResignationCardControls(){
 function updateResignationCardControl(key,value){
  const layer=document.getElementById('resignationCardLayer')?.value||'photo',settings=resignationCardDesign[layer],number=Number(value);
  if(key==='color'||key==='fontFamily')settings[key]=String(value);
+ else if(layer==='photo'&&key==='x')settings.cropX=Math.max(-100,Math.min(100,number));
+ else if(layer==='photo'&&key==='y')settings.cropY=Math.max(-100,Math.min(100,number));
  else settings[key]=number/(key==='zoom'?100:1);
  syncResignationCardControls();drawResignationCardEditorPreview();
 }
@@ -4274,7 +4287,7 @@ async function openResignationCardEditor(){
  if(canvas&&!canvas.dataset.dragBound){
   canvas.dataset.dragBound='1';
   canvas.addEventListener('pointerdown',event=>{const rect=canvas.getBoundingClientRect();resignationCardDragging={x:event.clientX,y:event.clientY,sx:1672/rect.width,sy:941/rect.height};canvas.setPointerCapture(event.pointerId)});
-  canvas.addEventListener('pointermove',event=>{if(!resignationCardDragging)return;const dx=(event.clientX-resignationCardDragging.x)*resignationCardDragging.sx,dy=(event.clientY-resignationCardDragging.y)*resignationCardDragging.sy;resignationCardDragging.x=event.clientX;resignationCardDragging.y=event.clientY;const layer=document.getElementById('resignationCardLayer')?.value||'photo';resignationCardDesign[layer].x=Math.max(0,Math.min(1672,resignationCardDesign[layer].x+dx));resignationCardDesign[layer].y=Math.max(0,Math.min(941,resignationCardDesign[layer].y+dy));syncResignationCardControls();drawResignationCardEditorPreview()});
+  canvas.addEventListener('pointermove',event=>{if(!resignationCardDragging)return;const dx=(event.clientX-resignationCardDragging.x)*resignationCardDragging.sx,dy=(event.clientY-resignationCardDragging.y)*resignationCardDragging.sy;resignationCardDragging.x=event.clientX;resignationCardDragging.y=event.clientY;const layer=document.getElementById('resignationCardLayer')?.value||'photo';if(layer==='photo'){resignationCardDesign.photo.cropX=Math.max(-100,Math.min(100,resignationCardDesign.photo.cropX+(dx/268)*100));resignationCardDesign.photo.cropY=Math.max(-100,Math.min(100,resignationCardDesign.photo.cropY+(dy/254)*100));}else{resignationCardDesign.name.x=Math.max(0,Math.min(1672,resignationCardDesign.name.x+dx));resignationCardDesign.name.y=Math.max(0,Math.min(941,resignationCardDesign.name.y+dy));}syncResignationCardControls();drawResignationCardEditorPreview()});
   canvas.addEventListener('pointerup',()=>{resignationCardDragging=null});
   canvas.addEventListener('pointercancel',()=>{resignationCardDragging=null});
  }
@@ -7081,7 +7094,7 @@ function renderSiteCustomMenus(){
 function go(page){
  let tab=null;
  if(page==='wanted'||page==='records'){page='records';tab='people'}else if(page==='suspects'){page='records';tab='cases'}else if(page==='investigations'){page='records';tab='investigations'}
- if(['personnel','assignments','warnings','messages','attendance','audit','attention-alerts'].includes(page)&&!currentCanAdmin){go('dashboard');return;}if(page==='resignations'&&false){go('dashboard');return;}
+ if(['personnel','assignments','warnings','messages','attendance','audit','attention-alerts'].includes(page)&&!currentCanAdmin){go('dashboard');return;}
  if((page==='attendance'||page==='messages'||page==='attention-alerts')&&!currentCanManageWarnings){go('dashboard');return;}
  const pageNames={dashboard:'لوحة القيادة',records:'مركز الملفات والقضايا',operations:'العمليات',announcements:'الإعلانات',reports:'التقارير',rules:'القوانين والأوامر','leaves-hub':'الإجازات والاستقالات',leaves:'الإجازات',resignations:'الاستقالات',personnel:'الأفراد',assignments:'التعيينات',warnings:'التحذيرات','attention-alerts':'Attention Alert',messages:'إرسال الرسائل',attendance:'البصمة اليومية',audit:'سجل الإدارة',settings:'إعدادات النظام',gallery:'الصور'};
  if(window.__redlineAuditPage!==page){

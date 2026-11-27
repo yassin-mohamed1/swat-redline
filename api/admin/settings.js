@@ -222,9 +222,7 @@ export default async function handler(req, res) {
         const keys = ["photo", "name"];
         if (!plainObject(value) || Object.keys(value).some(key => !keys.includes(key))) return res.status(400).json({ error: "إعدادات تصميم الاستقالة غير صالحة." });
         const photo = value.photo, name = value.name;
-        if (!plainObject(photo) || Object.keys(photo).some(key => !["x","y","zoom","cropX","cropY"].includes(key)) ||
-            !Number.isFinite(photo.x) || photo.x < 0 || photo.x > 1672 ||
-            !Number.isFinite(photo.y) || photo.y < 0 || photo.y > 941 ||
+        if (!plainObject(photo) || Object.keys(photo).some(key => !["zoom","cropX","cropY"].includes(key)) ||
             !Number.isFinite(photo.zoom) || photo.zoom < 0.5 || photo.zoom > 3 ||
             !Number.isFinite(photo.cropX) || photo.cropX < -100 || photo.cropX > 100 ||
             !Number.isFinite(photo.cropY) || photo.cropY < -100 || photo.cropY > 100) {
