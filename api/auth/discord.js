@@ -81,11 +81,11 @@ export default async function handler(req, res) {
           const existingProfiles = await profileLookup.json();
           const isProtectedOwner = Boolean(ownerId && user.id === ownerId);
           const existingProfile = existingProfiles[0];
-          if (!isProtectedOwner && existingProfile && (existingProfile.is_banned || existingProfile.is_active === false)) {
-            return res.status(403).send(existingProfile.is_banned
-              ? "This Discord account is banned from the portal."
-              : "This Discord account has been deactivated by the owner.");
+          if (!isProtectedOwner && existingProfile?.is_banned) {
+            return res.status(403).send("This Discord account is banned from the portal.");
           }
+          // A former member keeps the same profile and history. The live DISCORD_ROLE_ID
+          // check above is the portal access gate; regaining that role reactivates this row.
           const now = new Date().toISOString();
           const profile = {
             discord_user_id: user.id,
