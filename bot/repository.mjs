@@ -135,6 +135,28 @@ export class AttentionAlertRepository {
     return rows[0];
   }
 
+  async findPendingResignationRequest(userId) {
+    const query = new URLSearchParams({ discord_user_id: "eq." + String(userId), status: "eq.pending", select: "id,created_at", order: "created_at.desc", limit: "1" });
+    const rows = await this.request("resignation_requests?" + query, {}, "Check pending resignation request");
+    return rows[0] || null;
+  }
+
+  async findResignationRequestByInteraction(interactionId) {
+    const query = new URLSearchParams({ discord_interaction_id: "eq." + String(interactionId), select: "id,status", limit: "1" });
+    const rows = await this.request("resignation_requests?" + query, {}, "Check duplicate resignation modal submission");
+    return rows[0] || null;
+  }
+
+  async createResignationRequest(record) {
+    const rows = await this.request("resignation_requests?select=id,status,discord_user_id", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(record)
+    }, "Create Discord resignation request");
+    if (!Array.isArray(rows) || !rows[0]) throw new Error("Create Discord resignation request returned no row.");
+    return rows[0];
+  }
+
   async recordAttendanceVoiceJoinEvent(userId, channelId, joinedAt = new Date()) {
     const stamp = joinedAt instanceof Date ? joinedAt : new Date(joinedAt);
     if (!/^\d{15,22}$/.test(String(userId || "")) ||

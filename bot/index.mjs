@@ -21,6 +21,7 @@ import { claimWorkerWithRetry, WorkerLeaseSupervisor } from "./worker-lease.mjs"
 import { readConfig } from "./config.mjs";
 import { AttentionAlertRepository } from "./repository.mjs";
 import { buildDiscordLeaveRequestRecord, LeaveRequestValidationError, validateLeaveRequestFields } from "./leave-requests.mjs";
+import { buildDiscordResignationRequestRecord, ResignationRequestValidationError, validateResignationRequestFields } from "./resignation-requests.mjs";
 import { isTargetVoiceEntry, sendVoiceEntryDm } from "./voice-entry-alert.mjs";
 import { createGuildLogService } from "./guild-logs.mjs";
 import { fetchBotControlSettings, normalizeBotControlSettings } from "./control-settings.mjs";
@@ -29,6 +30,8 @@ import { createWelcomeAutomation } from "./welcome-automation.mjs";
 const COMMAND_NAME = "S.W.A.T. Attention Alert";
 const LEAVE_PANEL_BUTTON_ID = "swat_leave_request_open";
 const LEAVE_MODAL_ID = "swat_leave_request_submit";
+const RESIGNATION_PANEL_BUTTON_ID = "swat_resignation_request_open";
+const RESIGNATION_MODAL_ID = "swat_resignation_request_submit";
 const config = readConfig();
 const repository = new AttentionAlertRepository({
   baseUrl: config.supabaseUrl,
@@ -216,6 +219,37 @@ async function ensureLeaveRequestPanel(guild) {
     ]
   });
   safeLog("info", "leave_request_panel_created", { guildId: guild.id, channelId: channel.id, messageId: panel.id });
+  return panel;
+}
+
+
+function buildResignationRequestModal() {
+  const memberName = new TextInputBuilder().setCustomId("resignation_name").setLabel("اسمك").setStyle(TextInputStyle.Short).setMinLength(2).setMaxLength(100).setPlaceholder("اكتب اسمك داخل S.W.A.T").setRequired(true);
+  const reason = new TextInputBuilder().setCustomId("resignation_reason").setLabel("سبب استقالتك").setStyle(TextInputStyle.Paragraph).setMinLength(3).setMaxLength(2000).setPlaceholder("اكتب سبب طلب الاستقالة...").setRequired(true);
+  return new ModalBuilder().setCustomId(RESIGNATION_MODAL_ID).setTitle("طلب استقالة S.W.A.T").addComponents(
+    new ActionRowBuilder().addComponents(memberName),
+    new ActionRowBuilder().addComponents(reason)
+  );
+}
+
+async function ensureResignationRequestPanel(guild) {
+  const channel = await guild.channels.fetch(config.resignationRequestChannelId).catch(() => null);
+  if (!channel || !channel.isTextBased?.() || !channel.messages || typeof channel.send !== "function") throw new Error("resignation_request_channel_unavailable");
+  const permissions = channel.permissionsFor(guild.members.me);
+  const required = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.SendMessages];
+  if (!permissions?.has(required)) throw new Error("resignation_request_channel_permissions_missing");
+  const recent = await channel.messages.fetch({ limit: 100 });
+  const existing = recent.find(message => message.author?.id === client.user.id &&
+    message.components?.some(row => row.components?.some(component => component.customId === RESIGNATION_PANEL_BUTTON_ID)));
+  if (existing) {
+    safeLog("info", "resignation_request_panel_ready", { guildId: guild.id, channelId: channel.id, messageId: existing.id });
+    return existing;
+  }
+  const panel = await channel.send({
+    content: ["**📄 طلب استقالة S.W.A.T**", "لإرسال طلب استقالة، اضغط الزر بالأسفل واكتب اسمك وسبب الاستقالة فقط. يصل الطلب إلى الإدارة لمراجعته من الموقع."].join("\n"),
+    components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(RESIGNATION_PANEL_BUTTON_ID).setLabel("طلب الاستقالة").setEmoji("📄").setStyle(ButtonStyle.Danger))]
+  });
+  safeLog("info", "resignation_request_panel_created", { guildId: guild.id, channelId: channel.id, messageId: panel.id });
   return panel;
 }
 
@@ -441,6 +475,58 @@ async function handleLeaveRequestModal(interaction) {
   }
 }
 
+
+async function handleResignationRequestButton(interaction) {
+  if (!interaction.inGuild() || interaction.guildId !== config.guildId || interaction.channelId !== config.resignationRequestChannelId) {
+    await interaction.reply({ content: "زر طلب الاستقالة متاح من روم طلب الاستقالات فقط.", flags: MessageFlags.Ephemeral }).catch(() => {});
+    return;
+  }
+  try { await interaction.showModal(buildResignationRequestModal()); }
+  catch (error) { safeLog("warn", "resignation_request_modal_open_failed", { userId: interaction.user?.id || "", status: error?.status || null }); }
+}
+
+async function handleResignationRequestModal(interaction) {
+  const deferred = await interaction.deferReply({ flags: MessageFlags.Ephemeral }).then(() => true).catch(() => false);
+  if (!deferred) { safeLog("warn", "resignation_request_modal_expired", { userId: interaction.user?.id || "" }); return; }
+  try {
+    if (!interaction.inGuild() || interaction.guildId !== config.guildId || interaction.channelId !== config.resignationRequestChannelId) {
+      throw new ResignationRequestValidationError("أرسل طلب الاستقالة من روم الاستقالات المحددة في السيرفر.", "wrong_resignation_channel");
+    }
+    const profile = await repository.getActiveStaffProfile(interaction.user.id);
+    if (!profile) throw new ResignationRequestValidationError("لا يوجد لك حساب S.W.A.T نشط في الموقع. راجع الإدارة لتفعيل حسابك.", "inactive_staff_profile");
+    if (!hasCurrentSwatRole(interaction, profile)) throw new ResignationRequestValidationError("يجب أن تحمل رتبة S.W.A.T الحالية في Discord لتقديم طلب استقالة.", "missing_swat_role");
+    if (await repository.findResignationRequestByInteraction(interaction.id)) {
+      await interaction.editReply("✅ تم استلام طلب الاستقالة بالفعل. تابع حالته من صفحة **الاستقالات** في الموقع.");
+      return;
+    }
+    if (await repository.findPendingResignationRequest(interaction.user.id)) {
+      await interaction.editReply("لديك بالفعل طلب استقالة قيد المراجعة. تابع حالته من صفحة الاستقالات في الموقع.");
+      return;
+    }
+    const values = validateResignationRequestFields({
+      memberName: interaction.fields.getTextInputValue("resignation_name"),
+      reason: interaction.fields.getTextInputValue("resignation_reason")
+    });
+    const record = buildDiscordResignationRequestRecord({
+      interactionId: interaction.id, userId: interaction.user.id, guildId: interaction.guildId,
+      channelId: interaction.channelId, profile,
+      avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 256 }),
+      memberName: values.memberName, reason: values.reason
+    });
+    const created = await repository.createResignationRequest(record);
+    await interaction.editReply("✅ تم استلام طلب الاستقالة وإرساله إلى الإدارة للمراجعة. يمكنك متابعة القرار من صفحة **الاستقالات** في الموقع.");
+    safeLog("info", "resignation_request_submitted", { requestId: created.id, userId: interaction.user.id, channelId: interaction.channelId });
+  } catch (error) {
+    const message = error instanceof ResignationRequestValidationError ? error.message
+      : Number(error?.status) === 409 ? "لديك طلب استقالة قيد المراجعة بالفعل. تابع حالته من الموقع."
+      : "تعذر تسجيل طلب الاستقالة حاليًا. حاول مرة أخرى بعد قليل أو راجع الإدارة.";
+    await interaction.editReply(message).catch(() => {});
+    if (!(error instanceof ResignationRequestValidationError) && Number(error?.status) !== 409) {
+      safeLog("error", "resignation_request_submission_failed", { userId: interaction.user?.id || "", status: error?.status || null, operation: error?.operation || null });
+    }
+  }
+}
+
 function replyText(error) {
   if (error instanceof AttentionAlertError) return error.message;
   if (error?.status === 409 || error?.code === "already_active") return "يوجد تنبيه نشط لهذا العضو بالفعل.";
@@ -533,6 +619,7 @@ client.once(Events.ClientReady, async readyClient => {
     try {
       swatRoleIds = await loadSwatRoleIds(guild);
       await ensureLeaveRequestPanel(guild);
+      await ensureResignationRequestPanel(guild);
     } catch (leavePanelError) {
       safeLog("warn", "leave_request_panel_startup_failed", {
         guildId: guild.id,
@@ -563,6 +650,14 @@ client.on(Events.InteractionCreate, async interaction => {
   }
   if (interaction.isModalSubmit() && interaction.customId === LEAVE_MODAL_ID) {
     await handleLeaveRequestModal(interaction);
+    return;
+  }
+  if (interaction.isButton() && interaction.customId === RESIGNATION_PANEL_BUTTON_ID) {
+    await handleResignationRequestButton(interaction);
+    return;
+  }
+  if (interaction.isModalSubmit() && interaction.customId === RESIGNATION_MODAL_ID) {
+    await handleResignationRequestModal(interaction);
     return;
   }
   if (!interaction.isUserContextMenuCommand() || interaction.commandName !== COMMAND_NAME) return;

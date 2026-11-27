@@ -27,6 +27,8 @@ export function readConfig(env = process.env) {
     guildId: String(env.DISCORD_GUILD_ID || ""),
     managerRoleId: String(env.DISCORD_WARNING_MANAGER_ROLE_ID || ""),
     leaveRequestChannelId: String(env.LEAVE_REQUEST_CHANNEL_ID || ""),
+    resignationRequestChannelId: String(env.RESIGNATION_REQUEST_CHANNEL_ID || "1575682539564171324"),
+    resignationPublicationChannelId: String(env.RESIGNATION_PUBLICATION_CHANNEL_ID || "1575685852082741248"),
     adminAlertsChannelId: String(env.DISCORD_ADMIN_ALERTS_CHANNEL_ID || ""),
     logChannelId: String(env.DISCORD_LOG_CHANNEL_ID || ""),
     clearAdminAlertsHistoryOnStartup: String(env.ADMIN_ALERTS_CLEAR_HISTORY_ON_STARTUP || "").toLowerCase() === "true",
@@ -56,6 +58,8 @@ export function readConfig(env = process.env) {
   if (!snowflake(config.guildId)) missing.push("DISCORD_GUILD_ID");
   if (!snowflake(config.managerRoleId)) missing.push("DISCORD_WARNING_MANAGER_ROLE_ID");
   if (!snowflake(config.leaveRequestChannelId)) missing.push("LEAVE_REQUEST_CHANNEL_ID");
+  if (!snowflake(config.resignationRequestChannelId)) missing.push("RESIGNATION_REQUEST_CHANNEL_ID");
+  if (!snowflake(config.resignationPublicationChannelId)) missing.push("RESIGNATION_PUBLICATION_CHANNEL_ID");
   if (!snowflake(config.adminAlertsChannelId)) missing.push("DISCORD_ADMIN_ALERTS_CHANNEL_ID");
   if (config.logChannelId && !snowflake(config.logChannelId)) missing.push("DISCORD_LOG_CHANNEL_ID must be a Discord channel ID");
   if (!/^https:\/\//i.test(config.supabaseUrl)) missing.push("SUPABASE_URL");
