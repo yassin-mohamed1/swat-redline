@@ -5563,7 +5563,7 @@ async function handleDismissalTemplateUpload(){
   asset.url=data.url;asset.image=null;asset.loading=null;
   await loadMessageCardTemplateImage(type);
   await drawMessageCardEditorPreview();
-  if(savedStatusNode=document.getElementById('dismissalTemplateSavedStatus'))savedStatusNode.textContent='✅ تم رفع '+definition.label+'. اضغط «حفظ التصميم» لتثبيت القالب والإعدادات.';
+  const savedStatusNode=document.getElementById('dismissalTemplateSavedStatus');if(savedStatusNode)savedStatusNode.textContent='✅ تم رفع '+definition.label+'. اضغط «حفظ التصميم» لتثبيت القالب والإعدادات.';
   if(status)status.textContent='تم اكتشاف فتحة الصورة الشفافة تلقائيًا ('+aperture.width+' × '+aperture.height+').';
  }catch(error){if(status)status.textContent=error.message||'تعذّر رفع قالب الرسالة.';toast(error.message||'تعذّر رفع قالب الرسالة.');}
 }
@@ -5599,6 +5599,11 @@ async function createMessageCardDataUrl(discordUserId,type,required=false){
  if(imageData.length>4200000)throw new Error('حجم بطاقة '+definition.label+' كبير جدًا. استبدل القالب بملف أصغر.');
  return imageData;
 }
+
+// Keep the existing FIRED/preview markup handlers working while sharing one editor engine.
+function drawDismissalCardEditorPreview(){return drawMessageCardEditorPreview();}
+function selectDismissalPreviewMember(memberId){return selectMessageCardPreviewMember(memberId);}
+function createDismissalCardDataUrl(discordUserId){return createMessageCardDataUrl(discordUserId,"dismissal",true);}
 
 async function submitWarningAction(action){
  if(!currentCanManageWarnings)return;
