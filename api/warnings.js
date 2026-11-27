@@ -1285,31 +1285,43 @@ async function loadDisciplinaryMentionSettings(cfg) {
   };
 }
 
-function decodeDismissalCardImage(value) {
+function decodeMessageCardImage(value) {
   const imageData = String(value || "");
   const comma = imageData.indexOf(",");
   const header = comma > 0 ? imageData.slice(0, comma).toLowerCase() : "";
   const encoded = comma > 0 ? imageData.slice(comma + 1) : "";
   if (header !== "data:image/png;base64" || !encoded || encoded.length > 4200000 ||
       !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
-    throw Object.assign(new Error("صورة الفصل غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
+    throw Object.assign(new Error("صورة الرسالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
   }
   const bytes = Buffer.from(encoded, "base64");
   if (!bytes.length || bytes.length > 3100000 || bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" ||
       bytes.readUInt32BE(16) !== 1672 || bytes.readUInt32BE(20) !== 941) {
-    throw Object.assign(new Error("يجب أن تكون بطاقة الفصل PNG بالمقاس الصحيح 1672 × 941."), { status: 413 });
+    throw Object.assign(new Error("يجب أن تكون صورة الرسالة PNG بالمقاس الصحيح 1672 × 941."), { status: 413 });
   }
   return bytes;
 }
+// Backward-compatible name retained for existing FIRED-specific callers/tests.
+function decodeDismissalCardImage(value) { return decodeMessageCardImage(value); }
 
-async function sendAnnouncement(cfg, embed, targetId, dismissalImageBytes = null) {
+async function sendAnnouncement(cfg, embed, targetId, cardImageBytes = null, cardType = "dismissal") {
   const mentionSettings = await loadDisciplinaryMentionSettings(cfg);
   const roleMention = mentionSettings.swatRoleMentionEnabled ? "<@&" + cfg.notificationRoleId + ">" : null;
   const memberMention = mentionSettings.targetMentionEnabled ? "<@" + targetId + ">" : null;
   const content = [roleMention, memberMention].filter(Boolean).join(" ");
-  const messageEmbed = dismissalImageBytes
+  const imageUrl = cardType === "warning1" ? "attachment://redline-warning-1.png"
+    : cardType === "warning2" ? "attachment://redline-warning-2.png"
+    : "attachment://redline-fired.png";
+  const filename = cardType === "warning1" ? "redline-warning-1.png"
+    : cardType === "warning2" ? "redline-warning-2.png"
+    : "redline-fired.png";
+  const messageEmbed = cardImageBytes && cardType === "dismissal"
     ? { ...embed, thumbnail: undefined, image: { url: "attachment://redline-fired.png" } }
-    : embed;
+    : cardImageBytes && cardType === "warning1"
+      ? { ...embed, thumbnail: undefined, image: { url: "attachment://redline-warning-1.png" } }
+      : cardImageBytes && cardType === "warning2"
+        ? { ...embed, thumbnail: undefined, image: { url: "attachment://redline-warning-2.png" } }
+        : embed;
   const payload = {
     ...(content ? { content } : {}),
     embeds: [messageEmbed],
@@ -1320,12 +1332,12 @@ async function sendAnnouncement(cfg, embed, targetId, dismissalImageBytes = null
       users: mentionSettings.targetMentionEnabled ? [targetId] : []
     }
   };
-  if (!dismissalImageBytes) {
+  if (!cardImageBytes) {
     return discord(cfg, "/channels/" + cfg.channelId + "/messages", { method: "POST", body: JSON.stringify(payload) });
   }
   const form = new FormData();
   form.append("payload_json", JSON.stringify(payload));
-  form.append("files[0]", new Blob([dismissalImageBytes], { type: "image/png" }), "redline-fired.png");
+  form.append("files[0]", new Blob([cardImageBytes], { type: "image/png" }), filename);
   return discord(cfg, "/channels/" + cfg.channelId + "/messages", { method: "POST", body: form });
 }
 async function appendAttendanceAdminAudit(cfg, user, event) {
@@ -2736,10 +2748,15 @@ export default async function handler(req, res) {
         !reason || reason.length > 1000 || details.length > 3000) {
       return json(res, 400, { error: "راجع معرّف العضو والإجراء والسبب ومعرّف الطلب." });
     }
-    let dismissalImageBytes = null;
-    if (actionType === "dismissal") {
-      try { dismissalImageBytes = decodeDismissalCardImage(body.image_data); }
-      catch (error) { return json(res, error.status || 400, { error: error.message || "يجب تجهيز بطاقة FIRED قبل تنفيذ الفصل." }); }
+    const cardType = actionType === "dismissal" ? "dismissal" : level === 1 ? "warning1" : "warning2";
+    let cardImageBytes = null;
+    if (body.image_data) {
+      if (body.card_type !== cardType) return json(res, 400, { error: "نوع قالب الرسالة لا يطابق مستوى الإجراء." });
+      try { cardImageBytes = decodeMessageCardImage(body.image_data); }
+      catch (error) { return json(res, error.status || 400, { error: error.message || "تعذّر التحقق من صورة الرسالة." }); }
+    }
+    if (actionType === "dismissal" && !cardImageBytes) {
+      return json(res, 400, { error: "يجب تجهيز بطاقة FIRED قبل تنفيذ الفصل." });
     }
     const target = await discord(cfg, "/guilds/" + cfg.guildId + "/members/" + targetId);
     const profileQuery = new URLSearchParams({
@@ -2822,7 +2839,7 @@ export default async function handler(req, res) {
     try {
       channelMessage = await sendAnnouncement(cfg,
         announcementEmbed(actionType, level, targetProfile, reason, details, user.displayName, start.action_id, expiresAt),
-        targetId, actionType === "dismissal" ? dismissalImageBytes : null);
+        targetId, cardImageBytes, cardType);
     } catch (error) {
       const errorCode = String(error.code || error.message || "channel_delivery_failed").slice(0, 100);
       let rollbackFailed = false;
