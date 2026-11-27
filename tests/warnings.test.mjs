@@ -522,3 +522,12 @@ test("former SWAT members remain eligible for repeat resignation requests", asyn
   assert.match(modal, /resignationMemberOptions\.map/);
   assert.doesNotMatch(modal, /attendanceData\.members\.filter\(member=>member\.is_swat_member\)/);
 });
+
+test("resignation review confirmation dialog appears above the admin dashboard", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /#resignationAdminModalBack\.modalback\{z-index:120!important/);
+  assert.match(html, /#resignationReviewModalBack\{[\s\S]*?z-index:140!important/);
+  assert.match(html, /#resignationReviewModalBack\.open\{[\s\S]*?display:flex!important/);
+  assert.match(html, /function openResignationApproval\(id\)\{openResignationReview\(id,'approved'\);\}/);
+  assert.match(html, /id="resignationReviewSubmitButton"[^>]*onclick="submitResignationReview\(\)"/);
+});
