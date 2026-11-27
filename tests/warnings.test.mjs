@@ -215,9 +215,10 @@ test("FIRED, Warning 1 and Warning 2 editors use independent saved templates and
   assert.ok(settings.includes('"warning2TemplateUrl"'));
   assert.ok(settings.includes('"warning2CardDesign"'));
 
-  assert.ok(api.includes('cardType === "warning1" ? "attachment://redline-warning-1.png"'));
-  assert.ok(api.includes('cardType === "warning2" ? "attachment://redline-warning-2.png"'));
-  assert.ok(api.includes('cardType === "dismissal" ? "attachment://redline-fired.png"'));
+  assert.ok(api.includes('cardImageBytes && cardType === "warning1"'));
+  assert.ok(api.includes('cardImageBytes && cardType === "warning2"'));
+  assert.ok(api.includes('cardImageBytes && cardType === "dismissal"'));
+  assert.ok(api.includes('const filename = cardType === "warning1" ? "redline-warning-1.png"'));
   assert.ok(api.includes('actionType === "dismissal" && !cardImageBytes'));
 });
 
@@ -673,12 +674,14 @@ test("returning former personnel are restored in place, not inserted as duplicat
 test("FIRED preview fetches the selected member live and prevents stale async renders overwriting a newer selection", async () => {
   const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.ok(html.includes("let dismissalPreviewSelectionRevision=0"));
-  assert.ok(html.includes("let dismissalPreviewRenderRevision=0"));
+  assert.ok(html.includes("let messageCardPreviewSelectionRevision=0"));
+  assert.ok(html.includes("let messageCardPreviewRenderRevision=0"));
   assert.ok(html.includes("dismissal_card_member=1&discord_user_id="));
-  assert.ok(html.includes("if(revision!==dismissalPreviewSelectionRevision)return"));
-  assert.ok(html.includes("if(revision!==dismissalPreviewRenderRevision)return"));
+  assert.ok(html.includes("if(revision!==messageCardPreviewSelectionRevision)return"));
+  assert.ok(html.includes("if(revision!==messageCardPreviewRenderRevision)return"));
   assert.ok(html.includes("const stage=document.createElement('canvas')"));
+  assert.ok(html.includes("function selectDismissalPreviewMember(memberId)"));
+  assert.ok(html.includes("function drawDismissalCardEditorPreview()"));
   assert.ok(api.includes('is_active: "eq.true"'));
   assert.ok(api.includes("member.roles.includes(cfg.swatRoleId)"));
 });
