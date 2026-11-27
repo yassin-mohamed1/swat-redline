@@ -220,27 +220,36 @@ export default async function handler(req, res) {
       }
       if (k === "resignationCardDesign") {
         const keys = ["photo", "name"];
-        if (!plainObject(value) || Object.keys(value).some(key => !keys.includes(key))) return res.status(400).json({ error: "إعدادات تصميم الاستقالة غير صالحة." });
+        if (!plainObject(value) || Object.keys(value).some(key => !keys.includes(key)) ||
+            !plainObject(value.photo) || !plainObject(value.name)) {
+          return res.status(400).json({ error: "إعدادات تصميم الاستقالة غير صالحة." });
+        }
         const photo = value.photo, name = value.name;
-        if (!plainObject(photo) || Object.keys(photo).some(key => !["x","y","width","height","zoom","cropX","cropY"].includes(key)) ||
-            !Number.isFinite(photo.x) || photo.x < 0 || photo.x > 1672 ||
-            !Number.isFinite(photo.y) || photo.y < 0 || photo.y > 941 ||
-            !Number.isFinite(photo.width) || photo.width < 60 || photo.width > 1672-photo.x ||
-            !Number.isFinite(photo.height) || photo.height < 60 || photo.height > 941-photo.y ||
-            !Number.isFinite(photo.zoom) || photo.zoom < 0.5 || photo.zoom > 3 ||
-            !Number.isFinite(photo.cropX) || photo.cropX < -100 || photo.cropX > 100 ||
-            !Number.isFinite(photo.cropY) || photo.cropY < -100 || photo.cropY > 100) {
-          return res.status(400).json({ error: "موضع أو حجم صورة الاستقالة غير صالح." });
-        }
-        if (!plainObject(name) || Object.keys(name).some(key => !["x","y","size","color","fontFamily","align"].includes(key)) ||
-            !Number.isFinite(name.x) || name.x < 0 || name.x > 1672 ||
-            !Number.isFinite(name.y) || name.y < 0 || name.y > 941 ||
-            !Number.isFinite(name.size) || name.size < 12 || name.size > 120 ||
-            typeof name.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(name.color) ||
-            typeof name.fontFamily !== "string" || !["Arial","Tahoma","Impact","Georgia","Trebuchet MS"].includes(name.fontFamily) ||
-            typeof name.align !== "string" || !["left","center","right"].includes(name.align)) {
-          return res.status(400).json({ error: "إعدادات اسم الاستقالة غير صالحة." });
-        }
+        const clampNumber = (input, fallback, min, max) => {
+          const number = Number(input);
+          return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+        };
+        const x = clampNumber(photo.x, 379, 0, 1612);
+        const y = clampNumber(photo.y, 439, 0, 881);
+        const color = typeof name.color === "string" && /^#[0-9a-fA-F]{6}$/.test(name.color) ? name.color : "#f1e6d2";
+        const fontFamily = ["Arial", "Tahoma", "Impact", "Georgia", "Trebuchet MS"].includes(name.fontFamily) ? name.fontFamily : "Arial";
+        const align = ["left", "center", "right"].includes(name.align) ? name.align : "center";
+        storedValue = {
+          photo: {
+            x, y,
+            width: clampNumber(photo.width, 268, 60, 1672 - x),
+            height: clampNumber(photo.height, 254, 60, 941 - y),
+            zoom: clampNumber(photo.zoom, 1, 0.5, 3),
+            cropX: clampNumber(photo.cropX, 0, -100, 100),
+            cropY: clampNumber(photo.cropY, 0, -100, 100)
+          },
+          name: {
+            x: clampNumber(name.x, 980, 0, 1672),
+            y: clampNumber(name.y, 586, 0, 941),
+            size: clampNumber(name.size, 44, 12, 120),
+            color, fontFamily, align
+          }
+        };
       }
       if (k === "textOverrides") {
         if (!plainObject(value) || Object.keys(value).length > 500) return res.status(400).json({ error: "Invalid text overrides" });

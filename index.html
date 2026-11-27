@@ -5,7 +5,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Kufi+Arabic:wght@400;500;600;700;800;900&family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* Fonts are preloaded in the document head. */
-:root{--bg:#090a0c;--panel:#111316;--panel2:#17191d;--line:#292c32;--red:#f12835;--muted:#9ba0aa;--white:#f4f5f7;--green:#39d69b;--amber:#ffb34c}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 70% -20%,#341015 0,transparent 38%),var(--bg);color:var(--white);font-family:'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.sidebar{border-left:1px solid var(--line);background:#0d0e10;padding:18px 14px;display:flex;flex-direction:column;gap:22px}.brand{display:flex;align-items:center;gap:10px;padding:4px 4px 18px;border-bottom:1px solid var(--line)}.brand img{width:66px;height:66px;object-fit:cover;border-radius:12px}.brand b{display:block;font-size:16px;letter-spacing:1px}.brand span{color:var(--red);font-weight:700;font-size:12px;letter-spacing:2px}.nav{display:grid;gap:6px}.nav button{background:transparent;color:#b7bbc4;border:1px solid transparent;text-align:right;padding:12px 13px;border-radius:9px;display:flex;align-items:center;gap:12px}.nav button .ico{width:22px;text-align:center;font-size:17px}.nav button.active,.nav button:hover{color:#fff;background:linear-gradient(90deg,#291013,#171012);border-color:#552127;box-shadow:inset -3px 0 var(--red)}.sidefoot{margin-top:auto;color:#666d78;font-size:11px;border-top:1px solid var(--line);padding-top:16px}.main{min-width:0}.topbar{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#0d0e10dd;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}.search{width:min(440px,55%);position:relative}.search input{width:100%;background:#17191d;border:1px solid #30343b;border-radius:10px;padding:11px 40px 11px 12px;color:#fff;outline:none}.search:before{content:'⌕';position:absolute;right:13px;top:2px;font-size:25px;color:#8c929d}.profile{display:flex;align-items:center;gap:12px;font-size:13px}.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#292c31;border:1px solid #444;font-size:18px}.content{padding:22px 26px 36px;max-width:1800px;margin:auto}.hero{border:1px solid #4a2429;border-radius:15px;overflow:hidden;min-height:180px;background:linear-gradient(90deg,#0c0d0f 0%,#0d0d0ff0 37%,#100d10aa 70%),radial-gradient(ellipse at 78% 15%,rgba(185,20,34,.22),transparent 48%),repeating-linear-gradient(135deg,rgba(245,38,53,.045) 0 2px,transparent 2px 36px);position:relative;padding:28px 30px;display:flex;align-items:center;justify-content:space-between}.hero:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,#0a0b0d 0%,transparent 60%)}.heroText{position:relative;z-index:1}.eyebrow{font-size:11px;color:var(--red);font-weight:700;letter-spacing:3px}.hero h1{font-size:clamp(25px,3vw,42px);margin:7px 0 3px;letter-spacing:1px}.hero h1 span{color:var(--red);font-style:italic}.hero p{color:#c2c5cb;margin:0;font-size:13px}.heroMark{position:relative;z-index:1;border:1px solid #5b272c;background:#0c0d0dbb;padding:15px 20px;border-radius:12px;text-align:center;min-width:150px}.heroMark strong{display:block;font-size:24px}.heroMark small{color:#aeb3bd}.sectionhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:25px 0 13px}.sectionhead h2{font-size:19px;margin:0}.sub{color:var(--muted);font-size:12px;margin-top:4px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #373b43;background:#1b1e23;color:#e9ebef;border-radius:8px;padding:10px 14px;font-weight:600;font-size:12px}.btn:hover{border-color:#777}.btn.danger{border-color:#7f1d1d;background:#351014;color:#ff7b84}.btn.danger:hover{background:#55151d}.btn.primary{background:var(--red);border-color:var(--red);color:white}.btn.ghostred{border-color:#69232a;color:#ff5c66;background:#210e11}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:15px}.stat{background:linear-gradient(140deg,#17191d,#101113);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:center;gap:13px}.statIcon{width:43px;height:43px;display:grid;place-items:center;border-radius:10px;background:#2a1014;color:#ff3946;font-size:20px}.stat strong{display:block;font-size:26px;line-height:1.2}.stat span{color:#a7abb4;font-size:12px}.grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);gap:14px;margin-top:15px}.panel{background:linear-gradient(145deg,#141619,#101113);border:1px solid var(--line);border-radius:13px;overflow:hidden;min-width:0}.panelhead{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.panelhead h3{font-size:15px;margin:0}.panelbody{padding:15px}.personGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.person{border:1px solid #363940;background:#0d0e10;border-radius:10px;overflow:hidden;cursor:pointer;transition:.2s}.person:hover{border-color:#a52b35;transform:translateY(-2px)}.person img{width:100%;height:150px;object-fit:cover;display:block;background:#24262a}.person .pbody{padding:10px}.tag{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:5px;font-size:10px;font-weight:700}.tag.red{background:#351015;color:#ff6872}.tag.orange{background:#3b2710;color:#ffc06c}.tag.green{background:#103328;color:#68e5b3}.tag.gray{background:#25282d;color:#c7cbd2}.person h4{margin:8px 0 2px;font-size:14px}.muted{color:var(--muted);font-size:11px}.personFoot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:6px}.sideStack{display:grid;gap:14px;align-content:start}.activity{display:grid;gap:0}.activityRow{display:grid;grid-template-columns:65px 1fr;gap:10px;padding:12px 0;border-bottom:1px solid #24272c;font-size:12px}.activityRow:last-child{border-bottom:0}.time{color:#858b96;font-size:11px}.event{color:#d8dbe1}.event b{color:#fff}.event small{display:block;color:#858b96;margin-top:4px}.task{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #24272c;font-size:12px}.task:last-child{border:0}.task input{accent-color:var(--red);margin-top:4px}.task.done span{text-decoration:line-through;color:#777}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px;font-size:12px}th,td{text-align:right;padding:13px 15px;border-bottom:1px solid #26292e}th{color:#969ca7;font-weight:500;background:#141619}td{color:#d7d9df}tr:last-child td{border:0}.pill{padding:4px 8px;border-radius:5px;font-size:10px;background:#25282d}.empty{padding:28px;text-align:center;color:#888}.page{display:none}.page.active{display:block}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.toolbar input,.toolbar select{background:#16181c;border:1px solid #343840;color:#eee;border-radius:8px;padding:10px 12px;outline:none}.toolbar input{min-width:220px}.notice{padding:12px;border-radius:9px;border:1px solid #4b3430;background:#211515;color:#e5c6c6;font-size:12px;line-height:1.8;margin-top:12px}.modalback{display:none;position:fixed;inset:0;background:#000b;z-index:20;align-items:center;justify-content:center;padding:18px}.modalback.open{display:flex}.modal{width:min(760px,100%);max-height:92vh;overflow:auto;background:#121417;border:1px solid #41444b;border-radius:15px;box-shadow:0 25px 100px #000;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.modalhead h3{margin:0}.close{background:transparent;border:0;color:#ddd;font-size:25px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;color:#bfc3cc}.field input,.field textarea,.field select{width:100%;background:#0c0d0f;border:1px solid #353941;color:white;border-radius:8px;padding:11px;outline:none}.field textarea{min-height:95px;resize:vertical}.field input:focus,.field textarea:focus{border-color:#b92b37}.uploadhint{font-size:11px;color:#9298a3}.previewrow{display:flex;gap:7px;flex-wrap:wrap}.previewrow img{width:65px;height:65px;object-fit:cover;border-radius:7px;border:1px solid #444}.modalactions{display:flex;justify-content:flex-start;gap:8px;margin-top:18px}.toast{position:fixed;bottom:22px;left:22px;z-index:50;background:#17251f;border:1px solid #24563f;color:#b5f5d8;padding:12px 18px;border-radius:9px;display:none;font-size:13px}.toast.show{display:block}.logFilters{display:flex;gap:8px;flex-wrap:wrap}.logFilters input,.logFilters select{background:#15171a;border:1px solid #353941;color:#eee;padding:9px;border-radius:7px}.footer{color:#656b75;font-size:11px;text-align:center;padding:22px 22px 5px}.creator-credit{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:0 16px 22px;color:#858b96;font-size:10px;letter-spacing:1.4px;text-align:center}.creator-credit span:first-child{color:#e7e9ed;font-weight:800}.creator-separator{color:#ff2638;font-weight:900}
+:root{--bg:#090a0c;--panel:#111316;--panel2:#17191d;--line:#292c32;--red:#f12835;--muted:#9ba0aa;--white:#f4f5f7;--green:#39d69b;--amber:#ffb34c}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 70% -20%,#341015 0,transparent 38%),var(--bg);color:var(--white);font-family:'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.sidebar{border-left:1px solid var(--line);background:#0d0e10;padding:18px 14px;display:flex;flex-direction:column;gap:22px}.brand{display:flex;align-items:center;gap:10px;padding:4px 4px 18px;border-bottom:1px solid var(--line)}.brand img{width:66px;height:66px;object-fit:cover;border-radius:12px}.brand b{display:block;font-size:16px;letter-spacing:1px}.brand span{color:var(--red);font-weight:700;font-size:12px;letter-spacing:2px}.nav{display:grid;gap:6px}.nav button{background:transparent;color:#b7bbc4;border:1px solid transparent;text-align:right;padding:12px 13px;border-radius:9px;display:flex;align-items:center;gap:12px}.nav button .ico{width:22px;text-align:center;font-size:17px}.nav button.active,.nav button:hover{color:#fff;background:linear-gradient(90deg,#291013,#171012);border-color:#552127;box-shadow:inset -3px 0 var(--red)}.sidefoot{margin-top:auto;color:#666d78;font-size:11px;border-top:1px solid var(--line);padding-top:16px}.main{min-width:0}.topbar{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#0d0e10dd;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}.search{width:min(440px,55%);position:relative}.search input{width:100%;background:#17191d;border:1px solid #30343b;border-radius:10px;padding:11px 40px 11px 12px;color:#fff;outline:none}.search:before{content:'⌕';position:absolute;right:13px;top:2px;font-size:25px;color:#8c929d}.profile{display:flex;align-items:center;gap:12px;font-size:13px}.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#292c31;border:1px solid #444;font-size:18px}.content{padding:22px 26px 36px;max-width:1800px;margin:auto}.hero{border:1px solid #4a2429;border-radius:15px;overflow:hidden;min-height:180px;background:linear-gradient(90deg,#0c0d0f 0%,#0d0d0ff0 37%,#100d10aa 70%),radial-gradient(ellipse at 78% 15%,rgba(185,20,34,.22),transparent 48%),repeating-linear-gradient(135deg,rgba(245,38,53,.045) 0 2px,transparent 2px 36px);position:relative;padding:28px 30px;display:flex;align-items:center;justify-content:space-between}.hero:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,#0a0b0d 0%,transparent 60%)}.heroText{position:relative;z-index:1}.eyebrow{font-size:11px;color:var(--red);font-weight:700;letter-spacing:3px}.hero h1{font-size:clamp(25px,3vw,42px);margin:7px 0 3px;letter-spacing:1px}.hero h1 span{color:var(--red);font-style:italic}.hero p{color:#c2c5cb;margin:0;font-size:13px}.heroMark{position:relative;z-index:1;border:1px solid #5b272c;background:#0c0d0dbb;padding:15px 20px;border-radius:12px;text-align:center;min-width:150px}.heroMark strong{display:block;font-size:24px}.heroMark small{color:#aeb3bd}.sectionhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:25px 0 13px}.sectionhead h2{font-size:19px;margin:0}.sub{color:var(--muted);font-size:12px;margin-top:4px}.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid #373b43;background:#1b1e23;color:#e9ebef;border-radius:8px;padding:10px 14px;font-weight:600;font-size:12px}.btn:hover{border-color:#777}.btn.danger{border-color:#7f1d1d;background:#351014;color:#ff7b84}.btn.danger:hover{background:#55151d}.btn.primary{background:var(--red);border-color:var(--red);color:white}.btn.ghostred{border-color:#69232a;color:#ff5c66;background:#210e11}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:15px}.stat{background:linear-gradient(140deg,#17191d,#101113);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:center;gap:13px}.statIcon{width:43px;height:43px;display:grid;place-items:center;border-radius:10px;background:#2a1014;color:#ff3946;font-size:20px}.stat strong{display:block;font-size:26px;line-height:1.2}.stat span{color:#a7abb4;font-size:12px}.grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);gap:14px;margin-top:15px}.panel{background:linear-gradient(145deg,#141619,#101113);border:1px solid var(--line);border-radius:13px;overflow:hidden;min-width:0}.panelhead{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.panelhead h3{font-size:15px;margin:0}.panelbody{padding:15px}.personGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.person{border:1px solid #363940;background:#0d0e10;border-radius:10px;overflow:hidden;cursor:pointer;transition:.2s}.person:hover{border-color:#a52b35;transform:translateY(-2px)}.person img{width:100%;height:150px;object-fit:cover;display:block;background:#24262a}.person .pbody{padding:10px}.tag{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:5px;font-size:10px;font-weight:700}.tag.red{background:#351015;color:#ff6872}.tag.orange{background:#3b2710;color:#ffc06c}.tag.green{background:#103328;color:#68e5b3}.tag.gray{background:#25282d;color:#c7cbd2}.person h4{margin:8px 0 2px;font-size:14px}.muted{color:var(--muted);font-size:11px}.personFoot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:6px}.sideStack{display:grid;gap:14px;align-content:start}.activity{display:grid;gap:0}.activityRow{display:grid;grid-template-columns:65px 1fr;gap:10px;padding:12px 0;border-bottom:1px solid #24272c;font-size:12px}.activityRow:last-child{border-bottom:0}.time{color:#858b96;font-size:11px}.event{color:#d8dbe1}.event b{color:#fff}.event small{display:block;color:#858b96;margin-top:4px}.task{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #24272c;font-size:12px}.task:last-child{border:0}.task input{accent-color:var(--red);margin-top:4px}.task.done span{text-decoration:line-through;color:#777}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px;font-size:12px}th,td{text-align:right;padding:13px 15px;border-bottom:1px solid #26292e}th{color:#969ca7;font-weight:500;background:#141619}td{color:#d7d9df}tr:last-child td{border:0}.pill{padding:4px 8px;border-radius:5px;font-size:10px;background:#25282d}.empty{padding:28px;text-align:center;color:#888}.page{display:none}.page.active{display:block}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.toolbar input,.toolbar select{background:#16181c;border:1px solid #343840;color:#eee;border-radius:8px;padding:10px 12px;outline:none}.toolbar input{min-width:220px}.notice{padding:12px;border-radius:9px;border:1px solid #4b3430;background:#211515;color:#e5c6c6;font-size:12px;line-height:1.8;margin-top:12px}.modalback{display:none;position:fixed;inset:0;background:#000b;z-index:20;align-items:center;justify-content:center;padding:18px}.modalback.open{display:flex}.modal{width:min(760px,100%);max-height:92vh;overflow:auto;background:#121417;border:1px solid #41444b;border-radius:15px;box-shadow:0 25px 100px #000;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.modalhead h3{margin:0}.close{background:transparent;border:0;color:#ddd;font-size:25px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field{display:grid;gap:6px}.field[hidden]{display:none!important}.field.full{grid-column:1/-1}.field label{font-size:12px;color:#bfc3cc}.field input,.field textarea,.field select{width:100%;background:#0c0d0f;border:1px solid #353941;color:white;border-radius:8px;padding:11px;outline:none}.field textarea{min-height:95px;resize:vertical}.field input:focus,.field textarea:focus{border-color:#b92b37}.uploadhint{font-size:11px;color:#9298a3}.previewrow{display:flex;gap:7px;flex-wrap:wrap}.previewrow img{width:65px;height:65px;object-fit:cover;border-radius:7px;border:1px solid #444}.modalactions{display:flex;justify-content:flex-start;gap:8px;margin-top:18px}.toast{position:fixed;bottom:22px;left:22px;z-index:50;background:#17251f;border:1px solid #24563f;color:#b5f5d8;padding:12px 18px;border-radius:9px;display:none;font-size:13px}.toast.show{display:block}.logFilters{display:flex;gap:8px;flex-wrap:wrap}.logFilters input,.logFilters select{background:#15171a;border:1px solid #353941;color:#eee;padding:9px;border-radius:7px}.footer{color:#656b75;font-size:11px;text-align:center;padding:22px 22px 5px}.creator-credit{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:0 16px 22px;color:#858b96;font-size:10px;letter-spacing:1.4px;text-align:center}.creator-credit span:first-child{color:#e7e9ed;font-weight:800}.creator-separator{color:#ff2638;font-weight:900}
 @media(max-width:1100px){.app{grid-template-columns:210px 1fr}.stats{grid-template-columns:repeat(2,1fr)}.personGrid{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.heroMark{display:none}}@media(max-width:720px){.app{grid-template-columns:1fr}.sidebar{padding:10px;position:sticky;top:0;z-index:8;border-left:0;border-bottom:1px solid var(--line)}.brand{padding:0 5px 9px;border:0}.brand img{width:42px;height:42px}.nav{display:flex;overflow:auto;gap:5px}.nav button{white-space:nowrap;padding:9px 10px;font-size:12px}.nav button .ico{font-size:15px}.sidefoot{display:none}.topbar{position:static;padding:0 13px;height:58px}.content{padding:14px}.hero{padding:23px 18px;min-height:155px}.hero p{max-width:270px}.stats{gap:8px}.stat{padding:11px;gap:9px}.statIcon{width:35px;height:35px}.stat strong{font-size:21px}.stat span{font-size:10px}.personGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.person img{height:125px}.sectionhead{align-items:flex-start;flex-direction:column}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.profile .userlabel{display:none}.search{width:66%}.search input{font-size:12px}.actions{width:100%}.actions .btn{flex:1}.panelhead{padding:13px}.panelbody{padding:12px}}
 
 /* Discord authentication gate */
@@ -2565,7 +2565,8 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
   <div class="formgrid">
    <div class="field full"><label for="resignationTemplateFile">قالب الاستقالة (PNG شفاف) *</label><input id="resignationTemplateFile" type="file" accept="image/png" onchange="handleResignationTemplateUpload()"><div class="muted">استخدم صورة القالب المعدّلة من فوتوشوب بصيغة PNG؛ الفتحة الشفافة والإطار الأحمر جزء من القالب ولن نضيف حدودًا جديدة.</div></div>
    <div class="field"><label for="resignationCardLayer">العنصر الذي تريد تحريكه</label><select id="resignationCardLayer" onchange="syncResignationCardControls()"><option value="photo">الصورة الشخصية</option><option value="name">اسم العضو</option></select></div>
-   <div class="field"><label for="resignationPreviewName">اسم تجريبي للمعاينة</label><input id="resignationPreviewName" value="ALPHA 17" maxlength="100" oninput="drawResignationCardEditorPreview()"></div>
+   <div class="field"><label for="resignationPreviewMember">صورة واسم المعاينة</label><select id="resignationPreviewMember" onchange="selectResignationPreviewMember(this.value)"><option value="">جارٍ تحميل أعضاء S.W.A.T...</option></select></div>
+   <div class="field"><label for="resignationPreviewName">اسم المعاينة (يمكن تعديله)</label><input id="resignationPreviewName" value="" placeholder="يظهر اسم العضو المختار" maxlength="100" oninput="drawResignationCardEditorPreview()"></div>
    <div class="field"><label for="resignationCardX">تحريك الصورة أفقيًا داخل الإطار</label><input id="resignationCardX" type="range" min="-100" max="100" value="0" oninput="updateResignationCardControl('x',this.value)"><span class="muted" id="resignationCardXValue">0%</span></div>
    <div class="field"><label for="resignationCardY">تحريك الصورة رأسيًا داخل الإطار</label><input id="resignationCardY" type="range" min="-100" max="100" value="0" oninput="updateResignationCardControl('y',this.value)"><span class="muted" id="resignationCardYValue">0%</span></div>
    <div class="field" id="resignationPhotoZoomWrap"><label for="resignationPhotoZoom">تكبير الصورة</label><input id="resignationPhotoZoom" type="range" min="50" max="300" value="100" oninput="updateResignationCardControl('zoom',this.value)"><span class="muted" id="resignationPhotoZoomValue">100%</span></div>
@@ -4156,6 +4157,7 @@ let resignationTemplateUrl="";
 let resignationTemplateImage=null;
 let resignationTemplateLoading=null;
 let resignationCardDragging=null;
+let resignationPreviewMember=null;
 let resignationReviewState={id:"",status:""};
 let resignationRequests=[];
 let myResignationRequests=[];
@@ -4163,21 +4165,28 @@ let resignationBusy=false;
 
 function normalizeResignationCardDesign(value){
  const source=value&&typeof value==="object"?value:{};
- const photo={...DEFAULT_RESIGNATION_CARD_DESIGN.photo,...(source.photo||{})};
- const name={...DEFAULT_RESIGNATION_CARD_DESIGN.name,...(source.name||{})};
- photo.x=Math.max(0,Math.min(1672,Number(photo.x)||379));
- photo.y=Math.max(0,Math.min(941,Number(photo.y)||439));
- photo.width=Math.max(60,Math.min(1672-photo.x,Number(photo.width)||268));
- photo.height=Math.max(60,Math.min(941-photo.y,Number(photo.height)||254));
- photo.zoom=Math.max(.5,Math.min(3,Number(photo.zoom)||1));
- photo.cropX=Math.max(-100,Math.min(100,Number(photo.cropX)||0));
- photo.cropY=Math.max(-100,Math.min(100,Number(photo.cropY)||0));
- name.x=Math.max(0,Math.min(1672,Number(name.x)||980));
- name.y=Math.max(0,Math.min(941,Number(name.y)||586));
- name.size=Math.max(12,Math.min(120,Number(name.size)||44));
- name.color=/^#[0-9a-f]{6}$/i.test(name.color)?name.color:"#f1e6d2";
- name.fontFamily=["Arial","Tahoma","Impact","Georgia","Trebuchet MS"].includes(name.fontFamily)?name.fontFamily:"Arial";
- name.align=["left","center","right"].includes(name.align)?name.align:"center";
+ const rawPhoto=source.photo&&typeof source.photo==="object"?source.photo:{};
+ const rawName=source.name&&typeof source.name==="object"?source.name:{};
+ const clamp=(input,fallback,min,max)=>{
+  const number=Number(input);
+  return Number.isFinite(number)?Math.max(min,Math.min(max,number)):fallback;
+ };
+ const photo={};
+ photo.x=clamp(rawPhoto.x,DEFAULT_RESIGNATION_CARD_DESIGN.photo.x,0,1672-60);
+ photo.y=clamp(rawPhoto.y,DEFAULT_RESIGNATION_CARD_DESIGN.photo.y,0,941-60);
+ photo.width=clamp(rawPhoto.width,DEFAULT_RESIGNATION_CARD_DESIGN.photo.width,60,1672-photo.x);
+ photo.height=clamp(rawPhoto.height,DEFAULT_RESIGNATION_CARD_DESIGN.photo.height,60,941-photo.y);
+ photo.zoom=clamp(rawPhoto.zoom,1,.5,3);
+ photo.cropX=clamp(rawPhoto.cropX,0,-100,100);
+ photo.cropY=clamp(rawPhoto.cropY,0,-100,100);
+ const name={
+  x:clamp(rawName.x,DEFAULT_RESIGNATION_CARD_DESIGN.name.x,0,1672),
+  y:clamp(rawName.y,DEFAULT_RESIGNATION_CARD_DESIGN.name.y,0,941),
+  size:clamp(rawName.size,DEFAULT_RESIGNATION_CARD_DESIGN.name.size,12,120),
+  color:/^#[0-9a-f]{6}$/i.test(rawName.color)?rawName.color:DEFAULT_RESIGNATION_CARD_DESIGN.name.color,
+  fontFamily:["Arial","Tahoma","Impact","Georgia","Trebuchet MS"].includes(rawName.fontFamily)?rawName.fontFamily:"Arial",
+  align:["left","center","right"].includes(rawName.align)?rawName.align:"center"
+ };
  return {photo,name};
 }
 async function loadResignationCardSettings(force=false){
@@ -4270,13 +4279,73 @@ async function drawResignationCanvas(canvas,memberName,avatarUrl,design=resignat
  const ctx=canvas.getContext('2d');
  drawResignationCard(ctx,template,avatar,memberName,design);
 }
+function resignationPreviewMemberName(member){
+ return String(member?.live_name||member?.display_name||member?.username||"DS").trim();
+}
+function resignationPreviewCommanderScore(member){
+ const roles=Array.isArray(member?.assignment?.rank_role_names)?member.assignment.rank_role_names:[];
+ const roleText=roles.join(" ").normalize("NFKD").toLowerCase();
+ if(/commander/.test(roleText)&&!/deputy/.test(roleText))return 3;
+ if(/deputy/.test(roleText)&&/commander/.test(roleText))return 2;
+ return 0;
+}
+function selectResignationPreviewMember(memberId){
+ const member=assignmentData.members.find(row=>String(row.discord_user_id)===String(memberId))||null;
+ resignationPreviewMember=member;
+ const nameInput=document.getElementById('resignationPreviewName');
+ if(nameInput&&member)nameInput.value=resignationPreviewMemberName(member);
+ drawResignationCardEditorPreview();
+}
+async function loadResignationPreviewMembers(){
+ const select=document.getElementById('resignationPreviewMember');
+ if(!select)return;
+ await renderAssignments();
+ const members=(assignmentData.members||[]).filter(member=>
+  member&&member.account_status!=='inactive'&&member.account_status!=='banned'&&member.is_banned!==true
+ );
+ const ordered=[...members].sort((a,b)=>{
+  const rank=resignationPreviewCommanderScore(b)-resignationPreviewCommanderScore(a);
+  if(rank)return rank;
+  return String(a.live_name||a.display_name||"").localeCompare(String(b.live_name||b.display_name||""));
+ });
+ select.innerHTML='<option value="">اختر عضوًا للمعاينة...</option>'+ordered.map(member=>{
+  const id=adminEscape(String(member.discord_user_id||""));
+  const label=resignationPreviewMemberName(member);
+  const callsign=member.assignment?.callsign?(" • "+member.assignment.callsign):"";
+  const commander=resignationPreviewCommanderScore(member)===3?" • Commander":resignationPreviewCommanderScore(member)===2?" • Deputy Commander":"";
+  return '<option value="'+id+'">'+adminEscape(label+commander+callsign)+'</option>';
+ }).join('');
+ const preferred=ordered.find(member=>/\bds\b/i.test([member.live_name,member.display_name,member.username].filter(Boolean).join(" ")))
+  ||ordered.find(member=>resignationPreviewCommanderScore(member)===3)
+  ||ordered.find(member=>resignationPreviewCommanderScore(member)===2)
+  ||ordered.find(member=>String(member.discord_user_id)!==String(currentUserId))
+  ||ordered[0]||null;
+ if(preferred){
+  select.value=String(preferred.discord_user_id);
+  resignationPreviewMember=preferred;
+  const nameInput=document.getElementById('resignationPreviewName');
+  if(nameInput)nameInput.value=resignationPreviewMemberName(preferred);
+ }else{
+  resignationPreviewMember=null;
+  select.value="";
+  const nameInput=document.getElementById('resignationPreviewName');
+  if(nameInput)nameInput.value="DS";
+ }
+}
 async function drawResignationCardEditorPreview(){
  const canvas=document.getElementById('resignationCardEditorCanvas');if(!canvas)return;
  try{
-  const avatarUrl=document.getElementById('profileAvatar')?.querySelector('img')?.src||"";
-  await drawResignationCanvas(canvas,String(document.getElementById('resignationPreviewName')?.value||'ALPHA 17'),avatarUrl);
-  const status=document.getElementById('resignationCardEditorStatus');if(status)status.textContent='اسحب الصورة أو الاسم من المعاينة، أو استخدم عناصر التحكم لتعديل الموضع والحجم.';
- }catch(error){const status=document.getElementById('resignationCardEditorStatus');if(status)status.textContent=error.message||'تعذّرت معاينة التصميم.';}
+  const avatarUrl=resignationPreviewMember?.avatar_url||"";
+  const previewName=String(document.getElementById('resignationPreviewName')?.value||resignationPreviewMemberName(resignationPreviewMember));
+  await drawResignationCanvas(canvas,previewName,avatarUrl);
+  const status=document.getElementById('resignationCardEditorStatus');
+  if(status)status.textContent=resignationPreviewMember
+   ?'المعاينة تستخدم صورة '+resignationPreviewMemberName(resignationPreviewMember)+'؛ عند نشر البطاقة ستُستخدم صورة صاحب طلب الاستقالة واسمه.'
+   :'اختر عضوًا من قائمة المعاينة لعرض صورته بدل صورة حسابك.';
+ }catch(error){
+  const status=document.getElementById('resignationCardEditorStatus');
+  if(status)status.textContent=error.message||'تعذّرت معاينة التصميم.';
+ }
 }
 function syncResignationCardControls(){
  const layer=document.getElementById('resignationCardLayer')?.value||'photo',isPhoto=layer==='photo',settings=resignationCardDesign[layer];
@@ -4315,7 +4384,7 @@ function updateResignationCardControl(key,value){
 async function openResignationCardEditor(){
  if(!currentCanAdmin||!currentCanManageWarnings){toast('إعداد تصميم الاستقالات متاح لمدير الموقع فقط.');return;}
  const modal=document.getElementById('resignationCardEditorModalBack');if(!modal)return;
- modal.classList.add('open');await loadResignationCardSettings(true);syncResignationCardControls();await drawResignationCardEditorPreview();
+ modal.classList.add('open');await loadResignationCardSettings(true);await loadResignationPreviewMembers();syncResignationCardControls();await drawResignationCardEditorPreview();
  const canvas=document.getElementById('resignationCardEditorCanvas');
  if(canvas&&!canvas.dataset.dragBound){
   canvas.dataset.dragBound='1';
@@ -4421,7 +4490,7 @@ function renderResignationAdminRequests(){
  body.innerHTML=resignationRequests.map(item=>{
   const avatar=item.avatar_url?'<img class="leave-request-avatar" src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer">':'<span class="leave-request-avatar">👤</span>';
   const actions=item.status==='pending'
-   ?'<div class="leave-request-actions"><button class="btn primary" type="button" onclick="openResignationReview(\''+adminEscape(item.id)+'\',\'approved\')">✓ موافقة</button><button class="btn danger" type="button" onclick="openResignationReview(\''+adminEscape(item.id)+'\',\'rejected\')">✕ رفض</button></div>'
+   ?'<div class="leave-request-actions"><button class="btn primary" type="button" onclick="openResignationApproval(\''+adminEscape(item.id)+'\')">✓ موافقة</button><button class="btn danger" type="button" onclick="openResignationRejection(\''+adminEscape(item.id)+'\')">✕ رفض</button></div>'
    :item.status==='approved'&&item.publish_status!=='published'?'<div class="leave-request-actions"><button class="btn" type="button" onclick="retryResignationCard(\''+adminEscape(item.id)+'\')">نشر بطاقة الاستقالة</button></div>':'';
   const decision=item.reviewed_by_name?'<div class="leave-request-decision">قرار الإدارة: '+adminEscape(item.reviewed_by_name)+' • '+adminEscape(fmtWarningDate(item.reviewed_at||item.created_at))+(item.review_note?'<br>ملاحظة: '+adminEscape(item.review_note):'')+'</div>':'';
   const delivery=item.status==='approved'?'<div class="muted">'+(item.publish_status==='published'?'تم نشر بطاقة الاستقالة في Discord.':item.publish_status==='failed'?'فشل نشر البطاقة: '+adminEscape(item.publish_error||'خطأ غير معروف'):'بانتظار نشر البطاقة.')+'</div>':'';
@@ -4458,21 +4527,29 @@ async function createResignationRequestAdmin(){
  finally{if(button)button.disabled=false;}
 }
 function openResignationReview(id,status){
- if(!currentCanAdmin||!currentCanManageWarnings)return;
+ if(!currentCanAdmin||!currentCanManageWarnings||!['approved','rejected'].includes(status))return;
  const item=resignationRequests.find(row=>String(row.id)===String(id));if(!item||item.status!=='pending')return;
  resignationReviewState={id:String(id),status};
+ const noteWrap=document.getElementById('resignationReviewNoteWrap');
  document.getElementById('resignationReviewTitle').textContent=status==='approved'?'تأكيد الموافقة على الاستقالة':'رفض طلب الاستقالة';
  document.getElementById('resignationReviewSubtitle').textContent=status==='approved'?'سيتم إرسال قرار القبول للعضو ونشر بطاقة الاستقالة.':'اكتب سبب الرفض ليصل إلى العضو في رسالة خاصة.';
  document.getElementById('resignationReviewContext').textContent=(item.member_name||item.display_name)+' • '+item.reason;
- document.getElementById('resignationReviewNoteWrap').hidden=status!=='rejected';
- document.getElementById('resignationReviewNote').value='';
+ if(noteWrap){noteWrap.hidden=status!=='rejected';noteWrap.style.display=status==='rejected'?'grid':'none';}
+ const note=document.getElementById('resignationReviewNote');
+ if(note){note.value='';note.required=status==='rejected';}
+ const submit=document.getElementById('resignationReviewSubmitButton');
+ if(submit)submit.textContent=status==='approved'?'تأكيد الموافقة':'تأكيد الرفض';
  document.getElementById('resignationReviewModalBack')?.classList.add('open');
 }
+function openResignationApproval(id){openResignationReview(id,'approved');}
+function openResignationRejection(id){openResignationReview(id,'rejected');}
 function closeResignationReviewModal(){document.getElementById('resignationReviewModalBack')?.classList.remove('open');}
 async function submitResignationReview(){
  if(!currentCanAdmin||!currentCanManageWarnings)return;
- const {id,status}=resignationReviewState,note=String(document.getElementById('resignationReviewNote')?.value||'').trim();
- if(!id||!status)return;if(status==='rejected'&&note.length<3){toast('اكتب سبب الرفض بوضوح.');return;}
+ const {id,status}=resignationReviewState;
+ const note=status==='rejected'?String(document.getElementById('resignationReviewNote')?.value||'').trim():'';
+ if(!id||!['approved','rejected'].includes(status))return;
+ if(status==='rejected'&&note.length<3){toast('اكتب سبب الرفض بوضوح.');return;}
  const button=document.getElementById('resignationReviewSubmitButton');if(button)button.disabled=true;
  try{
   const response=await fetch('/api/warnings',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'review_resignation_request',id,status,review_note:note})});

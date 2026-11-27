@@ -1603,7 +1603,7 @@ export default async function handler(req, res) {
         method: "PATCH", headers: { Prefer: "return=representation" },
         body: JSON.stringify({
           status, reviewed_by_discord_id: user.id, reviewed_by_name: user.displayName,
-          review_note: status === "rejected" ? note : (note || null),
+          review_note: status === "rejected" ? note : null,
           reviewed_at: reviewedAt, updated_at: reviewedAt, dm_status: "not_sent", dm_error: null
         })
       });
