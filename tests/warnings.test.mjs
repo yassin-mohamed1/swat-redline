@@ -463,3 +463,30 @@ test("approved resignations remove every manageable Discord role except Activate
   assert.match(review, /status: "pending"/);
   assert.match(review, /removed_role_count: resignationRoleCleanup\?\.removedRoleCount/);
 });
+
+test("resignation admin is a dedicated dashboard with safe test-data cleanup", async () => {
+  const api = await readFile(new URL("../api/warnings.js", import.meta.url), "utf8");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+  const cleanupStart = api.indexOf('if (body.action === "delete_resignation_test_requests")');
+  const cleanupEnd = api.indexOf('if (body.action === "save_attendance_exemptions")', cleanupStart);
+  assert.ok(cleanupStart >= 0 && cleanupEnd > cleanupStart);
+  const cleanup = api.slice(cleanupStart, cleanupEnd);
+  assert.match(cleanup, /request_ids/);
+  assert.match(cleanup, /allowedTestReasons/);
+  assert.match(cleanup, /invalidRows\.length/);
+  assert.match(cleanup, /publication_channel_id/);
+  assert.match(cleanup, /method: "DELETE"/);
+  assert.match(cleanup, /resignation_test_cleanup/);
+
+  assert.match(html, /class="resignation-admin-modal"/);
+  assert.match(html, /id="resignationAdminStats"/);
+  assert.match(html, /data-resign-filter="pending"/);
+  assert.match(html, /id="resignationAdminSearch"/);
+  assert.match(html, /deleteResignationTestRequests\(\)/);
+  assert.match(html, /function isResignationTestRecord\(item\)/);
+  assert.match(html, /resign-card/);
+  assert.match(html, /resign-avatar/);
+  assert.match(html, /#resignationAdminModalBack \.resign-avatar\{display:block!important;width:48px!important/);
+  assert.match(html, /TEST DATA/);
+});
