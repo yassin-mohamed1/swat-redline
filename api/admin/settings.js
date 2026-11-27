@@ -214,7 +214,7 @@ export default async function handler(req, res) {
 
       if (k === "resignationTemplateUrl") {
         if (typeof value !== "string" || value.length > 2048 ||
-            (value && !value.startsWith("/") && !/^https:\\/\\//i.test(value))) {
+            (value && !value.startsWith("/") && !value.toLowerCase().startsWith("https://"))) {
           return res.status(400).json({ error: "رابط قالب الاستقالة غير صالح." });
         }
       }
