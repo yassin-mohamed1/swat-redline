@@ -163,7 +163,9 @@ export default async function handler(req, res) {
         "notificationMemberDmEnabled",
         "disciplinaryTargetMentionEnabled",
         "automaticNotificationChannelId",
-        "unitCardDesign"
+        "unitCardDesign",
+        "resignationTemplateUrl",
+        "resignationCardDesign"
       ]);
       for (const row of rows) {
         if (!canReadAdminSettings && adminOnlySettingKeys.has(row.key)) continue;
@@ -174,7 +176,7 @@ export default async function handler(req, res) {
     if (req.method !== "PUT") { res.setHeader("Allow", "GET, PUT"); return res.status(405).json({ error: "Method not allowed" }); }
     const body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : (req.body || {});
     if (!body.settings || typeof body.settings !== "object" || Array.isArray(body.settings)) return res.status(400).json({ error: "Settings object required" });
-    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "automaticNotificationChannelId", "customMenuItems", "unitCardDesign"]);
+    const allowed = new Set(["accentColor", "backgroundColor", "textOverrides", "styleOverrides", "siteImages", "notificationRoleMentionDisabled", "notificationChannelEnabled", "notificationMemberDmEnabled", "disciplinaryTargetMentionEnabled", "automaticNotificationChannelId", "customMenuItems", "unitCardDesign", "resignationTemplateUrl", "resignationCardDesign"]);
     const rows = [];
     for (const [k, value] of Object.entries(body.settings)) {
       if (!allowed.has(k)) continue;
@@ -208,6 +210,35 @@ export default async function handler(req, res) {
             !Number.isFinite(avatar.zoom) || avatar.zoom < 0.8 || avatar.zoom > 2.5 ||
             !Number.isFinite(avatar.cropX) || avatar.cropX < -100 || avatar.cropX > 100 ||
             !Number.isFinite(avatar.cropY) || avatar.cropY < -100 || avatar.cropY > 100) return res.status(400).json({ error: "Invalid unit card avatar settings" });
+      }
+
+      if (k === "resignationTemplateUrl") {
+        if (typeof value !== "string" || value.length > 2048 ||
+            (value && !value.startsWith("/") && !/^https:\\/\\//i.test(value))) {
+          return res.status(400).json({ error: "رابط قالب الاستقالة غير صالح." });
+        }
+      }
+      if (k === "resignationCardDesign") {
+        const keys = ["photo", "name"];
+        if (!plainObject(value) || Object.keys(value).some(key => !keys.includes(key))) return res.status(400).json({ error: "إعدادات تصميم الاستقالة غير صالحة." });
+        const photo = value.photo, name = value.name;
+        if (!plainObject(photo) || Object.keys(photo).some(key => !["x","y","zoom","cropX","cropY"].includes(key)) ||
+            !Number.isFinite(photo.x) || photo.x < 0 || photo.x > 1672 ||
+            !Number.isFinite(photo.y) || photo.y < 0 || photo.y > 941 ||
+            !Number.isFinite(photo.zoom) || photo.zoom < 0.5 || photo.zoom > 3 ||
+            !Number.isFinite(photo.cropX) || photo.cropX < -100 || photo.cropX > 100 ||
+            !Number.isFinite(photo.cropY) || photo.cropY < -100 || photo.cropY > 100) {
+          return res.status(400).json({ error: "موضع أو حجم صورة الاستقالة غير صالح." });
+        }
+        if (!plainObject(name) || Object.keys(name).some(key => !["x","y","size","color","fontFamily","align"].includes(key)) ||
+            !Number.isFinite(name.x) || name.x < 0 || name.x > 1672 ||
+            !Number.isFinite(name.y) || name.y < 0 || name.y > 941 ||
+            !Number.isFinite(name.size) || name.size < 12 || name.size > 120 ||
+            typeof name.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(name.color) ||
+            typeof name.fontFamily !== "string" || !["Arial","Tahoma","Impact","Georgia","Trebuchet MS"].includes(name.fontFamily) ||
+            typeof name.align !== "string" || !["left","center","right"].includes(name.align)) {
+          return res.status(400).json({ error: "إعدادات اسم الاستقالة غير صالحة." });
+        }
       }
       if (k === "textOverrides") {
         if (!plainObject(value) || Object.keys(value).length > 500) return res.status(400).json({ error: "Invalid text overrides" });
