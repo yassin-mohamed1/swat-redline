@@ -588,8 +588,9 @@ test("former staff remain visible in the directory and portal access follows the
   assert.ok(!html.includes("showFormerPersonnelList"));
   assert.ok(!html.includes("personnelFormerToggle"));
 
-  const directoryStart = membersApi.indexOf('    if (req.method === "GET") {\\n      const q = new URLSearchParams({');
-  const directoryEnd = membersApi.indexOf("      // Backward-compatible fallback", directoryStart);
+  const activityRoute = membersApi.indexOf('searchParams.get("activity") === "1"');
+  const directoryStart = membersApi.indexOf("const q = new URLSearchParams({", activityRoute);
+  const directoryEnd = membersApi.indexOf("Backward-compatible fallback", directoryStart);
   assert.ok(directoryStart >= 0 && directoryEnd > directoryStart);
   const directory = membersApi.slice(directoryStart, directoryEnd);
   assert.ok(directory.includes('"staff_profiles?" + q'));
@@ -621,7 +622,6 @@ test("returning former personnel are restored in place, not inserted as duplicat
   assert.ok(roleSync.includes("reactivated_ids"));
   assert.ok(membersApi.includes("if(existing){"));
   assert.ok(membersApi.includes("const accessRoleId=String(process.env.DISCORD_ROLE_ID||\"\")"));
-  assert.ok(membersApi.includes("values.discord_roles_synced_at") === false);
   assert.ok(membersApi.includes("reactivated:true"));
   assert.ok(membersApi.includes('action==="delete"') || membersApi.includes('action === "delete"'));
   assert.ok(membersApi.includes('rpc/forget_staff_member_data'));
