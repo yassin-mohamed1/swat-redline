@@ -230,7 +230,7 @@ test("editing a published message explicitly replaces only the template attachme
     [{filename:"image.png",content_type:"image/png",bytes:new Uint8Array([1,2,3])}]
   );
   assert.ok(multipart instanceof FormData);
-  const body = JSON.parse(await multipart.get("payload_json").text());
+  const body = JSON.parse(multipart.get("payload_json"));
   assert.deepEqual(body.attachments,[
     {id:0,filename:"announcement.txt"},
     {id:1,filename:"image.png"}

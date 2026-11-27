@@ -7142,6 +7142,8 @@ function renderDiscordSavedMessages(){
   const delivery=savedMessageDeliveryFor(item.id);
   if(discordDeliveryModeUsesChannels(delivery.mode)){
    renderDiscordChannelPicker(item.id);
+  }
+  if(discordDeliveryModeUsesChannels(delivery.mode)||(item.last_sent_channel_id&&item.last_sent_message_id)){
    renderDiscordMentionPicker(item.id);
   }
   const button=document.getElementById('discordSend_'+item.id);
