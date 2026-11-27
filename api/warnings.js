@@ -1417,6 +1417,44 @@ export default async function handler(req, res) {
       return json(res, 200, { requests: await response.json() });
     }
 
+    if (req.method === "GET" && params.get("resignation_member_options") === "1") {
+      await requireManager(cfg, user);
+      const profilesQuery = new URLSearchParams({
+        select: "discord_user_id,display_name,username,avatar_url,is_active,is_banned",
+        is_banned: "eq.false",
+        order: "display_name.asc",
+        limit: "1000"
+      });
+      const pendingQuery = new URLSearchParams({
+        status: "eq.pending",
+        select: "discord_user_id",
+        limit: "1000"
+      });
+      const [profilesResponse, pendingResponse] = await Promise.all([
+        db(cfg, "staff_profiles?" + profilesQuery.toString()),
+        db(cfg, "resignation_requests?" + pendingQuery.toString())
+      ]);
+      if (!profilesResponse.ok || !pendingResponse.ok) {
+        throw Object.assign(new Error("تعذّر تحميل قائمة الأعضاء المسجلين."), { status: 503 });
+      }
+      const [profiles, pendingRows] = await Promise.all([
+        profilesResponse.json(),
+        pendingResponse.json()
+      ]);
+      const pendingIds = new Set(pendingRows.map(row => String(row.discord_user_id)));
+      const members = profiles
+        .filter(profile => profile.is_banned !== true && /^\\d{15,22}$/.test(String(profile.discord_user_id || "")))
+        .map(profile => ({
+          discord_user_id: String(profile.discord_user_id),
+          display_name: profile.display_name || profile.username || "عضو مسجل",
+          username: profile.username || "",
+          avatar_url: profile.avatar_url || null,
+          is_active: profile.is_active === true,
+          has_pending_resignation: pendingIds.has(String(profile.discord_user_id))
+        }));
+      return json(res, 200, { members });
+    }
+
     if (req.method === "GET" && params.get("resignation_requests") === "1") {
       const q = new URLSearchParams({
         select: "id,discord_user_id,display_name,member_name,reason,status,source,avatar_url,discord_channel_id,discord_message_url,submitted_at,reviewed_by_discord_id,reviewed_by_name,review_note,reviewed_at,dm_status,dm_error,dm_channel_id,dm_message_id,admin_alert_queued_at,publication_channel_id,publication_message_id,published_at,publish_status,publish_error,created_at",
@@ -1692,11 +1730,15 @@ export default async function handler(req, res) {
       const profileResponse = await db(cfg, "staff_profiles?" + profileQuery.toString());
       if (!profileResponse.ok) return json(res, 503, { error: "تعذّر التحقق من ملف العضو." });
       const profile = (await profileResponse.json())[0];
-      if (!profile || profile.is_active !== true || profile.is_banned === true) return json(res, 404, { error: "لا يمكن تقديم استقالة إلا لعضو S.W.A.T نشط." });
+      if (!profile || profile.is_banned === true || (selfRequest && profile.is_active !== true)) {
+        return json(res, 404, { error: "لا يمكن تسجيل الاستقالة لهذا الحساب؛ تأكد أنه مسجل وغير محظور في الموقع." });
+      }
       const memberName = requestedMemberName || String(profile.display_name || profile.username || "").trim();
       if (memberName.length < 2 || memberName.length > 100) return json(res, 400, { error: "تعذّر تحديد اسم العضو من ملفه." });
+      // Former SWAT members remain eligible for a new resignation record.
+      // The member must still exist in the guild, but no longer needs the current SWAT role.
       const discordMember = await getGuildMemberOrNull(cfg, targetId);
-      if (!discordMember || !Array.isArray(discordMember.roles) || !discordMember.roles.includes(cfg.swatRoleId)) return json(res, 409, { error: "العضو لا يحمل رتبة S.W.A.T الحالية في Discord." });
+      if (!discordMember) return json(res, 409, { error: "هذا الحساب غير موجود حاليًا في سيرفر Discord؛ لا يمكن تنفيذ إجراء الاستقالة عليه." });
       const duplicateQuery = new URLSearchParams({ discord_user_id: "eq." + targetId, status: "eq.pending", select: "id", limit: "1" });
       const duplicateResponse = await db(cfg, "resignation_requests?" + duplicateQuery.toString());
       if (!duplicateResponse.ok) return json(res, 503, { error: "تعذّر التحقق من وجود طلب استقالة معلّق." });
