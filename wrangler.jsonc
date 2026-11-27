@@ -4,6 +4,7 @@
   "main": "cloudflare/worker.js",
   "compatibility_date": "2026-11-25",
   "compatibility_flags": ["nodejs_compat"],
+  "previews": {},
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
