@@ -1288,6 +1288,33 @@ html{scroll-padding-top:16px!important}.page{scroll-margin-top:14px!important}
  #resignationAdminModalBack .resign-card-actions{justify-content:flex-start}
  #resignationAdminModalBack .resign-create-footer{align-items:stretch;flex-direction:column}
 }
+
+/* Keep the resignation decision dialog above the high-z-index admin dashboard. */
+#resignationReviewModalBack{
+ position:fixed!important;
+ z-index:140!important;
+}
+#resignationReviewModalBack.open{
+ display:flex!important;
+}
+#resignationReviewModalBack .modal{
+ position:relative!important;
+ z-index:141!important;
+ width:min(560px,calc(100vw - 28px))!important;
+ max-height:min(86vh,760px)!important;
+ overflow:auto!important;
+ border:1px solid rgba(142,174,219,.25)!important;
+ border-radius:18px!important;
+ background:linear-gradient(145deg,#142033,#0b121d)!important;
+ box-shadow:0 35px 110px rgba(0,0,0,.76)!important;
+}
+#resignationReviewModalBack .modalhead h3{color:#f4f7fc!important;font-size:18px!important}
+#resignationReviewModalBack .leave-review-context{
+ margin:14px 0;padding:14px;border:1px solid rgba(142,174,219,.18);
+ border-radius:11px;background:rgba(6,12,20,.55);color:#dce7f5;
+ font-size:12px;line-height:1.9;overflow-wrap:anywhere;
+}
+#resignationReviewSubmitButton[disabled]{opacity:.6;cursor:wait}
 </style><style id="redline-tactical-design-v3">
 /* REDLINE TACTICAL COMMAND — V3
    A full visual-system replacement layer. Existing functionality and data hooks remain unchanged. */
