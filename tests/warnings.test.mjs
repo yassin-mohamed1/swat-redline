@@ -479,7 +479,7 @@ test("resignation admin is a dedicated dashboard with safe test-data cleanup", a
   assert.match(cleanup, /method: "DELETE"/);
   assert.match(cleanup, /resignation_test_cleanup/);
 
-  assert.match(html, /class="resignation-admin-modal"/);
+  assert.match(html, /class="modal resignation-admin-modal"/);
   assert.match(html, /id="resignationAdminStats"/);
   assert.match(html, /data-resign-filter="pending"/);
   assert.match(html, /id="resignationAdminSearch"/);
