@@ -1075,6 +1075,83 @@ async function publishAttendanceChannelNotice(user, body) {
 }
 
 
+
+async function ensureRequestPanelMessage(botToken, channelId, customId, label, heading, description, style) {
+  if (!/^\\d{15,22}$/.test(String(channelId || ""))) throw Object.assign(new Error("معرّف روم الطلبات غير مضبوط."), { status: 503 });
+  const bot = await discordRequest({ botToken }, "/users/@me");
+  if (!bot?.id) throw Object.assign(new Error("تعذّر التحقق من بوت Discord."), { status: 503 });
+  const recent = await discordRequest({ botToken }, "/channels/" + encodeURIComponent(channelId) + "/messages?limit=100");
+  const existing = (Array.isArray(recent) ? recent : []).find(message =>
+    String(message.author?.id || "") === String(bot.id) &&
+    (message.components || []).some(row => (row.components || []).some(component => String(component.custom_id || component.customId || "") === customId))
+  );
+  if (existing) {
+    return { channelId, messageId: String(existing.id), messageUrl: "https://discord.com/channels/" + String(process.env.DISCORD_GUILD_ID || "@me") + "/" + channelId + "/" + existing.id, reused: true };
+  }
+  const message = await discordRequest({ botToken }, "/channels/" + encodeURIComponent(channelId) + "/messages", {
+    method: "POST",
+    body: JSON.stringify({
+      content: "**" + heading + "**\\n" + description,
+      components: [{ type: 1, components: [{ type: 2, style, label, custom_id: customId }] }],
+      allowed_mentions: { parse: [] }
+    })
+  });
+  if (!message?.id) throw Object.assign(new Error("لم يؤكد Discord نشر رسالة الطلب."), { status: 502 });
+  return { channelId, messageId: String(message.id), messageUrl: "https://discord.com/channels/" + String(process.env.DISCORD_GUILD_ID || "@me") + "/" + channelId + "/" + message.id, reused: false };
+}
+
+async function publishApprovedResignationCard(config, body) {
+  const requestId = String(body.resignation_request_id || "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw Object.assign(new Error("معرّف طلب الاستقالة غير صالح."), { status: 400 });
+  }
+  const imageData = String(body.image_data || "");
+  const match = imageData.match(/^data:image\\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
+  if (!match || imageData.length > 950_000) throw Object.assign(new Error("صورة الاستقالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
+  const bytes = Buffer.from(match[2], "base64");
+  if (!bytes.length || bytes.length > 700_000) throw Object.assign(new Error("حجم صورة الاستقالة أكبر من الحد المسموح."), { status: 413 });
+  const query = new URLSearchParams({ id: "eq." + requestId, select: "id,discord_user_id,display_name,member_name,reason,status,publish_status,publication_message_id", limit: "1" });
+  const currentResponse = await supabaseRequest(config, "resignation_requests?" + query.toString());
+  if (!currentResponse.ok) throw Object.assign(new Error("تعذّر التحقق من طلب الاستقالة."), { status: 503 });
+  const request = (await currentResponse.json())[0];
+  if (!request) throw Object.assign(new Error("طلب الاستقالة غير موجود."), { status: 404 });
+  if (request.status !== "approved") throw Object.assign(new Error("لا يمكن نشر بطاقة إلا بعد اعتماد طلب الاستقالة."), { status: 409 });
+  if (request.publish_status === "published" && request.publication_message_id) {
+    return { requestId, published: true, reused: true, messageId: request.publication_message_id };
+  }
+  const channelId = "1575685852082741248";
+  const extension = match[1].toLowerCase() === "png" ? "png" : match[1].toLowerCase() === "webp" ? "webp" : "jpg";
+  const form = new FormData();
+  form.append("payload_json", JSON.stringify({
+    content: "📄 **تم اعتماد استقالة " + String(request.member_name || request.display_name || "أحد الأعضاء").slice(0, 100) + "**",
+    allowed_mentions: { parse: [] }
+  }));
+  form.append("files[0]", new Blob([bytes], { type: match[1].toLowerCase() === "jpeg" ? "image/jpeg" : "image/" + match[1].toLowerCase() }), "redline-resignation." + extension);
+  try {
+    const message = await discordRequest(config, "/channels/" + channelId + "/messages", { method: "POST", body: form });
+    if (!message?.id) throw Object.assign(new Error("Discord لم يؤكد نشر بطاقة الاستقالة."), { status: 502 });
+    const update = await supabaseRequest(config, "resignation_requests?id=eq." + requestId + "&status=eq.approved", {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        publication_channel_id: channelId,
+        publication_message_id: String(message.id),
+        published_at: new Date().toISOString(),
+        publish_status: "published",
+        publish_error: null,
+        updated_at: new Date().toISOString()
+      })
+    });
+    if (!update.ok) throw Object.assign(new Error("تم نشر البطاقة لكن تعذّر حفظ حالة النشر في قاعدة البيانات. احتفظ بمعرّف الرسالة: " + message.id), { status: 502, messageId: message.id });
+    return { requestId, published: true, reused: false, channelId, messageId: String(message.id), messageUrl: "https://discord.com/channels/" + String(process.env.DISCORD_GUILD_ID || "@me") + "/" + channelId + "/" + message.id };
+  } catch (error) {
+    await supabaseRequest(config, "resignation_requests?id=eq." + requestId + "&status=eq.approved", {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ publish_status: "failed", publish_error: String(error?.code || error?.status || error?.message || "discord_publish_failed").slice(0, 300), updated_at: new Date().toISOString() })
+    }).catch(() => {});
+    throw error;
+  }
+}
+
 async function readJsonRequestBody(req) {
   if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
     return req.body;
@@ -1219,6 +1296,43 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(error.status || 400).json({ error: error.message || "Invalid request body." });
   }
+
+  if (["publish_leave_panel","publish_resignation_panel"].includes(String(body.action || ""))) {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return res.status(503).json({ error: "بوت Discord غير متصل." });
+    const isLeave = body.action === "publish_leave_panel";
+    const channelId = isLeave ? String(process.env.LEAVE_REQUEST_CHANNEL_ID || "") : "1575682539564171324";
+    try {
+      const result = await ensureRequestPanelMessage(
+        token,
+        channelId,
+        isLeave ? "swat_leave_request_open" : "swat_resignation_request_open",
+        isLeave ? "طلب الإجازة" : "طلب الاستقالة",
+        isLeave ? "📋 طلب إجازة S.W.A.T" : "📄 طلب استقالة S.W.A.T",
+        isLeave
+          ? "لتقديم طلب إجازة، اضغط الزر بالأسفل واملأ النموذج. يصل الطلب إلى الإدارة للمراجعة."
+          : "لتقديم طلب استقالة، اضغط الزر بالأسفل واكتب اسمك وسبب الاستقالة فقط. يصل الطلب إلى الإدارة للمراجعة.",
+        isLeave ? 3 : 4
+      );
+      return res.status(200).json({ ok: true, ...result });
+    } catch (error) {
+      return res.status(error.status || 502).json({ error: error.message || "تعذّر إعادة نشر رسالة الطلب.", code: error.code || null });
+    }
+  }
+
+  if (body.action === "publish_resignation_card") {
+    const base = String(process.env.SUPABASE_URL || "").replace(/\\/+$/, "");
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    if (!base || !serviceKey || !botToken) return res.status(503).json({ error: "إعدادات قاعدة البيانات أو بوت Discord غير مكتملة." });
+    try {
+      const result = await publishApprovedResignationCard({ base, serviceKey, botToken }, body);
+      return res.status(200).json({ ok: true, ...result });
+    } catch (error) {
+      return res.status(error.status || 502).json({ error: error.message || "تعذّر نشر بطاقة الاستقالة.", code: error.code || null, messageId: error.messageId || null });
+    }
+  }
+
   if (String(body.action || "").startsWith("saved_message_")) {
     const config = getConfig();
     if (config.error === "bot_token_missing") return res.status(503).json({ error: "بوت Discord غير متصل." });
