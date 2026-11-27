@@ -2563,7 +2563,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
  <div class="modal attendance-admin-modal" role="dialog" aria-modal="true" aria-labelledby="resignationCardEditorTitle" style="width:min(1120px,96vw)">
   <div class="modalhead"><div><h3 id="resignationCardEditorTitle">تصميم رسالة الاستقالات</h3><div class="sub">ارفع قالب PNG الشفاف، ثم حرّك صورة العضو واسمه على التصميم واحفظ الإعدادات.</div></div><button class="close" type="button" onclick="closeResignationCardEditor()">×</button></div>
   <div class="formgrid">
-   <div class="field full"><label for="resignationTemplateFile">قالب الاستقالة (PNG شفاف) *</label><input id="resignationTemplateFile" type="file" accept="image/png" onchange="handleResignationTemplateUpload()"><div class="muted">استخدم صورة القالب المعدّلة من فوتوشوب بصيغة PNG؛ الفتحة الشفافة والإطار الأحمر جزء من القالب ولن نضيف حدودًا جديدة.</div></div>
+   <div class="field full"><label for="resignationTemplateFile">اختيار قالب استقالة جديد أو استبدال القالب الحالي (PNG شفاف)</label><input id="resignationTemplateFile" type="file" accept="image/png" onchange="handleResignationTemplateUpload()"><div class="muted" id="resignationTemplateSavedStatus" aria-live="polite">القالب المحفوظ يُحمّل تلقائيًا. ظهور «لم يتم اختيار أي ملف» في حقل الملفات طبيعي ولا يعني أن القالب المحفوظ مفقود.</div><div class="muted">استخدم صورة القالب المعدّلة من فوتوشوب بصيغة PNG؛ الفتحة الشفافة والإطار الأحمر جزء من القالب ولن نضيف حدودًا جديدة.</div></div>
    <div class="field"><label for="resignationCardLayer">العنصر الذي تريد تحريكه</label><select id="resignationCardLayer" onchange="syncResignationCardControls()"><option value="photo">الصورة الشخصية</option><option value="name">اسم العضو</option></select></div>
    <div class="field"><label for="resignationPreviewMember">صورة واسم المعاينة</label><select id="resignationPreviewMember" onchange="selectResignationPreviewMember(this.value)"><option value="">جارٍ تحميل أعضاء S.W.A.T...</option></select></div>
    <div class="field"><label for="resignationPreviewName">اسم المعاينة (يمكن تعديله)</label><input id="resignationPreviewName" value="" placeholder="يظهر اسم العضو المختار" maxlength="100" oninput="drawResignationCardEditorPreview()"></div>
@@ -4162,6 +4162,7 @@ let resignationReviewState={id:"",status:""};
 let resignationRequests=[];
 let myResignationRequests=[];
 let resignationBusy=false;
+const resignationPublishingIds=new Set();
 
 function normalizeResignationCardDesign(value){
  const source=value&&typeof value==="object"?value:{};
@@ -4384,7 +4385,13 @@ function updateResignationCardControl(key,value){
 async function openResignationCardEditor(){
  if(!currentCanAdmin||!currentCanManageWarnings){toast('إعداد تصميم الاستقالات متاح لمدير الموقع فقط.');return;}
  const modal=document.getElementById('resignationCardEditorModalBack');if(!modal)return;
- modal.classList.add('open');await loadResignationCardSettings(true);await loadResignationPreviewMembers();syncResignationCardControls();await drawResignationCardEditorPreview();
+ modal.classList.add('open');
+ await loadResignationCardSettings(true);
+ const savedTemplateStatus=document.getElementById('resignationTemplateSavedStatus');
+ if(savedTemplateStatus)savedTemplateStatus.textContent=resignationTemplateUrl
+  ?'✅ القالب المحفوظ موجود وتم تحميله بنجاح. لا تحتاج إلى اختيار الملف مرة أخرى؛ اختر ملفًا جديدًا فقط عند الرغبة في استبدال القالب.'
+  :'لا يوجد قالب محفوظ حاليًا. اختر ملف PNG لرفعه وحفظه.';
+ await loadResignationPreviewMembers();syncResignationCardControls();await drawResignationCardEditorPreview();
  const canvas=document.getElementById('resignationCardEditorCanvas');
  if(canvas&&!canvas.dataset.dragBound){
   canvas.dataset.dragBound='1';
@@ -4411,6 +4418,8 @@ async function handleResignationTemplateUpload(){
   const response=await fetch('/api/admin/media',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({contentType:'image/webp',base64:btoa(binary)})});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'فشل رفع القالب.');
   resignationTemplateUrl=data.url;resignationTemplateImage=null;await loadResignationTemplateImage();await drawResignationCardEditorPreview();
+  const savedTemplateStatus=document.getElementById('resignationTemplateSavedStatus');
+  if(savedTemplateStatus)savedTemplateStatus.textContent='✅ تم رفع القالب الجديد وتحميله. اضغط «حفظ التصميم» لحفظ رابط القالب والإعدادات.';
   if(status)status.textContent='تم رفع القالب واكتشاف الفتحة الشفافة تلقائيًا ('+resignationCardDesign.photo.width+' × '+resignationCardDesign.photo.height+'). اضغط حفظ التصميم لتثبيت الرابط والإعدادات.';
  }catch(error){if(status)status.textContent=error.message||'تعذّر رفع القالب.';toast(error.message||'تعذّر رفع القالب.');}
 }
@@ -4453,7 +4462,8 @@ function renderMyResignationRequests(){
   const publish=item.status==='approved'?(item.publish_status==='published'?'تم نشر بطاقة الاستقالة في Discord':item.publish_status==='failed'?'تعذّر نشر البطاقة':'بانتظار نشر البطاقة'):'';
   const dm=item.dm_status==='sent'?'تم إرسال القرار على Discord':item.dm_status==='failed'?'تعذّر إرسال رسالة القرار':'';
   const decision=(item.reviewed_by_name?'<div class="muted">بواسطة '+adminEscape(item.reviewed_by_name)+'</div>':'')+(item.review_note?'<div class="muted">ملاحظة: '+adminEscape(item.review_note)+'</div>':'')+(dm?'<div class="muted">'+dm+'</div>':'')+(publish?'<div class="muted">'+publish+'</div>':'');
-  const retry=currentCanAdmin&&currentCanManageWarnings&&item.status==='approved'&&item.publish_status!=='published'?'<button class="btn" type="button" onclick="retryResignationCard(\''+adminEscape(item.id)+'\')">إعادة نشر البطاقة</button>':'';
+  const publishing=resignationPublishingIds.has(String(item.id));
+  const retry=currentCanAdmin&&currentCanManageWarnings&&item.status==='approved'&&item.publish_status!=='published'?'<button class="btn" type="button" '+(publishing?'disabled aria-busy="true"':'')+' onclick="retryResignationCard(\''+adminEscape(item.id)+'\')">'+(publishing?'⏳ جارٍ نشر البطاقة...':'إعادة نشر البطاقة')+'</button>':'';
   return '<tr><td>'+adminEscape(item.member_name||item.display_name||'—')+'</td><td>'+adminEscape(item.reason||'—')+'</td><td><span class="attendance-leave-status '+item.status+'">'+resignationStatusLabel(item.status)+'</span></td><td>'+decision+' '+retry+'</td></tr>';
  }).join('')||'<tr><td colspan="4"><div class="empty">لم تقدم طلب استقالة حتى الآن.</div></td></tr>';
 }
@@ -4491,9 +4501,9 @@ function renderResignationAdminRequests(){
   const avatar=item.avatar_url?'<img class="leave-request-avatar" src="'+adminEscape(item.avatar_url)+'" alt="" referrerpolicy="no-referrer">':'<span class="leave-request-avatar">👤</span>';
   const actions=item.status==='pending'
    ?'<div class="leave-request-actions"><button class="btn primary" type="button" onclick="openResignationApproval(\''+adminEscape(item.id)+'\')">✓ موافقة</button><button class="btn danger" type="button" onclick="openResignationRejection(\''+adminEscape(item.id)+'\')">✕ رفض</button></div>'
-   :item.status==='approved'&&item.publish_status!=='published'?'<div class="leave-request-actions"><button class="btn" type="button" onclick="retryResignationCard(\''+adminEscape(item.id)+'\')">نشر بطاقة الاستقالة</button></div>':'';
+   :item.status==='approved'&&item.publish_status!=='published'?'<div class="leave-request-actions"><button class="btn" type="button" '+(resignationPublishingIds.has(String(item.id))?'disabled aria-busy="true"':'')+' onclick="retryResignationCard(\''+adminEscape(item.id)+'\')">'+(resignationPublishingIds.has(String(item.id))?'⏳ جارٍ نشر البطاقة...':'نشر بطاقة الاستقالة')+'</button></div>':'';
   const decision=item.reviewed_by_name?'<div class="leave-request-decision">قرار الإدارة: '+adminEscape(item.reviewed_by_name)+' • '+adminEscape(fmtWarningDate(item.reviewed_at||item.created_at))+(item.review_note?'<br>ملاحظة: '+adminEscape(item.review_note):'')+'</div>':'';
-  const delivery=item.status==='approved'?'<div class="muted">'+(item.publish_status==='published'?'تم نشر بطاقة الاستقالة في Discord.':item.publish_status==='failed'?'فشل نشر البطاقة: '+adminEscape(item.publish_error||'خطأ غير معروف'):'بانتظار نشر البطاقة.')+'</div>':'';
+  const delivery=item.status==='approved'?'<div class="muted">'+(resignationPublishingIds.has(String(item.id))?'⏳ جارٍ تجهيز البطاقة وإرسالها إلى Discord...':item.publish_status==='published'?'تم نشر بطاقة الاستقالة في Discord.':item.publish_status==='failed'?'فشل نشر البطاقة: '+adminEscape(item.publish_error||'خطأ غير معروف'):'بانتظار نشر البطاقة.')+'</div>':'';
   const dm=item.dm_status==='sent'?'تم إرسال القرار للعضو على Discord':item.dm_status==='failed'?'فشل إرسال رسالة القرار للعضو':'';
   return '<article class="leave-request-card '+item.status+'"><div class="leave-request-head"><div class="leave-request-person">'+avatar+'<div style="min-width:0"><div class="leave-request-account">'+adminEscape(item.display_name||'عضو')+' • '+adminEscape(item.member_name||'بدون اسم في الطلب')+'</div><div class="leave-request-id">Discord ID: '+adminEscape(item.discord_user_id||'—')+'</div><div class="leave-request-source">'+(item.source==='discord'?'Discord':'الموقع')+' • '+adminEscape(fmtWarningDate(item.submitted_at||item.created_at))+'</div></div></div><span class="attendance-leave-status '+item.status+'">'+resignationStatusLabel(item.status)+'</span></div><div class="leave-request-reason"><span class="leave-request-label">سبب الاستقالة</span><p class="leave-request-reason-text">'+adminEscape(item.reason||'—')+'</p></div>'+decision+(dm?'<div class="muted">'+dm+'</div>':'')+delivery+actions+'</article>';
  }).join('')||'<div class="empty">لا توجد طلبات استقالة حتى الآن.</div>';
@@ -4562,9 +4572,16 @@ async function submitResignationReview(){
 }
 async function publishResignationCard(request){
  if(!request?.id||request.status!=='approved')return;
- if(!resignationTemplateUrl){toast('تم اعتماد الطلب. ارفع قالب الاستقالة من زر تعديل رسالة الاستقالات ثم أعد نشر البطاقة.');return;}
+ const requestId=String(request.id);
+ if(resignationPublishingIds.has(requestId))return;
+ resignationPublishingIds.add(requestId);
+ renderResignationAdminRequests();
+ renderMyResignationRequests();
  try{
+  // Load the saved template before checking it. The browser file input is empty after a reload,
+  // but the saved URL in site_settings remains available and is all publishing needs.
   await loadResignationCardSettings(true);
+  if(!resignationTemplateUrl){toast('لا يوجد قالب استقالة محفوظ. افتح تعديل رسالة الاستقالات وارفع قالب PNG ثم احفظ التصميم.');return;}
   const canvas=document.createElement('canvas');canvas.width=1672;canvas.height=941;
   await drawResignationCanvas(canvas,request.member_name||request.display_name,request.avatar_url||'');
   const output=document.createElement('canvas');output.width=1400;output.height=788;
@@ -4577,10 +4594,16 @@ async function publishResignationCard(request){
   if(!blob)throw new Error('تعذّر تجهيز صورة الاستقالة.');
   if(blob.size>700*1024)throw new Error('تعذّر ضغط صورة الاستقالة إلى الحجم الآمن للإرسال.');
   const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
-  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'publish_resignation_card',resignation_request_id:request.id,image_data:'data:image/jpeg;base64,'+btoa(binary)})});
+  const response=await fetch('/api/notifications/send',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'publish_resignation_card',resignation_request_id:requestId,image_data:'data:image/jpeg;base64,'+btoa(binary)})});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'تم قبول الاستقالة، لكن تعذّر نشر البطاقة.');
-  toast('تم نشر بطاقة الاستقالة في روم النشر.');await Promise.all([loadResignationRequests(),loadMyResignationRequests()]);
+  toast(data.reused?'البطاقة منشورة بالفعل؛ لم يتم إرسال نسخة مكررة.':'تم نشر بطاقة الاستقالة في روم النشر.');
+  await Promise.all([loadResignationRequests(),loadMyResignationRequests()]);
  }catch(error){toast(error.message||'تعذّر نشر بطاقة الاستقالة. يمكنك إعادة المحاولة من إدارة الاستقالات.');}
+ finally{
+  resignationPublishingIds.delete(requestId);
+  renderResignationAdminRequests();
+  renderMyResignationRequests();
+ }
 }
 async function retryResignationCard(id){
  if(!currentCanAdmin||!currentCanManageWarnings)return;
