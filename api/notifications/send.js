@@ -393,7 +393,7 @@ function extractNotificationImages(record) {
       continue;
     }
 
-    const mime = match[1].toLowerCase();
+    const mime = imageType.toLowerCase();
     const buffer = Buffer.from(match[2].replace(/\s/g, ""), "base64");
     if (!buffer.length || buffer.length > MAX_NOTIFICATION_IMAGE_BYTES ||
         totalBytes + buffer.length > MAX_NOTIFICATION_TOTAL_IMAGE_BYTES) {
@@ -1106,9 +1106,13 @@ async function publishApprovedResignationCard(config, body) {
     throw Object.assign(new Error("معرّف طلب الاستقالة غير صالح."), { status: 400 });
   }
   const imageData = String(body.image_data || "");
-  const match = imageData.match(/^data:image\\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/i);
-  if (!match || imageData.length > 950_000) throw Object.assign(new Error("صورة الاستقالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
-  const bytes = Buffer.from(match[2], "base64");
+  const comma = imageData.indexOf(",");
+  const header = comma > 0 ? imageData.slice(0, comma).toLowerCase() : "";
+  const mimeByHeader = { "data:image/jpeg;base64": "jpeg", "data:image/png;base64": "png", "data:image/webp;base64": "webp" };
+  const imageType = mimeByHeader[header] || "";
+  const encodedImage = comma > 0 ? imageData.slice(comma + 1) : "";
+  if (!imageType || !/^[A-Za-z0-9+/=]+$/.test(encodedImage) || imageData.length > 950_000) throw Object.assign(new Error("صورة الاستقالة غير صالحة أو أكبر من الحد المسموح."), { status: 413 });
+  const bytes = Buffer.from(encodedImage, "base64");
   if (!bytes.length || bytes.length > 700_000) throw Object.assign(new Error("حجم صورة الاستقالة أكبر من الحد المسموح."), { status: 413 });
   const query = new URLSearchParams({ id: "eq." + requestId, select: "id,discord_user_id,display_name,member_name,reason,status,publish_status,publication_message_id", limit: "1" });
   const currentResponse = await supabaseRequest(config, "resignation_requests?" + query.toString());
