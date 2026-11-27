@@ -60,7 +60,7 @@ export default async function handler(req, res) {
   // Keep explicit administrative bans separate, but never use is_active to hide a saved profile.
   if (!isOwner && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
-      const base = process.env.SUPABASE_URL.replace(/\\/+$/, "");
+      const base = process.env.SUPABASE_URL.replace(/\/+$/, "");
       const query = new URLSearchParams({ discord_user_id: `eq.${user.id}`, select: "is_banned" });
       const check = await fetch(`${base}/rest/v1/staff_profiles?${query.toString()}`, {
         headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: "Bearer " + process.env.SUPABASE_SERVICE_ROLE_KEY }
