@@ -1116,6 +1116,44 @@ html[dir="ltr"] .field label{text-align:left}
  .hero:after,.hero:before,.brand img,.person img,.site-gallery-card img,.evidence-card img{animation:none!important;transition:none!important}
 }
 .audit-discord-status{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid rgba(50,210,130,.28);border-radius:999px;background:rgba(36,199,122,.08);color:#46d995;font-size:12px;font-weight:700;letter-spacing:.02em}.audit-discord-dot{width:8px;height:8px;border-radius:50%;background:#24c77a;box-shadow:0 0 0 4px rgba(36,199,122,.13);display:inline-block}
+
+.main>.topbar{position:relative!important;top:auto!important;z-index:3!important}
+html{scroll-padding-top:16px!important}.page{scroll-margin-top:14px!important}
+#attendanceLeaveModalBack .modal.attendance-admin-modal{width:min(1120px,calc(100vw - 34px))!important;max-height:min(94vh,1000px)!important;padding:0!important;overflow:auto!important;border:1px solid rgba(151,178,216,.23)!important;border-radius:22px!important;background:radial-gradient(ellipse at 90% 0%,rgba(64,120,190,.13),transparent 35%),linear-gradient(155deg,#101925,#0b111a 68%,#0b0e15)!important;box-shadow:0 35px 110px rgba(0,0,0,.72)!important}
+#attendanceLeaveModalBack .modalhead{position:sticky!important;top:0!important;z-index:20!important;margin:0!important;padding:21px 25px 17px!important;border-bottom:1px solid rgba(151,178,216,.18)!important;background:linear-gradient(100deg,rgba(11,17,27,.97),rgba(17,20,31,.96))!important;backdrop-filter:blur(20px)!important}
+#attendanceLeaveModalBack .modalhead h3{font-size:21px!important}#attendanceLeaveModalBack .modalhead .sub{font-size:12px!important;line-height:1.8!important}
+#attendanceLeaveModalBack .leave-create-panel,#attendanceLeaveModalBack .leave-admin-heading,#attendanceLeaveModalBack .leave-overview-grid,#attendanceLeaveModalBack .leave-admin-toolbar,#attendanceLeaveModalBack #attendanceLeaveRows,#attendanceLeaveModalBack #attendanceLeaveStatus{margin-inline:24px!important}
+#attendanceLeaveModalBack .leave-create-panel{display:block!important;margin-top:20px!important;padding:0!important;overflow:hidden!important;border:1px solid rgba(105,137,180,.22)!important;border-radius:15px!important;background:linear-gradient(125deg,rgba(34,52,74,.42),rgba(17,24,35,.94))!important}
+#attendanceLeaveModalBack .leave-create-summary{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:15px!important;min-height:68px!important;padding:13px 17px!important;cursor:pointer!important;list-style:none!important}
+#attendanceLeaveModalBack .leave-create-summary::-webkit-details-marker{display:none}#attendanceLeaveModalBack .leave-create-summary>span:first-child{display:grid;gap:4px}
+#attendanceLeaveModalBack .leave-create-summary b{font-size:13px;color:#f5f7fb}#attendanceLeaveModalBack .leave-create-summary small{font-size:11px;color:#96a6ba}
+#attendanceLeaveModalBack .leave-create-open{padding:8px 12px;border:1px solid rgba(93,151,224,.35);border-radius:9px;color:#b8d7ff;background:rgba(55,105,164,.14);font-size:11px;font-weight:800}
+#attendanceLeaveModalBack .leave-create-panel[open] .leave-create-open{color:#ffb0b7;background:rgba(177,35,52,.13);border-color:rgba(241,80,96,.35)}
+#attendanceLeaveModalBack .leave-create-content{padding:17px;border-top:1px solid rgba(151,178,216,.13)}
+#attendanceLeaveModalBack .leave-create-content .field input,#attendanceLeaveModalBack .leave-create-content .field select,#attendanceLeaveModalBack .leave-create-content .field textarea{background:#0b111a!important;border-color:#354458!important;border-radius:10px!important}
+#attendanceLeaveModalBack .leave-create-content .modalactions{position:static!important;padding:0!important;background:none!important}
+#attendanceLeaveModalBack .leave-admin-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;margin-top:23px!important;margin-bottom:13px!important}
+#attendanceLeaveModalBack .leave-admin-heading h4{margin:0!important;font-size:16px!important;color:#f3f6fb!important}
+#attendanceLeaveModalBack .leave-overview-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;margin-bottom:16px!important}
+#attendanceLeaveModalBack .leave-overview-card{min-width:0;display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid rgba(151,178,216,.16);border-radius:13px;background:linear-gradient(145deg,rgba(25,37,53,.90),rgba(13,19,29,.95))}
+#attendanceLeaveModalBack .leave-overview-card.pending{border-color:rgba(224,170,76,.30)}#attendanceLeaveModalBack .leave-overview-card.approved{border-color:rgba(65,190,145,.25)}#attendanceLeaveModalBack .leave-overview-card.cut{border-color:rgba(210,104,115,.25)}
+#attendanceLeaveModalBack .leave-overview-icon{width:37px;height:37px;flex:0 0 37px;display:grid;place-items:center;border-radius:11px;background:rgba(118,151,193,.13);color:#b8d7ff;font-size:18px;font-weight:900}
+#attendanceLeaveModalBack .leave-overview-card.pending .leave-overview-icon{background:rgba(224,170,76,.12);color:#ffd18a}#attendanceLeaveModalBack .leave-overview-card.approved .leave-overview-icon{background:rgba(65,190,145,.12);color:#7de8c1}#attendanceLeaveModalBack .leave-overview-card.cut .leave-overview-icon{background:rgba(210,104,115,.12);color:#ff9da5}
+#attendanceLeaveModalBack .leave-overview-card small{display:block;color:#9cacc0;font-size:10px;font-weight:700;margin-bottom:3px}#attendanceLeaveModalBack .leave-overview-card strong{display:block;color:#f6f8fb;font:800 23px/1 'Inter','Tajawal',sans-serif}
+#attendanceLeaveModalBack .leave-admin-toolbar{display:flex!important;align-items:flex-end!important;justify-content:space-between!important;gap:15px!important;margin-top:0!important;margin-bottom:13px!important;padding:13px!important;border:1px solid rgba(151,178,216,.14);border-radius:14px;background:rgba(14,21,32,.78)}
+#attendanceLeaveModalBack .leave-search-wrap{display:grid;gap:6px;flex:1 1 240px;min-width:190px}#attendanceLeaveModalBack .leave-search-wrap label,#attendanceLeaveModalBack .leave-filter-label{color:#9eafc5;font-size:10px;font-weight:800}
+#attendanceLeaveModalBack .leave-search-wrap input{width:100%;min-height:42px;padding:10px 13px!important;border-radius:10px!important;background:#090f18!important;border:1px solid #34445a!important;color:#f5f7fb!important}
+#attendanceLeaveModalBack .leave-filter-wrap{display:grid;gap:7px;min-width:0}#attendanceLeaveModalBack .leave-filter-pills{display:flex;gap:6px;flex-wrap:wrap}
+#attendanceLeaveModalBack .leave-filter-btn{display:inline-flex;align-items:center;gap:7px;min-height:37px;padding:7px 10px;color:#aebdd0;background:rgba(255,255,255,.035);border:1px solid rgba(151,178,216,.16);border-radius:9px;font-size:10px;font-weight:800}
+#attendanceLeaveModalBack .leave-filter-btn i{min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px;border-radius:6px;background:rgba(255,255,255,.07);font:800 9px/1 'Inter',sans-serif;font-style:normal}
+#attendanceLeaveModalBack .leave-filter-btn.active{color:#fff;border-color:rgba(241,73,89,.52);background:linear-gradient(105deg,rgba(170,26,43,.25),rgba(45,85,137,.18))}
+#attendanceLeaveModalBack .attendance-leave-list{display:grid!important;gap:12px!important;max-height:48vh!important;overflow:auto!important;padding:2px 3px 8px 0!important;overscroll-behavior:contain!important}
+#attendanceLeaveModalBack .leave-request-card{padding:16px!important;border-radius:15px!important;background:linear-gradient(145deg,rgba(22,32,46,.98),rgba(12,18,27,.98))!important;border-color:rgba(151,178,216,.18)!important;box-shadow:0 10px 26px rgba(0,0,0,.18)!important;transition:transform .18s,border-color .18s}
+#attendanceLeaveModalBack .leave-request-card:hover{transform:translateY(-2px);border-color:rgba(110,164,230,.34)!important}
+#attendanceLeaveModalBack .leave-request-card.pending{border-inline-start:3px solid #e0aa4c!important}#attendanceLeaveModalBack .leave-request-card.approved{border-inline-start:3px solid #43c49a!important}#attendanceLeaveModalBack .leave-request-card.rejected,#attendanceLeaveModalBack .leave-request-card.cancelled{border-inline-start:3px solid #e06b76!important}
+#attendanceLeaveModalBack .attendance-leave-empty{padding:30px 18px!important;text-align:center!important;border:1px dashed rgba(151,178,216,.22)!important;border-radius:14px!important;background:rgba(15,23,35,.58)!important;color:#9aabc0!important;font-size:12px!important}
+@media(max-width:820px){#attendanceLeaveModalBack .leave-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#attendanceLeaveModalBack .leave-admin-toolbar{align-items:stretch!important;flex-direction:column!important}#attendanceLeaveModalBack .leave-filter-pills{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:560px){#attendanceLeaveModalBack.modalback{padding:7px!important}#attendanceLeaveModalBack .modal.attendance-admin-modal{width:100%!important;max-height:97vh!important;border-radius:16px!important}#attendanceLeaveModalBack .modalhead{padding:15px 15px 13px!important}#attendanceLeaveModalBack .leave-create-panel,#attendanceLeaveModalBack .leave-admin-heading,#attendanceLeaveModalBack .leave-overview-grid,#attendanceLeaveModalBack .leave-admin-toolbar,#attendanceLeaveModalBack #attendanceLeaveRows,#attendanceLeaveModalBack #attendanceLeaveStatus{margin-inline:12px!important}#attendanceLeaveModalBack .leave-overview-grid{gap:7px!important}#attendanceLeaveModalBack .leave-overview-card{padding:10px!important;gap:8px!important}#attendanceLeaveModalBack .leave-overview-card strong{font-size:20px!important}#attendanceLeaveModalBack .leave-filter-pills{grid-template-columns:repeat(2,minmax(0,1fr))!important}#attendanceLeaveModalBack .leave-admin-heading{align-items:flex-start!important}}
 </style><style id="redline-tactical-design-v3">
 /* REDLINE TACTICAL COMMAND — V3
    A full visual-system replacement layer. Existing functionality and data hooks remain unchanged. */
@@ -2466,31 +2504,32 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(75,143,255,.11),rgba(241,40
    <button class="close" type="button" onclick="closeAttendanceLeaveModal()">×</button>
   </div>
  
- <div class="attendance-leave-create">
-   <h4>تسجيل طلب إجازة</h4>
-   <div class="formgrid">
-    <div class="field full"><label for="attendanceLeaveMember">العضو *</label><select id="attendanceLeaveMember" required><option value="">اختر عضوًا...</option></select></div>
-    <div class="field"><label for="attendanceLeaveStart">من تاريخ *</label><input id="attendanceLeaveStart" type="date" required></div>
-    <div class="field"><label for="attendanceLeaveEnd">إلى تاريخ *</label><input id="attendanceLeaveEnd" type="date" required></div>
-    <div class="field full"><label for="attendanceLeaveReason">سبب الإجازة / تفاصيل الطلب *</label><textarea id="attendanceLeaveReason" rows="3" maxlength="1000" placeholder="اكتب سبب الطلب أو التفاصيل التي وصلت من العضو..." required></textarea></div>
+ <details class="attendance-leave-create leave-create-panel">
+   <summary class="leave-create-summary"><span><b>تسجيل طلب إجازة لعضو</b><small>إضافة إجازة من الإدارة مع تحديد المدة والسبب</small></span><span class="leave-create-open">＋ فتح النموذج</span></summary>
+   <div class="leave-create-content">
+    <div class="formgrid">
+     <div class="field full"><label for="attendanceLeaveMember">العضو *</label><select id="attendanceLeaveMember" required><option value="">اختر عضوًا...</option></select></div>
+     <div class="field"><label for="attendanceLeaveStart">من تاريخ *</label><input id="attendanceLeaveStart" type="date" required></div>
+     <div class="field"><label for="attendanceLeaveEnd">إلى تاريخ *</label><input id="attendanceLeaveEnd" type="date" required></div>
+     <div class="field full"><label for="attendanceLeaveReason">سبب الإجازة / تفاصيل الطلب *</label><textarea id="attendanceLeaveReason" rows="3" maxlength="1000" placeholder="اكتب سبب الطلب أو التفاصيل التي وصلت من العضو..." required></textarea></div>
+    </div>
+    <div class="modalactions"><button class="btn primary" id="attendanceLeaveCreateButton" type="button" onclick="createAttendanceLeaveRequest()">＋ تسجيل الطلب</button></div>
    </div>
-   <div class="modalactions"><button class="btn primary" id="attendanceLeaveCreateButton" type="button" onclick="createAttendanceLeaveRequest()">＋ تسجيل الطلب</button></div>
-  </div>
-  <div class="panelhead" style="margin-top:18px">
-   <div><h4>طلبات الإجازة</h4><span class="sub" id="attendanceLeaveUpdatedAt">الطلبات المعلقة والسابقة</span></div>
-   <button class="btn" type="button" onclick="loadAttendanceLeaveRequests()">↻ تحديث</button>
-  </div>
-  <div class="attendance-leave-toolbar">
-   <div class="sub">كل طلب مفصول إلى بيانات العضو، الاسم العسكري، المدة المطلوبة، سبب الإجازة، والقرار المعتمد.</div>
-   <div class="attendance-leave-filters">
-    <input id="attendanceLeaveSearch" type="search" placeholder="ابحث بالاسم أو الرقم أو السبب..." aria-label="بحث في طلبات الإجازة" oninput="renderAttendanceLeaveRows()">
-    <select id="attendanceLeaveFilter" aria-label="تصفية طلبات الإجازة" onchange="renderAttendanceLeaveRows()">
-     <option value="all">كل الطلبات</option><option value="pending">قيد المراجعة</option><option value="approved">مقبولة</option><option value="rejected">مرفوضة</option><option value="cut">مقطوعة أو ملغاة</option>
-    </select>
-   </div>
+  </details>
+  <div class="leave-admin-heading"><div><h4>طلبات الإجازة</h4><span class="sub" id="attendanceLeaveUpdatedAt">الطلبات المعلقة والسابقة</span></div><button class="btn leave-refresh-btn" type="button" onclick="loadAttendanceLeaveRequests()">↻ تحديث القائمة</button></div>
+  <div id="attendanceLeaveOverview" class="leave-overview-grid" aria-label="ملخص طلبات الإجازة"></div>
+  <div class="attendance-leave-toolbar leave-admin-toolbar">
+   <div class="leave-search-wrap"><label for="attendanceLeaveSearch">البحث في الطلبات</label><input id="attendanceLeaveSearch" type="search" placeholder="الاسم، Discord ID، الاسم العسكري أو السبب..." aria-label="بحث في طلبات الإجازة" oninput="renderAttendanceLeaveRows()"></div>
+   <div class="leave-filter-wrap"><span class="leave-filter-label">حالة الطلب</span><div class="leave-filter-pills" role="group" aria-label="تصفية حسب حالة الإجازة">
+    <button type="button" class="leave-filter-btn active" data-leave-filter="all" onclick="setAttendanceLeaveFilter('all')" aria-pressed="true">الكل <i data-leave-count="all">0</i></button>
+    <button type="button" class="leave-filter-btn" data-leave-filter="pending" onclick="setAttendanceLeaveFilter('pending')" aria-pressed="false">المعلقة <i data-leave-count="pending">0</i></button>
+    <button type="button" class="leave-filter-btn" data-leave-filter="approved" onclick="setAttendanceLeaveFilter('approved')" aria-pressed="false">المقبولة <i data-leave-count="approved">0</i></button>
+    <button type="button" class="leave-filter-btn" data-leave-filter="rejected" onclick="setAttendanceLeaveFilter('rejected')" aria-pressed="false">المرفوضة <i data-leave-count="rejected">0</i></button>
+    <button type="button" class="leave-filter-btn" data-leave-filter="cut" onclick="setAttendanceLeaveFilter('cut')" aria-pressed="false">المقطوعة <i data-leave-count="cut">0</i></button>
+   </div><select id="attendanceLeaveFilter" aria-label="تصفية طلبات الإجازة" onchange="renderAttendanceLeaveRows()" hidden><option value="all">كل الطلبات</option><option value="pending">قيد المراجعة</option><option value="approved">مقبولة</option><option value="rejected">مرفوضة</option><option value="cut">مقطوعة أو ملغاة</option></select></div>
   </div>
   <div id="attendanceLeaveRows" class="attendance-leave-list" aria-live="polite"><div class="attendance-leave-empty">جارٍ تحميل طلبات الإجازة...</div></div>
-  <div id="attendanceLeaveStatus" class="muted" aria-live="polite" style="min-height:20px;margin-top:10px"></div>
+  <div id="attendanceLeaveStatus" class="muted leave-admin-status" aria-live="polite"></div>
  </div>
 </div>
 
@@ -3862,6 +3901,11 @@ function attendanceLeavePreviousDate(value){
  date.setUTCDate(date.getUTCDate()-1);
  return date.toISOString().slice(0,10);
 }
+function setAttendanceLeaveFilter(value){
+ const filter=document.getElementById('attendanceLeaveFilter');
+ if(filter)filter.value=value;
+ renderAttendanceLeaveRows();
+}
 function renderAttendanceLeaveRows(){
  const body=document.getElementById('attendanceLeaveRows');if(!body)return;
  const search=String(document.getElementById('attendanceLeaveSearch')?.value||'').trim().toLocaleLowerCase('ar');
@@ -3873,6 +3917,25 @@ function renderAttendanceLeaveRows(){
   if(!search)return true;
   return [item.display_name,item.military_name,item.discord_user_id,item.reason,item.source,item.reviewed_by_name]
    .some(value=>String(value||'').toLocaleLowerCase('ar').includes(search));
+ });
+ const counts={
+  all:attendanceLeaveRequests.length,
+  pending:attendanceLeaveRequests.filter(item=>!item.cutoff_date&&item.status==='pending').length,
+  approved:attendanceLeaveRequests.filter(item=>!item.cutoff_date&&item.status==='approved').length,
+  rejected:attendanceLeaveRequests.filter(item=>!item.cutoff_date&&item.status==='rejected').length,
+  cut:attendanceLeaveRequests.filter(item=>Boolean(item.cutoff_date)).length
+ };
+ const overview=document.getElementById('attendanceLeaveOverview');
+ if(overview){
+  const tiles=[['all','إجمالي الطلبات','▤'],['pending','تحتاج مراجعة','◷'],['approved','مقبولة','✓'],['cut','مقطوعة أو ملغاة','↗']];
+  overview.innerHTML=tiles.map(([key,label,icon])=>'<div class="leave-overview-card '+key+'"><span class="leave-overview-icon">'+icon+'</span><div><small>'+label+'</small><strong>'+counts[key]+'</strong></div></div>').join('');
+ }
+ document.querySelectorAll('[data-leave-filter]').forEach(button=>{
+  const key=button.getAttribute('data-leave-filter');
+  button.classList.toggle('active',key===filter);
+  button.setAttribute('aria-pressed',key===filter?'true':'false');
+  const countNode=button.querySelector('[data-leave-count]');
+  if(countNode)countNode.textContent=String(counts[key]??0);
  });
  body.innerHTML=visible.map(item=>{
   const wasCut=Boolean(item.cutoff_date),cancelled=wasCut&&item.start_date&&item.cutoff_date<=item.start_date;
