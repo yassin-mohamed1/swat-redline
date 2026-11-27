@@ -1195,7 +1195,7 @@ async function publishApprovedResignationCard(config, body) {
     const update = await supabaseRequest(config,
       "resignation_requests?id=eq." + requestId + "&publish_error=eq.publishing", {
         method: "PATCH",
-        headers: { Prefer: "return=minimal" },
+        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
         body: JSON.stringify({
           publication_channel_id: channelId,
           publication_message_id: String(message.id),
@@ -1225,7 +1225,7 @@ async function publishApprovedResignationCard(config, body) {
     await supabaseRequest(config,
       "resignation_requests?id=eq." + requestId + "&publish_error=eq.publishing", {
         method: "PATCH",
-        headers: { Prefer: "return=minimal" },
+        headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
         body: JSON.stringify({
           publish_status: "failed",
           publish_error: String(error?.code || error?.status || error?.message || "discord_publish_failed").slice(0, 300),
